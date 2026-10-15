@@ -85,9 +85,7 @@ export function assembleCollageGrid(input: AssembleInput): AssembleResult {
     } as never,
   });
   const bgIndex = actions.length - 1;
-  for (let t = 0; t < maxTiles; t += 1) {
-    actions.unshift({ type: 'track.create', track: { id: `G${t + 1}`, kind: 'video', name: `Tile ${t + 1}` }, order: 0 });
-  }
+  void maxTiles;
   layoutList.forEach((layout, li) => {
     const startBeat = li * bpb;
     const lStart = frameAtBeat(startBeat);
@@ -110,14 +108,14 @@ export function assembleCollageGrid(input: AssembleInput): AssembleResult {
   (actions[actions.findIndex((a) => (a as { item?: { id?: string } }).item?.id === stableId('rs-bg', tag, seed))] as { item: { durationInFrames: number } })
     .item.durationInFrames = total;
   void bgIndex;
-  const heroAct = clipItem(stableId('rs', tag, seed, 'hero'), hero, 'V1', Math.max(1, total - endGrid), { props: { rsSection: 'hero' } }, -96);
+  const heroAct = clipItem(stableId('rs', tag, seed, 'hero'), hero, 'G1', Math.max(1, total - endGrid), { props: { rsSection: 'hero' } }, -96);
   (heroAct as { startFrame: number }).startFrame = endGrid;
   actions.push(heroAct);
   const title = heroSection?.overlays?.find((o) => o.kind === 'title');
   const titleText = title ? renderTemplate(title.text ?? '', { inputs: texts, params }).trim() : '';
   if (title && titleText) {
     actions.push(textItem(stableId('rs-t', tag, seed), titleText, endGrid, Math.max(1, total - endGrid), recipe.canvas,
-      (title.styleId ? recipe.styles[title.styleId] : undefined) ?? {}, 0));
+      (title.styleId ? recipe.styles[title.styleId] : undefined) ?? {}, 0, 'T1'));
   }
   if (music) {
     const fade = Math.round((recipe.music?.fadeOutSec ?? 0) * fps);

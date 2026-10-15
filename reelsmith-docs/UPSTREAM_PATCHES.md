@@ -35,4 +35,4 @@ Cause (from reading the code, then confirmed by the user's retest): Stop kills t
 
 ## Recipes tab (RS-102, RS-103)
 - `src/library/LibraryPanel.tsx`: new main tab `Recipes` (second tab) rendering `src/reelsmith/ui/RecipesPanel.tsx`; new prop `onApplyRecipe`.
-- `src/editor/useEditorController.tsx`: passes `onApplyRecipe: (action) => commands.batch(action.actions, action.label)` into `libraryPanel`.
+- `src/editor/useEditorController.tsx`: passes `onApplyRecipe` into `libraryPanel` (binds the recipe's lanes to real tracks with `bindTracks`, then `commands.batch`) and imports `bindTracks`.
