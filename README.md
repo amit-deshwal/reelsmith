@@ -115,7 +115,7 @@ Every item has an acceptance check. "Spec §" refers to `reelsmith-docs/plan/car
 - [ ] **RS-503 VERIFY: editing keeps timing.** Editing a line keeps the timing of untouched words exactly; inserted words are interpolated. Captions hide after more than 1.2 s of silence and follow trims and speed changes.
 
 ### M6. Music and audio
-- [ ] **RS-601 EXTEND: beat-grid UI.** Show beat and bar markers on the music track. Allow manual correction: drag the phase, tap tempo, half/double, set the downbeat. _(Progress: grid maths (phase shift, tap tempo, half/double, downbeat) done and tested in `src/reelsmith/beatGrid.ts`; no UI on the music track yet.)_
+- [ ] **RS-601 EXTEND: beat-grid UI.** Show beat and bar markers on the music track. Allow manual correction: drag the phase, tap tempo, half/double, set the downbeat. _(Progress: grid maths tested in `src/reelsmith/beatGrid.ts`; bar/beat marks drawn on the music clip; Inspector "Beat grid" section: find the beat, ±20 ms phase, ½×/2×, downbeat at playhead, tap tempo, clear. Dragging the phase directly on the clip is not done; needs a manual check in the app.)_
 - [ ] **RS-602 NEW: music start/end policies:** start from the beginning, first downbeat, loudest section or a user offset; end with a fade-out, on a bar, or a hard cut; "fit reel length to whole bars". _(Progress: start policies, snap to bars and "fit reel length to whole bars" done and tested; fade-out/hard-cut are applied by the assemblers; no UI yet.)_
 - [ ] **RS-603 VERIFY:** ducking under speech gives ≥ 8 dB of reduction; fades; loudness normalisation in the export.
 

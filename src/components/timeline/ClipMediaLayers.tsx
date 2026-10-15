@@ -2,6 +2,7 @@ import type { TimelineItem } from '../../editor/types';
 import { filmstripBackground, peaksPath, useClipPreview } from '../../media/clipPreview';
 import type { TimelineFrameWindow } from './timelineUtil';
 import { clipMediaGeometry, type ClipMediaGeometry } from './clipMediaGeometry';
+import { BeatTicks } from '../../reelsmith/ui/BeatTicks';
 
 // Media preview layer within the clip: The video track displays thumbnail frame bars and the sound waves of the clip's own audio track.
 // Data comes from /api/waveform, /api/filmstrip (see src/media/clipPreview.ts); geometry button
@@ -76,7 +77,11 @@ export function ClipMediaLayers({ item, px, fps, height, clipStartFrame, duratio
   const geometry = clipMediaGeometry({
     clipStartFrame, durationInFrames, srcInFrame, playbackRate, px, visibleWindow,
   });
-  if (!preview || !geometry || height <= 0) return null;
+  const beats = item.kind === 'audio' ? (
+    <BeatTicks item={item} px={px} fps={fps} clipStartFrame={clipStartFrame} durationInFrames={durationInFrames}
+      srcInFrame={srcInFrame} playbackRate={playbackRate} visibleStart={visibleWindow.startFrame} visibleEnd={visibleWindow.endFrame} />
+  ) : null;
+  if (!preview || !geometry || height <= 0) return beats;
 
   const isVideo = item.kind === 'video';
   const strip = isVideo ? filmstripBackground(preview, {
@@ -95,6 +100,7 @@ export function ClipMediaLayers({ item, px, fps, height, clipStartFrame, duratio
     <>
       {strip && <FilmstripLayer geometry={geometry} hasWave={hasWave} strip={strip} />}
       {d && <WaveLayer geometry={geometry} height={waveH} path={d} strip={!!strip} video={isVideo} />}
+      {beats}
     </>
   );
 }
