@@ -1,3 +1,4 @@
+import { friendlyAgentError } from '../../shared/reelsmith/usageLimit.ts';
 import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -204,7 +205,7 @@ export function translateClaudeCodeLine(
       const message = typeof line.result === 'string' && line.result
         ? line.result
         : 'Claude Code turn failed.';
-      events.push({ type: 'error', message });
+      events.push({ type: 'error', message: friendlyAgentError(message) });
     }
     events.push({ type: 'done' });
     return events;
@@ -347,7 +348,7 @@ export async function runClaudeCodeTurn(
           // Aborted before completion — no terminal event needed, the caller already knows.
         } else {
           const message = stderrTail.trim() || `Claude Code CLI exited with code ${exitCode ?? 'unknown'}.`;
-          emit({ type: 'error', message });
+          emit({ type: 'error', message: friendlyAgentError(message) });
           emit({ type: 'done' });
         }
       }

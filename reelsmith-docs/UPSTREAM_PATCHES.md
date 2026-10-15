@@ -66,3 +66,6 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 ## Agent privacy notice and frames switch (RS-703)
 - `src/agent/tools.ts`: `executeTool` now refuses `view_timeline_frames`/`view_asset_frames` when the project's frames switch is off and strips `__images` from every tool result (`src/reelsmith/framePrivacy.ts`); the old body is `executeToolUngated`.
 - `src/components/chat/ChatPanelView.tsx`: renders `AgentPrivacyNotice` under the capability banner (first-use explanation, then a compact "Allow frames" checkbox).
+
+## Usage-limit messages (RS-704)
+- `server/claude-code/turn-runner.ts`: turn errors (result errors and CLI exits without a result) pass through `friendlyAgentError` (`shared/reelsmith/usageLimit.ts`), which rewrites plan/rate-limit errors into a plain message with the reset time and a reminder that manual editing still works. Other errors are unchanged.
