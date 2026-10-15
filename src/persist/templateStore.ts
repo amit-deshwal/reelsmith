@@ -87,7 +87,7 @@ const newId = () =>
 /** Package a ProjectDoc into a template (remove duplication by name: overwrite with the same name, reuse the original id and keep the list in place).
  * assetIds = all ids of the document asset pool (the template carries the entire asset pool).*/
 export async function saveTemplate(name: string, doc: ProjectDoc): Promise<ProjectTemplate> {
-  const trimmed = name.trim() || '未命名模板';
+  const trimmed = name.trim() || 'Untitled template';
   // ponytail: Carrying the entire asset pool instead of just selecting the referenced assets; tailoring to only referenced assets is additional logic, YAGNI.
   const portableDoc = sanitizePortableProjectDoc(doc);
   const assetIds = portableDoc.assets.map((asset) => asset.id);

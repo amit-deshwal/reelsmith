@@ -88,7 +88,7 @@ export function transitionCandidates(defs: CustomTransitionDef[], transitions: T
   for (const t of transitions) {
     if (t.type !== 'custom-shader' || !t.customFrag || seenFrag.has(t.customFrag)) continue;
     seenFrag.add(t.customFrag);
-    const name = t.customLabel ?? '自定义转场';
+    const name = t.customLabel ?? 'Custom transition';
     // Only uniform values, infer the conservative range of adjustable properties
     const props: PluginNumberProp[] = Object.entries(t.customUniforms ?? {}).map(([k, v]) => ({
       key: k.replace(/^u_/, ''),

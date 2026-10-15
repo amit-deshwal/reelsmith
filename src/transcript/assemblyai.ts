@@ -177,7 +177,7 @@ async function poll(
     }
     if (d.status === 'error') throw new Error(d.error ?? 'transcription error');
     const waited = Math.max(0, Math.round((ASSEMBLYAI_POLL_DEADLINE_MS - (deadline - Date.now())) / 1000));
-    onWait?.(`云端转写中（${String(d.status)}，已等待 ${waited}s）`);
+    onWait?.(`Cloud transcription in progress (${String(d.status)}, waited ${waited}s)`);
     await new Promise((res) => setTimeout(res, 2500));
   }
 }
@@ -217,7 +217,7 @@ export async function loadTranscriptionSource(path: string): Promise<Blob> {
  */
 export async function extractAudioForAsr(src: string, required = false): Promise<string | null> {
   if (!src.startsWith('/media/uploads/')) {
-    if (required) throw new TranscriptionError('source-unavailable', `音轨提取只支持工程素材：${src}`);
+    if (required) throw new TranscriptionError('source-unavailable', `Audio extraction only works on project media: ${src}`);
     return null;
   }
   try {
@@ -228,25 +228,25 @@ export async function extractAudioForAsr(src: string, required = false): Promise
     });
     if (res.status === 422) {
       const data = (await res.json().catch(() => null)) as { noAudio?: boolean } | null;
-      if (data?.noAudio) throw new TranscriptionError('no-audio', `该片段没有音轨，无法转写：${src}`);
+      if (data?.noAudio) throw new TranscriptionError('no-audio', `This clip has no audio track to transcribe: ${src}`);
     }
     if (!res.ok) {
       if (!required) return null;
       const detail = await res.text().catch(() => '');
       throw new TranscriptionError(
         'service-unavailable',
-        `音轨提取失败（HTTP ${res.status}${detail ? `：${detail.slice(0, 300)}` : ''}）`,
+        `Audio extraction failed (HTTP ${res.status}${detail ? `: ${detail.slice(0, 300)}` : ''})`,
       );
     }
     const data = (await res.json()) as { path?: string; ok?: boolean };
     if (data.path?.startsWith('/media/uploads/')) return data.path;
-    if (required) throw new TranscriptionError('service-unavailable', '音轨提取服务返回了无效路径');
+    if (required) throw new TranscriptionError('service-unavailable', 'The audio extraction service returned an invalid path');
     return null;
   } catch (error) {
     if (error instanceof TranscriptionError) throw error;
     if (required) {
       const detail = error instanceof Error ? error.message : String(error);
-      throw new TranscriptionError('service-unavailable', `音轨提取失败：${detail}`);
+      throw new TranscriptionError('service-unavailable', `Audio extraction failed: ${detail}`);
     }
     return null;
   }
