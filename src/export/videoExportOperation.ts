@@ -302,7 +302,7 @@ async function runServerThenBrowser(
     if (isAbortError(error)) throw error;
     if (!isServerRenderError(error) || plan.browser.status !== 'supported') throw error;
     localFailure = error;
-    switchToBrowser(context, plan.browserEngine, error.message || '本机渲染失败');
+    switchToBrowser(context, plan.browserEngine, error.message || context.t('本机渲染失败'));
   }
   const startedAt = performance.now();
   let attempt: BrowserExportAttempt;

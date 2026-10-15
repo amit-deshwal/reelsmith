@@ -255,8 +255,8 @@ function reportModelProgress(
   progress?: number,
   file?: string,
 ): void {
-  if (progress != null) onWait?.(`模型下载 ${Math.min(100, Math.round(progress))}%`);
-  else if (file) onWait?.(`加载模型 ${file.split('/').pop() ?? ''}`);
+  if (progress != null) onWait?.(t('模型下载 {percent}%', { percent: Math.min(100, Math.round(progress)) }));
+  else if (file) onWait?.(t('加载模型 {file}', { file: file.split('/').pop() ?? '' }));
 }
 
 async function runTranscriptionStage<T>(stage: string, operation: () => Promise<T>): Promise<T> {

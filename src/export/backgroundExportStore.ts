@@ -11,6 +11,7 @@ import {
   exportFailureFrom,
   type ExportFailure,
 } from './exportFailure';
+import { t as translate } from '../i18n/locale';
 
 export interface BackgroundExportJob {
   id: string;
@@ -193,7 +194,7 @@ export function createExportJobStore(now: () => number = Date.now): ExportJobSto
       targetPath: input.targetPath,
       createdAt: startedAt,
       updatedAt: startedAt,
-      busy: '等待导出…',
+      busy: translate('等待导出…'),
       clock: startedAt,
       engineInfo: null,
       engineReason: null,

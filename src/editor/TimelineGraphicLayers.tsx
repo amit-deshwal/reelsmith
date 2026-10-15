@@ -83,7 +83,7 @@ export function TextLayer({ item, canvasW, canvasH, fit }: {
       whiteSpace: 'pre-wrap',
       width: bgEnabled ? undefined : '100%',
     }}>
-      {String(props.text ?? '文字')}
+      {String(props.text ?? 'Text')}
     </div>
   );
 

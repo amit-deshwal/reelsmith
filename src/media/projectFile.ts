@@ -1,4 +1,5 @@
 import type { MediaAsset } from '../editor/types';
+import { t as translate } from '../i18n/locale';
 
 export type ProjectDocumentKind = 'text' | 'docx' | 'pdf';
 
@@ -84,7 +85,7 @@ export async function readProjectDocument(file: File): Promise<string> {
   if (kind === 'docx') return parseDocxText(await file.arrayBuffer());
   if (kind === 'pdf') return parsePdfText(await file.arrayBuffer());
   if (kind === 'text') return validatedProjectDocumentText(await file.text());
-  throw new Error('此文件不是可读取的文档');
+  throw new Error(translate('此文件不是可读取的文档'));
 }
 
 export function projectDocumentPromptBlock(name: string, text: string): string {
@@ -100,7 +101,7 @@ async function collectProjectDocumentBlocks<T>(
   const blocks: string[] = [];
   const errors: string[] = [];
   if (items.length > PROJECT_DOCUMENT_MAX_COUNT) {
-    errors.push(`一次最多读取 ${PROJECT_DOCUMENT_MAX_COUNT} 个文档`);
+    errors.push(translate('一次最多读取 {n} 个文档', { n: PROJECT_DOCUMENT_MAX_COUNT }));
   }
   let promptChars = 0;
   for (const item of items.slice(0, PROJECT_DOCUMENT_MAX_COUNT)) {
@@ -128,7 +129,7 @@ export async function readProjectAssetDocument(
   asset: Pick<MediaAsset, 'name' | 'sourceFilename' | 'src'>,
 ): Promise<string> {
   const response = await fetch(asset.src);
-  if (!response.ok) throw new Error(`读取文档失败 (${response.status})`);
+  if (!response.ok) throw new Error(translate('读取文档失败 ({status})', { status: response.status }));
   const blob = await response.blob();
   const name = asset.sourceFilename ?? asset.name;
   const file = new File([blob], name, { type: blob.type });

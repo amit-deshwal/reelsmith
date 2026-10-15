@@ -48,7 +48,7 @@ assert.equal(withoutBrowser.length, 1);
 assert.equal(runtimeAssetFailure(withoutBrowser), null, 'an optional asset never blocks the launch');
 assert.match(
   describeMissingRuntimeAssets(withoutBrowser),
-  /可选 \/ optional/,
+  /\(optional\)/,
   'the report marks which entries are optional',
 );
 
@@ -60,8 +60,7 @@ assert.match(failure, /missing 3 bundled file\(s\)/);
 for (const path of [join(resourcesPath, 'dist', 'index.html'), join(resourcesPath, 'remotion-bundle', 'index.html'), ffmpegPath]) {
   assert.ok(failure.includes(path), `the failure names ${path} so the user can report or restore it`);
 }
-assert.match(failure, /杀毒软件/, 'the message names the usual cause in Chinese');
-assert.match(failure, /antivirus/, 'and in English');
-assert.match(failure, /Reinstall OpenChatCut/, 'and tells the user what to do');
+assert.match(failure, /antivirus/, 'the message names the usual cause');
+assert.match(failure, /Reinstall Reelsmith/, 'and tells the user what to do');
 
 console.log('runtime-preflight.verify: a packaged install that lost bundled files names them instead of exiting silently');

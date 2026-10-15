@@ -45,6 +45,7 @@ import type {
   Translate,
   UseExportWorkflowOptions,
 } from './exportWorkflowTypes';
+import { t as translate } from '../i18n/locale';
 export { isServerRenderError, ServerRenderError } from './serverExportRenderOperation';
 
 function updateActualEngine(context: ServerExportContext, completed: ExportJobResult): void {
@@ -71,7 +72,7 @@ async function writeCompletedWithLease(
     renewing = true;
     void renewServerExportDelivery(renderId, claim)
       .then((active) => {
-        if (!active) controller.abort(new Error('导出恢复所有权已失效'));
+        if (!active) controller.abort(new Error(translate('导出恢复所有权已失效')));
       })
       .catch((error: unknown) => controller.abort(error))
       .finally(() => { renewing = false; });

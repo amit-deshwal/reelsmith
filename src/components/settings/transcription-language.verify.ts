@@ -28,8 +28,9 @@ assert.ok(
 );
 
 for (const model of ASR_MODELS) {
-  assert.match(model.language, /Italian|Italiano|it/i, `${model.id} should be advertised as Italian-capable`);
-  assert.match(model.language, /Russian|Русский|ru/i, `${model.id} should be advertised as Russian-capable`);
+  // Reelsmith: the label is English-only and names the languages that matter for Reels.
+  assert.match(model.language, /Multilingual/, `${model.id} should be advertised as multilingual`);
+  assert.match(model.language, /Hindi/, `${model.id} should be advertised as Hindi-capable`);
 }
 
 console.log('transcription-language.verify: Italian and Russian transcription are exposed for local and AI providers');

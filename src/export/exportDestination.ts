@@ -5,6 +5,7 @@ import {
   ExportFailureError,
   isExportFailure,
 } from './exportFailure';
+import { t as translate } from '../i18n/locale';
 
 import {
   checkedDestination, checkedFilename, desktopDestination, DIRECTORY_PERMISSION,
@@ -343,7 +344,7 @@ export async function writeUrlToDestination(
       code: 'export_source_read_failed',
       retryable: response.status >= 500,
       targetPath,
-      message: `读取导出文件失败（HTTP ${response.status}）`,
+      message: translate('读取导出文件失败（HTTP {status}）', { status: response.status }),
     }));
   }
   try {

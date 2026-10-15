@@ -33,6 +33,7 @@ import {
   projectExportChunks, publishMediaBlobImport, rollbackMediaBlobImport, stageProjectStream,
   streamFrom,
 } from './projectTransferStream';
+import { t as translate } from '../i18n/locale';
 export type { ProjectMediaManifestEntry } from './projectTransferStream';
 
 export const PROJECT_EXPORT_FORMAT = 'openchatcut-project@1';
@@ -196,19 +197,19 @@ export function parseProjectEnvelope(
   try {
     raw = JSON.parse(text);
   } catch {
-    return { error: '不是合法的 JSON 文件' };
+    return { error: translate('不是合法的 JSON 文件') };
   }
-  if (!raw || typeof raw !== 'object') return { error: '文件内容不是对象' };
+  if (!raw || typeof raw !== 'object') return { error: translate('文件内容不是对象') };
   const r = raw as Record<string, unknown>;
   if (r.format !== PROJECT_EXPORT_FORMAT) {
-    return { error: `格式不识别(需要 ${PROJECT_EXPORT_FORMAT})` };
+    return { error: translate('格式不识别(需要 {format})', { format: PROJECT_EXPORT_FORMAT }) };
   }
-  if (typeof r.name !== 'string' || !r.name.trim()) return { error: '缺工程名' };
+  if (typeof r.name !== 'string' || !r.name.trim()) return { error: translate('缺工程名') };
   const migratedDoc = migrateProjectDoc(r.doc, migrationOptions);
-  if (!migratedDoc) return { error: '工程数据(doc)校验不通过' };
+  if (!migratedDoc) return { error: translate('工程数据(doc)校验不通过') };
   const doc = sanitizePortableProjectDoc(migratedDoc);
-  if (!Array.isArray(r.media)) return { error: '工程包缺媒体清单' };
-  if (!r.media.every(isMediaEntry)) return { error: '工程包媒体条目校验不通过' };
+  if (!Array.isArray(r.media)) return { error: translate('工程包缺媒体清单') };
+  if (!r.media.every(isMediaEntry)) return { error: translate('工程包媒体条目校验不通过') };
   const media = r.media;
   const chat = isPersistedChat(r.chat) ? sanitizePortableChat(r.chat) : undefined;
   const creativeMode = typeof r.creativeMode === 'string' && r.creativeMode ? r.creativeMode : undefined;
@@ -237,7 +238,7 @@ export interface ProjectExportResult {
 
 export async function buildProjectExport(id: string, name: string): Promise<ProjectExportResult> {
   const doc = await loadProject(id);
-  if (!doc) throw new Error('工程不存在或已损坏');
+  if (!doc) throw new Error(translate('工程不存在或已损坏'));
   const exportDoc = sanitizePortableProjectDoc(doc);
   const loadedChat = await loadChat(id);
   const chat = loadedChat ? sanitizePortableChat(loadedChat) : undefined;
@@ -385,7 +386,7 @@ async function stageLegacyEnvelope(envelope: ProjectEnvelope): Promise<StagedPro
     try {
       await discardMediaBlobImport(namespace);
     } catch (cleanupError) {
-      throw new AggregateError([error, cleanupError], '工程包解析失败，临时媒体清理也失败');
+      throw new AggregateError([error, cleanupError], translate('工程包解析失败，临时媒体清理也失败'));
     }
     throw error;
   }
@@ -395,14 +396,14 @@ function streamManifest(
   value: unknown,
   migrationOptions?: ProjectMigrationOptions,
 ): ProjectStreamManifest {
-  if (!value || typeof value !== 'object') throw new Error('工程包 manifest 不是对象');
+  if (!value || typeof value !== 'object') throw new Error(translate('工程包 manifest 不是对象'));
   const manifest = value as Partial<ProjectStreamManifest>;
   if (manifest.format !== PROJECT_STREAM_FORMAT || manifest.type !== 'manifest') {
-    throw new Error(`格式不识别(需要 ${PROJECT_STREAM_FORMAT})`);
+    throw new Error(translate('格式不识别(需要 {format})', { format: PROJECT_STREAM_FORMAT }));
   }
-  if (typeof manifest.name !== 'string' || !manifest.name.trim()) throw new Error('缺工程名');
+  if (typeof manifest.name !== 'string' || !manifest.name.trim()) throw new Error(translate('缺工程名'));
   const migratedDoc = migrateProjectDoc(manifest.doc, migrationOptions);
-  if (!migratedDoc) throw new Error('工程数据(doc)校验不通过');
+  if (!migratedDoc) throw new Error(translate('工程数据(doc)校验不通过'));
   const doc = sanitizePortableProjectDoc(migratedDoc);
   const proposal = portableProposalRecord(manifest.proposal);
   return {
@@ -441,7 +442,7 @@ export async function applyProjectImport(
   options: ProjectImportOptions = {},
 ): Promise<ProjectImportResult> {
   const migratedDoc = migrateProjectDoc(envelope.doc, options.migrationOptions);
-  if (!migratedDoc) throw new Error('工程数据(doc)校验不通过');
+  if (!migratedDoc) throw new Error(translate('工程数据(doc)校验不通过'));
   const staged = await stageLegacyEnvelope({
     ...envelope,
     doc: sanitizePortableProjectDoc(migratedDoc),
@@ -465,7 +466,7 @@ async function publishStreamProjectImport(
     try {
       await rollbackMediaBlobImport(mediaPublication);
     } catch (rollbackError) {
-      throw new AggregateError([error, rollbackError], '工程发布失败，媒体回滚或临时清理也失败');
+      throw new AggregateError([error, rollbackError], translate('工程发布失败，媒体回滚或临时清理也失败'));
     }
     throw error;
   }

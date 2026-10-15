@@ -78,7 +78,7 @@ function FontField({ spec, value, onChange }: PropSchemaFieldProps) {
   return (
     <select value={selected} onChange={(event) => onChange(event.target.value)} style={{ ...FIELD_STYLE, fontFamily: selected }}>
       {FONT_CATALOG.map((font) => <option key={font.family} value={font.family} style={{ fontFamily: font.family }}>
-        {font.family}{font.aliases[0] ? ` · ${font.aliases[0]}` : ''}{font.loadable ? '' : ` ${t('(预览)')}`}
+        {font.family}{font.loadable ? '' : ` ${t('(预览)')}`}
       </option>)}
       {typeof value === 'string' && value && !FONT_CATALOG.some((font) => font.family === value) ? <option value={value}>{value}</option> : null}
     </select>

@@ -5,6 +5,7 @@
 // Never move timing - so the translation never rearranges or moves a word. No variant set = return the source word unchanged (byte equivalent).
 
 import type { TranscriptWord, TranscriptVariant, TranscriptVariantWord } from './types';
+import { t as translate } from '../i18n/locale';
 
 /** Overlay a variant's text onto the source words. Every returned word keeps the
  * source word's start/end/speaker EXACTLY; only `.text` is swapped where the
@@ -25,7 +26,7 @@ export function resolveVariantText(sourceWords: TranscriptWord[], variant: Trans
 
 /** Default display label for a variant when none is supplied. */
 function defaultLabel(lang: string, kind: TranscriptVariant['kind']): string {
-  return kind === 'translation' ? lang : `${lang}(校正)`;
+  return kind === 'translation' ? lang : translate('{lang}(校正)', { lang });
 }
 
 /** Build a variant. Validates at the boundary (LLM/user text is untrusted): lang

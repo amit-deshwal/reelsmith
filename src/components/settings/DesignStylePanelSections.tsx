@@ -200,7 +200,7 @@ function FontOptionGroup({ title, options, onPick }: {
     {options.map((option) => <button key={option.family} type="button"
       onMouseDown={(event) => { event.preventDefault(); onPick(option.family); }} style={fontOption}>
       <span style={{ fontFamily: `'${option.family}'`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{option.family}</span>
-      {option.aliases[0] && <span style={{ fontSize: 10.5, color: theme.textDim, flexShrink: 0 }}>{option.aliases[0]}</span>}
+      {/* Reelsmith: English-only, the (Chinese) alias is not shown. */}
     </button>)}
   </div>;
 }

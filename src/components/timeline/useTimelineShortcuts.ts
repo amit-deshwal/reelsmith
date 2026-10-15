@@ -111,7 +111,7 @@ export function useTimelineShortcuts(deps: ShortcutDeps): { zoneIn: number | nul
           if (!it || state.tracks?.[it.track]?.locked) continue;
           actions.push({ type: 'move' as const, id, startFrame: Math.max(0, it.startFrame + delta) });
         }
-        commands.batch(actions, '微移所选片段');
+        commands.batch(actions, 'Nudge selected clips');
       },
       trimSelectedToPlayhead: (side) => {
         const id = state.selectedId;
@@ -338,7 +338,7 @@ export function useTimelineShortcuts(deps: ShortcutDeps): { zoneIn: number | nul
             fadeOutFrames: fxClip.fadeOutFrames ?? 0,
           },
         ];
-        commands.batch(actions, '粘贴片段效果');
+        commands.batch(actions, 'Paste clip effects');
       },
       copyEffects: () => {
         const it = state.items.find((x) => x.id === state.selectedId);

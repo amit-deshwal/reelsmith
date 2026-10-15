@@ -33,14 +33,14 @@ export interface PackagedAssetInput {
 
 export function packagedRuntimeAssetChecks(input: PackagedAssetInput): RuntimeAssetCheck[] {
   const checks: RuntimeAssetCheck[] = [
-    { label: '编辑器界面 / editor UI', path: join(input.resourcesPath, 'dist', 'index.html'), required: true },
+    { label: 'editor UI', path: join(input.resourcesPath, 'dist', 'index.html'), required: true },
     {
-      label: '渲染包 / Remotion render bundle',
+      label: 'Remotion render bundle',
       path: join(input.resourcesPath, 'remotion-bundle', 'index.html'),
       required: true,
     },
     {
-      label: '无头渲染浏览器 / headless render browser',
+      label: 'headless render browser',
       path: join(input.resourcesPath, 'chrome-headless-shell'),
       required: false,
     },
@@ -48,7 +48,7 @@ export function packagedRuntimeAssetChecks(input: PackagedAssetInput): RuntimeAs
   // Only Windows swaps the compositor's ffmpeg for the static build at first
   // launch, so only there does a quarantined ffmpeg.exe block startup.
   if (input.platform === 'win32') {
-    checks.push({ label: '内置 FFmpeg / bundled FFmpeg', path: input.ffmpegPath, required: true });
+    checks.push({ label: 'bundled FFmpeg', path: input.ffmpegPath, required: true });
   }
   return checks;
 }
@@ -62,18 +62,15 @@ export function missingRuntimeAssets(
 
 /** Shared by the asset preflight and the entry bundle's load failure. */
 export const RUNTIME_ASSET_ADVICE = [
-  '常见原因：杀毒软件隔离了其中的文件，或安装过程未完成。',
-  '请重新安装 OpenChatCut；若文件再次消失，请把安装目录加入杀毒软件白名单。',
-  '',
   'Most often antivirus software quarantined part of the install, or the',
-  'installer did not finish. Reinstall OpenChatCut, and add the installation',
+  'installer did not finish. Reinstall Reelsmith, and add the installation',
   'directory to your antivirus exclusions if the files disappear again.',
 ].join('\n');
 
 export function describeMissingRuntimeAssets(missing: readonly RuntimeAssetCheck[]): string {
-  const lines = missing.map((check) => `- ${check.label}${check.required ? '' : '（可选 / optional）'}\n  ${check.path}`);
+  const lines = missing.map((check) => `- ${check.label}${check.required ? '' : ' (optional)'}\n  ${check.path}`);
   return [
-    `安装包缺少 ${missing.length} 个运行时文件 / this install is missing ${missing.length} bundled file(s):`,
+    `This install is missing ${missing.length} bundled file(s):`,
     '',
     ...lines,
     '',

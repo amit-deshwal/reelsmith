@@ -1,6 +1,7 @@
 import { inspectBrowserExport, isAbortError, type BrowserExportInspection, type BrowserExportOptions } from './browserExport';
 import type { ExportEngineInfo } from './exportWorkflowTypes';
 import { serverScaledExportDimensions } from './mediaSettings';
+import { t as translate } from '../i18n/locale';
 
 const PERFORMANCE_STORAGE_KEY = 'cc.exportPerformance.v1';
 const MIN_SAMPLE_MS = 250;
@@ -106,7 +107,7 @@ export function chooseSupportedRoute(
   // ratio (see serverScaledExportDimensions); a canvas whose grid has no size
   // near the preset must not be sent there, whatever the measured speeds say.
   if (!serverCanRender) {
-    return { route: 'browser' as const, engine: web, reason: '本机渲染器无法将此画布精确缩放到所选分辨率' };
+    return { route: 'browser' as const, engine: web, reason: translate('本机渲染器无法将此画布精确缩放到所选分辨率') };
   }
   const measured = measuredRoute(web, server);
   if (measured === 'browser') return { route: measured, engine: web, reason: '历史实测显示浏览器路径更快' };

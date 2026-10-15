@@ -197,7 +197,7 @@ export function useTimelineController({
         const startFrame = Math.max(0, Math.round(cue.start * state.fps / 1000));
         const endFrame = Math.max(startFrame + 1, Math.round(cue.end * state.fps / 1000));
         const base = timerangeRef(startFrame, endFrame, state, { trackId: resolved.trackId });
-        return [{ ...base, id: `caption:${captionSelectionKey(captionSelection) ?? base.id}`, name: `字幕：${cue.text}` }];
+        return [{ ...base, id: `caption:${captionSelectionKey(captionSelection) ?? base.id}`, name: `Caption: ${cue.text}` }];
       }),
     ];
     for (const reference of references) emitSelectionRef(reference);

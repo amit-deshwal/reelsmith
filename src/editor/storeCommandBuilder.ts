@@ -111,7 +111,7 @@ export function buildCommands(dispatch: ProjectDispatch, getDoc: () => ProjectDo
           fit: opts?.fit ?? base.fit,
           items: [], selectedId: null, trackOrder,
           tracks: { [trackOrder[0]]: { kind: 'video' } },
-          id: uid('tl'), name: opts?.name ?? `序列 ${d.timelines.length + 1}`, order: maxOrder(d) + 1,
+          id: uid('tl'), name: opts?.name ?? `Sequence ${d.timelines.length + 1}`, order: maxOrder(d) + 1,
         };
         dispatch({ type: 'tl.create', timeline: t, activate: opts?.activate });
         return t.id;
@@ -120,7 +120,7 @@ export function buildCommands(dispatch: ProjectDispatch, getDoc: () => ProjectDo
       duplicateTimeline: (id, opts) => {
         const src = getDoc().timelines.find((t) => t.id === id);
         const newId = uid('tl');
-        dispatch({ type: 'tl.duplicate', id, newId, name: opts?.name ?? `${src?.name ?? '序列'} 副本`, retarget: opts?.retarget, activate: opts?.activate });
+        dispatch({ type: 'tl.duplicate', id, newId, name: opts?.name ?? `${src?.name ?? 'Sequence'} copy`, retarget: opts?.retarget, activate: opts?.activate });
         return newId;
       },
       deleteTimeline: (id) => dispatch({ type: 'tl.delete', id }),
@@ -181,7 +181,7 @@ export function buildCommands(dispatch: ProjectDispatch, getDoc: () => ProjectDo
             track: pickTrack(at?.track, 'video'),
             durationInFrames: at?.durationInFrames ?? Math.round(5 * 30),
             kind: 'solid',
-            name: at?.name ?? '纯色',
+            name: at?.name ?? 'Solid',
             width: 1920,
             height: 1080,
             props: { color: at?.color ?? '#1a1a1a' },
@@ -248,11 +248,11 @@ export function buildCommands(dispatch: ProjectDispatch, getDoc: () => ProjectDo
             track: pickTrack(at?.track ?? 'V2', 'video'), // titles default to the top video track
             durationInFrames: at?.durationInFrames ?? 90,
             kind: 'text',
-            name: at?.name?.trim() || '文字',
+            name: at?.name?.trim() || 'Text',
             width: 1920,
             height: 1080,
             props: {
-              text: at?.text?.trim() || '双击编辑文字',
+              text: at?.text?.trim() || 'Double-click to edit',
               fontSize: typeof at?.fontSize === 'number' && Number.isFinite(at.fontSize) ? at.fontSize : 96,
               color: at?.color?.trim() || '#ffffff',
               fontWeight: typeof at?.fontWeight === 'number' && Number.isFinite(at.fontWeight) ? at.fontWeight : 700,

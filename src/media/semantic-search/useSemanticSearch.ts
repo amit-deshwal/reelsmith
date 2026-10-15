@@ -15,6 +15,7 @@ import {
   MAX_SEMANTIC_QUERY_LENGTH,
   type DuplicateMatch, type HybridTextHit, type SemanticDevice, type SemanticMatch, type SemanticVectorRecord,
 } from './types';
+import { t as translate } from '../../i18n/locale';
 
 export type SemanticStatus = 'idle' | 'loading' | 'ready' | 'indexing' | 'searching' | 'error';
 
@@ -115,7 +116,7 @@ export function useSemanticSearch(scopeId: string, assets: MediaAsset[]) {
     } catch {
       setState((current) => ({
         ...current, pack: 'error', packProgress: 0,
-        error: '模型包下载失败，请到 设置 → 本地模型 重试',
+        error: translate('模型包下载失败，请到 设置 → 本地模型 重试'),
       }));
     }
   }, [enable, setState]);

@@ -115,7 +115,7 @@ export function CaptionStyleMenu({ state, commands, trackId, pos, error, onError
     <div className="cc-caption-style-menu" style={{ position: 'fixed', left: pos.left, top: pos.top }} onPointerDown={(e) => e.stopPropagation()}>
       <MenuDrillHeader title={t('翻译')} onBack={() => initialTranslateOpen ? backToParent() : setTranslateOpen(false)} />
       <div className="cc-caption-language-menu is-drill">
-        {CAPTION_LANGS.map((lang) => <button type="button" key={lang} disabled={busy} onClick={() => void translate(lang)}>{lang}</button>)}
+        {CAPTION_LANGS.map((lang) => <button type="button" key={lang} disabled={busy} onClick={() => void translate(lang)}>{t(lang)}</button>)}
       </div>
       {busy && <div className="cc-caption-style-status">{t('翻译中...')}</div>}
       {error && <div className="cc-caption-style-error">{error}</div>}

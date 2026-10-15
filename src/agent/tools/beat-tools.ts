@@ -99,7 +99,7 @@ export async function execBeatTool(name: string, args: Args, ctx: AgentContext):
       const cap = typeof args.markerLimit === 'number' ? Math.max(1, Math.min(500, Math.round(args.markerLimit))) : DEFAULT_MARKER_CAP;
       const frames = args.markers === 'downbeats' ? downbeatFrames : beatFrames;
       const actions = markerActions(item, frames, args.markers === 'downbeats' ? 'downbeat' : 'beat', cap);
-      if (actions.length) ctx.commands.batch(actions, '节拍标记');
+      if (actions.length) ctx.commands.batch(actions, 'Beat markers');
       markersCreated = actions.length;
     }
     return {

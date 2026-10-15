@@ -12,4 +12,11 @@ export default {
     'Rough-cut news footage into a complete, clear, tightly paced short news video, with no added outside audio.',
   '把重复流程或想法做成可复用的自定义技能（SKILL.md），并安装到本机技能目录。':
     'Turn a repeated workflow or idea into a reusable custom skill (SKILL.md) and install it in the local skills folder.',
+  // Caption translation menus: show English language names (the endonym is still what is sent to the translator).
+  '日本語': 'Japanese',
+  '한국어': 'Korean',
+  'Español': 'Spanish',
+  'Français': 'French',
+  'Deutsch': 'German',
+  'Português': 'Portuguese',
 } as Record<string, string>;

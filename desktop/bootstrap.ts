@@ -37,7 +37,7 @@ try {
   if (process.env.CC_SMOKE !== '1') {
     try {
       dialog.showErrorBox('Reelsmith failed to start', [
-        '无法加载程序主体 / could not load the application bundle:',
+        'Could not load the application bundle:',
         '',
         error instanceof Error ? error.message : String(error),
         '',
