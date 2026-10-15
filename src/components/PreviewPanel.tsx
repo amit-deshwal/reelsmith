@@ -37,6 +37,7 @@ import { SlipTwoUpPreview } from './SlipTwoUpPreview';
 import { PREVIEW_SHARED_AUDIO_TAGS } from './previewAudioPool';
 import { SafeZoneOverlay } from './SafeZoneOverlay';
 import { PreviewTransformOverlay } from './preview/PreviewTransformOverlay';
+import { InstagramSafeZoneOverlay } from '../reelsmith/ui/InstagramSafeZoneOverlay';
 import { fitPreviewCanvasSize, previewPaddedClientSize, previewStageContentSize, type PreviewCanvasSize } from './preview/previewCanvasGeometry';
 
 const MEDIA_LOADING_NOTICE_DELAY_MS = 160;
@@ -142,6 +143,7 @@ export const PreviewPanel = memo(function PreviewPanel({
   const [stageSize, setStageSize] = useState<PreviewCanvasSize>({ width: 0, height: 0 });
   const [busy, setBusy] = useState(false);
   const [showSafe, setShowSafe] = useState(false);
+  const [showIg, setShowIg] = useState(() => { try { return localStorage.getItem('reelsmith:ig-safe-zone') === '1'; } catch { return false; } });
   const [autoEditCaption, setAutoEditCaption] = useState<{ trackId: TrackId; laneId: string } | null>(null);
   // Expose Player during full screen preview (` shortcut key/timeline toolbar button to make Player full screen)
   // Comes with a control bar; the editing state still uses the timeline transport, and does not display dual sets of controls.
@@ -316,6 +318,17 @@ export const PreviewPanel = memo(function PreviewPanel({
               {t('安全框')}
             </button>
           )}
+          {state.items.length > 0 && (
+            <button type="button" onClick={() => setShowIg((v) => { try { localStorage.setItem('reelsmith:ig-safe-zone', v ? '0' : '1'); } catch { /* private mode */ } return !v; })} aria-pressed={showIg}
+              title="Show the areas Instagram's buttons and caption cover"
+              style={{
+                fontSize: 11, lineHeight: 1, padding: '3px 8px', borderRadius: 5, cursor: 'pointer',
+                border: `0.5px solid ${theme.border}`, background: showIg ? theme.panelAlt : 'transparent',
+                color: showIg ? theme.text : theme.textDim,
+              }}>
+              IG zones
+            </button>
+          )}
           {selectedItem && (
             <button type="button" onClick={onToggleInspector} aria-pressed={inspectorOpen}
               title={inspectorOpen ? t('收起属性') : t('展开属性')}
@@ -434,6 +447,7 @@ export const PreviewPanel = memo(function PreviewPanel({
               </div>
             )}
             {showSafe && <SafeZoneOverlay />}
+            {showIg && <InstagramSafeZoneOverlay width={state.width} height={state.height} />}
             {pickMode && <RegionPickOverlay state={state} playerRef={playerRef} />}
             {!pickMode && !fullscreen && transformApi && (
               <PreviewTransformOverlay state={state} playerRef={playerRef} {...transformApi} />

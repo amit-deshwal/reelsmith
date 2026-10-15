@@ -52,3 +52,9 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 - `src/editor/snap.ts`: new snap point type `beat`; beats of the music clip's stored grid (`props.rsBeats`) are snap targets while dragging/trimming.
 - `src/components/timeline/TrackContextMenu.tsx`: optional `onSnapToBeats`; video tracks show "Snap cuts to every beat / every 2 beats / bars". `src/components/timeline/Timeline.tsx` wires it to `src/reelsmith/snapAction.ts`.
 - `src/library/LibraryPanel.tsx`: optional `onAskAgent` prop, passes `projectId` and `onAskAgent` to `RecipesPanel`. `src/editor/useEditorController.tsx`: `onAskAgent` opens the chat and prefills it.
+
+## Instagram export step and IG safe-zone overlay (RS-301, RS-302, RS-303)
+- `src/export/serverExportOperation.ts`: after a server video render (normal and recovered paths) and before QA/delivery, calls `finalizeExportForInstagram` (`src/reelsmith/instagramExport.ts`). It is a no-op unless the "Make it Instagram-ready" toggle is on, the canvas is 9:16 and the codec is H.264. Browser (WebCodecs) exports are not post-processed.
+- `src/export/ExportDialogMain.tsx`: renders `InstagramExportPanel` on the Video tab.
+- `server/reelsmith/analyze-plugin.ts` (ours): route `/api/reelsmith/instagram-finalize`.
+- `src/components/PreviewPanel.tsx`: an "IG zones" toggle next to the safe-frame toggle draws `InstagramSafeZoneOverlay` (remembered in localStorage).

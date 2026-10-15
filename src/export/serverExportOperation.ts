@@ -1,3 +1,4 @@
+import { finalizeExportForInstagram } from '../reelsmith/instagramExport';
 import type { BackgroundExportJobSetters, ExportJobStore } from './backgroundExportStore';
 import { isAbortError } from './browserExport';
 import { recordExport } from '../persist/exportHistoryStore';
@@ -172,6 +173,8 @@ async function exportMedia(
   try {
     if (format === 'video') updateActualEngine(context, completed);
     signal?.throwIfAborted();
+    // Reelsmith (RS-301): fix the render for Instagram before QA and delivery
+    if (format === 'video') await finalizeExportForInstagram(context.options.state, completed, codec, signal, { setBusy: context.setBusy });
     if (format === 'video' && context.autoQaEnabled) {
       await context.verifyCompletedExport(completed, signal);
       signal?.throwIfAborted();
@@ -274,6 +277,7 @@ async function runRecoveredServerExport(
       if (record.stage === 'polling') await markServerExportOutputReady(record.renderId, claim ?? undefined);
       if (record.format === 'video') updateActualEngine(context, completed);
       signal.throwIfAborted();
+      if (record.format === 'video') await finalizeExportForInstagram(record.state, completed, record.codec, signal, { setBusy: setters.setBusy });
       if (record.format === 'video' && record.autoQaEnabled) {
         await context.verifyCompletedExport(completed, signal);
         signal.throwIfAborted();

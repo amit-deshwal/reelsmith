@@ -1,12 +1,15 @@
 // Reelsmith analysis routes (local ffmpeg only):
 //   POST /api/reelsmith/clip-features  { src, fps }  -> features for scoring
 //   POST /api/reelsmith/music-grid     { src }       -> bpm, beats, downbeat, energy, drop, loudest section
+//   POST /api/reelsmith/instagram-finalize { src, presetId } -> validation report; re-encodes in place when needed
 import type { Plugin } from 'vite';
 import { resolveUploadFile, uploadNameOfSource } from '../media-dir.ts';
 import { readJsonBody, sendJson } from '../plugins/export-http.ts';
 import { detectDropBeat } from '../../src/reelsmith/assembler/drop.ts';
 import { analyzeBeatsFile } from './beatDetect.ts';
 import { extractClipFeatures } from './clipFeatures.ts';
+import { finalizeForInstagram } from './instagramFinalize.ts';
+import { REEL_PRESETS } from '../../shared/reelsmith/instagramPreset.ts';
 
 function localFile(src: unknown): string | { error: string } {
   const name = typeof src === 'string' ? uploadNameOfSource(src) : null;
@@ -36,6 +39,13 @@ export function reelsmithAnalyzePlugin(): Plugin {
         if (typeof file !== 'string') throw new Error(file.error);
         const fps = Number(body.fps) > 0 ? Number(body.fps) : 30;
         return { features: await extractClipFeatures(file, String(body.assetId ?? ''), fps, { maxSec: 90 }) };
+      });
+      route('/api/reelsmith/instagram-finalize', async (body) => {
+        const file = localFile(body.src);
+        if (typeof file !== 'string') throw new Error(file.error);
+        const preset = REEL_PRESETS[String(body.presetId ?? 'instagram-reel')];
+        if (!preset) throw new Error(`unknown preset ${String(body.presetId)}`);
+        return { result: await finalizeForInstagram(file, preset) };
       });
       route('/api/reelsmith/music-grid', async (body) => {
         const file = localFile(body.src);

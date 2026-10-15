@@ -1,3 +1,4 @@
+import { InstagramExportPanel } from '../reelsmith/ui/InstagramExportPanel';
 import type { ProjectDoc, TimelineState } from '../editor/types';
 import { useT } from '../i18n/locale';
 import { ExportDestinationBar } from './ExportDestinationBar';
@@ -102,6 +103,7 @@ export function ExportDialogMain({ state, project, model }: { state: TimelineSta
           setNleFormat={model.setNleFormat} includeMg={model.includeMg}
           setIncludeMg={model.setIncludeMg} mgCount={model.mgItems.length} base={model.base}
         />
+        {model.tab === 'video' && <InstagramExportPanel state={state} />}
         <StructuredExportFailure model={model} />
       </div>
       <BackgroundExportJobs model={model} />
