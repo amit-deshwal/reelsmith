@@ -65,7 +65,14 @@ export function assembleCollageGrid(input: AssembleInput): AssembleResult {
   if (!layoutList.length) return empty(`need more clips (have ${input.clips.length})`);
   if (layoutList.length * bpb < gridBeats) warnings.push('footage ran short: the grid section is shorter than the target');
 
-  const picked = pickClips(input.clips, needClips, recipe.constraints?.keepChronological ?? false, seed);
+  const pickedAll = pickClips(input.clips, needClips, recipe.constraints?.keepChronological ?? false, seed);
+  // the picker can return fewer clips than asked (near-duplicates are skipped): drop layouts until they fit
+  while (layoutList.length && needClips > pickedAll.length) needClips -= LAYOUT_SLOTS[layoutList.pop()!]!.length;
+  if (!layoutList.length) return empty(`need more distinct clips (have ${pickedAll.length} after removing near-duplicates)`);
+  if (needClips < pickedAll.length || layoutList.length * bpb < gridBeats) {
+    if (!warnings.includes('footage ran short: the grid section is shorter than the target')) warnings.push('footage ran short: the grid section is shorter than the target');
+  }
+  const picked = pickedAll.slice(0, needClips);
   const hero = picked[picked.length - 1]!;
   let ci = 0;
   const tag = `${recipe.id}@${recipe.version}`;

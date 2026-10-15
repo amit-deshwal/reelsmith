@@ -2,6 +2,7 @@
 import type { Recipe, RecipeSection } from '../../../shared/reelsmith/recipe';
 import type { AtomicAction } from '../../editor/reducerActions';
 import { renderTemplate } from '../../../shared/reelsmith/recipe';
+import { fitFontSize } from './common';
 import { makeRng, stableId } from './rng';
 import type {
   AssembleInput, AssembleReport, AssembleResult, AssemblyClip, AssemblyMusic, PlannedShot, RecipeRunRecord,
@@ -201,7 +202,7 @@ function overlayActions(
           durationInFrames: Math.max(1, endFrame - startFrame), width: recipe.canvas.width, height: recipe.canvas.height,
           props: {
             text: style.textTransform === 'uppercase' ? text.toUpperCase() : text,
-            fontSize: size, color: typeof style.color === 'string' ? style.color : '#ffffff',
+            fontSize: fitFontSize(text, size, recipe.canvas.width, style.textTransform === 'uppercase', typeof style.fontFamily === 'string' ? style.fontFamily : undefined), color: typeof style.color === 'string' ? style.color : '#ffffff',
             fontWeight: typeof style.fontWeight === 'number' ? style.fontWeight : 700,
             fontFamily: typeof style.fontFamily === 'string' ? style.fontFamily : undefined,
             align: 'center', rsSection: section.section,

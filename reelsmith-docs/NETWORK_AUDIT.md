@@ -22,6 +22,14 @@ Every outbound path is one of: (a) a user-pressed button, (b) gated by a key the
 | Build time only | storage.googleapis.com chrome-for-testing (`desktop/prepare-target.mts`) | `npm run desktop:*` packaging | Not at runtime |
 | Links only (no request) | github.com, openchatcut.com (`DashboardHeaderLinks.tsx`, `ExtensionCenter.tsx`) | user click opens browser | n/a |
 
+## Found later: Google Fonts at render time (fixed 2026-10-16)
+Text using a catalog font (Anton, Inter, Playfair Display, …) was loaded through `@remotion/google-fonts`, i.e. from
+fonts.googleapis.com / fonts.gstatic.com, in the preview and during export. The static scan missed it because the URLs
+live inside the npm package. Fix: the Latin families plus Noto Sans Devanagari and Poppins are bundled under
+`assets/fonts/rs/` (`server/reelsmith/sync-fonts.mts`) and registered as local fonts, so `ensureFont` never reaches the
+Google loader for them. Still online: the four large CJK display families from the Google list (LXGW WenKai TC, Noto Serif
+SC/TC, ZCOOL QingKe HuangYou), and only when a user picks one.
+
 ## Not found
 No analytics/telemetry SDKs, no Google Fonts or CDN `<link>`/`<script>` in `index.html`, no remote fonts in `src/index.css`.
 `report_user_friction` only writes to local `localStorage`.

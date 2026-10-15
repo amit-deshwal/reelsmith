@@ -1,4 +1,5 @@
 import { LOCAL_CJK_FONTS, normalizeFontKey } from './localFonts';
+import { REELSMITH_LOCAL_FONTS } from '../reelsmith/fonts';
 import { getAllDiscoveredFonts, isInstalledFont } from './systemFonts';
 
 export type FontSource = 'google' | 'bundled' | 'system' | 'custom';
@@ -53,6 +54,13 @@ export const FONT_CATALOG: readonly FontCatalogEntry[] = [
   ...LOCAL_CJK_FONTS.map((font) => ({
     family: font.family,
     aliases: [...font.aliasZh, font.importName],
+    loadable: true as const,
+    source: 'bundled' as const,
+  })),
+  // Reelsmith: bundled families that are not already in the Google list (Noto Sans Devanagari, Poppins)
+  ...REELSMITH_LOCAL_FONTS.filter((font) => !GOOGLE_FONT_CATALOG.some((g) => g.family === font.family)).map((font) => ({
+    family: font.family,
+    aliases: [font.importName],
     loadable: true as const,
     source: 'bundled' as const,
   })),

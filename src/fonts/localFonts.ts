@@ -11,6 +11,8 @@
  * Headless rendering: render bundle overlay assets/, the same source /fonts path can also be loaded.
  */
 
+import { REELSMITH_LOCAL_FONTS } from '../reelsmith/fonts';
+
 /** Normalized matching key (case/whitespace/punctuation insensitive). */
 export function normalizeFontKey(value: string): string {
   return value
@@ -71,11 +73,14 @@ export const LOCAL_CJK_FONTS: readonly LocalCjkFont[] = [
              700: '/fonts/douyin-meihaoti/DouyinMeihaoti-Bold.woff2' } },
 ];
 
+// Reelsmith (RS-003/RS-404): Latin + Devanagari fonts bundled under /fonts/rs, so text never needs Google Fonts.
+const ALL_LOCAL_FONTS: readonly LocalCjkFont[] = [...LOCAL_CJK_FONTS, ...REELSMITH_LOCAL_FONTS];
+
 /** family / importName / Chinese alias → entry (normalized matching). */
 export function findLocalFont(name: string): LocalCjkFont | undefined {
   const key = normalizeFontKey(name);
   if (!key) return undefined;
-  return LOCAL_CJK_FONTS.find(
+  return ALL_LOCAL_FONTS.find(
     (f) =>
       normalizeFontKey(f.family) === key ||
       normalizeFontKey(f.importName) === key ||
@@ -148,7 +153,7 @@ async function loadFaces(font: LocalCjkFont): Promise<void> {
  */
 export function registerLocalFonts(): void {
   if (!hasDom()) return;
-  for (const font of LOCAL_CJK_FONTS) {
+  for (const font of ALL_LOCAL_FONTS) {
     if (font.stylesheet) void registerStylesheet(font).catch(() => undefined);
     else facesOf(font);
   }

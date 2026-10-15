@@ -2,6 +2,8 @@
 //   POST /api/reelsmith/clip-features  { src, fps }  -> features for scoring
 //   POST /api/reelsmith/music-grid     { src }       -> bpm, beats, downbeat, energy, drop, loudest section
 //   POST /api/reelsmith/instagram-finalize { src, presetId } -> validation report; re-encodes in place when needed
+//   POST /api/reelsmith/preview        { project, seconds } -> 360x640 muted loop of an assembled recipe
+import { stat } from 'node:fs/promises';
 import type { Plugin } from 'vite';
 import { resolveUploadFile, uploadNameOfSource } from '../media-dir.ts';
 import { readJsonBody, sendJson } from '../plugins/export-http.ts';
@@ -9,6 +11,7 @@ import { detectDropBeat } from '../../src/reelsmith/assembler/drop.ts';
 import { analyzeBeatsFile } from './beatDetect.ts';
 import { extractClipFeatures } from './clipFeatures.ts';
 import { finalizeForInstagram } from './instagramFinalize.ts';
+import { renderRecipePreview, type PreviewRequest } from './previewRender.ts';
 import { REEL_PRESETS } from '../../shared/reelsmith/instagramPreset.ts';
 
 function localFile(src: unknown): string | { error: string } {
@@ -16,6 +19,9 @@ function localFile(src: unknown): string | { error: string } {
   if (!name) return { error: 'src must be a /media/uploads/ path' };
   return resolveUploadFile(name) ?? { error: `media not found: ${name}` };
 }
+
+/** Clip analysis is the slow part of Assemble and Preview; cache it per file version. */
+const featureCache = new Map<string, Awaited<ReturnType<typeof extractClipFeatures>>>();
 
 export function reelsmithAnalyzePlugin(): Plugin {
   return {
@@ -38,8 +44,17 @@ export function reelsmithAnalyzePlugin(): Plugin {
         const file = localFile(body.src);
         if (typeof file !== 'string') throw new Error(file.error);
         const fps = Number(body.fps) > 0 ? Number(body.fps) : 30;
-        return { features: await extractClipFeatures(file, String(body.assetId ?? ''), fps, { maxSec: 90 }) };
+        const { mtimeMs, size } = await stat(file);
+        const key = `${file}|${mtimeMs}|${size}|${fps}`;
+        let features = featureCache.get(key);
+        if (!features) {
+          features = await extractClipFeatures(file, String(body.assetId ?? ''), fps, { maxSec: 90 });
+          if (featureCache.size > 500) featureCache.delete(featureCache.keys().next().value!);
+          featureCache.set(key, features);
+        }
+        return { features: { ...features, assetId: String(body.assetId ?? features.assetId) } };
       });
+      route('/api/reelsmith/preview', async (body) => renderRecipePreview(body as unknown as PreviewRequest));
       route('/api/reelsmith/instagram-finalize', async (body) => {
         const file = localFile(body.src);
         if (typeof file !== 'string') throw new Error(file.error);

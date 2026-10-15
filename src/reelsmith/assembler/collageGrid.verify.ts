@@ -64,4 +64,12 @@ assert.ok(few.action);
 assert.equal(new Set(few.report.usedAssetIds).size, few.report.usedAssetIds.length);
 assert.ok(few.report.warnings.some((w) => /short/.test(w)));
 assert.equal(assemble({ ...base, clips: clips(2) }).action, null);
+// near-duplicates leave fewer distinct clips than the layouts need: fewer layouts, no crash, no repeats
+const dupes = clips(12).map((c, i) => ({ ...c, groupId: i < 6 ? 'g1' : undefined }));
+const fewer = assemble({ ...base, clips: dupes });
+assert.ok(fewer.action, fewer.report.warnings.join('; '));
+assert.equal(new Set(fewer.report.usedAssetIds).size, fewer.report.usedAssetIds.length);
+assert.ok(fewer.report.usedAssetIds.filter((id) => Number(id.slice(1)) < 6).length <= 1, 'one clip per near-duplicate group');
+const allSame = clips(12).map((c) => ({ ...c, groupId: 'g' }));
+assert.equal(assemble({ ...base, clips: allSame }).action, null, 'one distinct clip is not enough, and it says so');
 console.log('collageGrid.verify: ok');

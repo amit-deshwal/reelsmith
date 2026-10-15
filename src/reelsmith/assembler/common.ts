@@ -34,6 +34,24 @@ export function clipItem(
   };
 }
 
+/** Average glyph width in em; condensed display faces are much narrower than the default sans. */
+const CONDENSED = /anton|bebas|oswald|league gothic|barlow condensed|fjalla|teko|six caps/i;
+function glyphEm(fontFamily: string | undefined, upper: boolean): number {
+  if (fontFamily && CONDENSED.test(fontFamily)) return upper ? 0.5 : 0.44;
+  return upper ? 0.72 : 0.6;
+}
+
+/**
+ * Largest font size <= `wanted` at which the longest line fits inside the Instagram safe width
+ * (left 4% + right 10% are covered by the app UI), with a small margin.
+ */
+export function fitFontSize(text: string, wanted: number, canvasWidth: number, upper = false, fontFamily?: string): number {
+  const longest = Math.max(1, ...text.split('\n').map((l) => [...l].length));
+  const usable = canvasWidth * 0.86 * 0.94;
+  const fit = Math.floor(usable / (longest * glyphEm(fontFamily, upper)));
+  return Math.max(28, Math.min(wanted, fit));
+}
+
 export function textItem(
   id: string, text: string, startFrame: number, durationInFrames: number, canvas: { width: number; height: number },
   style: Record<string, unknown>, yPercent: number, track = 'V2',
@@ -44,7 +62,7 @@ export function textItem(
       id, track, kind: 'text', name: text.slice(0, 24), durationInFrames, width: canvas.width, height: canvas.height,
       props: {
         text: style.textTransform === 'uppercase' ? text.toUpperCase() : text,
-        fontSize: typeof style.sizePx === 'number' ? style.sizePx : 96,
+        fontSize: fitFontSize(text, typeof style.sizePx === 'number' ? style.sizePx : 96, canvas.width, style.textTransform === 'uppercase', typeof style.fontFamily === 'string' ? style.fontFamily : undefined),
         color: typeof style.color === 'string' ? style.color : '#ffffff',
         fontWeight: typeof style.fontWeight === 'number' ? style.fontWeight : 700,
         fontFamily: typeof style.fontFamily === 'string' ? style.fontFamily : undefined,

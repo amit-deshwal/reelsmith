@@ -7,8 +7,9 @@ import type { MediaAsset } from '../../editor/types';
 import { theme } from '../../theme';
 import { analyzeApi } from '../analyzeApi';
 import { bundledCatalog } from '../bundledRecipes';
-import { buildGallery, categoryLabel } from '../galleryModel';
+import { buildGallery, categoryLabel, previewUrl, type RecipeCard } from '../galleryModel';
 import { runRecipe } from '../runRecipe';
+import { requestPreview } from '../previewClient';
 import { saveRun } from '../runStore';
 import { kvGet, kvSet } from '../../persist/sharedKv';
 import { canAssemble, defaultValues, mediaInputs, validateSetup, widgetFor, type SetupValues } from '../setupForm';
@@ -56,14 +57,11 @@ export function RecipesPanel({ projectId, assets, itemCount, fps, onApply, onAsk
             }}>{c.label} ({c.count})</button>
           ))}
         </div>
-        {gallery.cards.map((c) => (
-          <button key={c.id} type="button" style={card} onClick={() => setRecipe(catalog.recipes.find((r) => r.id === c.id)!)}>
-            <b style={{ fontSize: 13.5 }}>{c.name}</b>
-            <span style={label}>{categoryLabel(c.category)} · {c.aspect}{c.typicalLength ? ` · ${c.typicalLength}` : ''}</span>
-            <span style={{ fontSize: 12 }}>{c.description}</span>
-            <span style={{ ...label, color: theme.gold }}>Needs {c.requires}</span>
-          </button>
-        ))}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
+          {gallery.cards.map((c) => (
+            <RecipeCardView key={c.id} card={c} onOpen={() => setRecipe(catalog.recipes.find((r) => r.id === c.id)!)} />
+          ))}
+        </div>
         {catalog.rejected.length > 0 && <div style={{ ...label, color: theme.danger }}>{catalog.rejected.join('; ')}</div>}
       </div>
     );
@@ -71,10 +69,33 @@ export function RecipesPanel({ projectId, assets, itemCount, fps, onApply, onAsk
   return <SetupForm key={recipe.id} recipe={recipe} projectId={projectId} assets={assets} itemCount={itemCount} fps={fps} onBack={() => setRecipe(null)} onApply={onApply} onAskAgent={onAskAgent} />;
 }
 
+/** Poster with a muted loop that plays while hovered (RS-102). */
+function RecipeCardView({ card: c, onOpen }: { card: RecipeCard; onOpen: () => void }) {
+  const [hover, setHover] = useState(false);
+  const poster = previewUrl(c.poster);
+  const loop = previewUrl(c.loop);
+  return (
+    <button type="button" style={{ ...card, padding: 0, overflow: 'hidden', gap: 0 }} onClick={onOpen}
+      onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} onFocus={() => setHover(true)} onBlur={() => setHover(false)}>
+      <div style={{ position: 'relative', aspectRatio: '9 / 16', background: theme.inset, width: '100%' }}>
+        {poster && <img src={poster} alt="" loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+        {hover && loop && <video src={loop} muted autoPlay loop playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
+        <span style={{ position: 'absolute', left: 6, top: 6, fontSize: 10.5, padding: '2px 6px', borderRadius: 4, background: 'rgba(0,0,0,0.55)', color: '#fff' }}>{categoryLabel(c.category)}</span>
+      </div>
+      <div style={{ display: 'grid', gap: 3, padding: '8px 9px 10px' }}>
+        <b style={{ fontSize: 13 }}>{c.name}</b>
+        <span style={label}>{c.aspect}{c.typicalLength ? ` · ${c.typicalLength}` : ''}</span>
+        <span style={{ ...label, color: theme.gold }}>Needs {c.requires}</span>
+      </div>
+    </button>
+  );
+}
+
 function SetupForm({ recipe, projectId, assets, itemCount, fps, onBack, onApply, onAskAgent }: RecipesPanelProps & { recipe: Recipe; onBack: () => void }) {
   const [values, setValues] = useState<SetupValues>(() => defaultValues(recipe));
   const [busy, setBusy] = useState('');
   const [notes, setNotes] = useState<string[]>([]);
+  const [preview, setPreview] = useState<{ src: string; ms: number } | null>(null);
   const errors = validateSetup(recipe, values);
   const errorFor = (field: string) => errors.find((e) => e.field === field)?.message;
   const toggle = (inputId: string, a: MediaAsset, max: number) => setValues((v) => {
@@ -100,6 +121,21 @@ function SetupForm({ recipe, projectId, assets, itemCount, fps, onBack, onApply,
           setNotes((n) => [...n, 'The reel is assembled. Your agent request is in the chat box; press Enter to let it re-pick the shots.']);
         }
       }
+    } catch (e) {
+      setNotes([e instanceof Error ? e.message : String(e)]);
+    } finally { setBusy(''); }
+  };
+
+  const previewWithMine = async () => {
+    setBusy('Preparing preview…'); setNotes([]); setPreview(null);
+    const started = performance.now();
+    try {
+      const out = await runRecipe(api, { recipe, values, assets, fps, replaceTimeline: false, onProgress: setBusy });
+      if (!out.action) { setNotes(out.messages); return; }
+      setBusy('Rendering preview…');
+      const p = await requestPreview(out, assets, fps);
+      setPreview({ src: p.src, ms: Math.round(performance.now() - started) });
+      setNotes(out.messages);
     } catch (e) {
       setNotes([e instanceof Error ? e.message : String(e)]);
     } finally { setBusy(''); }
@@ -182,6 +218,16 @@ function SetupForm({ recipe, projectId, assets, itemCount, fps, onBack, onApply,
         cursor: canAssemble(recipe, values) && !busy ? 'pointer' : 'not-allowed',
         background: canAssemble(recipe, values) && !busy ? theme.accent : theme.panelAlt, color: canAssemble(recipe, values) && !busy ? theme.onAccent : theme.textDim,
       }}>{busy || 'Assemble'}</button>
+      <button type="button" disabled={!canAssemble(recipe, values) || !!busy} onClick={() => { void previewWithMine(); }}
+        style={{ ...input, cursor: canAssemble(recipe, values) && !busy ? 'pointer' : 'not-allowed', justifySelf: 'stretch', padding: '7px 10px' }}>
+        Preview with my footage
+      </button>
+      {preview && (
+        <div style={{ display: 'grid', gap: 4, justifyItems: 'center' }}>
+          <video src={preview.src} muted autoPlay loop playsInline style={{ width: 180, aspectRatio: '9 / 16', borderRadius: 8, background: '#000' }} />
+          <span style={label}>Preview ready in {(preview.ms / 1000).toFixed(1)} s. Nothing was added to the timeline.</span>
+        </div>
+      )}
       {notes.length > 0 && <ul style={{ margin: 0, paddingLeft: 16, ...label }}>{notes.map((n, i) => <li key={i}>{n}</li>)}</ul>}
     </div>
   );

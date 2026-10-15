@@ -19,6 +19,12 @@ const CATEGORY_LABEL: Record<Recipe['category'], string> = {
 };
 export const categoryLabel = (c: Recipe['category']) => CATEGORY_LABEL[c];
 
+/** Recipe files name previews as "previews/<file>"; the build (server/reelsmith/build-previews.mts) writes them to assets/recipe-previews (served at /recipe-previews). */
+export function previewUrl(path: string | undefined): string | undefined {
+  if (!path || /^(https?:|data:|blob:)/.test(path) || path.includes('..')) return undefined;
+  return `/recipe-previews/${path.replace(/^\/?(recipe-)?previews\//, '')}`;
+}
+
 function gcd(a: number, b: number): number { return b ? gcd(b, a % b) : a; }
 export function aspectOf(width: number, height: number): string {
   const g = gcd(width, height);
