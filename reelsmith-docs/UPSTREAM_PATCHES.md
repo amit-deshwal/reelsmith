@@ -32,3 +32,7 @@ Cause (from reading the code, then confirmed by the user's retest): Stop kills t
 
 ## Analysis routes (RS-105, RS-203)
 `server/plugins/index.ts`: imports and mounts `reelsmithAnalyzePlugin()` (routes `/api/reelsmith/clip-features` and `/api/reelsmith/music-grid`, code in `server/reelsmith/`).
+
+## Recipes tab (RS-102, RS-103)
+- `src/library/LibraryPanel.tsx`: new main tab `Recipes` (second tab) rendering `src/reelsmith/ui/RecipesPanel.tsx`; new prop `onApplyRecipe`.
+- `src/editor/useEditorController.tsx`: passes `onApplyRecipe: (action) => commands.batch(action.actions, action.label)` into `libraryPanel`.

@@ -17,6 +17,8 @@ import { newManualCaptions } from '../captions/manualCaptions';
 import { MediaPoolPanel } from '../media/MediaPoolPanel';
 import { useDirectoryImport } from '../media/useDirectoryImport';
 import { SkillsTabPanel } from './SkillsTabPanel';
+import { RecipesPanel } from '../reelsmith/ui/RecipesPanel';
+import type { BatchAction } from '../editor/reducerActions';
 import { TemplateBrowser } from './TemplateBrowser';
 import { ResourceBrowser, type ResourceItem } from './ResourceBrowser';
 import { TransitionThumb } from './TransitionThumb';
@@ -117,15 +119,17 @@ interface LibraryPanelProps {
   onApplyFx: (assetId: string) => void;
   /** The built-in curve passes {shape}; the plugin curve passes {envelope, label} (see PluginBrowser.asPluginZoom) */
   onApplyZoom: (zoom: ZoomEffect) => void;
+  /** Reelsmith: dispatch an assembled recipe as one undo step */
+  onApplyRecipe: (action: BatchAction) => void;
 }
 
-const MAIN_TABS = ['我的素材', '序列', '资源库', '文字稿', '字幕', '技能'] as const;
+const MAIN_TABS = ['我的素材', 'Recipes', '序列', '资源库', '文字稿', '字幕', '技能'] as const;
 const SUB_TABS = ['MG 动画', '音效', '转场', '特效', '缩放', 'LUT'] as const;
 function localizeDefaultSequenceName(name: string, t: ReturnType<typeof useT>): string {
   const match = /^序列 (\d+)$/.exec(name);
   return match ? t('序列 {n}', { n: match[1]! }) : name;
 }
-export function LibraryPanel({ semanticScopeId, templates, onAddTemplate, onAddAudio, playerRef, fps, items, getSequenceOptions, onAddSequence, trackOptions, captionTracks, onSetCaptions, onCreateCaptionTrack, onUpdateCaptions, onSetItemTranscript, onToggleWord, onCleanScript, onSetGapCap, onSetTranscriptPlayOrder, onReorderTrackItems, onClearEdits, assets, mediaFolders, usedAssetIds, offlineAssetIds, onAssetLoadError, onImportMedia, onImportMobileMedia, onIngestDirectoryAsset, onTranscribeAsset, onAddMediaItem, onAddMediaAssetsToTimeline, onUseMediaAI, onCreateMediaFolder, onRenameMediaFolder, onDeleteMediaFolder, onMoveMediaAssets, onRenameMediaAsset, onRenameMediaAssets, onSetMediaAssetFavorite, onSetMediaAssetsFavorite, onRemoveMediaAsset, onRemoveMediaAssets, onPasteMediaAssets, onRelinkMediaAsset, creativeMode, onCreativeModeChange, onAddSolid, onUseTemplateAI, selectedItem, onApplyTransition, onApplyFx, onApplyZoom }: LibraryPanelProps) {
+export function LibraryPanel({ semanticScopeId, templates, onAddTemplate, onAddAudio, playerRef, fps, items, getSequenceOptions, onAddSequence, trackOptions, captionTracks, onSetCaptions, onCreateCaptionTrack, onUpdateCaptions, onSetItemTranscript, onToggleWord, onCleanScript, onSetGapCap, onSetTranscriptPlayOrder, onReorderTrackItems, onClearEdits, assets, mediaFolders, usedAssetIds, offlineAssetIds, onAssetLoadError, onImportMedia, onImportMobileMedia, onIngestDirectoryAsset, onTranscribeAsset, onAddMediaItem, onAddMediaAssetsToTimeline, onUseMediaAI, onCreateMediaFolder, onRenameMediaFolder, onDeleteMediaFolder, onMoveMediaAssets, onRenameMediaAsset, onRenameMediaAssets, onSetMediaAssetFavorite, onSetMediaAssetsFavorite, onRemoveMediaAsset, onRemoveMediaAssets, onPasteMediaAssets, onRelinkMediaAsset, creativeMode, onCreativeModeChange, onAddSolid, onUseTemplateAI, selectedItem, onApplyTransition, onApplyFx, onApplyZoom, onApplyRecipe }: LibraryPanelProps) {
   const t = useT();
   const selKind = selectedItem?.kind ?? null;
   const isVisual = selKind != null && selKind !== 'audio';
@@ -165,6 +169,7 @@ export function LibraryPanel({ semanticScopeId, templates, onAddTemplate, onAddA
   const isSequences = mainTab === '序列';
   const sequenceOptions = useMemo(() => isSequences ? getSequenceOptions() : [], [isSequences, getSequenceOptions]);
   const isSkills = mainTab === '技能';
+  const isRecipes = mainTab === 'Recipes';
   const openCaptionStyles = (sourceItemIds: string[]) => {
     const target = captionTracks[0];
     if (!target?.captions && sourceItemIds.length) {
@@ -230,6 +235,10 @@ export function LibraryPanel({ semanticScopeId, templates, onAddTemplate, onAddA
             onCreateFolder={onCreateMediaFolder} onRenameFolder={onRenameMediaFolder} onDeleteFolder={onDeleteMediaFolder}
             onMoveAssets={onMoveMediaAssets} onRenameAsset={onRenameMediaAsset} onTranscribe={onTranscribeAsset} onRenameAssets={onRenameMediaAssets} onSetFavorite={onSetMediaAssetFavorite} onSetAssetsFavorite={onSetMediaAssetsFavorite} onRemoveAsset={onRemoveMediaAsset} onRemoveAssets={onRemoveMediaAssets} onPasteAssets={onPasteMediaAssets}
             onRelinkAsset={onRelinkMediaAsset} onAddSolid={onAddSolid} />
+        </div>
+      ) : isRecipes ? (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, borderTop: `0.5px solid ${theme.border}` }}>
+          <RecipesPanel assets={assets} itemCount={items.length} fps={fps} onApply={onApplyRecipe} />
         </div>
       ) : isSkills ? (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, borderTop: `0.5px solid ${theme.border}` }}>
