@@ -8,7 +8,7 @@ import { projectStoreAuthDir } from './project-store-http-auth.ts';
 
 const homeDir = resolve('runtime-profile-fixtures', 'home');
 const cwd = resolve('runtime-profile-fixtures', 'checkout');
-const globalRoot = join(homeDir, '.openchatcut');
+const globalRoot = join(homeDir, '.reelsmith');
 const defaultProfile = resolveRuntimeProfile({}, { homeDir, cwd });
 
 assert.deepEqual(defaultProfile, {
@@ -124,7 +124,7 @@ try {
   );
   assert.equal(
     resolveRuntimeProfile({ [DATA_DIR_ENV]: '   ' }, { homeDir: dataDirHome, cwd }).rootDir,
-    join(dataDirHome, '.openchatcut'),
+    join(dataDirHome, '.reelsmith'),
   );
   // A typo must fail loudly: silently falling back would hide the projects somewhere
   // the user never chose, which is exactly what this setting exists to prevent.
@@ -136,7 +136,7 @@ try {
   // With no environment variable, the pointer file recorded by the settings UI is used,
   // and the environment variable wins over it when both are present.
   const pointed = join(dataDirHome, 'Pointed');
-  mkdirSync(join(dataDirHome, '.openchatcut'), { recursive: true });
+  mkdirSync(join(dataDirHome, '.reelsmith'), { recursive: true });
   writeFileSync(dataDirPointerPath(dataDirHome), JSON.stringify({ version: 1, dataDir: pointed }));
   assert.equal(resolveRuntimeProfile({}, { homeDir: dataDirHome, cwd }).rootDir, pointed);
   assert.equal(
@@ -147,7 +147,7 @@ try {
   writeFileSync(dataDirPointerPath(dataDirHome), 'not json at all');
   assert.equal(
     resolveRuntimeProfile({}, { homeDir: dataDirHome, cwd }).rootDir,
-    join(dataDirHome, '.openchatcut'),
+    join(dataDirHome, '.reelsmith'),
   );
 
   // An isolated dev profile accepts an EXPLICIT data dir: that is a deliberate
@@ -171,17 +171,17 @@ try {
   );
   assert.equal(
     isolatedPointer.rootDir,
-    join(dataDirHome, '.openchatcut', 'dev-profiles', profileAId),
+    join(dataDirHome, '.reelsmith', 'dev-profiles', profileAId),
     'an isolated profile ignores the machine-wide pointer file',
   );
   assert.equal(isolatedPointer.mediaDir, join(isolatedPointer.rootDir, 'media', 'uploads'));
 
   // defaultRootDir answers "where does clearing the field lead?", so it must ignore
   // the configured root in both modes.
-  assert.equal(defaultRootDir(envDataDir, dataDirHome), join(dataDirHome, '.openchatcut'));
+  assert.equal(defaultRootDir(envDataDir, dataDirHome), join(dataDirHome, '.reelsmith'));
   assert.equal(
     defaultRootDir(isolatedData, dataDirHome),
-    join(dataDirHome, '.openchatcut', 'dev-profiles', profileAId),
+    join(dataDirHome, '.reelsmith', 'dev-profiles', profileAId),
   );
 } finally {
   rmSync(dataDirHome, { recursive: true, force: true });

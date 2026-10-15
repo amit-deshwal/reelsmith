@@ -41,7 +41,7 @@ try {
   const reused = await loadOrCreateDevProfile({ ...stablePaths, randomId: () => UUID_B });
   assert.equal(first.id, UUID_A);
   assert.deepEqual(reused, first);
-  assert.equal(first.rootDir, join(stablePaths.homeDir, '.openchatcut', 'dev-profiles', UUID_A));
+  assert.equal(first.rootDir, join(stablePaths.homeDir, '.reelsmith', 'dev-profiles', UUID_A));
   assert.deepEqual(
     JSON.parse(await readFile(join(stablePaths.gitDir, DEV_PROFILE_METADATA), 'utf8')),
     { version: 1, profileId: UUID_A, repoRoot: stablePaths.repoRoot },

@@ -2,7 +2,7 @@ export { RUN_SKILL_SCRIPT_TOOL_SCHEMAS, RUN_SKILL_SCRIPT_TOOL_NAMES } from './sc
 // run_skill_script: execute a whitelisted binary inside an installed skill's
 // directory on the LOCAL machine (server-side). Skill-shipped deterministic
 // scripts (render.mjs, check-deps.sh, …) run where their relative assets live;
-// the cloud run_code sandbox cannot see ~/.openchatcut/skills.
+// the cloud run_code sandbox cannot see ~/.reelsmith/skills.
 import type { AgentContext } from '../context';
 
 interface ExecResult {

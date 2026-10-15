@@ -51,7 +51,7 @@ async function verifyCorruptEntryIsolation(root: string): Promise<void> {
   process.env.HOME = root;
   process.env.USERPROFILE = root;
   try {
-    const storeDir = join(root, '.openchatcut', 'project-store-v1');
+    const storeDir = join(root, '.reelsmith', 'project-store-v1');
     await mkdir(storeDir, { recursive: true });
     await writeFile(join(storeDir, '.ready'), '1\n');
     await writeFile(join(storeDir, `${encodeURIComponent('project:healthy')}.json`), JSON.stringify({ healthy: true }));

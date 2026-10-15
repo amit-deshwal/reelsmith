@@ -36,3 +36,9 @@ Cause (from reading the code, then confirmed by the user's retest): Stop kills t
 ## Recipes tab (RS-102, RS-103)
 - `src/library/LibraryPanel.tsx`: new main tab `Recipes` (second tab) rendering `src/reelsmith/ui/RecipesPanel.tsx`; new prop `onApplyRecipe`.
 - `src/editor/useEditorController.tsx`: passes `onApplyRecipe` into `libraryPanel` (binds the recipe's lanes to real tracks with `bindTracks`, then `commands.batch`) and imports `bindTracks`.
+
+## Own data folder (RS-002)
+Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never shares projects, keys, skills or models with an installed OpenChatCut. Every `'.openchatcut'` path segment and `~/.openchatcut` mention was replaced with `.reelsmith` in: `server/{data-dir,runtime-profile,mcp-token,skills-files,keystore-names}.ts`, `server/copilot/client.ts`, `server/codex/app-server.ts`, `server/plugins/{skill-install,skill-files,extension-store}.ts`, `desktop/embedded-port.ts`, `shared/model-cache-path.ts`, `scripts/dev-profile.mjs`, `src/plugins/store.ts`, `src/persist/skillStore.ts`, `src/agent/tools/{skill-exec-tools,install-skill-tools,skill-tools,plugin-skill-tools}.ts`, `src/agent/tools/schemas/install-skill-tools.ts`, `src/agent/skills/skill-creator/SKILL.md`, `src/components/settings/settingsAgentProviders.ts`, `src/i18n/dict/{en,it}/settings.ts`, the matching `*.verify.ts` files, and the regenerated `assets/agent/openchatcut-tool-schemas.json`. On merge conflicts, re-run the same replacement.
+- `desktop/bootstrap.ts`: `app.setName('Reelsmith')` before anything reads `userData` (dev builds were using `Application Support/openchatcut`); startup error title says Reelsmith.
+- `desktop/main.ts`: startup error title says Reelsmith. `desktop/smoke-renderer-recovery.ts`: expects window title `Reelsmith`.
+- Existing data: `npx tsx src/reelsmith/migrate-home.mts` copies `~/.openchatcut` into `~/.reelsmith` once (stop the app first).

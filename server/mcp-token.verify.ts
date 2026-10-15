@@ -18,7 +18,7 @@ try {
   // The secret must not be world-readable, and must not live under the movable
   // data dir (which may be a synced folder): HOME-anchored hidden root only.
   const path = mcpTokenPath({ home });
-  assert.ok(path.startsWith(join(home, '.openchatcut')), 'token lives under the hidden home root');
+  assert.ok(path.startsWith(join(home, '.reelsmith')), 'token lives under the hidden home root');
   // POSIX permission bits: Windows reports no owner-only mode.
   if (process.platform !== 'win32') {
     assert.equal(statSync(path).mode & 0o777, 0o600, 'token file is owner-only');
@@ -63,14 +63,14 @@ try {
   // unwritable directory there.
   if (process.platform !== 'win32') {
     const lockedHome = join(home, 'locked');
-    mkdirSync(join(lockedHome, '.openchatcut'), { recursive: true });
-    chmodSync(join(lockedHome, '.openchatcut'), 0o500);
+    mkdirSync(join(lockedHome, '.reelsmith'), { recursive: true });
+    chmodSync(join(lockedHome, '.reelsmith'), 0o500);
     try {
       const volatile = loadOrCreateMcpToken({ home: lockedHome });
       assert.equal(volatile.persisted, false, 'unwritable home reports non-persistence');
       assert.match(volatile.token, /^[A-Za-z0-9_-]{43}$/, 'a usable token is still served');
     } finally {
-      chmodSync(join(lockedHome, '.openchatcut'), 0o700);
+      chmodSync(join(lockedHome, '.reelsmith'), 0o700);
     }
   }
 

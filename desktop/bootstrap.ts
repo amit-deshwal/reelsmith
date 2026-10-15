@@ -22,6 +22,10 @@ import { RUNTIME_ASSET_ADVICE } from './runtime-preflight.ts';
 // (issue #40). Must run before app 'ready'; js-flags apply to every V8 instance.
 app.commandLine.appendSwitch('js-flags', '--max-old-space-size=6144');
 
+// Reelsmith (RS-002): own app name, so userData is ~/Library/Application Support/Reelsmith
+// and never OpenChatCut's. Must run before anything reads app.getPath('userData').
+app.setName('Reelsmith');
+
 try {
   // Relative and marked external on purpose: desktop:build:main emits
   // app-main.mjs as its own bundle beside this file, so that bundle's imports
@@ -32,7 +36,7 @@ try {
   console.error('[desktop] failed to load the application bundle:', detail);
   if (process.env.CC_SMOKE !== '1') {
     try {
-      dialog.showErrorBox('OpenChatCut 启动失败 / failed to start', [
+      dialog.showErrorBox('Reelsmith failed to start', [
         '无法加载程序主体 / could not load the application bundle:',
         '',
         error instanceof Error ? error.message : String(error),

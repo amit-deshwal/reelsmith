@@ -1,5 +1,5 @@
 // Runnable check: `npx tsx server/skills-files.verify.ts`.
-// Pure-fs layer of the user-visible skill files under ~/.openchatcut/skills/.
+// Pure-fs layer of the user-visible skill files under ~/.reelsmith/skills/.
 import assert from 'node:assert/strict';
 import { mkdtemp, readFile, writeFile, rm, mkdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -45,7 +45,7 @@ assert.equal(await removeSkillFile(root, 'my-skill'), false, 'second remove repo
 assert.equal(await removeSkillFile(root, '../escape'), false, 'unsafe slug never touches fs');
 
 // display path is portable and human-readable
-assert.equal(displaySkillPath('demo'), join('~', '.openchatcut', 'skills', 'demo'));
+assert.equal(displaySkillPath('demo'), join('~', '.reelsmith', 'skills', 'demo'));
 
 await rm(root, { recursive: true, force: true });
 console.log('skills-files.check: ok');

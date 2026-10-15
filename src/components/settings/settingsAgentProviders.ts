@@ -76,7 +76,7 @@ const COPILOT_PAGE: SettingsVendorPage = {
   connection: 'copilot',
   note: '使用 GitHub Copilot 订阅：官方 Copilot CLI 管理登录与凭据（终端运行 copilot login），'
     + 'OpenChatCut 通过 Copilot SDK 直接驱动编辑工具，不会读取或显示凭据。'
-    + '会话状态隔离在 ~/.openchatcut/copilot，不影响你自己的 ~/.copilot。',
+    + '会话状态隔离在 ~/.reelsmith/copilot，不影响你自己的 ~/.copilot。',
   fields: [
     {
       name: 'COPILOT_MODEL', label: 'Copilot 模型', kind: 'text',

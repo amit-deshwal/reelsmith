@@ -7,7 +7,7 @@ description: Create or improve OpenChatCut custom skills. Use whenever the user 
 
 Create or improve custom skills for OpenChatCut. A skill is a SKILL.md file
 (plus optional `references/` support docs) that teaches the agent a reusable
-workflow. Custom skills live at `~/.openchatcut/skills/<slug>/SKILL.md` and
+workflow. Custom skills live at `~/.reelsmith/skills/<slug>/SKILL.md` and
 are managed with the `manage_skill` tool.
 
 ## Workflow
@@ -24,7 +24,7 @@ are managed with the `manage_skill` tool.
      (writing style)? Suggest test prompts for the former.
 3. **Write the SKILL.md** (rules below).
 4. **Create it** with `manage_skill action=create`. The tool reports the
-   install path (`~/.openchatcut/skills/<slug>/SKILL.md`).
+   install path (`~/.reelsmith/skills/<slug>/SKILL.md`).
 5. **Test.** Run 2–3 realistic prompts in the current session and confirm
    results with the user. Iterate with `manage_skill action=update`.
 
@@ -74,7 +74,7 @@ are managed with the `manage_skill` tool.
 
 - **Slug whitelist**: `[A-Za-z0-9_-]{1,120}`. Anything else is rejected
   (path traversal defense — the file is written under
-  `~/.openchatcut/skills/`).
+  `~/.reelsmith/skills/`).
 - **Body size**: keep under 512 KB (server limit); 200 lines is the target.
 - **Untrusted input**: the body is user/LLM-authored text. validate and
   normalize before trusting anything parsed out of it.

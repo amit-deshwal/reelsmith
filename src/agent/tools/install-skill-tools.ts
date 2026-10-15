@@ -1,6 +1,6 @@
 export { INSTALL_SKILL_TOOL_SCHEMAS, INSTALL_SKILL_TOOL_NAMES } from './schemas/install-skill-tools';
 // install_skill: fetch a GitHub skill repo and install it into
-// ~/.openchatcut/skills/<slug>/ (full multi-file install, not just SKILL.md).
+// ~/.reelsmith/skills/<slug>/ (full multi-file install, not just SKILL.md).
 // The library Skills tab discovers the directory automatically.
 import type { AgentContext } from '../context';
 
@@ -39,6 +39,6 @@ export async function execInstallSkillTool(name: string, args: Record<string, un
     slug: result.slug,
     installedAt: result.installedAt,
     files: result.files,
-    note: '技能已安装到用户技能目录（~/.openchatcut/skills/<slug>/），资源库「技能」面板会自动展示。可以在对话中 /skill:<slug> 或从面板激活。',
+    note: '技能已安装到用户技能目录（~/.reelsmith/skills/<slug>/），资源库「技能」面板会自动展示。可以在对话中 /skill:<slug> 或从面板激活。',
   };
 }

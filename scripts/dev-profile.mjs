@@ -105,7 +105,7 @@ async function ensurePrivateDirectory(directory) {
 }
 
 async function ensureProfileDirectories(homeDir, profileId) {
-  const appRoot = join(homeDir, '.openchatcut');
+  const appRoot = join(homeDir, '.reelsmith');
   const profilesRoot = join(appRoot, 'dev-profiles');
   const rootDir = join(profilesRoot, profileId);
   const directories = [

@@ -22,8 +22,8 @@ export interface McpTokenLocation {
  */
 export function mcpTokenPath({ home = homedir(), profileId }: McpTokenLocation = {}): string {
   const root = profileId
-    ? join(home, '.openchatcut', 'dev-profiles', profileId)
-    : join(home, '.openchatcut');
+    ? join(home, '.reelsmith', 'dev-profiles', profileId)
+    : join(home, '.reelsmith');
   return join(root, 'mcp-token');
 }
 

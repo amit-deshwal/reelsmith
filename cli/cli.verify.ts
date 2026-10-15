@@ -336,7 +336,7 @@ try {
   // 16. an installed plugin pack reaches the headless catalog too
   const packId = 'occ-fixture-pack';
   const packVersion = '1.0.0';
-  const packRoot = join(HOME, '.openchatcut', 'plugins');
+  const packRoot = join(HOME, '.reelsmith', 'plugins');
   const packDir = join(packRoot, packId, Buffer.from(packVersion, 'utf8').toString('base64url'));
   mkdirSync(packDir, { recursive: true });
   const installedAt = Date.now();

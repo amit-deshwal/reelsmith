@@ -199,7 +199,7 @@ assert.match(networkMessage(Object.assign(new Error('The operation was aborted d
 {
   const unset = await runProbe('storage/projects', { OPENCHATCUT_DATA_DIR: '' });
   assert.equal(unset.ok, true);
-  assert.match(unset.message, /默认目录 .*\.openchatcut/); // machine-dependent absolute path, anchor the tail only
+  assert.match(unset.message, /默认目录 .*\.reelsmith/); // machine-dependent absolute path, anchor the tail only
 
   const relative = await runProbe('storage/projects', { OPENCHATCUT_DATA_DIR: 'relative/saves' });
   assert.equal(relative.ok, false);
@@ -213,9 +213,9 @@ assert.match(networkMessage(Object.assign(new Error('The operation was aborted d
 
   // Without the field in the payload, the probe tests the root already recorded by the
   // settings UI, so "test connection" answers for the storage actually in use.
-  mkdirSync(join(fixtureHome, '.openchatcut'), { recursive: true });
+  mkdirSync(join(fixtureHome, '.reelsmith'), { recursive: true });
   writeFileSync(
-    join(fixtureHome, '.openchatcut', 'data-dir.json'),
+    join(fixtureHome, '.reelsmith', 'data-dir.json'),
     JSON.stringify({ version: 1, dataDir: target }),
   );
   const recorded = await runProbe('storage/projects', {});

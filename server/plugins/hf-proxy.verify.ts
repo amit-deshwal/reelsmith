@@ -198,7 +198,7 @@ const originalUserProfile = process.env.USERPROFILE;
 // os.homedir() resolves USERPROFILE on Windows; HOME alone only covers POSIX.
 process.env.HOME = directory;
 process.env.USERPROFILE = directory;
-assert.equal(modelCacheDir(), join(directory, '.openchatcut', 'asr-models'));
+assert.equal(modelCacheDir(), join(directory, '.reelsmith', 'asr-models'));
 const resolveInstalled = async (target: ProxyTarget) => {
   if (target.modelId !== asrTarget.modelId
     || target.revision !== asrTarget.revision

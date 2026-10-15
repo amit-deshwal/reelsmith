@@ -78,7 +78,7 @@ function spawnChild(home: string): ChildProcess {
       ...process.env,
       HOME: home,
       USERPROFILE: home,
-      OPENCHATCUT_DATA_DIR: join(home, '.openchatcut'),
+      OPENCHATCUT_DATA_DIR: join(home, '.reelsmith'),
       OPENCHATCUT_DEV_PROFILE_ID: undefined,
       OPENCHATCUT_EXPORT_RECOVERY_RACE_CHILD: '1',
     },
@@ -87,7 +87,7 @@ function spawnChild(home: string): ChildProcess {
 }
 
 async function seedRecovery(home: string): Promise<void> {
-  const path = join(home, '.openchatcut', 'project-store-v1.sqlite3');
+  const path = join(home, '.reelsmith', 'project-store-v1.sqlite3');
   await mkdir(dirname(path), { recursive: true });
   const db = new DatabaseSync(path);
   db.exec('PRAGMA journal_mode = WAL; CREATE TABLE kv (k TEXT PRIMARY KEY, v TEXT NOT NULL);');

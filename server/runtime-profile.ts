@@ -132,7 +132,7 @@ export function resolveRuntimeProfile(
     // Only an explicit OPENCHATCUT_DATA_DIR reaches here (the pointer file is
     // ignored for isolated profiles), so redirecting this checkout's root is a
     // deliberate per-run choice, never a leak from the machine-wide setting.
-    const rootDir = dataDir ?? join(home, '.openchatcut', 'dev-profiles', profileId);
+    const rootDir = dataDir ?? join(home, '.reelsmith', 'dev-profiles', profileId);
     const base = profileBase(
       rootDir,
       join(rootDir, 'media', 'uploads'),
@@ -141,7 +141,7 @@ export function resolveRuntimeProfile(
     );
     return Object.freeze({ mode: 'isolated-dev', id: profileId, ...base });
   }
-  const rootDir = dataDir ?? join(home, '.openchatcut');
+  const rootDir = dataDir ?? join(home, '.reelsmith');
   const authOverride = env.OPENCHATCUT_PROJECT_STORE_AUTH_DIR?.trim();
   const generationOverride = env.OPENCHATCUT_GENERATION_JOB_STORE;
   const base = profileBase(
@@ -179,6 +179,6 @@ export function defaultRootDir(
   home: string = homedir(),
 ): string {
   return isIsolatedDevProfile(profile)
-    ? join(home, '.openchatcut', 'dev-profiles', profile.id)
-    : join(home, '.openchatcut');
+    ? join(home, '.reelsmith', 'dev-profiles', profile.id)
+    : join(home, '.reelsmith');
 }

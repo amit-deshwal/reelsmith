@@ -470,7 +470,7 @@ if (hasSingleInstanceLock) {
       // A packaged double-click has no console: without this the process just
       // disappears and the user has nothing to report (issue #140).
       try {
-        dialog.showErrorBox('OpenChatCut 启动失败 / failed to start', detail);
+        dialog.showErrorBox('Reelsmith failed to start', detail);
       } catch {
         // A dialog is best effort; the exit below still has to happen.
       }

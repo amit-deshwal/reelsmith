@@ -5,11 +5,11 @@ import type { CopilotAccountSummary, CopilotAgentModel } from '../../shared/copi
 import { resolveCopilotCli } from './installation.ts';
 
 /**
- * Isolated Copilot home, mirroring `CODEX_HOME = ~/.openchatcut/codex`. Keeps
+ * Isolated Copilot home, mirroring `CODEX_HOME = ~/.reelsmith/codex`. Keeps
  * OpenChatCut's session state, config and logs out of the user's own
  * `~/.copilot` so an in-app run can never disturb their terminal CLI.
  */
-const COPILOT_HOME = join(homedir(), '.openchatcut', 'copilot');
+const COPILOT_HOME = join(homedir(), '.reelsmith', 'copilot');
 const RUNTIME_REQUEST_TIMEOUT_MS = 15_000;
 const MODEL_CACHE_TTL_MS = 5 * 60_000;
 

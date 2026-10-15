@@ -107,7 +107,7 @@ const reloaded = readSessionFile();
 assert.ok(reloaded, 'persisted session reads back');
 assert.equal(reloaded.access, 'at-jwt-2');
 assert.equal(reloaded.clientId, CLIENT_ID);
-writeFileSync(join(throwawayHome, '.openchatcut', 'xai-oauth-session.json'), '{broken', 'utf8');
+writeFileSync(join(throwawayHome, '.reelsmith', 'xai-oauth-session.json'), '{broken', 'utf8');
 assert.equal(readSessionFile(), null, 'corrupt file reads as no session');
 dropSessionFile();
 

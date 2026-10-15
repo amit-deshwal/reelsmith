@@ -1,4 +1,4 @@
-// /api/skills — user-visible skill files under ~/.openchatcut/skills/.
+// /api/skills — user-visible skill files under ~/.reelsmith/skills/.
 // The kv-backed custom skills (project-store skills:custom) stay the runtime
 // source of truth; this plugin mirrors every write to SKILL.md files and
 // merges skills the user dropped into the directory by hand. Browser code

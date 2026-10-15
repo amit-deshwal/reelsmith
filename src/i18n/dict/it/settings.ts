@@ -114,8 +114,8 @@ const overrides: Record<string, string> = {
   'Codex 模型': 'Modello Codex',
   'Copilot 模型': 'Modello Copilot',
   'Copilot 默认模型': 'Modello Copilot predefinito',
-  '使用 GitHub Copilot 订阅：官方 Copilot CLI 管理登录与凭据（终端运行 copilot login），OpenChatCut 通过 Copilot SDK 直接驱动编辑工具，不会读取或显示凭据。会话状态隔离在 ~/.openchatcut/copilot，不影响你自己的 ~/.copilot。':
-    'Usa un abbonamento GitHub Copilot: la CLI Copilot ufficiale gestisce accesso e credenziali (esegui `copilot login` nel terminale). OpenChatCut controlla gli strumenti di editing direttamente tramite il Copilot SDK e non legge né mostra le credenziali. Lo stato della sessione è isolato in ~/.openchatcut/copilot e non influisce sul tuo ~/.copilot.',
+  '使用 GitHub Copilot 订阅：官方 Copilot CLI 管理登录与凭据（终端运行 copilot login），OpenChatCut 通过 Copilot SDK 直接驱动编辑工具，不会读取或显示凭据。会话状态隔离在 ~/.reelsmith/copilot，不影响你自己的 ~/.copilot。':
+    'Usa un abbonamento GitHub Copilot: la CLI Copilot ufficiale gestisce accesso e credenziali (esegui `copilot login` nel terminale). OpenChatCut controlla gli strumenti di editing direttamente tramite il Copilot SDK e non legge né mostra le credenziali. Lo stato della sessione è isolato in ~/.reelsmith/copilot e non influisce sul tuo ~/.copilot.',
   '登录后可读取当前订阅可用的模型，也可以手动填写模型 ID。仅支持工具调用的模型可用于编辑。':
     'Dopo l\'accesso puoi caricare i modelli disponibili per questo abbonamento o inserire manualmente un ID modello. Solo i modelli con supporto tool possono essere usati per l\'editing.',
   'Codex 默认模型': 'Modello Codex predefinito',

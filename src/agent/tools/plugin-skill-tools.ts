@@ -359,7 +359,7 @@ function creativeSource(slug: string): SkillToolSource | undefined {
   return {
     skill: skill.slug,
     contents: { ...existing, 'SKILL.md': existing['SKILL.md'] ?? skill.body },
-    skillDir: `~/.openchatcut/skills/${skill.slug}`,
+    skillDir: `~/.reelsmith/skills/${skill.slug}`,
     custom: true,
   };
 }

@@ -185,8 +185,8 @@ export default {
   'Codex 模型': 'Codex model',
   'Copilot 模型': 'Copilot model',
   'Copilot 默认模型': 'Copilot default model',
-  '使用 GitHub Copilot 订阅：官方 Copilot CLI 管理登录与凭据（终端运行 copilot login），OpenChatCut 通过 Copilot SDK 直接驱动编辑工具，不会读取或显示凭据。会话状态隔离在 ~/.openchatcut/copilot，不影响你自己的 ~/.copilot。':
-    'Use a GitHub Copilot subscription: the official Copilot CLI manages sign-in and credentials (run `copilot login` in a terminal). OpenChatCut drives the editing tools directly through the Copilot SDK and never reads or displays credentials. Session state is isolated in ~/.openchatcut/copilot and does not affect your own ~/.copilot.',
+  '使用 GitHub Copilot 订阅：官方 Copilot CLI 管理登录与凭据（终端运行 copilot login），OpenChatCut 通过 Copilot SDK 直接驱动编辑工具，不会读取或显示凭据。会话状态隔离在 ~/.reelsmith/copilot，不影响你自己的 ~/.copilot。':
+    'Use a GitHub Copilot subscription: the official Copilot CLI manages sign-in and credentials (run `copilot login` in a terminal). OpenChatCut drives the editing tools directly through the Copilot SDK and never reads or displays credentials. Session state is isolated in ~/.reelsmith/copilot and does not affect your own ~/.copilot.',
   '登录后可读取当前订阅可用的模型，也可以手动填写模型 ID。仅支持工具调用的模型可用于编辑。':
     'After signing in, load the models available to this subscription or enter a model ID manually. Only tool-calling models can be used for editing.',
   'Codex 默认模型': 'Codex default model',

@@ -21,8 +21,8 @@ export interface EmbeddedPortLocation {
  *  state has no business following a sync service to another machine. */
 export function embeddedPortPath({ home = homedir(), profileId }: EmbeddedPortLocation = {}): string {
   const root = profileId
-    ? join(home, '.openchatcut', 'dev-profiles', profileId)
-    : join(home, '.openchatcut');
+    ? join(home, '.reelsmith', 'dev-profiles', profileId)
+    : join(home, '.reelsmith');
   return join(root, 'mcp-port');
 }
 

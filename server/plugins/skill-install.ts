@@ -1,4 +1,4 @@
-// install_skill: download a GitHub skill repo into ~/.openchatcut/skills/<slug>/
+// install_skill: download a GitHub skill repo into ~/.reelsmith/skills/<slug>/
 // so multi-file skills (references/scripts/assets/examples) install completely —
 // single-SKILL.md manage_skill create cannot carry support files. The panel
 // discovers the installed directory automatically (skills-files discovery).
@@ -174,7 +174,7 @@ export async function installGitHubSkill(
     const dir = skillDirFor(skillFilesRoot(), slug);
     if (!dir) throw new Error('invalid skill slug');
     await publishSkillFiles(stage, dir, files);
-    return { slug, installedAt: join('~', '.openchatcut', 'skills', slug), files: files.map((file) => file.path), source };
+    return { slug, installedAt: join('~', '.reelsmith', 'skills', slug), files: files.map((file) => file.path), source };
   } finally {
     await rm(stage, { recursive: true, force: true });
   }

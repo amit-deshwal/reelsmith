@@ -1,6 +1,6 @@
 // Custom skills are a global library shared across projects. Persisted data is
 // untrusted and normalized into the same runtime model as bundled skills.
-// Storage: the server mirror (/api/skills → ~/.openchatcut/skills/<slug>/SKILL.md
+// Storage: the server mirror (/api/skills → ~/.reelsmith/skills/<slug>/SKILL.md
 // + kv) when reachable; IndexedDB falls back when it isn't (static hosting).
 import { parseSkillFrontmatter } from '../agent/skills/skill-frontmatter';
 import type { SkillDefinition } from '../agent/skills/skill-types';
@@ -103,7 +103,7 @@ export async function saveCustomSkill(skill: CustomSkill): Promise<CustomSkill> 
   } catch {
     // Persistence failure keeps the in-session result usable.
   }
-  // Best-effort mirror to ~/.openchatcut/skills/<slug>/SKILL.md.
+  // Best-effort mirror to ~/.reelsmith/skills/<slug>/SKILL.md.
   if (canReachServer()) {
     fetch(SKILLS_API, {
       method: 'PUT',
