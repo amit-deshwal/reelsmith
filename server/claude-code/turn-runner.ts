@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import type { ClaudeCodeTurnRequest, ClaudeCodeTurnStreamEvent } from '../../shared/claude-code-agent.ts';
 import { claudeCodeCommand } from './command.ts';
+import { evictMcpSessionsForRun } from '../external-agent/mcp.ts';
 
 /**
  * Unlike Codex's app-server (a long-lived JSON-RPC process with a
@@ -216,6 +217,7 @@ export function claudeCodeMcpConfig(
   mcpUrl: string,
   mcpToken: string,
   approvalMode?: 'manual' | 'auto',
+  runKey?: string,
 ): Record<string, unknown> {
   return {
     mcpServers: {
@@ -229,6 +231,8 @@ export function claudeCodeMcpConfig(
           // the server overrides begin_edit_session's approvalMode with this.
           // See server/external-agent/builtin-approval-mode.ts.
           ...(approvalMode ? { 'x-openchatcut-approval-mode': approvalMode } : {}),
+          // Reelsmith: lets the server drop this turn's MCP session when the CLI is killed (Stop).
+          ...(runKey ? { 'x-reelsmith-run': runKey } : {}),
         },
       },
     },
@@ -239,11 +243,12 @@ async function withTempMcpConfig<T>(
   mcpUrl: string,
   mcpToken: string,
   approvalMode: 'manual' | 'auto' | undefined,
+  runKey: string,
   run: (path: string) => Promise<T>,
 ): Promise<T> {
   const dir = await mkdtemp(join(tmpdir(), 'occ-claude-code-'));
   const path = join(dir, `mcp-${randomUUID()}.json`);
-  await writeFile(path, JSON.stringify(claudeCodeMcpConfig(mcpUrl, mcpToken, approvalMode)), 'utf8');
+  await writeFile(path, JSON.stringify(claudeCodeMcpConfig(mcpUrl, mcpToken, approvalMode, runKey)), 'utf8');
   try {
     return await run(path);
   } finally {
@@ -265,7 +270,8 @@ export async function runClaudeCodeTurn(
   signal: AbortSignal,
 ): Promise<void> {
   if (signal.aborted) return;
-  await withTempMcpConfig(mcpUrl, mcpToken, request.approvalMode, async (mcpConfigPath) => {
+  const runKey = randomUUID();
+  await withTempMcpConfig(mcpUrl, mcpToken, request.approvalMode, runKey, async (mcpConfigPath) => {
     const systemPrompt = request.system ? `${RUNTIME_RULES}\n\n${request.system}` : RUNTIME_RULES;
     // The system prompt goes in a file, never on the command line. OpenChatCut's
     // agent system prompt runs to tens of KB, and Windows caps a command line at
@@ -349,6 +355,9 @@ export async function runClaudeCodeTurn(
       signal.removeEventListener('abort', onAbort);
       rl.close();
       if (!child.killed) child.kill();
+      // A killed CLI never sends the MCP DELETE, so without this the turn's edit session
+      // stays locked to a transport that is gone and the next turn cannot edit.
+      evictMcpSessionsForRun(runKey);
     }
   });
 }

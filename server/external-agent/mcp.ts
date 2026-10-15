@@ -65,6 +65,8 @@ export interface McpSession extends McpBindingSession {
   lastUsed: number;
   /** Non-null only for the built-in Claude Code backend; see builtin-approval-mode.ts. */
   builtinApprovalMode: ExternalApprovalMode | null;
+  /** Reelsmith: id of the built-in agent turn that opened this session (x-reelsmith-run). */
+  runKey: string | null;
 }
 
 const sessions = new Map<string, McpSession>();
@@ -270,6 +272,24 @@ function evictSession(
     .catch(() => undefined);
 }
 
+function runKeyOf(req: IncomingMessage): string | null {
+  const v = req.headers['x-reelsmith-run'];
+  const value = Array.isArray(v) ? v[0] : v;
+  return typeof value === 'string' && /^[A-Za-z0-9-]{8,64}$/.test(value) ? value : null;
+}
+
+/** Drop every MCP session opened by one built-in agent turn (called when its CLI process ends). */
+export function evictMcpSessionsForRun(runKey: string): number {
+  let n = 0;
+  for (const [id, session] of [...sessions]) {
+    if (session.runKey === runKey) {
+      evictSession(id, 'cancelled', 'The agent turn ended before the editor call completed.');
+      n += 1;
+    }
+  }
+  return n;
+}
+
 export function pruneMcpSessions(now = Date.now()): void {
   for (const [id, session] of sessions) {
     if (now - session.lastUsed > MCP_SESSION_IDLE_LIMIT_MS) {
@@ -359,6 +379,7 @@ async function startMcpSession(
     staleReason: null,
     lastUsed: Date.now(),
     builtinApprovalMode: builtinApprovalMode(req),
+    runKey: runKeyOf(req),
   };
   const server = makeServer(baseUrl, session);
   session.server = server;
