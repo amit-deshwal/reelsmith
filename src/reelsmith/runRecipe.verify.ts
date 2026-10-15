@@ -55,3 +55,21 @@ const d = await runRecipe(deaf, { recipe: r.recipe, values, assets, fps: 30, rep
 assert.equal(d.action, null);
 assert.ok(d.messages.some((m) => /steady beat/.test(m)));
 console.log('runRecipe.verify: ok');
+
+// captioned-story: transcripts on pool assets reach the assembler
+{
+  const cs = parseRecipe(readFileSync('recipes/captioned-story.recipe.json', 'utf8'));
+  assert.ok(cs.ok);
+  const words = Array.from({ length: 12 }, (_, i) => ({ text: `w${i}${i % 4 === 3 ? '.' : ''}`, start: 500 + i * 400, end: 800 + i * 400 }));
+  const talk = { ...asset('t1', 'video', 900), transcript: words };
+  const mute = asset('t2', 'video', 900);
+  const vals = defaultValues(cs.recipe);
+  vals.media.talking = [{ assetId: 't1', kind: 'video' }];
+  const withT = await runRecipe(api, { recipe: cs.recipe, values: vals, assets: [talk], fps: 30, replaceTimeline: false });
+  assert.ok(withT.action, withT.messages.join('; '));
+  vals.media.talking = [{ assetId: 't2', kind: 'video' }];
+  const without = await runRecipe(api, { recipe: cs.recipe, values: vals, assets: [mute], fps: 30, replaceTimeline: false });
+  assert.equal(without.action, null);
+  assert.ok(without.messages.some((m) => /transcribe/.test(m)));
+}
+console.log('runRecipe captioned-story: ok');

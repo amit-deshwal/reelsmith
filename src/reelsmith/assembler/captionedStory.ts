@@ -36,7 +36,7 @@ export function assembleCaptionedStory(input: AssembleInput): AssembleResult {
   };
   const talking = input.clips.filter((c) => c.kind === 'video' && c.transcript?.length);
   for (const c of input.clips) if (!c.transcript?.length) warnings.push(`${c.name}: no transcript yet`);
-  if (!talking.length) return fail('transcribe the talking clips first');
+  if (!talking.length) return fail('transcribe the talking clips first: install a speech model in Settings → Local AI, then transcribe each clip (right-click it in My Media)');
   talking.sort((a, b) => (a.captureTimeMs ?? Infinity) - (b.captureTimeMs ?? Infinity) || a.name.localeCompare(b.name));
 
   const opts = recipe.assembler.options ?? {};

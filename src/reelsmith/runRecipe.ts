@@ -48,7 +48,7 @@ export async function runRecipe(api: AnalyzeApi, o: RunOptions): Promise<RunOutc
   for (const input of clipInputs) {
     for (const a of pick(input.id)) {
       const kind = timelineKind(a);
-      if (kind) base.push({ assetId: a.id, name: a.name, src: a.src, kind, durationInFrames: a.durationInFrames, input: input.id });
+      if (kind) base.push({ assetId: a.id, name: a.name, src: a.src, kind, durationInFrames: a.durationInFrames, input: input.id, ...(a.transcript?.length ? { transcript: a.transcript } : {}) });
     }
   }
   const features: ClipFeatures[] = [];

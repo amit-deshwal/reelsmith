@@ -131,7 +131,7 @@ function SetupForm({ recipe, assets, itemCount, fps, onBack, onApply }: RecipesP
 
       {recipe.inputs.filter((i) => i.kind === 'text').map((inp) => (
         <label key={inp.id} style={{ display: 'grid', gap: 4 }}>
-          <span style={{ fontSize: 12.5 }}>{inp.label}{inp.kind === 'text' && inp.optional ? ' (optional)' : ''}</span>
+          <span style={{ fontSize: 12.5 }}>{inp.label}{inp.kind === 'text' && inp.optional && !/optional/i.test(inp.label) ? ' (optional)' : ''}</span>
           <input style={input} placeholder={inp.kind === 'text' ? inp.placeholder : undefined} value={values.texts[inp.id] ?? ''}
             onChange={(e) => setValues((v) => ({ ...v, texts: { ...v.texts, [inp.id]: e.target.value } }))} />
           {errorFor(inp.id) && <span style={{ ...label, color: theme.danger }}>{errorFor(inp.id)}</span>}
