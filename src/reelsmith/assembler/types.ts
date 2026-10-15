@@ -84,6 +84,8 @@ export interface RecipeRunRecord {
   params: Record<string, string | number | boolean>;
   texts: Record<string, string>;
   assetIds: string[];
+  /** RS-108: asset ids per recipe input, so the run can be rebuilt from chat */
+  media?: Record<string, string[]>;
 }
 
 export interface AssembleResult {

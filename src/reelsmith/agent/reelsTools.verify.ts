@@ -1,0 +1,126 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { parseRecipe } from '../../../shared/reelsmith/recipe';
+import type { AgentContext } from '../../agent/context';
+import { emptyProjectDoc } from '../../app/appShell';
+import { historyReduce, type History } from '../../editor/reduce';
+import type { AtomicAction } from '../../editor/reducerActions';
+import { activeTimeline, type MediaAsset } from '../../editor/types';
+import type { AnalyzeApi } from '../runRecipe';
+import { runRecipe } from '../runRecipe';
+import { saveRun } from '../runStore';
+import { defaultValues } from '../setupForm';
+import { bindTracks } from '../trackBinding';
+import { execReelsTool, isRecipeItem, type ReelsDeps } from './reelsTools';
+
+const r = parseRecipe(readFileSync('recipes/travel-beat-montage.recipe.json', 'utf8'));
+assert.ok(r.ok);
+const recipe = r.recipe;
+const asset = (id: string, kind: MediaAsset['kind'], frames = 300): MediaAsset => ({ id, name: id, kind, src: `/media/uploads/${id}`, durationInFrames: frames });
+const assets = [...Array.from({ length: 14 }, (_, i) => asset(`c${i}`, 'video')), asset('song', 'audio', 3600)];
+// distinct 64-bit perceptual hashes so no two fake clips count as near-duplicates
+const hash = (id: string) => { const n = Number(id.slice(1)) || 0; return (((n + 1) * 0x9e3779b1) >>> 0).toString(16).padStart(8, '0') + (((n + 7) * 0x85ebca6b) >>> 0).toString(16).padStart(8, '0'); };
+let gridCalls = 0;
+const api: AnalyzeApi = {
+  clipFeatures: async (a) => ({ assetId: a.id, dHash: hash(a.id), windows: [{ startFrame: 30, endFrame: 200, sharpness: 0.3 + (Number(a.id.slice(1)) % 5) / 10, exposure: 0.7, motion: 0.4, subject: 0, speech: false }] }),
+  musicGrid: async () => { gridCalls++; return { durationSec: 120, beatTimesSec: Array.from({ length: 240 }, (_, i) => i * 0.5), beatsPerBar: 4, downbeatIndex: 0 }; },
+};
+const store = new Map<string, unknown>();
+const deps: ReelsDeps = { api, recipes: [recipe], kv: { get: async <T>(k: string) => store.get(k) as T | undefined, set: async (k, v) => { store.set(k, v); } } };
+
+// a project with the media pool and an assembled reel, plus one clip the user added by hand
+let h: History = { past: [], present: emptyProjectDoc(), future: [] };
+h = historyReduce(h, { type: 'batch', label: 'pool', actions: assets.map((a) => ({ type: 'addAsset', asset: a })) });
+const values = defaultValues(recipe);
+values.media.clips = assets.filter((a) => a.kind === 'video').map((a) => ({ assetId: a.id, kind: 'video' as const }));
+values.media.music = [{ assetId: 'song', kind: 'audio' }];
+values.texts.place = 'Pune';
+const out = await runRecipe(api, { recipe, values, assets, fps: 30, replaceTimeline: true, seed: 3 });
+assert.ok(out.action);
+h = historyReduce(h, bindTracks(out.action!, activeTimeline(h.present)));
+assert.ok(out.result.report.shots >= 8, `assembled ${out.result.report.shots} shots`);
+h = historyReduce(h, { type: 'add', item: { id: 'mine', track: activeTimeline(h.present).items.find((i) => i.kind === 'text')!.track, kind: 'text', name: 'mine', durationInFrames: 30, props: { text: 'hi' } } as never, startFrame: 0 });
+await saveRun(deps.kv, 'p1', out.run);
+assert.deepEqual(out.run.media?.clips?.length, 14, 'run keeps the media per input');
+
+const ctx: AgentContext = {
+  commands: { batch: (actions: AtomicAction[], label?: string) => { h = historyReduce(h, { type: 'batch', label, actions }); } } as never,
+  getState: () => activeTimeline(h.present),
+  getDoc: () => h.present,
+  getCreativeMode: () => null,
+  templates: [], audio: [],
+  getProjectId: () => 'p1',
+};
+const tl = () => activeTimeline(h.present);
+
+// the music clip carries the beat grid
+const music = tl().items.find((i) => i.kind === 'audio')!;
+assert.ok((music.props as { rsBeats?: unknown }).rsBeats, 'beat grid stored on the music clip');
+
+// run info
+const info = await execReelsTool('reels_run_info', {}, ctx, deps) as { run: { recipeId: string }; sections: Record<string, number> };
+assert.equal(info.run.recipeId, recipe.id);
+const sectionNames = Object.keys(info.sections);
+assert.ok(sectionNames.length >= 1, JSON.stringify(info.sections));
+
+// re-cut one section: one undo step, other sections and manual items untouched
+const target = sectionNames.find((s) => info.sections[s]! >= 2) ?? sectionNames[0]!;
+const otherBefore = tl().items.filter((i) => (i.props as { rsSection?: string })?.rsSection && (i.props as { rsSection?: string }).rsSection !== target).map((i) => i.id).sort();
+const pastBefore = h.past.length;
+const recut = await execReelsTool('reels_recut_section', { section: target, seed: 99 }, ctx, deps) as { ok?: boolean; error?: string };
+assert.ok(recut.ok, recut.error);
+assert.equal(h.past.length, pastBefore + 1, 're-cut is one undo step');
+assert.ok(tl().items.some((i) => i.id === 'mine'), 'manual item kept');
+const otherAfter = tl().items.filter((i) => (i.props as { rsSection?: string })?.rsSection && (i.props as { rsSection?: string }).rsSection !== target).map((i) => i.id).sort();
+assert.deepEqual(otherAfter, otherBefore, 'other sections untouched');
+assert.ok((await execReelsTool('reels_recut_section', { section: 'nope' }, ctx, deps) as { error?: string }).error);
+h = historyReduce(h, { type: 'undo' });
+
+// snap cuts to beats uses the stored grid (no re-analysis) and is one undo step
+gridCalls = 0;
+const snapPast = h.past.length;
+const snap = await execReelsTool('reels_snap_cuts_to_beats', { every: 2 }, ctx, deps) as { ok?: boolean; error?: string };
+assert.ok(snap.ok, snap.error);
+assert.equal(gridCalls, 0, 'stored grid reused');
+assert.ok(h.past.length <= snapPast + 1);
+// without a stored grid the song is analysed once and the grid saved in the same step
+h = historyReduce(h, { type: 'updateProps', id: music.id, patch: { rsBeats: undefined } });
+const snap2 = await execReelsTool('reels_snap_cuts_to_beats', {}, ctx, deps) as { ok?: boolean };
+assert.ok(snap2.ok);
+assert.equal(gridCalls, 1);
+assert.ok((tl().items.find((i) => i.id === music.id)!.props as { rsBeats?: unknown }).rsBeats, 'grid saved');
+
+// selection candidates + propose_selection
+const cand = await execReelsTool('reels_selection_candidates', {}, ctx, deps) as { slots: number; candidates: Array<{ assetId: string }> };
+assert.ok(cand.slots > 0 && cand.candidates.length === 14);
+const picks = [...cand.candidates.map((c) => c.assetId)].reverse().slice(0, cand.slots);
+const bad = ['ghost', picks[0], picks[0]];
+const res = await execReelsTool('propose_selection', { assetIds: [...bad, ...picks.slice(1)] }, ctx, deps) as { ok?: boolean; rejected: Array<{ reason: string }>; accepted: number };
+assert.ok(res.ok);
+assert.ok(res.rejected.some((x) => x.reason === 'unknown asset') && res.rejected.some((x) => x.reason === 'repeated'), 'malformed picks rejected');
+const v1 = tl().items.filter((i) => isRecipeItem(i.id) && i.kind === 'video').sort((a, b) => a.startFrame - b.startFrame);
+assert.equal(v1[0]!.sourceAssetId, picks[0], 'first shot is the agent\'s first pick');
+assert.ok(tl().items.some((i) => i.id === 'mine'), 'manual item kept after re-assembly');
+assert.equal(tl().items.filter((i) => i.kind === 'audio').length, 1, 'no duplicate music');
+// garbage answer still assembles (heuristic fills)
+const junk = await execReelsTool('propose_selection', { assetIds: 'all of them' }, ctx, deps) as { ok?: boolean; filledByHeuristic: number };
+assert.ok(junk.ok && junk.filledByHeuristic > 0);
+
+// no run saved => clear error
+store.clear();
+assert.match((await execReelsTool('reels_selection_candidates', {}, ctx, deps) as { error: string }).error, /not built by a recipe/);
+console.log('reelsTools.verify ok');
+
+// lint: a 9:16 reel built by a recipe has no errors; a gap is an error; text in the UI band is a warning
+{
+  const { lintReel } = await import('../reelLint');
+  const clean = lintReel(tl());
+  assert.equal(clean.errors, 0, JSON.stringify(clean.issues));
+  const v1 = tl().items.filter((i) => isRecipeItem(i.id) && i.kind === 'video').sort((a, b) => a.startFrame - b.startFrame);
+  const st = { ...tl(), items: tl().items.filter((i) => i.id !== v1[1]!.id).concat([{ id: 'low', track: tl().items.find((i) => i.id === 'mine')!.track, kind: 'text', name: 'low', startFrame: 0, durationInFrames: 30, props: { text: 'Subscribe', fontSize: 80 }, transform: { y: 45 } } as never]) };
+  const bad = lintReel(st);
+  assert.ok(bad.issues.some((i) => i.level === 'error' && /gap/.test(i.message)));
+  assert.ok(bad.issues.some((i) => /Instagram UI/.test(i.message)));
+  assert.ok(lintReel({ ...st, width: 1920, height: 1080 }).issues.some((i) => /not 9:16/.test(i.message)));
+  console.log('reelLint ok');
+}

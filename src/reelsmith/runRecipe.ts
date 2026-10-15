@@ -3,7 +3,7 @@
 import type { Recipe } from '../../shared/reelsmith/recipe';
 import type { AtomicAction, BatchAction } from '../editor/reducerActions';
 import type { MediaAsset } from '../editor/types';
-import { assemble, type AssembleResult, type AssemblyClip, type AssemblyMusic } from './assembler';
+import { assemble, type AssembleInput, type AssembleResult, type AssemblyClip, type AssemblyMusic, type RecipeRunRecord } from './assembler';
 import { toAssemblyClips, type ClipFeatures } from './assembler/scoring';
 import type { SetupValues } from './setupForm';
 
@@ -21,6 +21,8 @@ export interface RunOptions {
   /** clear existing items first */
   replaceTimeline: boolean;
   seed?: number;
+  /** validated AI picks (RS-106), in shot order */
+  preferredAssetIds?: string[];
   onProgress?: (text: string) => void;
 }
 
@@ -29,11 +31,19 @@ export interface RunOutcome {
   /** batch to dispatch, with canvas set and (optionally) the timeline cleared */
   action: BatchAction | null;
   messages: string[];
+  /** what to save with the project (RS-108) */
+  run: RecipeRunRecord;
+}
+
+export interface Prepared {
+  input: AssembleInput;
+  messages: string[];
 }
 
 const timelineKind = (a: MediaAsset): 'video' | 'image' | null => (a.kind === 'video' ? 'video' : a.kind === 'image' ? 'image' : null);
 
-export async function runRecipe(api: AnalyzeApi, o: RunOptions): Promise<RunOutcome> {
+/** Analyse the chosen media and build the assembler input (no timeline changes). */
+export async function prepareAssembly(api: AnalyzeApi, o: RunOptions): Promise<Prepared> {
   const recipe: Recipe = { ...o.recipe, canvas: { ...o.recipe.canvas, fps: { num: o.fps, den: 1 } } };
   const byId = new Map(o.assets.map((a) => [a.id, a]));
   const messages: string[] = [];
@@ -77,20 +87,45 @@ export async function runRecipe(api: AnalyzeApi, o: RunOptions): Promise<RunOutc
     else messages.push('Could not find a steady beat in the song');
   }
 
+  return {
+    messages,
+    input: {
+      recipe, clips: primary, broll: secondary, music,
+      texts: o.values.texts, params: o.values.params, seed: o.seed ?? 1,
+      ...(o.preferredAssetIds?.length ? { preferredAssetIds: o.preferredAssetIds } : {}),
+    },
+  };
+}
+
+/** The saved run: the assembler's record plus which assets went into which input. */
+export function runRecord(result: AssembleResult, values: SetupValues): RecipeRunRecord {
+  const media = Object.fromEntries(Object.entries(values.media).map(([k, v]) => [k, v.map((m) => m.assetId)]));
+  return { ...result.run, media };
+}
+
+/** Put the song's beat grid on the music clip so snapping (RS-403) works without re-analysis. */
+export function withBeatGrid(actions: AtomicAction[], music: AssemblyMusic | undefined): AtomicAction[] {
+  if (!music) return actions;
+  const rsBeats = { beatTimesSec: music.beatTimesSec, beatsPerBar: music.beatsPerBar, downbeatIndex: music.downbeatIndex };
+  return actions.map((a) => (a.type === 'add' && a.item.kind === 'audio' && a.item.sourceAssetId === music.assetId
+    ? { ...a, item: { ...a.item, props: { ...(a.item.props ?? {}), rsBeats } } }
+    : a));
+}
+
+export async function runRecipe(api: AnalyzeApi, o: RunOptions): Promise<RunOutcome> {
+  const { input, messages } = await prepareAssembly(api, o);
   o.onProgress?.('Assembling');
-  const result = assemble({
-    recipe, clips: primary, broll: secondary, music,
-    texts: o.values.texts, params: o.values.params, seed: o.seed ?? 1,
-  });
+  const result = assemble(input);
   messages.push(...result.report.warnings);
-  if (!result.action) return { result, action: null, messages };
+  const run = runRecord(result, o.values);
+  if (!result.action) return { result, action: null, messages, run };
 
   const prefix: AtomicAction[] = [
     ...(o.replaceTimeline ? [{ type: 'clear' } as AtomicAction] : []),
-    { type: 'setCanvas', width: recipe.canvas.width, height: recipe.canvas.height, fit: 'cover' } as AtomicAction,
+    { type: 'setCanvas', width: input.recipe.canvas.width, height: input.recipe.canvas.height, fit: 'cover' } as AtomicAction,
   ];
   return {
-    result, messages,
-    action: { type: 'batch', label: result.action.label, actions: [...prefix, ...result.action.actions] },
+    result, messages, run,
+    action: { type: 'batch', label: result.action.label, actions: [...prefix, ...withBeatGrid(result.action.actions, input.music)] },
   };
 }

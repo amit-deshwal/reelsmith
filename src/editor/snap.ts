@@ -1,4 +1,5 @@
 import type { KeyframeProp, TimelineState } from './types';
+import { findMusicItem, readBeatGrid, timelineBeatFrames } from '../reelsmith/beatSnap';
 
 export type SnapPointType =
   | 'timeline-start'
@@ -7,7 +8,8 @@ export type SnapPointType =
   | 'item-end'
   | 'marker-start'
   | 'marker-end'
-  | 'keyframe';
+  | 'keyframe'
+  | 'beat';
 
 export interface SnapPoint {
   frame: number;
@@ -81,7 +83,13 @@ export function collectTimelineSnapPoints(
       add({ frame: marker.fromFrame + marker.durationFrames, type: 'marker-end', markerId: marker.id });
     }
   }
-  addItemKeyframes(points, state, excluded, order);
+  order = addItemKeyframes(points, state, excluded, order);
+  // Reelsmith (RS-403): beats of the music clip's stored grid are snap targets too
+  const music = findMusicItem(state);
+  const grid = readBeatGrid(music);
+  if (music && grid && !excluded.has(music.id)) {
+    for (const frame of timelineBeatFrames(music, grid, state.fps, 1)) add({ frame, type: 'beat', itemId: music.id });
+  }
   return points.filter((point) => Number.isFinite(point.frame));
 }
 

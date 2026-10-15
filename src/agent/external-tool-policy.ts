@@ -9,6 +9,8 @@ const READ_ONLY_TOOL_NAMES = new Set([
   'read_captions', 'read_project', 'read_transcript', 'find_transcript',
   'search_media', 'search_stock_media', 'search_fonts', 'analyze_music', 'inspect_music', 'music_edit_plan', 'music_image_plan',
   'read_agent_artifact', 'browse_local_media',
+  // Reelsmith
+  'reels_lint', 'reels_run_info', 'reels_selection_candidates',
 ]);
 
 const DRAFT_EDIT_TOOL_NAMES = new Set([
@@ -23,6 +25,8 @@ const DRAFT_EDIT_TOOL_NAMES = new Set([
   // Local-path media import lands assets in the session's pool; the file copy
   // itself is a library write, reviewed in offline-tool-authorization.ts.
   'import_asset', 'import_assets', 'import_folder',
+  // Reelsmith: timeline edits through the draft's commands (browser-side; they call the local analysis routes)
+  'reels_recut_section', 'reels_snap_cuts_to_beats', 'propose_selection',
 ]);
 
 const SERVER_DIRECT_READ_TOOL_NAMES: Record<string, true> = {

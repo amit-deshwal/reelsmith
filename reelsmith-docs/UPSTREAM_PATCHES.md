@@ -42,3 +42,13 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 - `desktop/bootstrap.ts`: `app.setName('Reelsmith')` before anything reads `userData` (dev builds were using `Application Support/openchatcut`); startup error title says Reelsmith.
 - `desktop/main.ts`: startup error title says Reelsmith. `desktop/smoke-renderer-recovery.ts`: expects window title `Reelsmith`.
 - Existing data: `npx tsx src/reelsmith/migrate-home.mts` copies `~/.openchatcut` into `~/.reelsmith` once (stop the app first).
+
+## Reels agent tools and prompt (RS-106, RS-108, RS-403, RS-702)
+- `src/agent/tools.ts`: imports `REELS_TOOL_SCHEMAS`/`REELS_TOOL_NAMES` from `src/reelsmith/agent/reelsToolSchemas.ts`, spreads them before ToolSearch, and adds one executor group (`src/reelsmith/agent/reelsToolsApp.ts`).
+- `src/agent/external-tool-policy.ts`: `reels_lint`, `reels_run_info`, `reels_selection_candidates` are read tools; `reels_recut_section`, `reels_snap_cuts_to_beats`, `propose_selection` are draft edit tools (browser-side, not server-direct).
+- `assets/agent/openchatcut-tool-schemas.json`: regenerated (`npm run generate:server-tool-catalog`).
+- `src/agent/systemPrompt.ts`: `SYSTEM_PROMPT + REELS_SYSTEM_PROMPT` (from `src/reelsmith/agent/reelsPrompt.ts`); product name in the prompt is Reelsmith. `src/agent/systemPromptOrder.verify.ts` updated to match.
+- `src/agent/skills/reels-editor/SKILL.md`: new bundled skill (picked up by the skills glob). `src/agent/skills/skill-loading.verify.ts` (count 31) and `plugin-skills.verify.ts` (slug list) updated.
+- `src/editor/snap.ts`: new snap point type `beat`; beats of the music clip's stored grid (`props.rsBeats`) are snap targets while dragging/trimming.
+- `src/components/timeline/TrackContextMenu.tsx`: optional `onSnapToBeats`; video tracks show "Snap cuts to every beat / every 2 beats / bars". `src/components/timeline/Timeline.tsx` wires it to `src/reelsmith/snapAction.ts`.
+- `src/library/LibraryPanel.tsx`: optional `onAskAgent` prop, passes `projectId` and `onAskAgent` to `RecipesPanel`. `src/editor/useEditorController.tsx`: `onAskAgent` opens the chat and prefills it.

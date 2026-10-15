@@ -5,30 +5,32 @@ import type { Recipe } from '../../../shared/reelsmith/recipe';
 import type { BatchAction } from '../../editor/reducerActions';
 import type { MediaAsset } from '../../editor/types';
 import { theme } from '../../theme';
-import { loadCatalog } from '../catalog';
+import { analyzeApi } from '../analyzeApi';
+import { bundledCatalog } from '../bundledRecipes';
 import { buildGallery, categoryLabel } from '../galleryModel';
-import { runRecipe, type AnalyzeApi } from '../runRecipe';
+import { runRecipe } from '../runRecipe';
+import { saveRun } from '../runStore';
+import { kvGet, kvSet } from '../../persist/sharedKv';
 import { canAssemble, defaultValues, mediaInputs, validateSetup, widgetFor, type SetupValues } from '../setupForm';
 
-const raw = import.meta.glob('/recipes/*.recipe.json', { eager: true, query: '?raw', import: 'default' }) as Record<string, string>;
-const catalog = loadCatalog(raw);
-
-async function post<T>(path: string, body: unknown): Promise<T | null> {
-  const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  if (!res.ok) return null;
-  return (await res.json()) as T;
-}
-const api: AnalyzeApi = {
-  clipFeatures: async (a, fps) => (await post<{ features: never }>('/api/reelsmith/clip-features', { src: a.src, assetId: a.id, fps }))?.features ?? null,
-  musicGrid: async (a) => (await post<{ grid: never }>('/api/reelsmith/music-grid', { src: a.src }))?.grid ?? null,
-};
+const catalog = bundledCatalog;
+const api = analyzeApi;
 
 export interface RecipesPanelProps {
+  projectId: string;
   assets: MediaAsset[];
   itemCount: number;
   fps: number;
   onApply: (action: BatchAction) => void;
+  /** prefill the chat with a request (agent shot selection) */
+  onAskAgent?: (text: string) => void;
 }
+
+export const AGENT_PICK_PROMPT = [
+  'Choose the shots for the reel I just assembled from a recipe.',
+  'Call reels_selection_candidates, look at the candidates (view_asset_frames on the ones you are unsure about),',
+  'then answer with propose_selection: the best clips in shot order, varied, no near-duplicates. Tell me in one or two lines why.',
+].join(' ');
 
 const card: React.CSSProperties = {
   border: `0.5px solid ${theme.border}`, borderRadius: 8, background: theme.panelAlt, padding: 12, cursor: 'pointer',
@@ -39,7 +41,7 @@ const input: React.CSSProperties = {
   background: theme.inset, color: theme.text, border: `0.5px solid ${theme.border}`, borderRadius: 5, padding: '5px 7px', fontSize: 12.5,
 };
 
-export function RecipesPanel({ assets, itemCount, fps, onApply }: RecipesPanelProps) {
+export function RecipesPanel({ projectId, assets, itemCount, fps, onApply, onAskAgent }: RecipesPanelProps) {
   const [category, setCategory] = useState<Recipe['category'] | 'all'>('all');
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const gallery = useMemo(() => buildGallery(catalog.recipes, { category }), [category]);
@@ -66,10 +68,10 @@ export function RecipesPanel({ assets, itemCount, fps, onApply }: RecipesPanelPr
       </div>
     );
   }
-  return <SetupForm key={recipe.id} recipe={recipe} assets={assets} itemCount={itemCount} fps={fps} onBack={() => setRecipe(null)} onApply={onApply} />;
+  return <SetupForm key={recipe.id} recipe={recipe} projectId={projectId} assets={assets} itemCount={itemCount} fps={fps} onBack={() => setRecipe(null)} onApply={onApply} onAskAgent={onAskAgent} />;
 }
 
-function SetupForm({ recipe, assets, itemCount, fps, onBack, onApply }: RecipesPanelProps & { recipe: Recipe; onBack: () => void }) {
+function SetupForm({ recipe, projectId, assets, itemCount, fps, onBack, onApply, onAskAgent }: RecipesPanelProps & { recipe: Recipe; onBack: () => void }) {
   const [values, setValues] = useState<SetupValues>(() => defaultValues(recipe));
   const [busy, setBusy] = useState('');
   const [notes, setNotes] = useState<string[]>([]);
@@ -89,7 +91,15 @@ function SetupForm({ recipe, assets, itemCount, fps, onBack, onApply }: RecipesP
     try {
       const out = await runRecipe(api, { recipe, values, assets, fps, replaceTimeline: true, onProgress: setBusy });
       setNotes(out.messages);
-      if (out.action) onApply(out.action);
+      if (out.action) {
+        onApply(out.action);
+        // RS-108: remember the run so chat can re-cut sections or re-pick shots
+        await saveRun({ get: kvGet, set: kvSet }, projectId, out.run).catch(() => setNotes((n) => [...n, 'Could not save the recipe run; re-cut from chat will not work.']));
+        if (values.agentPick !== 'off' && onAskAgent) {
+          onAskAgent(AGENT_PICK_PROMPT);
+          setNotes((n) => [...n, 'The reel is assembled. Your agent request is in the chat box; press Enter to let it re-pick the shots.']);
+        }
+      }
     } catch (e) {
       setNotes([e instanceof Error ? e.message : String(e)]);
     } finally { setBusy(''); }
@@ -155,6 +165,17 @@ function SetupForm({ recipe, assets, itemCount, fps, onBack, onApply }: RecipesP
           </label>
         );
       })}
+
+      {(recipe.assembler.aiSelection ?? 'optional') !== 'off' && onAskAgent && (
+        <label style={{ display: 'grid', gap: 4 }}>
+          <span style={{ fontSize: 12.5 }}>Let my agent choose the shots</span>
+          <select style={input} value={values.agentPick} onChange={(e) => setValues((v) => ({ ...v, agentPick: e.target.value as SetupValues['agentPick'] }))}>
+            <option value="off">Off (automatic pick)</option>
+            <option value="claude">Claude</option>
+          </select>
+          {values.agentPick !== 'off' && <span style={label}>Assembles automatically first, then asks your agent in the chat to re-pick. Frames of your clips may be sent to the agent.</span>}
+        </label>
+      )}
 
       <button type="button" disabled={!canAssemble(recipe, values) || !!busy} onClick={() => { void assemble(); }} style={{
         padding: '9px 12px', borderRadius: 7, border: 'none', fontSize: 13.5, fontWeight: 600,

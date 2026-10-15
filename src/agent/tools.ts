@@ -56,6 +56,7 @@ import { SILENCE_TOOL_NAMES, SILENCE_TOOL_SCHEMAS } from './tools/schemas/silenc
 import { COLOR_SCOPE_TOOL_NAMES, COLOR_SCOPE_TOOL_SCHEMAS } from './tools/schemas/color-scope-tools';
 import { AUTO_GRADE_TOOL_NAMES, AUTO_GRADE_TOOL_SCHEMAS } from './tools/schemas/auto-grade-tools';
 import { BEAT_TOOL_NAMES, BEAT_TOOL_SCHEMAS } from './tools/schemas/beat-tools';
+import { REELS_TOOL_NAMES, REELS_TOOL_SCHEMAS } from '../reelsmith/agent/reelsToolSchemas';
 import {
   MUSIC_INTELLIGENCE_TOOL_NAMES,
   MUSIC_INTELLIGENCE_TOOL_SCHEMAS,
@@ -190,6 +191,8 @@ export const TOOL_SCHEMAS: AgentToolSchema[] = [
   ...TIMELINE_IMPORT_TOOL_SCHEMAS,
   // Optional advisory review of multi-scene plans; it has no runtime enforcement role.
   ...SCENE_QUALITY_TOOL_SCHEMAS,
+  // Reelsmith: recipe run info, section re-cut, snap cuts to beats, agent shot selection.
+  ...REELS_TOOL_SCHEMAS,
   // ToolSearch — keyword discovery over this catalog
   {
     name: 'ToolSearch',
@@ -286,6 +289,7 @@ const EXECUTOR_GROUPS: ReadonlyArray<readonly [ReadonlySet<string>, ToolExecutor
   [TIMELINE_IMPORT_TOOL_NAMES, async () => (
     await import('./tools/timeline-import-tools')
   ).execTimelineImportTool],
+  [REELS_TOOL_NAMES, async () => (await import('../reelsmith/agent/reelsToolsApp')).execReelsAppTool],
   [AUDIO_ASSET_TOOL_NAMES, async () => (await import('./tools/audio-asset-tools')).execAudioAssetTool],
   [SCENE_QUALITY_TOOL_NAMES, async () => (await import('./tools/scene-quality-tools')).execSceneQualityTool],
   [AGENT_RUNTIME_TOOL_NAMES, async () => (

@@ -28,6 +28,8 @@ interface TrackContextMenuProps {
   onOpenTranslate: (rect: DOMRect) => void;
   onDelete: () => void;
   onClose: () => void;
+  /** Reelsmith (RS-403): snap this track's cuts to the music beat grid */
+  onSnapToBeats?: (every: 1 | 2 | 4) => void;
 }
 
 function MenuItem({ label, icon, checked, disabled, danger, chevron, onClick }: {
@@ -67,7 +69,7 @@ function insertMenuItem(kind: TrackKind, t: (text: string) => string): { label: 
 export function TrackContextMenu({
   kind, x, y, hidden, muted, locked, canTighten, hasContents, hasSelectable, deleteBlockedReason,
   onInsert, onTighten, onSelectAll, onClear, onToggleHidden, onToggleMuted, onToggleLocked,
-  onRename, onOpenDuck, onOpenCaptionStyle, onOpenTranslate, onDelete, onClose,
+  onRename, onOpenDuck, onOpenCaptionStyle, onOpenTranslate, onDelete, onClose, onSnapToBeats,
 }: TrackContextMenuProps) {
   const t = useT();
   const ref = useRef<HTMLDivElement>(null);
@@ -113,6 +115,9 @@ export function TrackContextMenu({
     >
       <MenuItem label={insert.label} icon={insert.icon} disabled={locked} onClick={run(onInsert)} />
       <MenuItem label={t('闭合缝隙')} icon="magnet" disabled={locked || !canTighten} onClick={run(onTighten)} />
+      {kind === 'video' && onSnapToBeats && ([1, 2, 4] as const).map((every) => (
+        <MenuItem key={every} label={every === 1 ? 'Snap cuts to every beat' : every === 2 ? 'Snap cuts to every 2 beats' : 'Snap cuts to bars (every 4)'} icon="magnet" disabled={locked || !hasContents} onClick={run(() => onSnapToBeats(every))} />
+      ))}
       <Separator />
       <MenuItem label={t('全选')} icon="check" disabled={!hasSelectable} onClick={run(onSelectAll)} />
       <MenuItem label={t('清空')} icon="x" disabled={locked || !hasContents} onClick={run(onClear)} danger />

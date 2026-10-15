@@ -15,6 +15,9 @@ import { TimelineRuler } from './TimelineRuler';
 import { MarkerEditor } from './MarkerEditor';
 import { trackDeletePlan } from './trackDelete';
 import { TrackContextMenu } from './TrackContextMenu';
+import { analyzeApi } from '../../reelsmith/analyzeApi';
+import { snapTrackToBeats } from '../../reelsmith/snapAction';
+import { showAppToast } from '../../ui/appToast';
 import { TransitionContextMenu } from './TransitionContextMenu';
 import { closeCaptionTrackGaps, trackClearPlan } from './trackContextOperations';
 import { isTimelineDragOverChat } from './timelineChatDrop';
@@ -378,6 +381,13 @@ The playhead line/triangle is pointerEvents:none, click it to click the ruler - 
             hasContents={clearPlan.hasContents}
             hasSelectable={kind === 'caption' ? captionSelections.length > 0 : items.length > 0}
             deleteBlockedReason={deletePlan.blockedReason}
+            onSnapToBeats={(every) => {
+              void snapTrackToBeats(state, state.assets ?? [], trackId, every, analyzeApi).then((out) => {
+                if (!out.ok) { showAppToast(out.error, { error: true }); return; }
+                if (out.actions.length) commands.batch(out.actions, out.label);
+                showAppToast(`${out.moved} cut(s) moved to the beat${out.skipped.length ? `, ${out.skipped.length} left (no beat within reach)` : ''}`);
+              });
+            }}
             onInsert={() => beginTrackInsert(trackId, trackMenu.frame)}
             onTighten={() => {
               if (kind === 'caption' && captionTighten?.changed) commands.setCaptions(captionTighten.captions, trackId);
