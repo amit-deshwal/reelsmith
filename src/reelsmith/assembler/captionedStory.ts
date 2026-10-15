@@ -5,14 +5,9 @@ import type { AtomicAction } from '../../editor/reducerActions';
 import { editedFrames, projectRetimedWords, type EditOpts } from '../../transcript/edit';
 import { clipItem, dbToGain, fpsOf, textItem } from './common';
 import { pickClips } from './beatMontage';
+import { captionsFor } from '../captionStyles';
 import { stableId } from './rng';
 import type { AssembleInput, AssembleResult } from './types';
-
-/** Placeholder mapping to OpenChatCut templates; RS-502 replaces it with the six Reels styles. */
-export const CAPTION_TEMPLATES: Record<string, string> = {
-  'clean-white': 'plain', 'highlight-word': 'submagic', boxed: 'black-bar',
-  karaoke: 'tiktok', 'pop-word': 'bubble-pop', 'minimal-lower': 'luxe',
-};
 
 const DEFAULT_THRESHOLDS: Record<string, number> = { light: 900, balanced: 600, tight: 350 };
 
@@ -80,8 +75,7 @@ export function assembleCaptionedStory(input: AssembleInput): AssembleResult {
   actions.push({
     type: 'setCaptions',
     captions: {
-      enabled: true, template: (CAPTION_TEMPLATES[String(params.captionStyle ?? 'highlight-word')] ?? 'plain') as never,
-      pacing: 'phrase', sourceMode: 'timeline',
+      enabled: true, ...captionsFor(String(params.captionStyle ?? 'highlight-word')), sourceMode: 'timeline',
     } as never,
   });
 

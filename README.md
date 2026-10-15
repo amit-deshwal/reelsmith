@@ -111,7 +111,7 @@ Every item has an acceptance check. "Spec §" refers to `reelsmith-docs/plan/car
 
 ### M5. Captions
 - [ ] **RS-501 VERIFY: local word-level transcription** for English and **Hindi/Marathi** (Devanagari). *Check:* median word-start error ≤ 100 ms on 10 hand-timed clips.
-- [ ] **RS-502 EXTEND: six Reels caption styles:** clean white, highlight active word, boxed, karaoke sweep, pop word, minimal lowercase. All respect the safe zone.
+- [ ] **RS-502 EXTEND: six Reels caption styles:** clean white, highlight active word, boxed, karaoke sweep, pop word, minimal lowercase. All respect the safe zone. _(Progress: the six styles are presets over upstream templates (template + style override + motion + placement lifted above Instagram's bottom band) in `src/reelsmith/captionStyles.ts`, used by Captioned Story; replaces the old placeholder mapping that stacked one word per line. Needs a visual check of all six; not yet offered in the Captions panel.)_
 - [ ] **RS-503 VERIFY: editing keeps timing.** Editing a line keeps the timing of untouched words exactly; inserted words are interpolated. Captions hide after more than 1.2 s of silence and follow trims and speed changes.
 
 ### M6. Music and audio

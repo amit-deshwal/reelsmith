@@ -1,7 +1,7 @@
 // RS-107: build the recipe gallery's posters and hover loops from SYNTHETIC media only (ffmpeg lavfi;
 // no third-party footage). Each recipe is assembled exactly as in the app (real clip analysis and beat
 // detection on the synthetic files) and rendered through the app's own export pipeline.
-// Run: npx tsx server/reelsmith/build-previews.mts [recipe-id ...]
+// Run: npx tsx server/reelsmith/build-previews.mts [recipe-id ...] [--param key=value ...] [--out <dir>]
 // Output: assets/recipe-previews/<id>.jpg (poster) and <id>.mp4 (muted 360x640 loop, ~4 s), served at /recipe-previews/.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
@@ -24,8 +24,11 @@ import { defaultValues } from '../../src/reelsmith/setupForm.ts';
 import { bindTracks } from '../../src/reelsmith/trackBinding.ts';
 
 const FPS = 30;
-const OUT = join(process.cwd(), 'assets', 'recipe-previews');
-const only = process.argv.slice(2);
+const argv = process.argv.slice(2);
+const flag = (name: string) => argv.flatMap((a, i) => (a === `--${name}` && argv[i + 1] ? [argv[i + 1]!] : []));
+const OUT = flag('out')[0] ?? join(process.cwd(), 'assets', 'recipe-previews');
+const PARAM_OVERRIDES = Object.fromEntries(flag('param').map((kv) => [kv.split('=')[0]!, kv.split('=').slice(1).join('=')]));
+const only = argv.filter((a, i) => !a.startsWith('--') && !argv[i - 1]?.startsWith('--'));
 const work = mkdtempSync(join(tmpdir(), 'rs-previews-'));
 const media = join(work, 'media');
 mkdirSync(media, { recursive: true });
@@ -101,6 +104,7 @@ const SAMPLE_TEXT: Record<string, string> = { place: 'Harishchandragad', title: 
 for (const recipe of recipes) {
   const started = Date.now();
   const values = defaultValues(recipe);
+  for (const [k, v] of Object.entries(PARAM_OVERRIDES)) if (k in values.params) values.params[k] = typeof values.params[k] === 'number' ? Number(v) : v;
   for (const input of recipe.inputs) {
     if (input.kind === 'text') { values.texts[input.id] = SAMPLE_TEXT[input.id] ?? input.placeholder ?? input.label; continue; }
     const pool = input.accept.includes('audio') ? [music] : input.id === 'talking' ? talk : clips.filter((c) => input.accept.includes(c.kind as never));
