@@ -143,7 +143,7 @@ export function BrandMark({ size = 16 }: { size?: number }) {
 export function OpenChatCutWordmark({ width = 126 }: { width?: number }) {
   return (
     <svg
-      aria-label="OpenChatCut"
+      aria-label="Reelsmith"
       role="img"
       width={width}
       height={width / 4}
@@ -156,10 +156,10 @@ export function OpenChatCutWordmark({ width = 126 }: { width?: number }) {
         dominantBaseline="alphabetic"
       >
         <tspan x="83" y="82" textAnchor="middle" fill="var(--cc-panel)" fontSize="58" fontWeight="850" letterSpacing="-0.045em">
-          OPEN
+          REEL
         </tspan>
         <tspan x="188" y="79" fill="currentColor" fontSize="62" fontWeight="720" letterSpacing="-0.045em">
-          Chat Cut
+          smith
         </tspan>
       </text>
     </svg>

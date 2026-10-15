@@ -19,3 +19,7 @@ Every OpenChatCut file we change goes in this table, so `git merge upstream/main
 
 ## package.json (RS-003, RS-101)
 Added script `test:reelsmith` (our verifies) and appended `&& npm run test:reelsmith` to `test:serial`. Add each new Reelsmith `*.verify.ts` to `test:reelsmith`, not to the upstream chain.
+
+## Wordmark and project names (RS-002, RS-006)
+- `src/components/icons.tsx`: `OpenChatCutWordmark` now draws "REEL smith" (aria-label Reelsmith). Function name kept to avoid touching its callers.
+- `src/persist/projectStore.ts`: `randomProjectName` generates English "Adjective Noun" names instead of Chinese ones.
