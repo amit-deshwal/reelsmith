@@ -413,7 +413,7 @@ export function timelineToV1(value: TimelineState): LooseProjectShape & { versio
   const timeline: Timeline = {
     ...raw,
     id,
-    name: typeof raw.name === 'string' && raw.name ? raw.name : '序列 1',
+    name: typeof raw.name === 'string' && raw.name ? raw.name : 'Sequence 1',
     order: typeof raw.order === 'number' ? raw.order : 0,
   };
   return { version: 1, timelines: [timeline], activeTimelineId: id };

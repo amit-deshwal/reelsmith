@@ -5,6 +5,7 @@ import {
   getUpstreamUpdateState,
   hasDesktopUpdateSupport,
   startAutomaticUpstreamUpdateCheck,
+  UPDATE_CHECKS_ENABLED,
   subscribeUpstreamUpdate,
 } from './upstreamUpdate';
 import {
@@ -22,7 +23,7 @@ export function UpstreamUpdateNotice() {
     getUpstreamUpdateState,
   );
 
-  useEffect(() => { startAutomaticUpstreamUpdateCheck(); }, []);
+  useEffect(() => { if (UPDATE_CHECKS_ENABLED) startAutomaticUpstreamUpdateCheck(); }, []);
 
   if (!update.visible) return null;
 

@@ -23,7 +23,6 @@ import {
 import { installProjectStoreIpc } from './project-store-ipc.ts';
 import { installEditorAuthIpc } from './editor-auth-ipc.ts';
 import { installDesktopUpdateIpc } from './update-ipc.ts';
-import { supportsDirectDesktopUpdates } from './update-service.ts';
 import { installDesktopInferenceIpc } from './native-inference-ipc.ts';
 import { detectDesktopHardwareProfile } from './native-hardware-profile.ts';
 import { installDirectoryWatchIpc } from './directory-watch-ipc.ts';
@@ -353,11 +352,8 @@ async function boot(): Promise<void> {
   installProjectStoreIpc(origin);
   installEditorAuthIpc(origin);
   installDesktopUpdateIpc(origin, {
-    enabled: supportsDirectDesktopUpdates({
-      packaged: app.isPackaged,
-      smoke: SMOKE,
-      platform: process.platform,
-    }),
+    // Reelsmith: never poll OpenChatCut's release feed (RS-001).
+    enabled: false,
   });
   installDirectoryWatchIpc(origin);
   ipcMain.handle(AGENT_LOCAL_MEDIA_CHANNEL, trustedDesktopHandler(origin,
@@ -414,7 +410,7 @@ async function boot(): Promise<void> {
     ...initialBounds,
     show: !SMOKE,
     backgroundColor: '#111111',
-    title: 'OpenChatCut',
+    title: 'Reelsmith',
     ...desktopWindowFrameOptions(),
     webPreferences: {
       preload: PRELOAD_PATH,

@@ -10,7 +10,7 @@
   "bin": {
     "occ": "./cli-dist/occ.mjs"
   },
-  "desktopName": "openchatcut.desktop",
+  "desktopName": "reelsmith.desktop",
   "engines": {
     "node": ">=24 <25"
   },

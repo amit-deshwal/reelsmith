@@ -66,8 +66,8 @@ const updateChannel = target.includes('arm64') ? 'latest-arm64' : 'latest-x64';
 const hasMacSigningCertificate = Boolean(process.env.CSC_LINK || process.env.CSC_NAME);
 
 export default {
-  appId: 'dev.openchatcut.app',
-  productName: 'OpenChatCut',
+  appId: 'dev.reelsmith.app',
+  productName: 'Reelsmith',
   artifactName: '${productName}-${version}-${arch}.${ext}',
   directories: { output: 'release' },
   // 7z LZMA maximum compression for the distributable installers (dmg/zip/nsis/AppImage).
@@ -122,7 +122,7 @@ export default {
   mac: {
     target: ['dmg', 'zip'],
     category: 'public.app-category.video',
-    icon: 'assets/branding/openchatcut-icon.icns',
+    icon: 'assets/branding/reelsmith-icon.icns',
     entitlements: 'desktop/entitlements.mac.plist',
     entitlementsInherit: 'desktop/entitlements.mac.plist',
     // Hardened runtime is required for Developer ID distribution. Ad-hoc local
@@ -135,7 +135,7 @@ export default {
   },
   win: {
     target: ['nsis'],
-    icon: 'public/openchatcut-icon.png',
+    icon: 'public/reelsmith-icon.png',
   },
   nsis: {
     oneClick: false,
@@ -143,10 +143,10 @@ export default {
   },
   linux: {
     target: ['AppImage'],
-    icon: 'public/openchatcut-icon.png',
+    icon: 'public/reelsmith-icon.png',
     category: 'AudioVideo',
-    // Keep the executable name stable for release/linux-unpacked/openchatcut and CI smoke tests.
-    executableName: 'openchatcut',
+    // Keep the executable name stable for release/linux-unpacked/reelsmith and CI smoke tests.
+    executableName: 'reelsmith',
     // Pair with package.json desktopName so desktop environments associate the window with its .desktop entry.
     syncDesktopName: true,
   },

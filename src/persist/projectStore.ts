@@ -79,7 +79,7 @@ export function resetProjectStoreMemory(): void {
 const tlId = () => `tl_${newId()}`;
 
 /** wrap a single timeline into a one-sequence project (new projects + migration). */
-export function docFromTimeline(ts: TimelineState, name = '序列 1'): ProjectDoc {
+export function docFromTimeline(ts: TimelineState, name = 'Sequence 1'): ProjectDoc {
   const id = tlId();
   const { assets = [], ...state } = ts;
   const timeline = normalizeTimelineTracks({ ...state, id, name, order: 0 });

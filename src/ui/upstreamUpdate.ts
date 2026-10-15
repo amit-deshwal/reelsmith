@@ -6,6 +6,9 @@ import type {
 export const UPSTREAM_LATEST_RELEASE_URL = 'https://api.github.com/repos/0xsline/OpenChatCut/releases/latest';
 export const UPSTREAM_RELEASES_URL = 'https://github.com/0xsline/OpenChatCut/releases/latest';
 
+// Reelsmith: callers (UpstreamUpdateNotice, runUpstreamUpdateCommand) skip update checks while this is false; the OpenChatCut release feed is not ours (RS-001).
+export const UPDATE_CHECKS_ENABLED = false;
+
 export const CURRENT_APP_VERSION =
   typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '0.0.0';
 

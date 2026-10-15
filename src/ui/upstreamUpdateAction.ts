@@ -5,6 +5,7 @@ import {
   requestUpstreamUpdateCheck,
   requestUpstreamUpdateDownload,
   requestUpstreamUpdateInstall,
+  UPDATE_CHECKS_ENABLED,
   type UpstreamUpdateState,
 } from './upstreamUpdate';
 
@@ -80,7 +81,7 @@ export function upstreamUpdateMessage(state: UpstreamUpdateState, desktopUpdate:
 }
 
 export function runUpstreamUpdateCommand(command: UpstreamUpdateCommand): void {
-  if (command === 'check') void requestUpstreamUpdateCheck('manual');
+  if (command === 'check') { if (UPDATE_CHECKS_ENABLED) void requestUpstreamUpdateCheck('manual'); }
   else if (command === 'download') void requestUpstreamUpdateDownload();
   else if (command === 'install') void requestUpstreamUpdateInstall();
   else if (command === 'view-release') openUpstreamReleasePage();

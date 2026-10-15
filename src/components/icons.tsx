@@ -135,7 +135,7 @@ export function Icon({ name, size = 16, color = 'currentColor', strokeWidth = 1.
  * (Skin Discipline Guaranteed ≥4.5 vs.). Use this when replacing sparkles before wordmark. */
 export function BrandMark({ size = 16 }: { size?: number }) {
   return (
-    <img src="/openchatcut-icon.png" alt="" aria-hidden width={size} height={size} style={{ display: 'block' }} />
+    <img src="/reelsmith-icon.png" alt="" aria-hidden width={size} height={size} style={{ display: 'block' }} />
   );
 }
 
