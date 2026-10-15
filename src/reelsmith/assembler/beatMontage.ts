@@ -1,6 +1,7 @@
 // beat-montage@1: cuts on beats/bars of the music, clips chosen by score and never repeated.
 import type { Recipe, RecipeSection } from '../../../shared/reelsmith/recipe';
 import type { AtomicAction } from '../../editor/reducerActions';
+import { renderTemplate } from '../../../shared/reelsmith/recipe';
 import { makeRng, stableId } from './rng';
 import type {
   AssembleInput, AssembleReport, AssembleResult, AssemblyClip, AssemblyMusic, PlannedShot, RecipeRunRecord,
@@ -63,20 +64,37 @@ function sectionBeats(sections: RecipeSection[], totalBeats: number): number[] {
   });
 }
 
+export interface SectionSpan { section: string; startBeat: number; lengthBeats: number; startFrame: number; endFrame: number }
+
 export function planShots(
   recipe: Recipe, music: AssemblyMusic, params: AssembleInput['params'], stretch: number,
-): { shots: PlannedShot[]; totalBeats: number; startSec: number } {
+): { shots: PlannedShot[]; totalBeats: number; startSec: number; spans: SectionSpan[] } {
   const fps = fpsOf(recipe);
   const startSec = musicStartSec(recipe, music, params);
   const beats = beatsFrom(music, startSec);
   const bpb = music.beatsPerBar;
   const totalBeats = Math.min(targetBeatCount(recipe, beats, bpb), beats.length - 1);
   const lens = sectionBeats(recipe.structure, totalBeats);
+  // RS-203: when a drop is known, the 'build' section runs up to the drop (whole bars) and 'drop' takes the rest
+  const dropAt = Number(params.dropAtS ?? 0) > 0 ? Number(params.dropAtS) : music.dropSec;
+  const bi = recipe.structure.findIndex((x) => x.section === 'build');
+  const di = recipe.structure.findIndex((x) => x.section === 'drop');
+  if (dropAt !== undefined && bi >= 0 && di >= 0) {
+    const rel = dropAt - startSec;
+    let k = beats.findIndex((t) => t >= rel - 1e-3);
+    if (k > 0) {
+      k = Math.round(k / bpb) * bpb;
+      if (k >= bpb && k <= totalBeats - bpb) { lens[bi] = k; lens[di] = totalBeats - k; }
+    }
+  }
   const paramRule = typeof params.cutRule === 'string' ? params.cutRule : undefined;
   const shots: PlannedShot[] = [];
+  const spans: SectionSpan[] = [];
+  const frameAt = (beat: number) => Math.round((beats[Math.min(beat, beats.length - 1)] ?? 0) * fps);
   let cursor = 0;
   recipe.structure.forEach((section, si) => {
     const len = Math.min(lens[si]!, totalBeats - cursor);
+    if (len > 0) spans.push({ section: section.section, startBeat: cursor, lengthBeats: len, startFrame: frameAt(cursor), endFrame: frameAt(cursor + len) });
     if (len <= 0 || section.fill === 'none') { cursor += Math.max(0, len); return; }
     // a `cutRule` param drives the flexible (no lengthBeats) sections
     const rule = section.lengthBeats === undefined && paramRule ? paramRule : section.cutRule ?? 'everyBar';
@@ -96,15 +114,16 @@ export function planShots(
     }
     cursor += len;
   });
-  return { shots, totalBeats, startSec };
+  return { shots, totalBeats, startSec, spans };
 }
 
 /** Pick `count` clips: drop near-duplicates (best of each group), top scores, then chronological if asked. */
-export function pickClips(clips: AssemblyClip[], count: number, chronological: boolean, seed: number): AssemblyClip[] {
+export function pickClips(clips: AssemblyClip[], count: number, chronological: boolean, seed: number, variety = 0): AssemblyClip[] {
   const rng = makeRng(seed);
   const jitter = new Map(clips.map((c) => [c.assetId, rng()]));
+  const eff = (c: AssemblyClip) => c.score * (1 - variety) + jitter.get(c.assetId)! * variety;
   const rank = (a: AssemblyClip, b: AssemblyClip) =>
-    b.score - a.score || (jitter.get(a.assetId)! - jitter.get(b.assetId)!) || a.assetId.localeCompare(b.assetId);
+    eff(b) - eff(a) || (jitter.get(a.assetId)! - jitter.get(b.assetId)!) || a.assetId.localeCompare(b.assetId);
   const bestPerGroup = new Map<string, AssemblyClip>();
   const ungrouped: AssemblyClip[] = [];
   for (const c of [...clips].sort(rank)) {
@@ -149,6 +168,53 @@ export function pickWithPreferred(
   return chosen;
 }
 
+const POSITION_Y: Record<string, number> = { top: -38, upperThird: -22, center: 0, lowerThird: 22, bottomSafe: 30 };
+
+function overlayActions(
+  recipe: Recipe, spans: SectionSpan[], params: AssembleInput['params'], texts: Record<string, string>,
+  tag: string, seed: number, warnings: string[],
+): AtomicAction[] {
+  const out: AtomicAction[] = [];
+  const beatFrames = (beat: number, span: SectionSpan) => {
+    // linear within the section; beats are even enough for placing a title
+    return span.startFrame + Math.round(((span.endFrame - span.startFrame) * beat) / Math.max(1, span.lengthBeats));
+  };
+  recipe.structure.forEach((section, si) => {
+    const span = spans.find((s) => s.section === section.section);
+    if (!span) return;
+    (section.overlays ?? []).forEach((ov, oi) => {
+      if (ov.kind === 'captions') return; // captions come from transcription (M5)
+      const text = renderTemplate(ov.text ?? '', { inputs: texts, params }).trim();
+      if (!text) return; // optional input left empty
+      const startBeat = ov.atBeat ?? 0;
+      const startFrame = beatFrames(startBeat, span);
+      const endFrame = ov.durationBeats ? beatFrames(Math.min(span.lengthBeats, startBeat + ov.durationBeats), span) : span.endFrame;
+      const style = (ov.styleId ? recipe.styles[ov.styleId] : undefined) ?? {};
+      const size = typeof style.sizePx === 'number' ? style.sizePx : 96;
+      if (recipe.constraints?.textSafeZone !== false && (ov.position === 'top' || ov.position === 'bottomSafe')) {
+        warnings.push(`overlay ${section.section}/${oi}: position ${ov.position} sits near the Instagram UI`);
+      }
+      out.push({
+        type: 'add',
+        item: {
+          id: stableId('rs-t', tag, seed, si, oi), track: 'V2', kind: 'text', name: text.slice(0, 24),
+          durationInFrames: Math.max(1, endFrame - startFrame), width: recipe.canvas.width, height: recipe.canvas.height,
+          props: {
+            text: style.textTransform === 'uppercase' ? text.toUpperCase() : text,
+            fontSize: size, color: typeof style.color === 'string' ? style.color : '#ffffff',
+            fontWeight: typeof style.fontWeight === 'number' ? style.fontWeight : 700,
+            fontFamily: typeof style.fontFamily === 'string' ? style.fontFamily : undefined,
+            align: 'center', rsSection: section.section,
+          },
+          transform: { y: POSITION_Y[ov.position ?? 'center'] ?? 0 },
+        } as never,
+        startFrame,
+      });
+    });
+  });
+  return out;
+}
+
 const dbToGain = (db: number) => 10 ** (db / 20);
 
 export function assembleBeatMontage(input: AssembleInput): AssembleResult {
@@ -177,12 +243,16 @@ export function assembleBeatMontage(input: AssembleInput): AssembleResult {
     warnings.push(`need ${plan.shots.length} clips, have ${usable}`);
     return empty({ shots: plan.shots.length, musicStartSec: plan.startSec, needsMoreMedia: { have: usable, need: plan.shots.length } });
   }
-  const shots = plan.shots;
+  const onlySection = input.onlySection;
+  const allShots = plan.shots;
+  const shots = onlySection ? allShots.filter((s) => s.section === onlySection.name) : allShots;
+  const shotIndex = (s: PlannedShot) => allShots.indexOf(s);
+  const pool = onlySection ? clips.filter((c) => !onlySection.excludeAssetIds.includes(c.assetId)) : clips;
   const allowRepeat = policy === 'allowRepeat';
   const chronological = recipe.constraints?.keepChronological ?? true;
   let picked = input.preferredAssetIds?.length
-    ? pickWithPreferred(clips, input.preferredAssetIds, shots.length, chronological, seed)
-    : pickClips(clips, shots.length, chronological, seed);
+    ? pickWithPreferred(pool, input.preferredAssetIds, shots.length, chronological, seed)
+    : pickClips(pool, shots.length, chronological, seed, input.variety ?? 0);
   if (picked.length < shots.length) {
     if (!allowRepeat) {
       shots.length = picked.length; // out of footage: drop trailing shots
@@ -203,7 +273,7 @@ export function assembleBeatMontage(input: AssembleInput): AssembleResult {
     const last = i === shots.length - 1;
     // the last shot runs to the end of the reel so the music and picture end together
     const duration = shot.durationInFrames;
-    const id = stableId('rs', tag, seed, i);
+    const id = stableId('rs', tag, onlySection ? 'sec' : seed, shotIndex(shot), onlySection ? seed : 0);
     const isVideo = clip.kind === 'video';
     const srcIn = isVideo ? Math.max(0, Math.min(clip.bestStartFrame ?? 0, Math.max(0, clip.durationInFrames - 1))) : undefined;
     const available = isVideo ? Math.max(1, clip.durationInFrames - (srcIn ?? 0)) : duration;
@@ -214,14 +284,33 @@ export function assembleBeatMontage(input: AssembleInput): AssembleResult {
       item: {
         id, track: 'V1', kind: clip.kind, name: clip.name, src: clip.src, durationInFrames: duration,
         sourceAssetId: clip.assetId,
+        props: { rsSection: shot.section, rsRun: tag },
         ...(isVideo ? { srcInFrame: srcIn, playbackRate: rate === 1 ? undefined : rate, volume: dbToGain(recipe.music?.clipAudioGainDb ?? -96) } : {}),
       },
       startFrame: shot.startFrame,
     });
     void last;
   });
-  const total = shots[shots.length - 1]!.startFrame + shots[shots.length - 1]!.durationInFrames;
-  if (music) {
+  if (!onlySection && params.flashOnBars === true) {
+    const bpb = music.beatsPerBar;
+    for (const span of plan.spans.filter((x) => recipe.structure.find((y) => y.section === x.section)?.transition === 'flash')) {
+      for (let b = 0; b < span.lengthBeats; b += bpb) {
+        const f = span.startFrame + Math.round(((span.endFrame - span.startFrame) * b) / Math.max(1, span.lengthBeats));
+        actions.push({
+          type: 'add',
+          item: {
+            id: stableId('rs-f', tag, seed, span.section, b), track: 'V2', kind: 'solid', name: 'Flash',
+            durationInFrames: 5, width: recipe.canvas.width, height: recipe.canvas.height,
+            props: { color: '#ffffff', rsSection: span.section }, transform: { opacity: 0.85 }, fadeOutFrames: 5,
+          } as never,
+          startFrame: f,
+        });
+      }
+    }
+  }
+  if (!onlySection) actions.push(...overlayActions(recipe, plan.spans, params, texts, tag, seed, warnings));
+  const total = allShots[allShots.length - 1]!.startFrame + allShots[allShots.length - 1]!.durationInFrames;
+  if (music && !onlySection) {
     const endPolicy = recipe.music?.endPolicy ?? 'hardCut';
     const fadeOut = Math.round((recipe.music?.fadeOutSec ?? 0) * fps);
     actions.push({

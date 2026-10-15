@@ -2,6 +2,9 @@
 // The output is one BatchAction, so dispatching it is a single undo step. No AI involved.
 import type { AssembleInput, AssembleResult } from './types';
 import { assembleBeatMontage } from './beatMontage';
+import { assembleStoryVlog } from './storyVlog';
+import { assembleCollageGrid } from './collageGrid';
+import { assembleCaptionedStory } from './captionedStory';
 
 export type { AssembleInput, AssembleResult, AssemblyClip, AssemblyMusic, RecipeRunRecord, AssembleReport } from './types';
 
@@ -9,6 +12,12 @@ export function assemble(input: AssembleInput): AssembleResult {
   switch (input.recipe.assembler.strategy) {
     case 'beat-montage@1':
       return assembleBeatMontage(input);
+    case 'story-vlog@1':
+      return assembleStoryVlog(input);
+    case 'collage-grid@1':
+      return assembleCollageGrid(input);
+    case 'captioned-story@1':
+      return assembleCaptionedStory(input);
     default:
       return {
         action: null,

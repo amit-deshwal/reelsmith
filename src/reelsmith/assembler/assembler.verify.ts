@@ -89,3 +89,20 @@ assert.equal(new Set(ai.report.usedAssetIds).size, ai.report.usedAssetIds.length
 const garbage = assemble({ ...base, clips: pool, preferredAssetIds: ['x', 'y'] });
 assert.equal(JSON.stringify(garbage.report.usedAssetIds), JSON.stringify(assemble({ ...base, clips: pool }).report.usedAssetIds), 'all-bad picks fall back to the heuristic');
 console.log('selection checks: ok');
+
+// RS-201: place-name title on the intro bars
+{
+  const withPlace = assemble({ ...base, clips: clips(40), texts: { place: 'Harishchandragad' } });
+  const titles = withPlace.action!.actions.filter((x: any) => x.item?.kind === 'text') as any[];
+  assert.equal(titles.length, 1);
+  assert.equal(titles[0].item.props.text, 'HARISHCHANDRAGAD');
+  assert.equal(titles[0].startFrame, 0);
+  assert.equal(titles[0].item.durationInFrames, 8 * 15, '8 beats at 0.5 s');
+  const noPlace = assemble({ ...base, clips: clips(40), texts: {} });
+  assert.equal(noPlace.action!.actions.filter((x: any) => x.item?.kind === 'text').length, 0, 'empty optional place => no title');
+  // intro cuts every bar (2 s), body every 2 beats (1 s)
+  const adds = withPlace.action!.actions.filter((x: any) => x.item?.track === 'V1') as any[];
+  assert.equal(adds[0].item.durationInFrames, 60);
+  assert.equal(adds[4].item.durationInFrames, 30);
+}
+console.log('travel recipe checks: ok');

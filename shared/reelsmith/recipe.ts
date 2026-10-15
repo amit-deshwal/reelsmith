@@ -147,3 +147,15 @@ export function parseRecipe(text: string): RecipeValidation {
   try { data = JSON.parse(text); } catch (e) { return { ok: false, errors: [`invalid JSON: ${(e as Error).message}`] }; }
   return validateRecipe(data);
 }
+
+/** Substitute {{inputs.X}} / {{params.X}}. Unknown or missing values become ''. Validated recipes only contain these forms. */
+export function renderTemplate(
+  text: string, scope: { inputs: Record<string, string>; params: Record<string, string | number | boolean> },
+): string {
+  return text.replace(TEMPLATE, (_, ref: string) => {
+    const m = TEMPLATE_REF.exec(ref);
+    if (!m) return '';
+    const v = m[1] === 'inputs' ? scope.inputs[m[2]!] : scope.params[m[2]!];
+    return v === undefined ? '' : String(v);
+  });
+}
