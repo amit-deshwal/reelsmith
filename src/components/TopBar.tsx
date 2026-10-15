@@ -20,6 +20,11 @@ const McpGuideDialog = lazy(() => loadMcpGuideDialog().then((m) => ({ default: m
 // cycles through the supported locales. First run defaults to the
 // system language (or English) — see i18n/locale.ts.
 export function LocaleToggle() {
+  // Reelsmith is English-only: no language switch.
+  return null;
+}
+
+export function UpstreamLocaleToggle() {
   const t = useT();
   const locale = getLocale();
   const next = ALL_LOCALES[(ALL_LOCALES.indexOf(locale) + 1) % ALL_LOCALES.length]!;

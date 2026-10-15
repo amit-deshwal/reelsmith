@@ -76,3 +76,13 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 
 ## Recipe previews (RS-102, RS-107)
 - No upstream changes. Posters/loops live in `assets/recipe-previews/` (served at `/recipe-previews/` by the upstream product-assets plugin), built by `server/reelsmith/build-previews.mts`.
+
+## English-only UI (RS-006)
+- `src/i18n/locale.ts`: the locale is always English (a saved choice is ignored) and `prefetchLocaleDicts` skips the other languages. `src/i18n/locale.verify.ts` updated to match.
+- `src/components/TopBar.tsx`: `LocaleToggle` renders nothing (the upstream body is kept as `UpstreamLocaleToggle`).
+- `src/i18n/dict/en/index.ts`: also merges `reelsmithSounds` (English sound effect descriptions).
+- `src/library/SoundBrowser.tsx`: the sound tooltip passes `desc` through `t()`.
+- `src/library/ResourceBrowser.tsx`: card tooltips translate the resource name (`t(item.name)`).
+- `src/export/ExportDestinationBar.tsx`: the destination tooltip shows the translated "Browser downloads" label.
+- `src/export/useExportDialogModel.ts`: JianYing tab summary is "CapCut draft".
+- `shared/asr-models.ts`: Whisper size/language labels are English.

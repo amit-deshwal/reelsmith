@@ -267,7 +267,7 @@ const SoundRow = memo(function SoundRow({
       role="option"
       aria-selected={playing}
       className={`cc-sound-row${playing ? ' active' : ''}`}
-      title={t('{desc} · 可拖到时间线音轨', { desc: sound.desc })}
+      title={t('{desc} · 可拖到时间线音轨', { desc: t(sound.desc) })}
       draggable
       onDragStart={(event) => {
         onDragChange(sound.id);

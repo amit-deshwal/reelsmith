@@ -4,7 +4,7 @@
 // Rules: Use useT() (subscription switching) in React components; pure helper modules can directly import { t }
 //  — As long as the component that renders its output calls useT(), it will be recalculated when switching languages.
 // LLM interface (systemPrompt/tool ​​description/skill content) and persistent dynamic history tags do not enter i18n.
-// Default language (Reelsmith): the saved choice wins; otherwise English.
+// Reelsmith: always English; the language switch is hidden (TopBar LocaleToggle).
 import { useSyncExternalStore } from 'react';
 import { ensureLocaleDict, localeDictReady, localeDicts } from './dictRegistry';
 
@@ -23,13 +23,7 @@ const DOCUMENT_LANG: Record<Locale, string> = {
 };
 
 function readInitial(): Locale {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === 'zh' || stored === 'en' || stored === 'it' || stored === 'ru') return stored;
-  } catch {
-    // Private mode / storage disabled → English below.
-  }
-  // Reelsmith: English unless the user picked another language (upstream followed the OS language).
+  // Reelsmith is English-only: a saved choice from an older build is ignored.
   return 'en';
 }
 
@@ -88,6 +82,8 @@ export function setLocale(next: Locale): void {
  * instant. Call after the first paint — never before, it competes with it.
  */
 export function prefetchLocaleDicts(): void {
+  // Reelsmith is English-only and has no language switch: nothing to warm.
+  if (current === 'en') return;
   for (const locale of ALL_LOCALES) {
     if (locale !== current) void ensureLocaleDict(locale);
   }

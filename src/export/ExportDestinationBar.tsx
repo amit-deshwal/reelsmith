@@ -23,7 +23,7 @@ export function ExportDestinationBar({
       <span className="cc-export-destination-icon"><Icon name="folder" size={16} /></span>
       <span className="cc-export-destination-copy">
         <small>{t('保存到')}</small>
-        <strong title={destination.label}>{downloads ? t('浏览器下载目录') : destination.label}</strong>
+        <strong title={downloads ? t('浏览器下载目录') : destination.label}>{downloads ? t('浏览器下载目录') : destination.label}</strong>
         {!file && (
           <i>{downloads ? t('保存位置由浏览器下载设置决定') : t('文件将直接写入所选文件夹')}</i>
         )}

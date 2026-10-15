@@ -85,9 +85,9 @@ interface ResourceCardProps {
 }
 
 function resourceCardTitle(item: ResourceItem, clickable: boolean, canDrag: boolean, t: Translate): string {
-  if (clickable) return t('点击应用 / 拖到时间线：{name}', { name: item.name });
-  if (canDrag) return t('拖到时间线片段：{name}', { name: item.name });
-  return t('预览：{name}（选中片段后可应用）', { name: item.name });
+  if (clickable) return t('点击应用 / 拖到时间线：{name}', { name: t(item.name) });
+  if (canDrag) return t('拖到时间线片段：{name}', { name: t(item.name) });
+  return t('预览：{name}（选中片段后可应用）', { name: t(item.name) });
 }
 
 const ResourceCard = memo(function ResourceCard(props: ResourceCardProps) {
@@ -184,8 +184,8 @@ interface ResourceListItemProps {
 const ResourceListItem = memo(function ResourceListItem({ item, clickable, canDrag, thumb, onApply, onDragStart, onDragChange, t }: ResourceListItemProps) {
   const src = thumb?.(item.id) ?? '';
   const title = clickable
-    ? t('应用到选中片段：{name}', { name: item.name })
-    : canDrag ? t('拖到时间线：{name}', { name: item.name }) : undefined;
+    ? t('应用到选中片段：{name}', { name: t(item.name) })
+    : canDrag ? t('拖到时间线：{name}', { name: t(item.name) }) : undefined;
   return (
     <button
       className="cc-resource-list-item"

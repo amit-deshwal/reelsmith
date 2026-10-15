@@ -15,11 +15,11 @@ Object.defineProperty(globalThis, 'document', {
 });
 
 const { getLocale, setLocale } = await import('./locale');
-assert.equal(getLocale(), 'it');
-assert.equal(persistedLocale, 'it', 'initialization must preserve the saved language');
-assert.equal(documentElement.lang, 'it', 'the persisted locale must set the initial document language');
+// Reelsmith is English-only: a saved language from an older build is ignored.
+assert.equal(getLocale(), 'en');
+assert.equal(documentElement.lang, 'en', 'English must set the initial document language');
 setLocale('zh');
 assert.equal(persistedLocale, 'zh');
 assert.equal(documentElement.lang, 'zh-CN');
 
-console.log('locale.verify: persisted and changed locales update the document language');
+console.log('locale.verify: starts in English; changed locales update the document language');
