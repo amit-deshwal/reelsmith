@@ -23,6 +23,8 @@ export interface ClipFeatures {
   captureTimeMs?: number;
   /** shot boundaries split the clip; windows never cross them */
   windows: WindowFeatures[];
+  /** source frames where a new shot starts (hard cuts inside the clip) */
+  shotBoundariesFrame?: number[];
 }
 
 export interface ScoreWeights { sharpness: number; exposure: number; motion: number; subject: number; speech: number }
