@@ -1,0 +1,322 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reelsmith.local/schemas/project.schema.json",
+  "title": "Reelsmith project document (project.json) v1",
+  "description": "Single source of truth for a project. All times are integer FLICKS (1 s = 705,600,000 flicks) unless a field name says otherwise. Field names ending in 'Fl' are flicks. Spatial values for crop/position are normalized (0..1) so proxies and originals map identically.",
+  "type": "object",
+  "required": ["schemaVersion", "id", "name", "revision", "settings", "media", "tracks", "transitions", "captions", "styles"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "$ref": "#/$defs/id" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "revision": { "type": "integer", "minimum": 0, "description": "Monotonic; incremented by every committed transaction." },
+    "settings": { "$ref": "#/$defs/settings" },
+    "media": { "type": "array", "items": { "$ref": "#/$defs/mediaRef" } },
+    "tracks": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/track" } },
+    "transitions": { "type": "array", "items": { "$ref": "#/$defs/transition" } },
+    "captions": { "$ref": "#/$defs/captions" },
+    "styles": { "$ref": "#/$defs/styles" },
+    "beatGrids": { "type": "array", "items": { "$ref": "#/$defs/beatGridRef" } },
+    "markers": { "type": "array", "items": { "type": "object", "required": ["id", "atFl", "label"], "additionalProperties": false, "properties": { "id": { "$ref": "#/$defs/id" }, "atFl": { "$ref": "#/$defs/flicks" }, "label": { "type": "string", "maxLength": 120 } } } },
+    "recipeRun": { "$ref": "#/$defs/recipeRun" },
+    "agent": { "$ref": "#/$defs/agentState" }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z]{2,4}_[A-Za-z0-9]{6,32}$", "description": "Prefixed short id, e.g. clp_8f3k2LQa (prefix = entity kind)." },
+    "flicks": { "type": "integer", "minimum": 0, "maximum": 9007199254740991 },
+    "flicksSigned": { "type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991 },
+    "rational": { "type": "object", "required": ["num", "den"], "additionalProperties": false, "properties": { "num": { "type": "integer", "minimum": 1 }, "den": { "type": "integer", "minimum": 1 } } },
+    "color": { "type": "string", "pattern": "^#([0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$" },
+    "norm": { "type": "number", "minimum": 0, "maximum": 1 },
+    "rectNorm": { "type": "object", "required": ["x", "y", "w", "h"], "additionalProperties": false, "properties": { "x": { "$ref": "#/$defs/norm" }, "y": { "$ref": "#/$defs/norm" }, "w": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }, "h": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 } } },
+    "settings": {
+      "type": "object",
+      "required": ["canvas", "fps", "sampleRate"],
+      "additionalProperties": false,
+      "properties": {
+        "canvas": { "type": "object", "required": ["width", "height"], "additionalProperties": false, "properties": { "width": { "type": "integer", "minimum": 16, "maximum": 7680, "multipleOf": 2 }, "height": { "type": "integer", "minimum": 16, "maximum": 7680, "multipleOf": 2 } } },
+        "fps": { "$ref": "#/$defs/rational" },
+        "sampleRate": { "enum": [48000] },
+        "backgroundColor": { "$ref": "#/$defs/color" },
+        "workingColorSpace": { "enum": ["rec709-sdr"], "default": "rec709-sdr" },
+        "safeZone": { "type": "object", "additionalProperties": false, "properties": { "topPx": { "type": "integer", "minimum": 0 }, "bottomPx": { "type": "integer", "minimum": 0 }, "leftPx": { "type": "integer", "minimum": 0 }, "rightPx": { "type": "integer", "minimum": 0 } } },
+        "loudnessTargetLufs": { "type": "number", "minimum": -30, "maximum": -9, "default": -14 }
+      }
+    },
+    "mediaRef": {
+      "type": "object",
+      "required": ["id", "kind", "displayName", "source", "probe"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": { "enum": ["video", "image", "audio"] },
+        "displayName": { "type": "string", "maxLength": 255 },
+        "source": {
+          "type": "object",
+          "required": ["path", "fingerprint"],
+          "additionalProperties": false,
+          "properties": {
+            "path": { "type": "string", "description": "Absolute path at import time, or bundle-relative path (prefix 'bundle:') when media was collected into the project." },
+            "fingerprint": { "type": "object", "required": ["size", "headTailHash"], "additionalProperties": false, "properties": { "size": { "type": "integer", "minimum": 0 }, "mtimeMs": { "type": "integer" }, "headTailHash": { "type": "string", "pattern": "^xxh3_[0-9a-f]{16}$", "description": "xxh3-64 of first+last 1 MiB + size; used for relink and cache keys." } } }
+          }
+        },
+        "probe": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "durationFl": { "$ref": "#/$defs/flicks" },
+            "width": { "type": "integer" }, "height": { "type": "integer" },
+            "displayRotation": { "enum": [0, 90, 180, 270] },
+            "nominalFps": { "$ref": "#/$defs/rational" },
+            "variableFrameRate": { "type": "boolean" },
+            "videoCodec": { "type": "string" }, "pixelFormat": { "type": "string" },
+            "transfer": { "enum": ["sdr", "hlg", "pq", "unknown"] },
+            "hasAudio": { "type": "boolean" }, "audioCodec": { "type": "string" }, "audioChannels": { "type": "integer" }, "audioSampleRate": { "type": "integer" },
+            "creationTime": { "type": "string", "description": "Capture time from container metadata when present (ISO 8601)." },
+            "gps": { "type": "object", "description": "Kept local; never sent to an agent unless the user enables 'share location with agent'.", "additionalProperties": false, "properties": { "lat": { "type": "number" }, "lon": { "type": "number" } } }
+          }
+        },
+        "status": { "enum": ["online", "offline", "relinkRequired"] }
+      }
+    },
+    "track": {
+      "type": "object",
+      "required": ["id", "kind", "name", "items"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "kind": { "enum": ["video", "overlay", "audio", "caption"] },
+        "name": { "type": "string", "maxLength": 80 },
+        "magnetic": { "type": "boolean", "default": false, "description": "Main storyline: items are kept contiguous (no gaps); deletes ripple." },
+        "muted": { "type": "boolean", "default": false },
+        "locked": { "type": "boolean", "default": false },
+        "hidden": { "type": "boolean", "default": false },
+        "items": { "type": "array", "items": { "$ref": "#/$defs/item" } }
+      }
+    },
+    "item": {
+      "oneOf": [ { "$ref": "#/$defs/clipItem" }, { "$ref": "#/$defs/imageItem" }, { "$ref": "#/$defs/textItem" }, { "$ref": "#/$defs/audioItem" }, { "$ref": "#/$defs/layoutItem" } ]
+    },
+    "itemBase": {
+      "type": "object",
+      "required": ["id", "type", "timelineStartFl", "durationFl"],
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "type": { "type": "string" },
+        "timelineStartFl": { "$ref": "#/$defs/flicks" },
+        "durationFl": { "type": "integer", "minimum": 1 },
+        "itemRev": { "type": "integer", "minimum": 0, "description": "Per-item revision for conflict detection between user and agent." },
+        "label": { "type": "string", "maxLength": 120 },
+        "origin": { "enum": ["user", "recipe", "agent"], "description": "Who created the item (for UI badges and 'revert agent turn')." }
+      }
+    },
+    "transform": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fit": { "enum": ["fill", "fit", "custom"], "default": "fill" },
+        "crop": { "$ref": "#/$defs/rectNorm", "description": "Region of the (rotation-corrected) source frame, normalized." },
+        "centerX": { "type": "number", "minimum": -1, "maximum": 2, "default": 0.5 },
+        "centerY": { "type": "number", "minimum": -1, "maximum": 2, "default": 0.5 },
+        "scale": { "type": "number", "exclusiveMinimum": 0, "maximum": 20, "default": 1 },
+        "rotationDeg": { "type": "number", "minimum": -360, "maximum": 360, "default": 0 },
+        "opacity": { "$ref": "#/$defs/norm" },
+        "flipH": { "type": "boolean", "default": false },
+        "blend": { "enum": ["normal", "screen", "multiply", "add"], "default": "normal" },
+        "background": { "enum": ["none", "blurFill", "color"], "default": "none" },
+        "reframe": { "type": "object", "additionalProperties": false, "properties": { "mode": { "enum": ["manual", "center", "saliency", "face"] }, "computedAtAnalysisVersion": { "type": "string" } } }
+      }
+    },
+    "keyframes": {
+      "type": "object",
+      "description": "Per-property keyframes; tFl is relative to item start. R1 supports centerX, centerY, scale, rotationDeg, opacity.",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^(centerX|centerY|scale|rotationDeg|opacity)$": {
+          "type": "array", "minItems": 2, "maxItems": 64,
+          "items": { "type": "object", "required": ["tFl", "value"], "additionalProperties": false, "properties": { "tFl": { "$ref": "#/$defs/flicks" }, "value": { "type": "number" }, "easing": { "enum": ["linear", "easeIn", "easeOut", "easeInOut", "hold"], "default": "easeInOut" } } }
+        }
+      }
+    },
+    "audioProps": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "gainDb": { "type": "number", "minimum": -96, "maximum": 12, "default": 0 },
+        "muted": { "type": "boolean", "default": false },
+        "fadeInFl": { "$ref": "#/$defs/flicks" },
+        "fadeOutFl": { "$ref": "#/$defs/flicks" },
+        "linkedAudioItemId": { "$ref": "#/$defs/id" }
+      }
+    },
+    "effect": { "type": "object", "required": ["type"], "additionalProperties": false, "properties": { "type": { "enum": ["colorLook", "exposure", "contrast", "saturation", "temperature", "vignette", "grain", "blur"] }, "params": { "type": "object" }, "enabled": { "type": "boolean", "default": true } } },
+    "clipItem": {
+      "allOf": [ { "$ref": "#/$defs/itemBase" } ],
+      "type": "object",
+      "required": ["mediaId", "sourceInFl"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "type": { "const": "clip" },
+        "mediaId": { "$ref": "#/$defs/id" },
+        "sourceInFl": { "$ref": "#/$defs/flicks" },
+        "speed": { "$ref": "#/$defs/rational", "description": "Playback rate; 1/1 normal, 1/2 half speed. Source span = durationFl * num/den." },
+        "transform": { "$ref": "#/$defs/transform" },
+        "keyframes": { "$ref": "#/$defs/keyframes" },
+        "audio": { "$ref": "#/$defs/audioProps" },
+        "effects": { "type": "array", "maxItems": 8, "items": { "$ref": "#/$defs/effect" } }
+      }
+    },
+    "imageItem": {
+      "allOf": [ { "$ref": "#/$defs/itemBase" } ],
+      "type": "object",
+      "required": ["mediaId"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "type": { "const": "image" },
+        "mediaId": { "$ref": "#/$defs/id" },
+        "transform": { "$ref": "#/$defs/transform" },
+        "keyframes": { "$ref": "#/$defs/keyframes" },
+        "effects": { "type": "array", "maxItems": 8, "items": { "$ref": "#/$defs/effect" } }
+      }
+    },
+    "textItem": {
+      "allOf": [ { "$ref": "#/$defs/itemBase" } ],
+      "type": "object",
+      "required": ["text", "styleId", "box"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "type": { "const": "text" },
+        "text": { "type": "string", "maxLength": 500 },
+        "styleId": { "type": "string", "pattern": "^[a-z0-9.-]{1,64}$" },
+        "styleOverrides": { "$ref": "#/$defs/textStyle" },
+        "box": { "$ref": "#/$defs/rectNorm", "description": "Text layout box in canvas-normalized coordinates." },
+        "animationIn": { "enum": ["none", "fade", "pop", "slideUp", "typewriter", "wordByWord"], "default": "fade" },
+        "animationOut": { "enum": ["none", "fade", "pop", "slideDown"], "default": "fade" },
+        "transform": { "$ref": "#/$defs/transform" }
+      }
+    },
+    "audioItem": {
+      "allOf": [ { "$ref": "#/$defs/itemBase" } ],
+      "type": "object",
+      "required": ["mediaId", "sourceInFl", "role"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "type": { "const": "audio" },
+        "mediaId": { "$ref": "#/$defs/id" },
+        "sourceInFl": { "$ref": "#/$defs/flicks" },
+        "role": { "enum": ["music", "sfx", "voice", "clipAudio"] },
+        "audio": { "$ref": "#/$defs/audioProps" },
+        "ducking": { "type": "object", "additionalProperties": false, "properties": { "enabled": { "type": "boolean" }, "amountDb": { "type": "number", "minimum": -40, "maximum": 0 }, "attackMs": { "type": "integer", "minimum": 0, "maximum": 2000 }, "releaseMs": { "type": "integer", "minimum": 0, "maximum": 5000 } } },
+        "beatGridId": { "$ref": "#/$defs/id" }
+      }
+    },
+    "layoutItem": {
+      "allOf": [ { "$ref": "#/$defs/itemBase" } ],
+      "type": "object",
+      "required": ["layout", "cells"],
+      "unevaluatedProperties": false,
+      "properties": {
+        "type": { "const": "layout" },
+        "layout": { "enum": ["split2v", "split2h", "split3v", "grid2x2", "grid3x3"] },
+        "gutterPx": { "type": "integer", "minimum": 0, "maximum": 200 },
+        "cornerRadiusPx": { "type": "integer", "minimum": 0, "maximum": 200 },
+        "cells": { "type": "array", "minItems": 2, "maxItems": 9, "items": { "type": "object", "required": ["mediaId"], "additionalProperties": false, "properties": { "mediaId": { "$ref": "#/$defs/id" }, "sourceInFl": { "$ref": "#/$defs/flicks" }, "crop": { "$ref": "#/$defs/rectNorm" }, "revealOffsetFl": { "$ref": "#/$defs/flicks" } } } }
+      }
+    },
+    "transition": {
+      "type": "object",
+      "required": ["id", "fromItemId", "toItemId", "type", "durationFl"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "fromItemId": { "$ref": "#/$defs/id" },
+        "toItemId": { "$ref": "#/$defs/id" },
+        "type": { "enum": ["crossfade", "dipToBlack", "dipToWhite", "slideLeft", "slideUp", "pushLeft", "zoomIn", "flash"] },
+        "durationFl": { "type": "integer", "minimum": 1 },
+        "alignment": { "enum": ["center", "endOfFrom", "startOfTo"], "default": "center" }
+      }
+    },
+    "word": { "type": "object", "required": ["text", "startFl", "endFl"], "additionalProperties": false, "properties": { "text": { "type": "string", "maxLength": 64 }, "startFl": { "$ref": "#/$defs/flicks" }, "endFl": { "$ref": "#/$defs/flicks" }, "confidence": { "$ref": "#/$defs/norm" }, "edited": { "type": "boolean" }, "emphasis": { "type": "boolean" } } },
+    "captions": {
+      "type": "object",
+      "required": ["enabled", "segments"],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "language": { "type": "string", "pattern": "^[a-z]{2,3}(-[A-Za-z]{2,4})?$" },
+        "styleId": { "type": "string" },
+        "styleOverrides": { "$ref": "#/$defs/textStyle" },
+        "placement": { "type": "object", "additionalProperties": false, "properties": { "anchorY": { "$ref": "#/$defs/norm" }, "maxWidth": { "$ref": "#/$defs/norm" } } },
+        "chunking": { "type": "object", "additionalProperties": false, "properties": { "maxCharsPerLine": { "type": "integer", "minimum": 6, "maximum": 60 }, "maxLines": { "type": "integer", "minimum": 1, "maximum": 3 }, "minDurationFl": { "$ref": "#/$defs/flicks" }, "hideAfterSilenceFl": { "$ref": "#/$defs/flicks" } } },
+        "segments": { "type": "array", "items": { "type": "object", "required": ["id", "words"], "additionalProperties": false, "properties": { "id": { "$ref": "#/$defs/id" }, "words": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/word" } }, "speaker": { "type": "string", "maxLength": 40 }, "hidden": { "type": "boolean" } } } },
+        "timeBase": { "enum": ["timeline"], "description": "Word times are timeline times; the transcript store keeps source times and the app re-projects after edits." }
+      }
+    },
+    "textStyle": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "fontFamily": { "type": "string", "maxLength": 80 },
+        "fontWeight": { "type": "integer", "minimum": 100, "maximum": 900 },
+        "sizePx": { "type": "number", "minimum": 8, "maximum": 400 },
+        "color": { "$ref": "#/$defs/color" },
+        "activeWordColor": { "$ref": "#/$defs/color" },
+        "strokeColor": { "$ref": "#/$defs/color" }, "strokePx": { "type": "number", "minimum": 0, "maximum": 30 },
+        "shadow": { "type": "object", "additionalProperties": false, "properties": { "color": { "$ref": "#/$defs/color" }, "blurPx": { "type": "number", "minimum": 0, "maximum": 60 }, "dx": { "type": "number" }, "dy": { "type": "number" } } },
+        "backgroundColor": { "$ref": "#/$defs/color" }, "backgroundPaddingPx": { "type": "number", "minimum": 0, "maximum": 80 }, "backgroundRadiusPx": { "type": "number", "minimum": 0, "maximum": 80 },
+        "letterSpacingEm": { "type": "number", "minimum": -0.2, "maximum": 1 },
+        "lineHeight": { "type": "number", "minimum": 0.7, "maximum": 3 },
+        "align": { "enum": ["left", "center", "right"] },
+        "textTransform": { "enum": ["none", "uppercase", "lowercase"] },
+        "animation": { "enum": ["none", "fadeLine", "popWord", "highlightWord", "karaokeSweep", "oneWordAtATime", "stackLines"] }
+      }
+    },
+    "styles": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "text": { "type": "object", "additionalProperties": { "$ref": "#/$defs/textStyle" } },
+        "caption": { "type": "object", "additionalProperties": { "$ref": "#/$defs/textStyle" } }
+      }
+    },
+    "beatGridRef": {
+      "type": "object",
+      "required": ["id", "mediaId", "analysisFile", "bpm"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "$ref": "#/$defs/id" },
+        "mediaId": { "$ref": "#/$defs/id" },
+        "analysisFile": { "type": "string", "pattern": "^analysis/[A-Za-z0-9_.-]+\\.json$" },
+        "bpm": { "type": "number", "minimum": 30, "maximum": 300 },
+        "userOffsetFl": { "$ref": "#/$defs/flicksSigned" },
+        "beatsPerBar": { "type": "integer", "minimum": 1, "maximum": 12, "default": 4 },
+        "source": { "enum": ["auto", "tapped", "manual"] }
+      }
+    },
+    "recipeRun": {
+      "type": "object",
+      "required": ["recipeId", "recipeVersion", "assembler", "inputs", "params", "seed", "appliedAtRevision"],
+      "additionalProperties": false,
+      "properties": {
+        "recipeId": { "type": "string" }, "recipeVersion": { "type": "string" },
+        "assembler": { "type": "string", "pattern": "^[a-z0-9-]+@[0-9]+$" },
+        "inputs": { "type": "object" }, "params": { "type": "object" },
+        "seed": { "type": "integer", "minimum": 0 },
+        "aiSelection": { "enum": ["none", "claude", "codex"] },
+        "appliedAtRevision": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "agentState": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provider": { "enum": ["none", "claude", "codex"] },
+        "sessionRef": { "type": "string", "maxLength": 200, "description": "Opaque CLI session id (Claude --session-id UUID or Codex thread/session id). Never a credential." },
+        "checkpoints": { "type": "array", "items": { "type": "object", "required": ["messageId", "revision"], "additionalProperties": false, "properties": { "messageId": { "type": "string" }, "revision": { "type": "integer", "minimum": 0 } } } }
+      }
+    }
+  }
+}

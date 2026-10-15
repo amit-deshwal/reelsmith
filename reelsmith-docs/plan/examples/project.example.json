@@ -1,0 +1,332 @@
+{
+  "schemaVersion": 1,
+  "id": "prj_Hk3a9QpL2x",
+  "name": "Harishchandragad trek reel",
+  "createdAt": "2026-10-15T10:00:00Z",
+  "updatedAt": "2026-10-15T10:42:10Z",
+  "revision": 57,
+  "settings": {
+    "canvas": {
+      "width": 1080,
+      "height": 1920
+    },
+    "fps": {
+      "num": 30,
+      "den": 1
+    },
+    "sampleRate": 48000,
+    "backgroundColor": "#000000",
+    "workingColorSpace": "rec709-sdr",
+    "safeZone": {
+      "topPx": 250,
+      "bottomPx": 380,
+      "leftPx": 60,
+      "rightPx": 140
+    },
+    "loudnessTargetLufs": -14
+  },
+  "media": [
+    {
+      "id": "med_c1a2b3c4",
+      "kind": "video",
+      "displayName": "IMG_4012.MOV",
+      "source": {
+        "path": "/Users/me/Movies/Trek/IMG_4012.MOV",
+        "fingerprint": {
+          "size": 412334112,
+          "mtimeMs": 1791800000000,
+          "headTailHash": "xxh3_9f2c4a1b7e3d5c60"
+        }
+      },
+      "probe": {
+        "durationFl": 10029398400,
+        "width": 3840,
+        "height": 2160,
+        "displayRotation": 90,
+        "nominalFps": {
+          "num": 30,
+          "den": 1
+        },
+        "variableFrameRate": true,
+        "videoCodec": "hevc",
+        "pixelFormat": "yuv420p10le",
+        "transfer": "hlg",
+        "hasAudio": true,
+        "audioCodec": "aac",
+        "audioChannels": 2,
+        "audioSampleRate": 48000,
+        "creationTime": "2026-10-11T06:12:40+05:30"
+      },
+      "status": "online"
+    },
+    {
+      "id": "med_d9e8f7a6",
+      "kind": "image",
+      "displayName": "IMG_4020.HEIC",
+      "source": {
+        "path": "/Users/me/Movies/Trek/IMG_4020.HEIC",
+        "fingerprint": {
+          "size": 2811133,
+          "headTailHash": "xxh3_1a2b3c4d5e6f7081"
+        }
+      },
+      "probe": {
+        "width": 4032,
+        "height": 3024,
+        "displayRotation": 0,
+        "transfer": "sdr"
+      },
+      "status": "online"
+    },
+    {
+      "id": "med_m0s1c2a3",
+      "kind": "audio",
+      "displayName": "my-song.m4a",
+      "source": {
+        "path": "/Users/me/Music/my-song.m4a",
+        "fingerprint": {
+          "size": 7340032,
+          "headTailHash": "xxh3_0011223344556677"
+        }
+      },
+      "probe": {
+        "durationFl": 128772000000,
+        "hasAudio": true,
+        "audioCodec": "aac",
+        "audioChannels": 2,
+        "audioSampleRate": 44100
+      },
+      "status": "online"
+    }
+  ],
+  "tracks": [
+    {
+      "id": "trk_v1main01",
+      "kind": "video",
+      "name": "Main",
+      "magnetic": true,
+      "items": [
+        {
+          "id": "clp_a1b2c3d4",
+          "type": "clip",
+          "timelineStartFl": 0,
+          "durationFl": 1128960000,
+          "itemRev": 3,
+          "origin": "recipe",
+          "mediaId": "med_c1a2b3c4",
+          "sourceInFl": 1411200000,
+          "speed": {
+            "num": 1,
+            "den": 1
+          },
+          "transform": {
+            "fit": "custom",
+            "crop": {
+              "x": 0.0,
+              "y": 0.2,
+              "w": 1.0,
+              "h": 0.5625
+            },
+            "centerX": 0.5,
+            "centerY": 0.5,
+            "scale": 1,
+            "rotationDeg": 0,
+            "opacity": 1,
+            "reframe": {
+              "mode": "saliency",
+              "computedAtAnalysisVersion": "vision-1"
+            }
+          },
+          "audio": {
+            "gainDb": -96,
+            "muted": true
+          },
+          "effects": [
+            {
+              "type": "colorLook",
+              "params": {
+                "look": "vivid",
+                "amount": 0.8
+              }
+            }
+          ]
+        },
+        {
+          "id": "img_e5f6a7b8",
+          "type": "image",
+          "timelineStartFl": 1128960000,
+          "durationFl": 752640000,
+          "itemRev": 1,
+          "origin": "recipe",
+          "mediaId": "med_d9e8f7a6",
+          "transform": {
+            "fit": "fill",
+            "background": "blurFill"
+          },
+          "keyframes": {
+            "scale": [
+              {
+                "tFl": 0,
+                "value": 1.0,
+                "easing": "linear"
+              },
+              {
+                "tFl": 729120000,
+                "value": 1.12,
+                "easing": "linear"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "trk_ovl00001",
+      "kind": "overlay",
+      "name": "Titles",
+      "items": [
+        {
+          "id": "txt_t1t2t3t4",
+          "type": "text",
+          "timelineStartFl": 0,
+          "durationFl": 1128960000,
+          "itemRev": 2,
+          "origin": "agent",
+          "text": "HARISHCHANDRAGAD",
+          "styleId": "title.big",
+          "box": {
+            "x": 0.06,
+            "y": 0.38,
+            "w": 0.88,
+            "h": 0.18
+          },
+          "animationIn": "wordByWord",
+          "animationOut": "fade"
+        }
+      ]
+    },
+    {
+      "id": "trk_a1music1",
+      "kind": "audio",
+      "name": "Music",
+      "items": [
+        {
+          "id": "aud_m1m2m3m4",
+          "type": "audio",
+          "timelineStartFl": 0,
+          "durationFl": 1881600000,
+          "itemRev": 1,
+          "origin": "recipe",
+          "mediaId": "med_m0s1c2a3",
+          "sourceInFl": 22014720000,
+          "role": "music",
+          "audio": {
+            "gainDb": -3,
+            "fadeInFl": 0,
+            "fadeOutFl": 1058400000
+          },
+          "ducking": {
+            "enabled": false
+          },
+          "beatGridId": "bgr_q1w2e3r4"
+        }
+      ]
+    },
+    {
+      "id": "trk_cap00001",
+      "kind": "caption",
+      "name": "Captions",
+      "items": []
+    }
+  ],
+  "transitions": [
+    {
+      "id": "trn_x1y2z3w4",
+      "fromItemId": "clp_a1b2c3d4",
+      "toItemId": "img_e5f6a7b8",
+      "type": "crossfade",
+      "durationFl": 188160000,
+      "alignment": "center"
+    }
+  ],
+  "captions": {
+    "enabled": false,
+    "language": "en",
+    "styleId": "caption.default",
+    "segments": [],
+    "timeBase": "timeline"
+  },
+  "styles": {
+    "text": {
+      "title.big": {
+        "fontFamily": "Anton",
+        "fontWeight": 400,
+        "sizePx": 150,
+        "color": "#FFD23F",
+        "textTransform": "uppercase",
+        "align": "center"
+      }
+    },
+    "caption": {
+      "caption.default": {
+        "fontFamily": "Inter",
+        "fontWeight": 800,
+        "sizePx": 64,
+        "color": "#FFFFFF",
+        "activeWordColor": "#FFD23F",
+        "strokeColor": "#000000",
+        "strokePx": 6,
+        "animation": "highlightWord",
+        "align": "center"
+      }
+    }
+  },
+  "beatGrids": [
+    {
+      "id": "bgr_q1w2e3r4",
+      "mediaId": "med_m0s1c2a3",
+      "analysisFile": "analysis/beats_xxh3_0011223344556677.json",
+      "bpm": 120.0,
+      "userOffsetFl": 0,
+      "beatsPerBar": 4,
+      "source": "auto"
+    }
+  ],
+  "markers": [],
+  "recipeRun": {
+    "recipeId": "travel-beat-montage",
+    "recipeVersion": "1.0.0",
+    "assembler": "beat-montage@1",
+    "inputs": {
+      "clips": [
+        "med_c1a2b3c4",
+        "med_d9e8f7a6"
+      ],
+      "music": [
+        "med_m0s1c2a3"
+      ],
+      "place": "Harishchandragad"
+    },
+    "params": {
+      "cutRule": "every2Beats",
+      "accent": "#FFD23F"
+    },
+    "seed": 42,
+    "aiSelection": "claude",
+    "appliedAtRevision": 12
+  },
+  "agent": {
+    "provider": "claude",
+    "sessionRef": "6f1c2d3e-4a5b-4c6d-8e9f-0a1b2c3d4e5f",
+    "checkpoints": [
+      {
+        "messageId": "msg_0001",
+        "revision": 12
+      },
+      {
+        "messageId": "msg_0002",
+        "revision": 31
+      }
+    ]
+  }
+}

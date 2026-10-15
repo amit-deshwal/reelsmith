@@ -107,3 +107,7 @@ public/whisper-cli/
 
 # Agent tooling local state (Command Code taste captures)
 .commandcode/
+
+# ── Reelsmith fork ──────────────────────────────────────────
+# Track the agent guide for this private fork (see reelsmith-docs/UPSTREAM_PATCHES.md)
+!CLAUDE.md

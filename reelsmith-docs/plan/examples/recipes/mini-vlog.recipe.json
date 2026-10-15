@@ -1,0 +1,31 @@
+{
+  "$schema": "../../schemas/recipe.schema.json",
+  "schemaVersion": 1,
+  "id": "mini-vlog",
+  "version": "1.0.0",
+  "name": "Mini Day Vlog",
+  "category": "vlog",
+  "description": "Calm day-in-the-life reel: small time-and-place labels per moment, occasional two-up split screens, gentle cuts on bars.",
+  "preview": { "poster": "previews/mini-vlog.jpg", "loop": "previews/mini-vlog.mp4", "generatedFrom": "synthetic-sample" },
+  "canvas": { "width": 1080, "height": 1920, "fps": { "num": 30, "den": 1 } },
+  "duration": { "mode": "fitMusic", "minSec": 12, "targetSec": 30, "maxSec": 90 },
+  "inputs": [
+    { "id": "clips", "kind": "media", "accept": ["video", "image"], "min": 5, "max": 60, "label": "Clips from your day", "hint": "Morning to night; vertical phone clips look best", "constraints": { "preferOrientation": "portrait" } },
+    { "id": "music", "kind": "media", "accept": ["audio"], "min": 0, "max": 1, "label": "Song (optional)" },
+    { "id": "about", "kind": "text", "label": "What is the day about?", "optional": true, "maxLength": 120 }
+  ],
+  "params": [
+    { "id": "labels", "type": "enum", "label": "Labels", "default": "timeAndPlace", "options": ["none", "time", "timeAndPlace"] },
+    { "id": "splitEvery", "type": "integer", "label": "Split-screen every N shots (0 = never)", "default": 5, "min": 0, "max": 12, "step": 1 },
+    { "id": "shotLen", "type": "seconds", "label": "Typical shot length", "default": 1.6, "min": 0.6, "max": 5, "step": 0.1 }
+  ],
+  "music": { "inputId": "music", "required": false, "startPolicy": "fromStart", "endPolicy": "fadeOut", "fadeOutSec": 2, "gainDb": -6, "clipAudioGainDb": -20, "duckUnderSpeech": true },
+  "assembler": { "strategy": "story-vlog@1", "options": { "labelSource": "captureTime", "groupByHour": true }, "aiSelection": "optional" },
+  "structure": [
+    { "section": "body", "fill": "clips", "cutRule": "everyBar", "shotSec": [1.0, 3.0], "transition": "cut", "overlays": [ { "kind": "timestamp", "styleId": "label.small", "position": "upperThird", "animationIn": "fade" } ] }
+  ],
+  "styles": { "label.small": { "fontFamily": "Inter", "fontWeight": 600, "sizePx": 44, "color": "#FFFFFF", "letterSpacingEm": 0.04, "shadow": { "color": "#00000080", "blurPx": 10, "dx": 0, "dy": 2 }, "align": "left" } },
+  "look": { "colorLook": "warmFilm", "grain": 0.15, "vignette": 0.1 },
+  "agentHints": "Order by capture time. A label shows the local hour (e.g. 7:40 am) and, if the user supplied them in chat, a short place or activity. Keep it calm: avoid flashes or zooms.",
+  "constraints": { "noRepeatClips": true, "insufficientMediaPolicy": "lengthenShots", "keepChronological": true, "textSafeZone": true }
+}

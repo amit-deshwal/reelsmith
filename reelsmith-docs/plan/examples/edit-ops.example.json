@@ -1,0 +1,12 @@
+{
+  "$comment": "Example batch an agent might send for: 'make the title pop in on the first beat, slow the waterfall shot, and fade the music out over 2 seconds'",
+  "baseRevision": 57,
+  "label": "Agent: punchier title, slower waterfall, longer music fade",
+  "ops": [
+    { "op": "updateText", "itemId": "txt_t1t2t3t4", "animationIn": "pop" },
+    { "op": "moveItem", "itemId": "txt_t1t2t3t4", "to": { "beat": 1 } },
+    { "op": "setSpeed", "itemId": "clp_a1b2c3d4", "rate": 0.5, "preserveDuration": true },
+    { "op": "setAudio", "itemId": "aud_m1m2m3m4", "fadeOut": { "s": 2 } },
+    { "op": "addText", "as": "$credit", "text": "Oct 2026", "at": { "s": 1.2 }, "duration": { "beats": 4 }, "styleId": "title.big", "position": "lowerThird", "animationIn": "fade" }
+  ]
+}

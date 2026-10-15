@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reelsmith.local/schemas/edit-ops.schema.json",
+  "title": "Reelsmith edit operations v1 (agent-facing and internal)",
+  "description": "A batch of typed edit operations applied atomically as one transaction (one undo step). The UI, recipe assemblers and agents all use these ops, so the agent can only do what the UI can do. Agent-facing times use TimeRef (seconds, frames, flicks or beat index). The app converts them to flicks and snaps them to the frame grid; audio-only items snap to the sample grid.",
+  "type": "object",
+  "required": ["baseRevision", "ops"],
+  "additionalProperties": false,
+  "properties": {
+    "baseRevision": { "type": "integer", "minimum": 0, "description": "Project revision the caller read. If the current revision differs and any touched item changed since then, the batch is rejected with CONFLICT." },
+    "label": { "type": "string", "maxLength": 120, "description": "Human-readable undo label, e.g. 'Agent: tighten intro'." },
+    "dryRun": { "type": "boolean", "default": false },
+    "ops": { "type": "array", "minItems": 1, "maxItems": 200, "items": { "$ref": "#/$defs/op" } }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z]{2,4}_[A-Za-z0-9]{6,32}$" },
+    "tempRef": { "type": "string", "pattern": "^\\$[a-zA-Z][a-zA-Z0-9_]{0,31}$", "description": "Batch-local name for an item created earlier in the same batch, e.g. $title1." },
+    "itemRef": { "oneOf": [ { "$ref": "#/$defs/id" }, { "$ref": "#/$defs/tempRef" } ] },
+    "timeRef": {
+      "oneOf": [
+        { "type": "object", "required": ["s"], "additionalProperties": false, "properties": { "s": { "type": "number", "minimum": 0, "maximum": 86400 } } },
+        { "type": "object", "required": ["f"], "additionalProperties": false, "properties": { "f": { "type": "integer", "minimum": 0 } } },
+        { "type": "object", "required": ["fl"], "additionalProperties": false, "properties": { "fl": { "type": "integer", "minimum": 0 } } },
+        { "type": "object", "required": ["beat"], "additionalProperties": false, "properties": { "beat": { "type": "integer", "minimum": 0 }, "gridId": { "$ref": "#/$defs/id" }, "offsetBeats": { "type": "number", "minimum": -4, "maximum": 4 } } }
+      ]
+    },
+    "durRef": {
+      "oneOf": [
+        { "type": "object", "required": ["s"], "additionalProperties": false, "properties": { "s": { "type": "number", "exclusiveMinimum": 0, "maximum": 86400 } } },
+        { "type": "object", "required": ["f"], "additionalProperties": false, "properties": { "f": { "type": "integer", "minimum": 1 } } },
+        { "type": "object", "required": ["beats"], "additionalProperties": false, "properties": { "beats": { "type": "number", "exclusiveMinimum": 0, "maximum": 512 } } }
+      ]
+    },
+    "rectNorm": { "type": "object", "required": ["x", "y", "w", "h"], "additionalProperties": false, "properties": { "x": { "type": "number", "minimum": 0, "maximum": 1 }, "y": { "type": "number", "minimum": 0, "maximum": 1 }, "w": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }, "h": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 } } },
+    "op": {
+      "oneOf": [
+        { "$ref": "#/$defs/insertClip" }, { "$ref": "#/$defs/moveItem" }, { "$ref": "#/$defs/trimItem" }, { "$ref": "#/$defs/splitItem" },
+        { "$ref": "#/$defs/deleteItems" }, { "$ref": "#/$defs/reorderTrack" }, { "$ref": "#/$defs/setTransform" }, { "$ref": "#/$defs/reframe" },
+        { "$ref": "#/$defs/setSpeed" }, { "$ref": "#/$defs/addText" }, { "$ref": "#/$defs/updateText" }, { "$ref": "#/$defs/setTransition" },
+        { "$ref": "#/$defs/removeTransition" }, { "$ref": "#/$defs/setAudio" }, { "$ref": "#/$defs/setMusic" }, { "$ref": "#/$defs/snapToBeats" },
+        { "$ref": "#/$defs/generateCaptions" }, { "$ref": "#/$defs/editCaptionWords" }, { "$ref": "#/$defs/setCaptionStyle" }, { "$ref": "#/$defs/setEffect" },
+        { "$ref": "#/$defs/setLayout" }, { "$ref": "#/$defs/setProjectSettings" }
+      ]
+    },
+    "insertClip": {
+      "type": "object", "required": ["op", "trackId", "mediaId", "at"], "additionalProperties": false,
+      "properties": {
+        "op": { "const": "insertClip" }, "as": { "$ref": "#/$defs/tempRef" },
+        "trackId": { "$ref": "#/$defs/id" }, "mediaId": { "$ref": "#/$defs/id" },
+        "at": { "$ref": "#/$defs/timeRef" }, "sourceIn": { "$ref": "#/$defs/timeRef" }, "duration": { "$ref": "#/$defs/durRef" },
+        "mode": { "enum": ["insert", "overwrite", "append"], "default": "insert" }
+      }
+    },
+    "moveItem": { "type": "object", "required": ["op", "itemId", "to"], "additionalProperties": false, "properties": { "op": { "const": "moveItem" }, "itemId": { "$ref": "#/$defs/itemRef" }, "to": { "$ref": "#/$defs/timeRef" }, "trackId": { "$ref": "#/$defs/id" } } },
+    "trimItem": { "type": "object", "required": ["op", "itemId", "edge", "to"], "additionalProperties": false, "properties": { "op": { "const": "trimItem" }, "itemId": { "$ref": "#/$defs/itemRef" }, "edge": { "enum": ["start", "end"] }, "to": { "$ref": "#/$defs/timeRef" }, "ripple": { "type": "boolean", "default": true } } },
+    "splitItem": { "type": "object", "required": ["op", "itemId", "at"], "additionalProperties": false, "properties": { "op": { "const": "splitItem" }, "itemId": { "$ref": "#/$defs/itemRef" }, "at": { "$ref": "#/$defs/timeRef" }, "as": { "$ref": "#/$defs/tempRef" } } },
+    "deleteItems": { "type": "object", "required": ["op", "itemIds"], "additionalProperties": false, "properties": { "op": { "const": "deleteItems" }, "itemIds": { "type": "array", "minItems": 1, "maxItems": 200, "items": { "$ref": "#/$defs/itemRef" } }, "ripple": { "type": "boolean", "default": true } } },
+    "reorderTrack": { "type": "object", "required": ["op", "trackId", "itemIds"], "additionalProperties": false, "properties": { "op": { "const": "reorderTrack" }, "trackId": { "$ref": "#/$defs/id" }, "itemIds": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/itemRef" }, "description": "Complete new order for a magnetic track; must be a permutation of its current items." } } },
+    "setTransform": {
+      "type": "object", "required": ["op", "itemId"], "additionalProperties": false,
+      "properties": {
+        "op": { "const": "setTransform" }, "itemId": { "$ref": "#/$defs/itemRef" },
+        "fit": { "enum": ["fill", "fit", "custom"] }, "crop": { "$ref": "#/$defs/rectNorm" },
+        "centerX": { "type": "number", "minimum": -1, "maximum": 2 }, "centerY": { "type": "number", "minimum": -1, "maximum": 2 },
+        "scale": { "type": "number", "exclusiveMinimum": 0, "maximum": 20 }, "rotationDeg": { "type": "number", "minimum": -360, "maximum": 360 },
+        "opacity": { "type": "number", "minimum": 0, "maximum": 1 }, "flipH": { "type": "boolean" },
+        "background": { "enum": ["none", "blurFill", "color"] },
+        "kenBurns": { "type": "object", "additionalProperties": false, "properties": { "fromScale": { "type": "number", "minimum": 1, "maximum": 3 }, "toScale": { "type": "number", "minimum": 1, "maximum": 3 }, "direction": { "enum": ["none", "left", "right", "up", "down"] } } }
+      }
+    },
+    "reframe": { "type": "object", "required": ["op", "itemIds", "mode"], "additionalProperties": false, "properties": { "op": { "const": "reframe" }, "itemIds": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/itemRef" } }, "mode": { "enum": ["center", "saliency", "face", "manual"] }, "rect": { "$ref": "#/$defs/rectNorm" } } },
+    "setSpeed": { "type": "object", "required": ["op", "itemId", "rate"], "additionalProperties": false, "properties": { "op": { "const": "setSpeed" }, "itemId": { "$ref": "#/$defs/itemRef" }, "rate": { "type": "number", "minimum": 0.25, "maximum": 4 }, "preserveDuration": { "type": "boolean", "default": false } } },
+    "addText": {
+      "type": "object", "required": ["op", "text", "at", "duration"], "additionalProperties": false,
+      "properties": {
+        "op": { "const": "addText" }, "as": { "$ref": "#/$defs/tempRef" }, "trackId": { "$ref": "#/$defs/id" },
+        "text": { "type": "string", "minLength": 1, "maxLength": 500 }, "at": { "$ref": "#/$defs/timeRef" }, "duration": { "$ref": "#/$defs/durRef" },
+        "styleId": { "type": "string", "pattern": "^[a-z0-9.-]{1,64}$" }, "position": { "enum": ["top", "upperThird", "center", "lowerThird", "bottomSafe"] },
+        "box": { "$ref": "#/$defs/rectNorm" }, "animationIn": { "enum": ["none", "fade", "pop", "slideUp", "typewriter", "wordByWord"] }, "animationOut": { "enum": ["none", "fade", "pop", "slideDown"] }
+      }
+    },
+    "updateText": {
+      "type": "object", "required": ["op", "itemId"], "additionalProperties": false,
+      "properties": {
+        "op": { "const": "updateText" }, "itemId": { "$ref": "#/$defs/itemRef" }, "text": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "styleId": { "type": "string", "pattern": "^[a-z0-9.-]{1,64}$" },
+        "styleOverrides": { "type": "object", "description": "Validated against project.schema.json#/$defs/textStyle" },
+        "position": { "enum": ["top", "upperThird", "center", "lowerThird", "bottomSafe"] }, "box": { "$ref": "#/$defs/rectNorm" },
+        "animationIn": { "enum": ["none", "fade", "pop", "slideUp", "typewriter", "wordByWord"] }, "animationOut": { "enum": ["none", "fade", "pop", "slideDown"] }
+      }
+    },
+    "setTransition": { "type": "object", "required": ["op", "fromItemId", "toItemId", "type", "duration"], "additionalProperties": false, "properties": { "op": { "const": "setTransition" }, "fromItemId": { "$ref": "#/$defs/itemRef" }, "toItemId": { "$ref": "#/$defs/itemRef" }, "type": { "enum": ["crossfade", "dipToBlack", "dipToWhite", "slideLeft", "slideUp", "pushLeft", "zoomIn", "flash"] }, "duration": { "$ref": "#/$defs/durRef" } } },
+    "removeTransition": { "type": "object", "required": ["op", "transitionId"], "additionalProperties": false, "properties": { "op": { "const": "removeTransition" }, "transitionId": { "$ref": "#/$defs/id" } } },
+    "setAudio": { "type": "object", "required": ["op", "itemId"], "additionalProperties": false, "properties": { "op": { "const": "setAudio" }, "itemId": { "$ref": "#/$defs/itemRef" }, "gainDb": { "type": "number", "minimum": -96, "maximum": 12 }, "muted": { "type": "boolean" }, "fadeIn": { "$ref": "#/$defs/durRef" }, "fadeOut": { "$ref": "#/$defs/durRef" }, "detach": { "type": "boolean" } } },
+    "setMusic": {
+      "type": "object", "required": ["op", "mediaId"], "additionalProperties": false,
+      "properties": {
+        "op": { "const": "setMusic" }, "mediaId": { "$ref": "#/$defs/id" }, "sourceIn": { "$ref": "#/$defs/timeRef" },
+        "gainDb": { "type": "number", "minimum": -40, "maximum": 6 }, "fadeIn": { "$ref": "#/$defs/durRef" }, "fadeOut": { "$ref": "#/$defs/durRef" },
+        "duckUnderSpeech": { "type": "boolean" }, "endPolicy": { "enum": ["fadeOut", "endOnBar", "hardCut"] }
+      }
+    },
+    "snapToBeats": { "type": "object", "required": ["op", "trackId"], "additionalProperties": false, "properties": { "op": { "const": "snapToBeats" }, "trackId": { "$ref": "#/$defs/id" }, "gridId": { "$ref": "#/$defs/id" }, "rule": { "enum": ["nearestBeat", "everyBeat", "every2Beats", "everyBar"] }, "range": { "type": "object", "additionalProperties": false, "properties": { "from": { "$ref": "#/$defs/timeRef" }, "to": { "$ref": "#/$defs/timeRef" } } } } },
+    "generateCaptions": { "type": "object", "required": ["op"], "additionalProperties": false, "properties": { "op": { "const": "generateCaptions" }, "sourceItemIds": { "type": "array", "items": { "$ref": "#/$defs/itemRef" } }, "language": { "type": "string", "pattern": "^[a-z]{2,3}$" }, "styleId": { "type": "string" } } },
+    "editCaptionWords": { "type": "object", "required": ["op", "segmentId", "text"], "additionalProperties": false, "properties": { "op": { "const": "editCaptionWords" }, "segmentId": { "$ref": "#/$defs/id" }, "text": { "type": "string", "maxLength": 500, "description": "New text for the segment. Word timings are re-aligned: matched words keep their times; inserted words are interpolated." }, "emphasis": { "type": "array", "items": { "type": "integer", "minimum": 0 } } } },
+    "setCaptionStyle": { "type": "object", "required": ["op"], "additionalProperties": false, "properties": { "op": { "const": "setCaptionStyle" }, "styleId": { "type": "string" }, "styleOverrides": { "type": "object" }, "anchorY": { "type": "number", "minimum": 0, "maximum": 1 }, "maxCharsPerLine": { "type": "integer", "minimum": 6, "maximum": 60 }, "maxLines": { "type": "integer", "minimum": 1, "maximum": 3 }, "enabled": { "type": "boolean" } } },
+    "setEffect": { "type": "object", "required": ["op", "itemIds", "effect"], "additionalProperties": false, "properties": { "op": { "const": "setEffect" }, "itemIds": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/itemRef" } }, "effect": { "enum": ["colorLook", "exposure", "contrast", "saturation", "temperature", "vignette", "grain", "blur"] }, "params": { "type": "object" }, "remove": { "type": "boolean" } } },
+    "setLayout": { "type": "object", "required": ["op", "at", "duration", "layout", "cells"], "additionalProperties": false, "properties": { "op": { "const": "setLayout" }, "as": { "$ref": "#/$defs/tempRef" }, "trackId": { "$ref": "#/$defs/id" }, "at": { "$ref": "#/$defs/timeRef" }, "duration": { "$ref": "#/$defs/durRef" }, "layout": { "enum": ["split2v", "split2h", "split3v", "grid2x2", "grid3x3"] }, "cells": { "type": "array", "minItems": 2, "maxItems": 9, "items": { "type": "object", "required": ["mediaId"], "additionalProperties": false, "properties": { "mediaId": { "$ref": "#/$defs/id" }, "sourceIn": { "$ref": "#/$defs/timeRef" } } } } } },
+    "setProjectSettings": { "type": "object", "required": ["op"], "additionalProperties": false, "properties": { "op": { "const": "setProjectSettings" }, "fps": { "enum": ["30", "60", "24", "25"] }, "backgroundColor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$" }, "loudnessTargetLufs": { "type": "number", "minimum": -30, "maximum": -9 } } }
+  }
+}

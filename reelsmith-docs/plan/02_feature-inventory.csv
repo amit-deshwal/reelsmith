@@ -1,0 +1,120 @@
+id,area,"feature (neutral wording, ours)",cardboard_public_sources,first_public_date,evidence (V=verified public claim),our_phase,local_approach_notes
+MED-01,Media,"Import video, images and music into a project",https://www.cardboard.ai/changelog#1,2025-11-09,V,R1,FFmpeg/ffprobe + AVFoundation probe; copy-or-reference
+MED-02,Media,HEIC/HEIF photo import,https://www.cardboard.ai/changelog#9,2026-01-22,V,R1,sips/ImageIO (macOS) or FFmpeg; convert to PNG/JPEG cache
+MED-03,Media,Large files (multi-GB) and hours of footage,https://www.cardboard.ai/changelog#9; https://www.cardboard.ai/changelog#13; https://www.cardboard.ai/desktop,2026-01-22,V,R1,Local files have no upload limit; proxies keep preview fast
+MED-04,Media,Reconnect/relink moved files,https://www.cardboard.ai/changelog#9,2026-01-22,V,R1,"Path + fingerprint (size, mtime, partial hash) relink dialog"
+MED-05,Media,"Background media preparation (proxies, thumbnails, analysis) with per-file progress",https://www.cardboard.ai/changelog#19; https://www.cardboard.ai/changelog#20; https://www.cardboard.ai/changelog#26,2026-04-06,V,R1,Local job queue with progress + cancellation
+MED-06,Media,HDR footage import and HDR-correct display/export,https://www.cardboard.ai/changelog#8; https://www.cardboard.ai/changelog#13; https://www.cardboard.ai/changelog#28,2026-01-11,V,R2,R1: tone-map HDR→SDR Rec.709 consistently; R2: HDR export
+MED-07,Media,ProRes and Dolby AC-3/E-AC-3 audio support,https://www.cardboard.ai/changelog#36,2026-08-03,V,R1,FFmpeg decodes; WebCodecs can't decode ProRes → mezzanine/proxy
+MED-08,Media,'Any camera format' opens immediately and prepares in background,https://www.cardboard.ai/changelog#45,2026-10-05,V,R1,"Probe first, show placeholder, proxy in background"
+MED-09,Media,Central asset library across projects with search/filter,https://www.cardboard.ai/changelog#37,2026-08-10,V,R2,SQLite index of all imported media; R1 is per-project bin
+MED-10,Media,Download a timeline clip trimmed to its in/out at original quality,https://www.cardboard.ai/changelog#34,2026-07-20,V,R2,FFmpeg stream-copy when keyframe-aligned else re-encode
+MED-11,Media,Detach audio from video onto its own track,https://www.cardboard.ai/changelog#6; https://www.cardboard.ai/changelog#31,2025-12-22,V,R1,Linked A/V items; unlink op
+MED-12,Media,Reverse playback of a clip,https://www.cardboard.ai/changelog#40,2026-08-31,V,R2,Reverse proxy render; silent (as public note)
+MED-13,Media,Speed change carried into audio and export,https://www.cardboard.ai/changelog#6,2025-12-22,V,R1,Speed 0.25–4x; audio time-stretch (rubberband is GPL → use WSOLA own impl or mute) 
+MED-14,Media,GIF playback on timeline,https://www.cardboard.ai/changelog#11,2026-02-10,V,R2,Convert GIF to video proxy
+MED-15,Media,Direct clips from X/Instagram/YouTube/Vimeo links,https://www.cardboard.ai/pricing,2026-10-15,V,OOS,Platform ToS/copyright risk; out of scope
+TL-01,Timeline,"Multi-track timeline with split, trim, drag, zoom, scrub",https://www.cardboard.ai/changelog#1; https://www.cardboard.ai/changelog#2,2025-11-09,V,R1,Core of R1
+TL-02,Timeline,Undo/redo of any timeline change,https://www.cardboard.ai/changelog#3; https://www.cardboard.ai/changelog#35,2025-11-20,V,R1,Transaction log with inverse patches
+TL-03,Timeline,"Keyboard shortcuts (space, arrows, delete, copy/paste, duplicate, mute)",https://www.cardboard.ai/changelog#3; https://www.cardboard.ai/changelog#10; https://www.cardboard.ai/changelog#9,2025-11-20,V,R1,Default map; JKL
+TL-04,Timeline,Ripple delete,https://www.cardboard.ai/changelog#8,2026-01-11,V,R1,Magnetic main track
+TL-05,Timeline,Snapping to edges/playhead; snapping toggle,https://www.cardboard.ai/changelog#2; https://www.cardboard.ai/changelog#33,2025-11-14,V,R1,Plus snap-to-beat (ours)
+TL-06,Timeline,Multi-select and bulk edit,https://www.cardboard.ai/changelog#4; https://www.cardboard.ai/changelog#34,2025-12-03,V,R1,
+TL-07,Timeline,Waveforms on clips,https://www.cardboard.ai/changelog#2; https://www.cardboard.ai/changelog#15,2025-11-14,V,R1,Peak files generated from PCM cache
+TL-08,Timeline,"Keyframe lanes on timeline (position, scale, opacity, blur, radius)",https://www.cardboard.ai/changelog#6; https://www.cardboard.ai/changelog#33; https://www.cardboard.ai/changelog#35,2025-12-22,V,R2,R1 = simple 2-point keyframes (Ken Burns); lanes in R2
+TL-09,Timeline,Shortcut presets mimicking other NLEs; rebindable keys,https://www.cardboard.ai/changelog#33,2026-07-13,V,R3,
+TL-10,Timeline,"Track management (rename, mute, lock, reorder)",https://www.cardboard.ai/changelog#3; https://www.cardboard.ai/changelog#8,2025-11-20,V,R1,
+TL-11,Timeline,Hide/collapse timeline for clean viewer; fullscreen preview,https://www.cardboard.ai/changelog#13; https://www.cardboard.ai/changelog#9; https://www.cardboard.ai/changelog#44,2026-01-22,V,R1,Fullscreen preview (F)
+TL-12,Timeline,Playback speed controls in previews (e.g. 1.25x),https://www.cardboard.ai/changelog#16; https://www.cardboard.ai/changelog#24,2026-03-16,V,R2,
+CV-01,Canvas,"Aspect ratios 16:9, 9:16, 1:1 (+4:3, 3:4, 4:5)",https://www.cardboard.ai/changelog#1; https://www.cardboard.ai/changelog#11; https://www.cardboard.ai/changelog#16,2025-11-09,V,R1,R1 default 9:16 1080×1920; others selectable
+CV-02,Canvas,On-canvas drag/scale/rotate/crop with guides and snapping,https://www.cardboard.ai/changelog#4; https://www.cardboard.ai/changelog#5; https://www.cardboard.ai/changelog#7,2025-12-03,V,R1,Crop/reframe rect in normalized source coords
+CV-03,Canvas,"Backgrounds (solid, gradient, image) behind media",https://www.cardboard.ai/changelog#6,2025-12-22,V,R1,Blurred-fill background for mismatched aspect (ours)
+CV-04,Canvas,"Properties panel: position, scale, rotation, opacity, blend, audio",https://www.cardboard.ai/changelog#2,2025-11-14,V,R1,"Blend modes subset in R1 (normal, screen, multiply)"
+CV-05,Canvas,Flip/mirror clip,https://www.cardboard.ai/changelog#16,2026-03-16,V,R1,
+CV-06,Canvas,"Layout presets (split-screen, grids) with drag-to-fill slots",https://www.cardboard.ai/changelog#11; https://www.cardboard.ai/changelog#13; https://www.cardboard.ai/changelog#37,2026-02-10,V,R1,"Needed for collage recipe; 2-up, 3-up, 2×2, 3×3"
+CV-07,Canvas,Save current preview frame as image,https://www.cardboard.ai/changelog#9,2026-01-22,V,R1,
+CV-08,Canvas,Agent fixes black bars/letterboxing,https://www.cardboard.ai/changelog#37,2026-08-10,V,R1,Deterministic 'fill frame' check + op
+FX-01,Effects,"Transitions: fade, scale, fly; controls at clip seams",https://www.cardboard.ai/changelog#3; https://www.cardboard.ai/changelog#12,2025-11-20,V,R1,"cut, crossfade, dip, slide/push, zoom"
+FX-02,Effects,Colour grade presets with hover preview; 10 exact numeric colour controls,https://www.cardboard.ai/changelog#5; https://www.cardboard.ai/changelog#36,2025-12-15,V,R2,R1: 6 looks + exposure/contrast/saturation/temperature
+FX-03,Effects,LUTs and lift/gamma/gain wheels,https://www.cardboard.ai/llms.txt,2026-10-15,V,R3,.cube LUT loader in shader
+FX-04,Effects,Gaussian blur effect (keyframeable),https://www.cardboard.ai/changelog#33,2026-07-13,V,R2,Two-pass shader
+FX-05,Effects,"Retro film effects: grain, vignette, scanlines, halation, film presets",https://www.cardboard.ai/changelog#31,2026-06-29,V,R2,Shaders
+FX-06,Effects,Effect previews rendered on your own footage,https://www.cardboard.ai/changelog#41,2026-09-07,V,R2,Thumbnail render via same compositor
+FX-07,Effects,Paper-cutout collage effect,https://www.cardboard.ai/changelog#40,2026-08-31,V,EXP,
+TX-01,Text,"Text overlays with presets, font, weight, colour, shadow, letter spacing, line height",https://www.cardboard.ai/changelog#3; https://www.cardboard.ai/changelog#5; https://www.cardboard.ai/changelog#41,2025-11-20,V,R1,
+TX-02,Text,Text motion presets (12),https://www.cardboard.ai/changelog#15,2026-03-09,V,R1,R1: 6 in/out animations
+TX-03,Text,Floating on-canvas text toolbar,https://www.cardboard.ai/changelog#41,2026-09-07,V,R2,
+CAP-01,Captions,Automatic transcription with timestamps; searchable transcript,https://www.cardboard.ai/changelog#4,2025-12-03,V,R1,whisper.cpp local (MIT code + MIT weights)
+CAP-02,Captions,Word-level captions with presets and per-caption editing,https://www.cardboard.ai/llms.txt; https://www.cardboard.ai/changelog#35,2025-12-03,V,R1,Edit in place; retime-preserving alignment
+CAP-03,Captions,"Animated caption styles (line-by-line, word pop, one-word reveal, big keyword)",https://www.cardboard.ai/changelog#9; https://www.cardboard.ai/changelog#32; https://www.cardboard.ai/changelog#36,2026-01-22,V,R1,6 original styles in R1
+CAP-04,Captions,Captions pause during silences,https://www.cardboard.ai/changelog#32,2026-07-06,V,R1,Gap > threshold hides caption
+CAP-05,Captions,Captions keep style after regenerate; resync after audio retime,https://www.cardboard.ai/changelog#36,2026-08-03,V,R1,Style stored separately from words
+CAP-06,Captions,Captions behind the subject (depth/segmentation),https://www.cardboard.ai/changelog#12; https://www.cardboard.ai/changelog#40,2026-02-16,V,R3,Apple Vision person segmentation matte
+CAP-07,Captions,"Multilingual transcription (10+ languages, Mandarin, Hindi fixes); auto language detect",https://www.cardboard.ai/changelog#8; https://www.cardboard.ai/changelog#16; https://www.cardboard.ai/changelog#41,2026-01-11,V,R1,Whisper multilingual; Devanagari font coverage
+CAP-08,Captions,Caption translation into other languages,https://www.cardboard.ai/llms.txt,2026-10-15,V,R3,Via user's agent (Claude/Codex) — optional
+CAP-09,Captions,Agent keeps text readable (overlap/too-small detection),https://www.cardboard.ai/changelog#33,2026-07-13,V,R1,"Deterministic lint: safe-zone, min size, overlap"
+AU-01,Audio,Per-item volume (0–200%) and mute,https://www.cardboard.ai/changelog#6; https://www.cardboard.ai/changelog#7,2025-12-22,V,R1,Stored in dB internally
+AU-02,Audio,Music library (royalty-free) and sound-effects library,https://www.cardboard.ai/changelog#5; https://www.cardboard.ai/changelog#10; https://www.cardboard.ai/changelog#45,2025-12-15,V,OOS,Licensing; R1 uses your own music; optional CC0 SFX pack later
+AU-03,Audio,Beat-synced cuts; real beat grid tracking up to 20 min,https://www.cardboard.ai/changelog#13; https://www.cardboard.ai/changelog#29,2026-02-22,V,R1,Local beat tracker; manual grid nudge
+AU-04,Audio,Music ducking under speech; levelling; noise removal,https://www.cardboard.ai/llms.txt,2026-10-15,V,R2,R1: ducking + fades + loudness normalise; R2: noise reduction (RNNoise BSD)
+AU-05,Audio,Audio-sync robustness on long timelines,https://www.cardboard.ai/changelog#17; https://www.cardboard.ai/changelog#18,2026-03-23,V,R1,Sample-accurate mixer driven by rational time
+AU-06,Audio,Multicam sync by audio,https://www.cardboard.ai/llms.txt,2026-10-15,V,R3,Cross-correlation of onset envelopes
+AU-07,Audio,AI-generated music,https://www.cardboard.ai/pricing,2026-10-15,V,OPT-PAID,Paid APIs or heavy local models; not in plan
+VO-01,Voice,Voiceover generation from script; voice previews,https://www.cardboard.ai/changelog#7; https://www.cardboard.ai/changelog#15,2026-01-01,V,EXP,Local TTS candidate (licence to verify) or OPT-PAID
+VO-02,Voice,Voice cloning from sample,https://www.cardboard.ai/changelog#8,2026-01-11,V,OOS,Consent/abuse risk; out of scope
+VO-03,Voice,Dubbing into another language,https://www.cardboard.ai/llms.txt,2026-10-15,V,OOS,
+CL-01,Cleanup,Silence/dead-air removal from transcript,https://www.cardboard.ai/changelog#11,2026-02-10,V,R2,VAD + transcript gaps; preview before apply
+CL-02,Cleanup,"Remove bad takes, fillers, repetitions; Light/Balanced/Tight levels",https://www.cardboard.ai/changelog#21; https://www.cardboard.ai/changelog#28; https://www.cardboard.ai/changelog#39,2026-04-20,V,R2,Agent proposes ranges; user previews
+RF-01,Reframe,Reframe for new aspect ratio keeping subject in view,https://www.cardboard.ai/changelog#15; https://www.cardboard.ai/changelog#36,2026-03-09,V,R1,Static saliency/face crop per clip (Apple Vision)
+RF-02,Reframe,Subject/speaker tracking reframe (moving crop),https://www.cardboard.ai/changelog#23; https://www.cardboard.ai/changelog#25; https://www.cardboard.ai/changelog#27; https://www.cardboard.ai/changelog#29,2026-05-04,V,R2,Vision face/person tracking + smoothing
+RF-03,Reframe,Speaker grids / split layouts from multi-person footage,https://www.cardboard.ai/changelog#21,2026-04-20,V,R3,
+RF-04,Reframe,Speaker-aware auto cut to whoever speaks,https://www.cardboard.ai/changelog#25,2026-05-18,V,R3,"Diarization needed (pyannote: MIT code, gated weights) → verify"
+SEG-01,Segmentation,Background removal/replacement (with partial-range support),https://www.cardboard.ai/changelog#12; https://www.cardboard.ai/changelog#33; https://www.cardboard.ai/changelog#45,2026-02-16,V,R3,Vision person segmentation; BiRefNet (MIT) optional
+SEG-02,Segmentation,Depth compositing: text behind subject,https://www.cardboard.ai/changelog#12; https://www.cardboard.ai/llms.txt,2026-02-16,V,R3,
+SR-01,Search,Search footage by what is said (transcript),https://www.cardboard.ai/changelog#4; https://www.cardboard.ai/changelog#24,2025-12-03,V,R1,SQLite FTS5
+SR-02,Search,Search by visual description / scene / objects,https://www.cardboard.ai/changelog#3; https://www.cardboard.ai/changelog#8; https://www.cardboard.ai/changelog#24,2025-11-20,V,R2,SigLIP2 (Apache-2.0) embeddings + sqlite-vec
+SR-03,Search,Media insights while scrubbing; highlight preview before placing,https://www.cardboard.ai/changelog#24,2026-05-11,V,R2,
+SR-04,Search,"Agent analyses clip content (scenes, actions, on-screen text)",https://www.cardboard.ai/changelog#5; https://www.cardboard.ai/changelog#41,2025-12-15,V,R1,Contact sheets sent to your agent as images (privacy note)
+AG-01,Agent,Plain-language agent edits of the timeline,https://www.cardboard.ai/changelog#1,2025-11-09,V,R1,Claude Code CLI / Codex CLI via local MCP tools
+AG-02,Agent,Bring your own Claude or Codex subscription (Mac),https://www.cardboard.ai/changelog#44; https://www.cardboard.ai/desktop,2026-09-28,V,R1,Spawn user's own unmodified CLI; app never touches credentials
+AG-03,Agent,Model picker,https://www.cardboard.ai/changelog#4; https://www.cardboard.ai/changelog#44,2025-12-03,V,R1,Pass --model / -m
+AG-04,Agent,Chat checkpoints: roll timeline back to any message,https://www.cardboard.ai/changelog#14,2026-03-02,V,R1,Revision id per message
+AG-05,Agent,Agent looks at rendered frames and fixes its own work,https://www.cardboard.ai/changelog#34; https://www.cardboard.ai/changelog#39,2026-07-20,V,R1,render_frames tool + deterministic lints
+AG-06,Agent,"Agent asks clarifying questions; pickers in chat (music, layouts)",https://www.cardboard.ai/changelog#13; https://www.cardboard.ai/changelog#27,2026-02-22,V,R2,
+AG-07,Agent,Message queue and stop button,https://www.cardboard.ai/changelog#30,2026-06-22,V,R1,Cancel = SIGINT → SIGTERM
+AG-08,Agent,Agent reports when stuck; summary at end; self-check against request,https://www.cardboard.ai/changelog#39; https://www.cardboard.ai/changelog#40; https://www.cardboard.ai/changelog#41,2026-08-24,V,R1,Turn summary + verify step
+AG-09,Agent,"Style reference: attach video/image to match colour, pacing, fonts, audio",https://www.cardboard.ai/changelog#35,2026-07-27,V,R3,
+AG-10,Agent,Prompt improvement / rewrite,https://www.cardboard.ai/changelog#15; https://www.cardboard.ai/changelog#30,2026-03-09,V,R2,
+AG-11,Agent,Plain-language progress instead of raw tool output; details toggle,https://www.cardboard.ai/changelog#45,2026-10-05,V,R1,
+AG-12,Agent,Agents confined to project files,https://www.cardboard.ai/changelog#45,2026-10-05,V,R1,No shell/file tools; ops-only MCP
+AG-13,Agent,Start a project from a prompt / footage-first start,https://www.cardboard.ai/changelog#10; https://www.cardboard.ai/changelog#38,2026-01-31,V,R1,Recipe-first is our primary flow
+AG-14,Agent,Native in-app agent with its own model access ('Director'),https://www.cardboard.ai/changelog#3; https://www.cardboard.ai/desktop,2025-11-20,V,OOS,Would need hosted backend/API billing
+MG-01,Motion graphics,"Animated titles, diagrams, charts, callouts; editable values",https://www.cardboard.ai/llms.txt; https://www.cardboard.ai/changelog#42,2026-09-14,V,R3,Template-based; Lottie (MIT player) later
+MG-02,Motion graphics,3D scenes from prompt,https://www.cardboard.ai/changelog#45,2026-10-05,V,EXP,three.js (MIT) programmatic scenes
+GEN-01,Generative,AI video/image generation (third-party models),https://www.cardboard.ai/pricing,2026-10-15,V,OPT-PAID,Paid APIs; not planned
+GEN-02,Generative,Stock and archival footage sourcing with credits,https://www.cardboard.ai/changelog#31,2026-06-29,V,OPT-PAID,Would need API keys (e.g. free stock APIs) — optional
+RC-01,Recipes,"Recipe gallery with preview, required inputs, output format",https://www.cardboard.ai/recipes; https://www.cardboard.ai/llms.txt,2026-10-15,V,R1,Declarative recipe JSON + built-in assembler strategies
+RC-02,Recipes,Travel montage / travel collage / travel vlog recipes,https://www.cardboard.ai/recipes,2026-10-15,V,R1,Our own designs
+RC-03,Recipes,"Vlog recipes (mini vlog, clock vlog, cinematic story)",https://www.cardboard.ai/recipes,2026-10-15,V,R1,Mini vlog in R1
+RC-04,Recipes,"Effect recipes requiring segmentation/tracking (subject isolation, invisible man, orbital screens)",https://www.cardboard.ai/recipes,2026-10-15,V,R3,Depends on SEG-01/RF-02
+RC-05,Recipes,Clipping/talking-head/UGC recipes with captions,https://www.cardboard.ai/recipes,2026-10-15,V,R1,Captioned story recipe
+RC-06,Recipes,Montage avoids repeating clips; asks rather than pads,https://www.cardboard.ai/changelog#39,2026-08-24,V,R1,Assembler constraint
+RC-07,Recipes,Sample/template projects,https://www.cardboard.ai/changelog#7; https://www.cardboard.ai/changelog#14,2026-01-01,V,R2,
+EX-01,Export,Export video in a range of formats,https://www.cardboard.ai/changelog#1,2025-11-09,V,R1,MP4 H.264/AAC 1080×1920 default; HEVC option
+EX-02,Export,Exports verified before delivery,https://www.cardboard.ai/changelog#43,2026-09-21,V,R1,ffprobe + decode + parity sample checks
+EX-03,Export,Untouched single clip export copies without re-encode,https://www.cardboard.ai/changelog#36,2026-08-03,V,R2,
+EX-04,Export,Adaptive frame rate (keep 60 fps),https://www.cardboard.ai/changelog#32,2026-07-06,V,R1,"30 default, 60 option"
+EX-05,Export,4K export,https://www.cardboard.ai/pricing; https://www.cardboard.ai/changelog#13,2026-02-22,V,R2,
+EX-06,Export,GIF export of a range,https://www.cardboard.ai/changelog#15,2026-03-09,V,R2,FFmpeg palettegen
+EX-07,Export,NLE handoff: Premiere XML / FCPXML / DaVinci; AAF,https://www.cardboard.ai/changelog#4; https://www.cardboard.ai/changelog#20; https://www.cardboard.ai/llms.txt,2025-12-03,V,R3,FCPXML 1.x first; AAF out of scope
+EX-08,Export,Re-export identical cut returns cached file,https://www.cardboard.ai/changelog#40,2026-08-31,V,R2,Render hash cache
+EX-09,Export,Muted timeline exports without empty audio track,https://www.cardboard.ai/changelog#44,2026-09-28,V,R1,
+PR-01,Projects,Autosave / no save button,https://www.cardboard.ai/changelog#11,2026-02-10,V,R1,Local atomic autosave + journal
+PR-02,Projects,Recovered version shown side-by-side; user chooses,https://www.cardboard.ai/changelog#38,2026-08-17,V,R1,
+PR-03,Projects,Share a project as one file with footage included,https://www.cardboard.ai/changelog#44,2026-09-28,V,R2,Portable .reelpack (zip)
+PR-04,Projects,"Cloud projects, cloud sync, chats synced across devices",https://www.cardboard.ai/changelog#6; https://www.cardboard.ai/changelog#11; https://www.cardboard.ai/changelog#20,2025-12-22,V,OOS,No hosted backend (constraint)
+PR-05,Projects,"Rename, bulk delete, recent projects",https://www.cardboard.ai/changelog#45,2026-10-05,V,R1,
+CO-01,Collaboration,Share links / watch page / timestamped comments,https://www.cardboard.ai/changelog#32,2026-07-06,V,OOS,Needs hosting
+CO-02,Collaboration,Live collaboration,https://www.cardboard.ai/llms.txt,2026-10-15,V,OOS,
+BZ-01,Business,"Plans, credits, trials, checkout, billing",https://www.cardboard.ai/changelog#10; https://www.cardboard.ai/changelog#28; https://www.cardboard.ai/pricing,2026-01-31,V,OOS,Personal app
+OP-01,Ops,"Status page, telemetry-driven improvements",https://www.cardboard.ai/changelog#40,2026-08-31,V,OOS,Local logs only

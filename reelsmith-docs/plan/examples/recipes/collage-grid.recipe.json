@@ -1,0 +1,32 @@
+{
+  "$schema": "../../schemas/recipe.schema.json",
+  "schemaVersion": 1,
+  "id": "collage-grid",
+  "version": "1.0.0",
+  "name": "Collage Grid",
+  "category": "collage",
+  "description": "Photos and clips revealed into split and grid layouts on the beat, ending on a full-screen hero shot with a title.",
+  "preview": { "poster": "previews/collage-grid.jpg", "loop": "previews/collage-grid.mp4", "generatedFrom": "synthetic-sample" },
+  "canvas": { "width": 1080, "height": 1920, "fps": { "num": 30, "den": 1 } },
+  "duration": { "mode": "fitMusic", "minSec": 8, "targetSec": 18, "maxSec": 40 },
+  "inputs": [
+    { "id": "media", "kind": "media", "accept": ["image", "video"], "min": 6, "max": 40, "label": "Photos and clips" },
+    { "id": "music", "kind": "media", "accept": ["audio"], "min": 0, "max": 1, "label": "Song (optional)" },
+    { "id": "title", "kind": "text", "label": "Closing title", "optional": true, "maxLength": 40 }
+  ],
+  "params": [
+    { "id": "gutter", "type": "integer", "label": "Gap between tiles (px)", "default": 12, "min": 0, "max": 60, "step": 2 },
+    { "id": "radius", "type": "integer", "label": "Tile corner radius (px)", "default": 18, "min": 0, "max": 80, "step": 2 },
+    { "id": "bg", "type": "color", "label": "Background", "default": "#F4F1EA" }
+  ],
+  "music": { "inputId": "music", "required": false, "startPolicy": "firstDownbeat", "endPolicy": "endOnBar", "fadeOutSec": 1, "gainDb": -4, "clipAudioGainDb": -96, "duckUnderSpeech": false },
+  "assembler": { "strategy": "collage-grid@1", "options": { "sequence": ["split2v", "grid2x2", "split3v", "grid3x3"], "revealStaggerBeats": 0.5 }, "aiSelection": "optional" },
+  "structure": [
+    { "section": "grids", "fill": "layout", "cutRule": "everyBar" },
+    { "section": "hero", "lengthBeats": 8, "fill": "clips", "overlays": [ { "kind": "title", "text": "{{inputs.title}}", "styleId": "title.serif", "position": "center", "animationIn": "fade" } ] }
+  ],
+  "styles": { "title.serif": { "fontFamily": "Playfair Display", "fontWeight": 700, "sizePx": 110, "color": "#FFFFFF", "shadow": { "color": "#00000080", "blurPx": 20, "dx": 0, "dy": 4 }, "align": "center" } },
+  "look": { "colorLook": "mutedMatte", "grain": 0.05, "vignette": 0 },
+  "agentHints": "Group visually similar colours in the same grid. Put faces in larger cells. The hero shot should be the most striking wide image.",
+  "constraints": { "noRepeatClips": true, "insufficientMediaPolicy": "lengthenShots", "keepChronological": false, "textSafeZone": true }
+}

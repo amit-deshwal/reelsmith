@@ -1,597 +1,153 @@
-<p align="center">
-  <img src="public/openchatcut-icon.png" width="96" alt="OpenChatCut" />
-</p>
+# Reelsmith
 
-<h1 align="center">OpenChatCut</h1>
+A personal, Mac-first, local-first AI editor for **Instagram Reels**, built on top of **[OpenChatCut](https://github.com/0xsline/OpenChatCut)**.
 
-<p align="center">
-  <a href="README_ZH.md">简体中文</a> · <strong>English</strong>
-</p>
+> Workflow: **browse visual recipes → import footage → choose a recipe → AI assembles the reel → request changes in chat → preview → export a 1080×1920 MP4**
 
-<p align="center">
-  <strong>Open-source ChatCut alternative · agent-native · local-first AI video editor</strong>
-</p>
-
-<p align="center">
-  Let Codex, Claude Code, and the built-in agent read, edit, and export real video projects that remain fully editable.
-  Website: <a href="https://openchatcut.com">openchatcut.com</a>
-</p>
-
-<p align="center">
-  <a href="#what-is-openchatcut">Introduction</a> ·
-  <a href="#product-tour">Product Tour</a> ·
-  <a href="#quick-start">Quick Start</a> ·
-  <a href="#using-openchatcut-with-codex--claude-code">Agent / MCP</a> ·
-  <a href="#community">Community</a> ·
-  <a href="#sponsors">Sponsors</a> ·
-  <a href="#changelog">Changelog</a> ·
-  <a href="#star-growth">Star Growth</a> ·
-  <a href="#contributing">Contributing</a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/0xsline/OpenChatCut"><img alt="GitHub Repository" src="https://img.shields.io/badge/GitHub-Repository-181717?style=flat&logo=github" /></a>
-  <a href="https://discord.gg/bSGUAeWYkh"><img alt="Discord Community" src="https://img.shields.io/badge/Discord-Join_Community-5865F2?style=flat&logo=discord&logoColor=white" /></a>
-  <img alt="Status" src="https://img.shields.io/badge/status-active_development-FF8A3D?style=flat" />
-  <img alt="Local First" src="https://img.shields.io/badge/data-local_first-111827?style=flat" />
-  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-6-3178C6?style=flat&logo=typescript&logoColor=white" />
-  <img alt="React" src="https://img.shields.io/badge/React-19-149ECA?style=flat&logo=react&logoColor=white" />
-  <img alt="Remotion" src="https://img.shields.io/badge/Remotion-4-0B84F3?style=flat" />
-  <img alt="Electron" src="https://img.shields.io/badge/Electron-43-47848F?style=flat&logo=electron&logoColor=white" />
-  <img alt="MCP" src="https://img.shields.io/badge/MCP-Agent_native-7C3AED?style=flat" />
-  <a href="https://atomgit.com/Oxsline/openchatcut"><img alt="AtomGit G-Star" src="https://img.shields.io/badge/AtomGit-G--Star-DA203E?logo=gitcode&logoColor=white" /></a>
-</p>
-
-<p align="center">
-  <a href="https://linux.do" alt="LINUX DO"><img src="https://shorturl.at/ggSqS" /></a>
-</p>
-
-<p align="center">
-  <a href="https://www.producthunt.com/products/openchatcut?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-openchatcut" target="_blank" rel="noopener noreferrer"><img alt="OpenChatCut - Open-source AI agent video editor with a real timeline | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1201995&amp;theme=light&amp;t=1784645557617" /></a>
-</p>
-
-<p align="center">
-  <img src="assets/readme-pic/01-editor-overview.png" alt="OpenChatCut editor overview with the agent workspace, media pool, preview, and multitrack timeline" />
-</p>
-
-<p align="center">
-  <sub>From a single instruction to a real timeline: agents, media, previews, motion graphics, transitions, effects, and multitrack audio all work together in one project.</sub>
-</p>
-
----
-## Sponsors
-
-<p align="center">
-  <a href="https://ofox.ai/?utm_source=github&utm_medium=sponsorship&utm_content=openchatcut"><img src="assets/readme-pic/ofox-logo.svg" width="300" alt="OfoxAI" /></a>
-</p>
-
-**OfoxAI: Text, image, and video AI in one platform**
-
-OfoxAI is a unified API platform for text, image, and video AI, with video models from the Seedance, MiniMax (Hailuo), and Wan families. Choose models for AI applications, agents, creative ideation, image generation, and video assets through one platform.
-[Explore OfoxAI models and APIs →](https://ofox.ai/?utm_source=github&utm_medium=sponsorship&utm_content=openchatcut)
-
-<br />
-
-If OpenChatCut helps you, you can support its continued development on Ko-fi or Afdian.
-
-<p align="center">
-  <a href="https://ko-fi.com/Y5N2241IP5">
-    <img alt="Support me on Ko-fi" src="https://img.shields.io/badge/Support_me_on-Ko--fi-72a4f2?logo=kofi&amp;logoColor=white" />
-  </a>
-  <a href="https://www.ifdian.net/a/sline?utm_source=copylink&amp;utm_medium=link">
-    <img alt="Support OpenChatCut on Afdian" src="https://img.shields.io/badge/Support_on-Afdian-946CE6" />
-  </a>
-</p>
+- **Base:** fork of OpenChatCut `v0.2.17` (commit `72ddb330`, 2026-10-15), with full upstream history kept. The upstream README is in [`UPSTREAM_README.md`](UPSTREAM_README.md).
+- **License:** OpenChatCut is AGPL-3.0, and this fork inherits it. The repo is **private, for personal use**. Re-check AGPL obligations before ever offering it to others as a network service or distributing builds.
+- **Inspiration:** the public feature set of Cardboard (cardboard.ai). This project is independent: do not copy Cardboard's code, file formats, branding, recipe names, preview media or text.
+- **Planning docs:** [`reelsmith-docs/plan/`](reelsmith-docs/plan/README.md) holds the full spec (`cardboardrebuild.txt`), the feature inventory, research notes, diagrams, JSON schemas and the 5 example recipes. The spec was written for a from-scratch build. Wherever OpenChatCut already solves something differently, **OpenChatCut's design wins** unless this README says otherwise. Use the spec's acceptance criteria, recipe format and export checks as the reference.
 
 ---
 
-## What is OpenChatCut?
-
-OpenChatCut is an **open-source ChatCut alternative**: a video editor that brings **conversational agents** and **professional timeline editing** into the same workspace. It is independent open source (AGPL), not affiliated with the commercial ChatCut product.
-
-**OpenChatCut = local video projects + multitrack timeline + AI agents + MCP + production-ready exports.**
-
-It does not merely generate a video that can no longer be changed. Every edit is written to real tracks, clips, transitions, captions, effects, and media inside the project. You can continue editing manually, undo or redo changes, save versions, or hand the project to another agent.
-
-OpenChatCut is built for creators and developers who want AI to participate in the actual editing workflow without giving up professional control, rather than starting over from an empty chat box or an immutable generated result.
-
-- Website: [https://openchatcut.com](https://openchatcut.com)
-- Open-source ChatCut alternative guide: [https://openchatcut.com/blog/open-source-chatcut-alternative](https://openchatcut.com/blog/open-source-chatcut-alternative)
-- ChatCut vs OpenChatCut: [https://openchatcut.com/blog/chatcut-vs-openchatcut](https://openchatcut.com/blog/chatcut-vs-openchatcut)
-
-- 🤖 **Agent-native**: the built-in agent and external MCP agents share the same editing tools.
-- 🎞️ **Real timeline**: multiple video and audio tracks, transitions, effects, LUTs, zooms, and keyframes.
-- 📝 **Transcript-driven editing**: word-level transcription, text-based cuts, pause handling, speakers, and linked captions.
-- ✨ **Generation and media**: images, video, speech, music, sound effects, and online media search.
-- 🧩 **Motion Graphics and WebGL**: editable motion templates, custom shaders, visual effects, and transitions.
-- 👁️ **Visual geometry**: in-browser person segmentation and face-safe zones — captions avoid the speaker automatically, reframe follows the subject, and overlay graphics land in empty space.
-- 📦 **Production-ready exports**: MP4, audio, captions, FCPXML, and complete project data.
-- 🖥️ **Local-first**: projects and media stay on your machine by default, while API keys remain server-side.
-
-## Community
-
-Join the OpenChatCut community to discuss workflows, share feedback, and follow development:
-
-- [Join Discord](https://discord.gg/bSGUAeWYkh)
-- Scan the QR code below with WeChat.
-
-<p align="center">
-  <br />
-  <img src="assets/readme-pic/wechat-community.jpg" width="220" alt="OpenChatCut WeChat community QR code" />
-</p>
-
----
-
-## Product Tour
-
-The following screenshots show real OpenChatCut projects and editor states, not static mockups.
-
-<table>
-  <tr>
-    <td width="50%" valign="top" align="center">
-      <img src="assets/readme-pic/02-project-dashboard.png" alt="OpenChatCut local project dashboard" /><br />
-      <sub><b>Local project management</b> — Create, import, duplicate, export, and continue editing multiple real projects.</sub>
-    </td>
-    <td width="50%" valign="top" align="center">
-      <img src="assets/readme-pic/03-agent-transitions.png" alt="An agent generating music and editing transitions on a multitrack timeline" /><br />
-      <sub><b>Complete agent-driven editing</b> — Generate music, invoke tools, and write transitions, captions, and multitrack media directly to the timeline.</sub>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top" align="center">
-      <img src="assets/readme-pic/04-motion-graphics.png" alt="Agent tool execution history and the Motion Graphics library" /><br />
-      <sub><b>Motion Graphics and agents</b> — Browse motion templates or let an agent generate and assemble editable MG clips.</sub>
-    </td>
-    <td width="50%" valign="top" align="center">
-      <img src="assets/readme-pic/05-effects.png" alt="OpenChatCut WebGL visual effects library" /><br />
-      <sub><b>WebGL visual effects</b> — Apply pixelation, duotone, fisheye, kaleidoscope, softening, light leaks, and more directly to clips.</sub>
-    </td>
-  </tr>
-  <tr>
-    <td width="50%" valign="top" align="center">
-      <img src="assets/readme-pic/06-zoom.png" alt="OpenChatCut camera movement and zoom effects library" /><br />
-      <sub><b>Camera movement and zoom</b> — Push, pull, slow zoom, fast zoom, and eased camera effects work directly with the timeline.</sub>
-    </td>
-    <td width="50%" valign="top" align="center">
-      <img src="assets/readme-pic/07-lut.png" alt="Comparing LUT color styles in OpenChatCut using a Tokyo Tower reference image" /><br />
-      <sub><b>LUTs and color styles</b> — Compare camera transforms and film looks in real time against a consistent reference frame.</sub>
-    </td>
-  </tr>
-</table>
-
----
-
-## Why OpenChatCut?
-
-Traditional editors excel at precise control. One-shot AI video generators excel at producing results quickly. OpenChatCut connects both approaches through one continuously editable project:
-
-| Capability | Traditional timeline editor | One-shot AI video generation | **OpenChatCut** |
-|---|:---:|:---:|:---:|
-| Track- and clip-level precision | ✅ | ❌ | **✅** |
-| Modify a project with natural language | ❌ | ✅ | **✅** |
-| Inspectable and undoable changes | ✅ | Usually unavailable | **✅** |
-| Linked transcript and visuals | Partial | ❌ | **✅** |
-| Direct control from Codex / Claude Code | ❌ | ❌ | **✅ MCP** |
-| Built-in and external agent collaboration | ❌ | ❌ | **✅ Shared tools** |
-| Local projects and BYOK | Product-dependent | Usually cloud-based | **✅** |
-
-The core editing loop:
-
-```text
-Describe the goal → Agent reads the project → Produces verifiable edits → Writes to the timeline
-                  → Preview / adjust / undo → Captions and mixing → Export
-```
-
----
-
-## Core Capabilities
-
-| Area | Implemented capabilities |
-|---|---|
-| Timeline | Multitrack editing, move, trim, split, ripple edits, snapping, keyframes, markers, undo, and redo |
-| Visuals | WebGL effects, LUTs, chroma key, zoom, transitions, and custom shaders |
-| Audio | Multiple audio tracks, sound effects, background music, voice-over recording, loudness, auto-ducking, and vocal isolation |
-| Transcript | Transcription jobs, word-level editing, pause compression, search, speakers, and clip views |
-| Captions | Automatic captions, named styles, translation, timeline overlays, and SRT export |
-| Motion Graphics | Built-in templates, a secure sandbox, custom templates, and video rendering |
-| AI generation | Image, video, speech, music, and sound-effect jobs with progress tracking |
-| Media | Uploads, folders, online image/video/audio search, and Firecrawl visual-media fallback |
-| Export | MP4, audio, captions, FCPXML, project import/export, export history, hardware-aware H.264 acceleration, and resource-aware export queueing |
-| Publishing | Agent-driven publishing of finished renders to TikTok, Instagram, YouTube, LinkedIn, Facebook, X, Threads, Pinterest, and Bluesky via Upload-Post, with a preview and explicit confirmation first |
-| Agent | Built-in conversational agent, skills, proposal-based edits, and external Streamable HTTP MCP |
-
----
-
-## Community Resources
-
-The [OpenChatCut resource library](https://openchatcut.com/resources) is a shared catalog for reusable MG animations, sound effects, transitions, visual effects, zooms, and LUTs.
-
-<p align="center">
-  <a href="https://openchatcut.com/resources">
-    <img src="assets/readme-pic/08-community-resources.en.png" alt="OpenChatCut community resource library" />
-  </a>
-</p>
-
-### Discover and install
-
-- Hover visual cards to watch the complete result, or play audio resources before downloading.
-- Copy a resource's install URL into OpenChatCut's Extension Center, or download its original package.
-- Browse the website catalog inside the editor and manage installed extensions locally.
-
-### Contribute a resource
-
-1. Open [Contribute a resource](https://openchatcut.com/resources/submit) and choose its category.
-2. Upload the resource and the category-specific preview inputs; the site renders the published preview.
-3. Add the creator and license information, then submit it for review and publication.
-
-Installable visual resources use the editor's `openchatcut-plugin@1` format and runtime validation. Official OpenChatCut resources use the MIT license; community contributors select a license during submission, and each published card identifies its creator and license.
-
----
-
-## Use Cases
-
-- **Talking-head and interview editing**: transcribe audio or video, remove mistakes, pauses, and repetition through text, then generate captions automatically.
-- **Fast multiformat assembly**: import video, images, and audio, then let an agent create the rough cut, transitions, soundtrack, and pacing.
-- **Short-form and social content**: reframe the canvas and generate titles, captions, voice-over, music, and visual packaging.
-- **Motion Graphics**: use built-in templates or ask an agent to create editable motion-graphics clips.
-- **Developer automation**: use MCP to let Codex, Claude Code, or another compatible client inspect and modify a real project.
-
-## Workflow
-
-1. Create a project and import local media.
-2. Edit manually on the timeline or describe the result you want.
-3. The agent reads project context and invokes editing tools.
-4. Review the proposal and preview the result, then apply, adjust, or undo it.
-5. Finish captions, audio, effects, and color.
-6. Export video, audio, captions, FCPXML, or the complete project.
-
----
-
-## Quick Start
-
-### Desktop installers
-
-Download the latest macOS, Windows, and Linux builds from [GitHub Releases](https://github.com/0xsline/OpenChatCut/releases/latest). The release currently includes DMG installers for Apple Silicon and Intel Macs, an x64 Windows installer, and an x64 Linux AppImage.
-
-These are early builds. The macOS packages are not yet signed or notarized, so the operating system may require manual approval on first launch.
-
-### Run from source
-
-Requires Node.js 24.x and npm. The supported Node.js range is enforced by `package.json`, and `.nvmrc` selects the matching major version for Node version managers.
-
-On Linux x64, `npm install` also downloads ONNX Runtime's optional CUDA provider (several hundred MB from NuGet). For a CPU-only install, run `ONNXRUNTIME_NODE_INSTALL=skip npm install` instead.
+## Quick start (developer)
 
 ```bash
-git clone https://github.com/0xsline/OpenChatCut.git
-cd OpenChatCut
+# Node 24.x is required (package.json engines ">=24 <25"; .nvmrc = 24). The Mac currently has Node 25.
+brew install fnm && fnm install 24 && fnm use 24    # or nvm/volta
 npm install
-cp .env.example .env.local
-npm run dev
+cp .env.example .env.local      # add only the keys you actually use; none are needed for local editing
+npm run desktop:dev             # Electron app (or: npm run dev → http://localhost:5199)
 ```
 
-Open:
+Agents use your own subscriptions; the app never touches credentials:
+- **Claude:** the built-in agent spawns your own `claude -p` (see `server/claude-code/turn-runner.ts`). You can also connect Claude Code from a terminal: `claude mcp add --transport http openchatcut http://localhost:5199/api/external-mcp/mcp`
+- **Codex:** Settings → Agent model → OpenAI · Codex. This uses the official Codex CLI ≥ 0.146 and its own credential storage.
 
-```text
-http://localhost:5199
-```
+Tests: `npm test` (runs `scripts/run-tests.mjs`; *.verify.ts files) and `npm run verify:affected`.
 
-The editor needs a browser [secure context](https://developer.mozilla.org/en-US/docs/Web/Security/Defenses/Secure_Contexts): open OpenChatCut at `http://localhost` or `http://127.0.0.1` on the machine running it, or serve it over HTTPS. Over plain HTTP from another device (a LAN IP or reverse proxy), browsers disable Web Crypto, WebCodecs, and the clipboard, so the project list still loads but the editor shows this requirement instead of opening.
-
-Only add the model or media-service credentials you actually use to `.env.local`. Features without configured third-party credentials report the missing key explicitly; local timeline editing, built-in media, and other configured capabilities continue to work.
-
-Development launches are isolated per Git checkout/worktree by default. `npm run dev` and
-`npm run desktop:dev` keep that checkout's projects, imported media, generation jobs,
-credentials, settings, and local authorization state under its own profile in
-`~/.openchatcut/dev-profiles/`. Use `npm run dev:shared` only when you intentionally need
-the legacy shared development store.
-
-### Built-in Agent authentication
-
-- **API keys:** open **Settings → Agent model**, choose a provider, and save its API key and model. Keys remain server-side.
-- **ChatGPT subscription:** install the official Codex CLI 0.146.0 or newer, then open **Settings → Agent model → OpenAI · Codex**. Sign in through the browser or device-code flow, load the account's models, choose a model-specific reasoning effort (or keep its default), and select Codex from the chat model picker. OpenChatCut uses a dedicated Codex profile; the official CLI owns credential storage, token renewal, and logout, while OAuth tokens are never exposed to the browser.
-- **Claude subscription:** OpenChatCut does not collect Claude OAuth credentials. Use Claude Code through the local MCP connection below. The built-in Agent can use Anthropic through an API key.
-
-The built-in Agent always runs the model loop on the local server. Chat, drafts, and proposals survive page refreshes and local service restarts. Timeline changes still go through the active editor's validated, undoable commands.
-
-### Agent local-path access (advanced)
-
-Desktop agents can browse any local directory allowed by the operating system by default, including mounted media drives. `browse_local_media` lists folders and supported media, searches by filename or relative path and media type, and returns paginated results without importing. The agent can then use `import_assets` for up to 100 selected paths, `import_asset` for one path, or `import_folder` for a whole folder. Imports reuse media probing and reference registration, preserve source files, and skip duplicate content, including duplicates within one batch. Document files such as TXT, Markdown, DOCX, and PDF should be attached to chat instead. In the desktop app these tools are enabled by default; in a browser session they also work, but only for directories listed in `AGENT_IMPORT_ROOTS` and while the editor is served from the same machine that runs OpenChatCut.
-
-To restrict local access, set a comma-separated value such as `AGENT_IMPORT_ROOTS=/Volumes/Media,D:\Projects` in `.env.local`; leave it empty for default unrestricted directory access in the desktop app (a browser session requires the allowlist and refuses these tools while it is empty). Explicit restrictions apply to both browsing and import. Source checkouts read the repository file at startup. Packaged desktop builds read it from Electron's user-data directory: `~/Library/Application Support/OpenChatCut/` on macOS, `%APPDATA%\OpenChatCut\` on Windows, and `$XDG_CONFIG_HOME/OpenChatCut/` (normally `~/.config/OpenChatCut/`) on Linux. Restart after editing the file.
-
-
-Local H.264 exports automatically prefer VideoToolbox on macOS and NVENC on compatible Windows systems, then fall back to software encoding. Tune render concurrency and the heavy-export limit with `OPENCHATCUT_RENDER_CONCURRENCY` and `OPENCHATCUT_MAX_ACTIVE_EXPORTS`, disable hardware encoding with `OPENCHATCUT_DISABLE_HARDWARE_ENCODING`, or override FFmpeg-side encoder selection with `OPENCHATCUT_H264_ENCODER`; see [`.env.example`](.env.example).
-
-On Apple Silicon, more render workers can slow down video-heavy exports even when VideoToolbox encoding is active. See [macOS render tuning](MACOS-RENDER-TUNING.md) for an M4 Max benchmark and a way to test your own workload. These measurements do not establish a default for other Macs or Windows.
-
-### Desktop development
+## Keeping in sync with upstream
 
 ```bash
-npm run desktop:dev
+git fetch upstream
+git merge upstream/main          # or rebase our branch onto it
+# README.md conflicts: keep ours (upstream's lives in UPSTREAM_README.md)
 ```
 
-The desktop app uses an Electron shell with the same embedded services. The web development build and desktop build share project, agent, generation, and export logic.
+Rules to keep merges cheap:
+1. Put new code in **our own folders** wherever possible: `src/reelsmith/`, `server/reelsmith/`, `shared/reelsmith/`, `recipes/`, and new skills under `src/agent/skills/reels-*`.
+2. Touch upstream files only at **thin hook points**: register a panel, add a route, add a tool to the catalog. Keep each hook to a few lines.
+3. Record every upstream file you modify in [`reelsmith-docs/UPSTREAM_PATCHES.md`](reelsmith-docs/UPSTREAM_PATCHES.md).
 
 ---
 
-## Project Status
+## What OpenChatCut already gives us (verify in M0)
 
-OpenChatCut is under active development. The editor, project format, and agent tools will continue to evolve. Prebuilt macOS, Windows, and Linux installers are published on [GitHub Releases](https://github.com/0xsline/OpenChatCut/releases); running from source remains the most transparent option for development and troubleshooting.
+These were **located in the code** during a read-only review on 2026-10-15. How well they work is **not yet verified**. M0 confirms each one.
 
-The core timeline, local projects, built-in media, and manual editing do not depend on cloud services. Connected features such as AI models, online media, generation, and transcription are enabled only after you configure the corresponding services.
-
----
-
-## Using OpenChatCut with Codex / Claude Code
-
-Install the single OpenChatCut Agent Skill:
-
-```bash
-npx skills add 0xsline/OpenChatCut
-```
-
-Then tell the agent `Set up OpenChatCut`. The installed router registers the
-local MCP connection and loads the editor's 26 specialized skills on demand,
-so the agent's skill list stays compact.
-
-Custom skills live in a user-visible directory with the same layout as
-`~/.codex/skills` / `~/.claude/skills`:
-
-```text
-~/.openchatcut/skills/<slug>/SKILL.md     (Windows: %USERPROFILE%\.openchatcut\skills\...)
-```
-
-Ask the agent to `manage_skill create` (or use the bundled *skill-creator*
-workflow) and it writes the SKILL.md there — editable and shareable by hand.
-Dropping a SKILL.md into that directory makes it available to the agent, and
-selecting a workflow from the chat's `/` command or the creative-mode picker
-activates it for the next message.
-
-OpenChatCut exposes a Streamable HTTP MCP endpoint:
-
-```text
-http://localhost:5199/api/external-mcp/mcp
-```
-
-The repository's root `.mcp.json` already contains the local connection. Before using timeline tools, run OpenChatCut and open the target project. Project listing, creation, and navigation tools do not require the editor to remain open.
-
-Codex app/CLI and Claude Code use the same session workflow:
-
-1. Call `begin_edit_session` and keep the returned `editSessionId`. Set `approvalMode` to `manual` (the default) or `auto`.
-2. Pass that id to every project read/edit tool. Changes are applied only to an isolated draft.
-3. Call `review_edit_session` when the draft is ready.
-4. In `manual` mode, review, preview, select, and approve or reject the proposal inside the open OpenChatCut project. In `auto` mode, `review_edit_session` applies the complete draft immediately. The client can poll `get_edit_session` for `applied`, `rejected`, or `discarded` status.
-
-Approval in Codex or Claude controls whether the client may call a tool. OpenChatCut project approval is required only for `manual` sessions; `auto` sessions explicitly bypass that review. Either mode commits the applied operations atomically as one undo step.
-If an `auto` session becomes stale, it returns an error instead of falling back to manual approval; discard it and start a new session.
-Only draft-safe project read/edit tools are exposed in these sessions. Generation, export, project deletion, and other immediate side-effect tools stay unavailable because a rejected proposal could not roll them back.
-
-### Codex
-
-Add the following to your Codex configuration:
-
-```toml
-[mcp_servers.openchatcut]
-url = "http://localhost:5199/api/external-mcp/mcp"
-```
-
-### Claude Code
-
-```bash
-claude mcp add --transport http openchatcut \
-  http://localhost:5199/api/external-mcp/mcp
-```
-
-You can then describe an editing task directly to the agent:
-
-```text
-Start an OpenChatCut edit session. Read the draft, add a scratch sound effect
-at 8 seconds on the second audio track, and add a glitch transition between
-the adjacent video clips. Submit the draft for review and wait for the user to
-approve it in OpenChatCut before reporting that the edit was applied.
-```
-
-External agents invoke the same internal editing tools and `EditorCore` commands as the editor itself. There are no separate project formats that can drift apart, and the live timeline is not changed while an external draft is being prepared.
-
-### Qoder
-
-Qoder is one-click too: the guide's **Connect** button writes the endpoint and
-bearer token into Qoder's own settings file, keeping any unrelated settings and
-MCP servers already there.
-
-```text
-~/.qoder/settings.json        (international build)
-~/.qoder-cn/settings.json     (China build — written as well when installed)
-```
-
-```json
-{
-  "mcpServers": {
-    "openchatcut": {
-      "type": "http",
-      "url": "http://localhost:5199/api/external-mcp/mcp",
-      "headers": { "Authorization": "Bearer <token>" }
-    }
-  }
-}
-```
-
-Restart Qoder afterwards to load the server.
-
-### Qwen Work (千问办公)
-
-千问办公 keeps custom MCP servers inside its own connector store rather than a
-config file, so OpenChatCut cannot write this one for you. In the guide, use
-**Copy config** on the 千问办公 card, then in 千问办公 open
-连接器 → 自定义 MCP → 添加, paste the JSON, and save:
-
-```json
-{
-  "mcpServers": {
-    "openchatcut": {
-      "type": "streamable-http",
-      "url": "http://localhost:5199/api/external-mcp/mcp",
-      "headers": { "Authorization": "Bearer <token>" }
-    }
-  }
-}
-```
-
-### Protecting MCP access
-
-When exposing the MCP endpoint yourself, configure:
-
-```bash
-OPENCHATCUT_MCP_TOKEN=your-token
-OPENCHATCUT_EDITOR_URL=https://your-editor.example.com
-```
-
-Clients must send `Authorization: Bearer <token>`. The current bridge is designed for a single user on one machine, not as a multi-tenant service.
-
----
-
-## Architecture
-
-<p align="center">
-  <img src="assets/readme-pic/openchatcut-runtime.en.svg" alt="OpenChatCut runtime architecture connecting agents, MCP, EditorCore, local storage, preview, rendering, and export" />
-</p>
-
-<p align="center">
-  <sub>One shared set of agent tools and EditorCore commands connects the built-in agent, external MCP clients, the real timeline, local data, and production exports.</sub>
-</p>
-
-| Layer | Technology |
+| Area | Where it lives (starting points) |
 |---|---|
-| Frontend | React 19, TypeScript 6, Vite 8 |
-| Editing core | Immutable timeline state, command layer, and proposal-based application |
-| Agent | Vercel AI SDK 7 (Anthropic, OpenAI, Gemini, Kimi, Qwen, GLM, DeepSeek, MiniMax, Xiaomi MiMo, Mistral, xAI Grok by API key or SuperGrok/X Premium+ subscription sign-in, OpenRouter, OrcaRouter, OFox, Requesty, Cheaper Inference, and compatible APIs), Agent Skills, MCP SDK |
-| Preview and visuals | Remotion Player, WebGL / GLSL |
-| Server | Dual-host Vite / Electron plugins and a server-side keystore |
-| Persistence | Shared local project store under `~/.openchatcut`, IndexedDB cache, configurable local media directory, optional Cloudflare R2 |
-| Desktop | Electron 43 |
-| Export | Remotion, FFmpeg, FCPXML, SRT |
-
-### Directory Overview
-
-| Directory | Responsibility |
-|---|---|
-| `src/editor/` | Timeline state and commands, independent of UI and LLMs |
-| `src/agent/` | Agent assembly, tools, skills, progress, and settings |
-| `src/library/` | Library UI for Motion Graphics, sound effects, transitions, effects, LUTs, and more |
-| `src/transcript/` | Transcription, word-level editing, and transcript UI |
-| `src/captions/` | Caption models, styles, controls, and preview layer |
-| `src/gl/` | WebGL effects, transitions, and shader runtime |
-| `src/generate/` | Clients for image, video, speech, music, and sound-effect generation |
-| `src/persist/` | Project, chat, version, and media persistence |
-| `server/plugins/` | Generation, transcription, media, export, and storage services |
-| `desktop/` | Electron main process and embedded services |
-| `remotion/` | Headless rendering and export pipeline |
+| Electron desktop app, local projects, multitrack timeline, undo/redo | `desktop/`, `src/editor/`, `src/components/timeline/` |
+| Agent: built-in loop plus external MCP **edit sessions** (draft → review → atomic undo step) | `src/agent/`, `server/external-agent/`, `server/agent-runs/` |
+| Claude Code via `claude -p --restricted` with editor-only MCP tools; Codex via the official CLI | `server/claude-code/`, `server/plugins/codex-agent.ts` |
+| Local transcription (whisper.cpp), word-level transcript, text-based cuts, captions + presets, SRT | `desktop/native-asr-*`, `src/transcript/`, `src/captions/` |
+| Beats/downbeats (beat_this ONNX), music intelligence, beat tools | `desktop/native-rhythm-*`, `src/audio/beats.ts`, `src/agent/tools/beat-tools.ts` |
+| Semantic search (CLAP + sqlite-vec), scene detection | `desktop/native-semantic-*`, `src/media/semantic-search/`, `src/agent/tools/scene-detection-tools.ts` |
+| Reframe, person segmentation, face-safe zones (MediaPipe) | `src/reframe/`, `src/geometry/`, `src/tracking/` |
+| Transitions, WebGL effects, LUTs, keyframes, motion-graphics templates | `src/gl/`, `src/color/`, `src/library/TemplateBrowser.tsx` |
+| Loudness tools, ducking, audio fades | `src/agent/tools/loudness-tools.ts`, `src/agent/tools/track-tools.ts` |
+| Export: Remotion render, VideoToolbox H.264, export QA, FCPXML | `remotion/`, `src/export/`, `server/plugins/export-*.ts`, `src/agent/tools/export-qa-tools.ts` |
+| Skills / "creative modes" incl. `multi-clips-to-reels`, `beat-sync-montage` | `src/agent/skills/`, `src/library/SkillsTabPanel.tsx` |
 
 ---
 
-## Data and Privacy
+## Features we need to add
 
-- Projects, chat history, and version data are stored in the shared local store under `~/.openchatcut`; IndexedDB provides a browser-side cache and legacy-data migration.
-- User media is stored in a local media directory that you can back up or migrate.
-- Whether AI requests leave your machine depends on the model, generation, or media services you configure.
-- Unconfigured cloud features do not affect the local timeline or editing of existing media.
-- When exposing MCP externally, configure a Bearer Token and restrict network access to the editor endpoint.
+Legend: **NEW** = build it. **EXTEND** = exists partly; finish or adapt it. **VERIFY** = probably exists; confirm and fix gaps.
+Every item has an acceptance check. "Spec §" refers to `reelsmith-docs/plan/cardboardrebuild.txt`.
 
----
+### M0. Fork hygiene and baseline (do first)
+- [ ] **RS-001 NEW: disable or redirect the auto-updater.** `desktop/update-service.ts` checks OpenChatCut's release feed. In our builds, turn update checks off or point them at this repo. *Check:* a packaged build never offers an OpenChatCut update.
+- [ ] **RS-002 NEW: rebrand the app identity.** Change app name, bundle id and userData dir (so it doesn't share `~/Library/Application Support/OpenChatCut`), icon and window title. *Check:* OpenChatCut and Reelsmith can be installed side by side without sharing data.
+- [ ] **RS-003 VERIFY: network audit.** List every outbound call: model downloads, online media search, generation providers, update checks, fonts. Default to **local-only**; anything online is opt-in. *Check:* with no keys configured, a full import → edit → export session makes no network calls except user-approved model downloads.
+- [ ] **RS-004 VERIFY: baseline on real footage.** Import 20 iPhone clips (HEVC, HDR, VFR, rotated) plus 1 song, edit a 30 s 9:16 reel manually, and export. Record import time, preview smoothness, export time and any failures in `reelsmith-docs/BASELINE.md`.
+- [ ] **RS-005 VERIFY: agent paths with your plans.** The built-in agent runs through your Claude Pro (`claude -p`) and your Codex/ChatGPT login; external Claude Code connects over MCP. *Check:* 5 scripted chat edits succeed in each path; Stop cancels within 3 s; every agent turn is one undo step.
+- [ ] **RS-006 NEW: English-first UI pass.** Some UI labels are hard-coded Chinese (e.g. `CAT_LABEL` in `src/library/TemplateBrowser.tsx`). Default the locale to English and route remaining strings through i18n. *Check:* no CJK strings visible with the English locale.
+- [x] **RS-007 NEW: `reelsmith-docs/UPSTREAM_PATCHES.md`.** Create the patch log described above.
 
-## Security Model
+### M1. Recipe system: gallery, format and deterministic assembly (core of the product)
+- [ ] **RS-101 NEW: recipe format plus loader.** Recipes are declarative JSON (no code), validated by `reelsmith-docs/plan/schemas/recipe.schema.json` (adapt as needed) and Zod. Template strings allow only `{{inputs.X}}`/`{{params.X}}`. *Check:* the 5 example recipes load; the negative fixtures (template injection, unknown strategy, enum without options) are rejected.
+- [ ] **RS-102 NEW: recipe gallery home screen.** A grid of cards: poster image, a muted loop on hover, and category, aspect, typical length and required inputs ("6–80 clips + 1 song"), plus category filters and a recent-projects row. Separate from the existing motion-graphics `TemplateBrowser`. *Check:* 20 recipes render in < 1 s.
+- [ ] **RS-103 NEW: recipe setup form.** Generated from the recipe's `inputs`/`params`: media slots with min/max counts and accepted kinds, text fields with maxLength, and the param widgets (enum, colour, font, seconds, number). An "Assemble" button that is enabled only when the inputs are valid. A toggle "Let my agent choose the shots" (Off / Claude / Codex). *Check:* invalid inputs block assembly with clear messages.
+- [ ] **RS-104 NEW: deterministic assembler framework.** Same inputs + params + analysis + seed ⇒ same timeline. Output is a normal, editable set of timeline operations committed as **one undo step**. It must work **without AI**. Hook it into OpenChatCut's existing project command layer, not a parallel model. *Check:* re-running twice gives identical project JSON; a single undo removes the whole assembly.
+- [ ] **RS-105 NEW: clip scoring and segment picker** (spec §10.4). Score sharpness, exposure, motion, faces/saliency size, speech presence, shot boundaries, near-duplicate groups (dHash) and capture time. Reuse OpenChatCut's scene detection and analysis where possible. *Check:* on fixture media, the picker never selects near-duplicates and picks the highest-scoring window per shot.
+- [ ] **RS-106 NEW: optional AI selection.** When enabled, the agent gets slot counts, a compact candidate table and contact-sheet images. It answers through a new `propose_selection` tool. The assembler validates the picks and falls back to the heuristic for any gaps. *Check:* malformed or repeated picks are rejected, and the reel still assembles.
+- [ ] **RS-107 NEW: recipe preview assets.** Build-time posters and loops are rendered from **synthetic** media (FFmpeg lavfi, no third-party footage). "Preview with my footage" renders a 3–6 s 360×640 loop from your imported clips. *Check:* user preview renders in ≤ 8 s.
+- [ ] **RS-108 NEW: store the recipe run in the project.** Save recipeId, version, assembler@version, inputs, params and seed, so the run can be re-run or re-assembled per section from chat ("re-cut the body every beat"). Manual edits outside the regenerated section are preserved.
 
-- API keys are only available to server-side configuration; vendor credentials must never be exposed to the browser through `VITE_`.
-- LLM output, plugin packages, template code, and user input are validated at trust boundaries.
-- Motion Graphics and shader code run in a restricted sandbox, with dedicated checks blocking malicious templates.
-- Agents modify projects only through `EditorCore` commands, making edits traceable and undoable.
-- MCP binds locally by default; public endpoints support Bearer Token authentication.
-- Local media directories and R2 credentials are managed by the server and never written into project JSON.
+### M2. The five release-1 recipes (examples in `reelsmith-docs/plan/examples/recipes/`)
+- [ ] **RS-201 Travel Beat Montage:** place-name title on the intro bars, cuts every 1, 2 or 4 beats, ending on a bar; no repeated clips (shots get longer if footage runs short).
+- [ ] **RS-202 Mini Day Vlog:** ordered by capture time, a "moment" label per group (local time plus an optional place), an occasional 2-up split screen, cuts on bars, clip audio ducked under the music.
+- [ ] **RS-203 Beat Cut:** a build section cut on bars, a drop section cut on every beat with flash accents, automatic drop detection; asks the user instead of padding when there are too few clips.
+- [ ] **RS-204 Captioned Story:** talking clips with pauses tightened (light/balanced/tight levels, never cutting mid-word), word-timed captions, B-roll over matching sentences, an opening hook title.
+- [ ] **RS-205 Collage Grid:** a sequence of split2v → grid2x2 → split3v → grid3x3 layouts, tiles revealed staggered on the beat, a hero shot with the title at the end.
+- *Check for each:* assembles from fixture media in ≤ 10 s without AI; the export passes validation (M3); timeline lint shows 0 errors; a manual review of 3 real reels says each "looks intentional".
 
----
+### M3. Instagram output
+- [ ] **RS-301 NEW/EXTEND: "Instagram Reel" export presets.** 1080×1920, 30 fps (a 60 fps variant), H.264 High, AAC 48 kHz stereo, MP4 faststart, Rec.709 SDR, -14 LUFS integrated with a -1 dBTP limiter. Also a "No music (add Instagram audio later)" variant and an optional SRT sidecar.
+- [ ] **RS-302 EXTEND: export validation report** (spec §12.7, checks V1–V9), built on the existing export QA. Check the container and faststart, codec, size, constant frame rate and frame count, audio, A/V duration match, a full decode with no errors, loudness, unintended black frames, and preview-vs-export parity on sampled frames. On failure, keep the `.failed.mp4` and offer a retry with a safe encoder. *Check:* 10 fixture projects pass; a corrupted fixture is caught.
+- [ ] **RS-303 NEW: Instagram safe-zone overlay.** A toggle on the preview that shows the zones Instagram's UI covers. The defaults are configurable (top ≈250 px, bottom ≈340–380 px, right ≈10%); confirm the real values in the Instagram app. Timeline lint warns when text or captions fall outside the safe area.
+- [ ] **RS-304 VERIFY: HDR/VFR/rotation correctness.** iPhone HLG footage must look the same in preview and export, VFR clips must stay in sync, and rotated clips must stay upright. *Check:* a flash-and-beep fixture shows A/V aligned within 1 ms in the export.
 
-### Fal.ai image and video generation
+### M4. Editing features to fill or verify (release 1 needs all of them)
+- [ ] **RS-401 VERIFY:** trim, split, ripple delete, drag reorder on a magnetic main track, multi-select, keyboard shortcuts (space/JKL/arrows/S/⌘Z/⇧⌘Z).
+- [ ] **RS-402 VERIFY/EXTEND:** crop/reframe to 9:16 per clip (manual, centre, subject/face), blurred-fill background for mismatched aspect ratios.
+- [ ] **RS-403 NEW/EXTEND: snap to beats.** Snap clip edges to the beat grid while dragging and trimming; add an agent operation and a menu action "Snap cuts to beats (every 1/2/4)". The code review found no existing snap-to-beat.
+- [ ] **RS-404 VERIFY/EXTEND:** text overlays with font, size, colour, stroke, shadow and background box, plus 6 in/out animations; bundled fonts with Devanagari coverage (e.g. Noto Sans Devanagari).
+- [ ] **RS-405 VERIFY:** transitions: cut, crossfade, dip to black/white, slide, push, zoom, flash.
+- [ ] **RS-406 NEW/EXTEND:** Ken Burns pan/zoom presets for photos; split/grid **layout items** with drag-to-fill cells (needed by the collage recipe).
+- [ ] **RS-407 VERIFY:** speed 0.25–4×, flip, detach audio, per-clip volume and fades.
 
-Fal.ai is an optional generation provider with an explicit image/video model catalog.
-Configure it under **Settings → AI Generation → Image or Video → Fal.ai**.
-See [Fal setup, supported models, and extension guide](FAL.md) for supported modes,
-server-only credentials, and checks that do not spend generation credits.
+### M5. Captions
+- [ ] **RS-501 VERIFY: local word-level transcription** for English and **Hindi/Marathi** (Devanagari). *Check:* median word-start error ≤ 100 ms on 10 hand-timed clips.
+- [ ] **RS-502 EXTEND: six Reels caption styles:** clean white, highlight active word, boxed, karaoke sweep, pop word, minimal lowercase. All respect the safe zone.
+- [ ] **RS-503 VERIFY: editing keeps timing.** Editing a line keeps the timing of untouched words exactly; inserted words are interpolated. Captions hide after more than 1.2 s of silence and follow trims and speed changes.
 
-## Development and Verification
+### M6. Music and audio
+- [ ] **RS-601 EXTEND: beat-grid UI.** Show beat and bar markers on the music track. Allow manual correction: drag the phase, tap tempo, half/double, set the downbeat.
+- [ ] **RS-602 NEW: music start/end policies:** start from the beginning, first downbeat, loudest section or a user offset; end with a fade-out, on a bar, or a hard cut; "fit reel length to whole bars".
+- [ ] **RS-603 VERIFY:** ducking under speech gives ≥ 8 dB of reduction; fades; loudness normalisation in the export.
 
-```bash
-# Type checking and production build
-npm run build
+### M7. Agent experience
+- [ ] **RS-701 VERIFY/EXTEND: chat checkpoints** ("Restore to here") and **"Revert this turn"** as one action.
+- [ ] **RS-702 NEW: a Reels-specific system prompt and skill** ("reels-editor"): safe zone, beat-aware cuts, use timeline lint before finishing, summarise changes in plain words, say when something is impossible.
+- [ ] **RS-703 NEW: privacy notice and toggle.** On first use, explain exactly what is sent to Anthropic/OpenAI (messages, timeline facts, transcript excerpts, small JPEG frames). Add a per-project switch "Allow frames to be sent to my agent".
+- [ ] **RS-704 NEW: usage-limit handling.** Show clear messages when the Claude Pro or Codex plan limit is hit, suggest switching agent or editing manually, and keep the app fully usable without AI.
+- [ ] **RS-705 VERIFY: agent confinement.** Only editor tools; no shell or file tools (Claude `--restricted` plus deny rules; check the equivalent for Codex). *Check:* a filesystem audit during a turn shows no reads of media or home files by the agent process.
 
-# Core regression checks
-npm test
-
-# Static analysis
-npm run lint
-
-```
-
-After changing the agent, timeline, preview, or export paths, run at least:
-
-```bash
-npx tsc -b --force
-npm test
-npm run build
-```
-
----
-
-## Technical Foundations
-
-OpenChatCut is built with the following core projects and specifications:
-
-| Project / specification | Role in OpenChatCut |
-|---|---|
-| [ChatCut-Inc/agent-plugin](https://github.com/ChatCut-Inc/agent-plugin) | Agent Skills foundation. OpenChatCut adapts the plugin's skill structure and workflows for its local editor, storage, MCP, and tool architecture. See the [Agent Skills attribution notice](src/agent/skills/NOTICE.md). |
-| [Remotion](https://www.remotion.dev/) | Core foundation for React-based video preview, composition, and server-side rendering. |
-| [Model Context Protocol](https://modelcontextprotocol.io/) | Protocol foundation that enables Codex, Claude Code, and other external agents to access projects and timeline tools. |
-| [Vercel AI SDK](https://ai-sdk.dev/) | Provider-neutral model streaming and tool calling for the built-in Agent. |
-| [tt-a1i/archify](https://github.com/tt-a1i/archify) | Tool used to define, validate, and generate the README's runtime architecture diagram. |
-
-JianYing / CapCut draft export is powered by [capcut-cli](https://github.com/renezander030/capcut-cli).
-
-This list covers the project's major technical foundations. It does not replace the licenses bundled with individual dependencies, fonts, or binaries. See `package-lock.json` for JavaScript dependency versions and [`assets/fonts/LICENSES.md`](assets/fonts/LICENSES.md) for font licenses.
-
----
-
-## Changelog
-
-See the bilingual [`CHANGELOG.md`](CHANGELOG.md) for notable changes, or browse all published packages on [GitHub Releases](https://github.com/0xsline/OpenChatCut/releases).
+### M8. Reliability and performance
+- [ ] **RS-801 VERIFY:** autosave, reopen and crash recovery. *Check:* `kill -9` at random times (20 trials) never corrupts a project and loses ≤ 2 s of edits.
+- [ ] **RS-802 VERIFY:** relinking moved media.
+- [ ] **RS-803 VERIFY:** performance on an Apple M5 with 24 GB. Preview of a 3-layer 1080×1920 timeline drops ≤ 1% of frames; scrub p95 ≤ 150 ms; a 60 s reel exports in ≤ 90 s. If Remotion export is too slow, investigate OpenChatCut's render-concurrency settings (`MACOS-RENDER-TUNING.md`).
+- [ ] **RS-804 NEW:** a 72-hour soak script (open/edit/export 30 projects) with no leaks (RSS growth < 10%).
 
 ---
 
-## Star Growth
+## Release 1 is done when
+1. Fresh install → 20 iPhone clips + 1 song → Travel Beat Montage → export takes **≤ 5 minutes** without AI.
+2. The same flow works with "Let my agent choose" via Claude **and** via Codex, or fails gracefully back to the heuristic result.
+3. Exports pass validation (RS-302) and upload to Instagram from an iPhone (3 real reels).
+4. All 5 recipes work; captions, music timing, undo/redo, autosave and recovery pass their checks above.
+5. Everything except chat and AI selection works with **no agent installed**.
 
-<p align="center">
-  <a href="https://www.star-history.com/?type=date&repos=0xsline%2FOpenChatCut">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=0xsline/OpenChatCut&type=date&theme=dark&legend=top-left&sealed_token=KKfeYtGGCjyG1QN9_Ev6Tvyyrcp5LW6bzOT8ZKED1EE0qNRqM3KrThzzbXWdcP6K-sr3vKbmoFZYDviSMtf8SI5UqAPYQf9v8qXCpM04S2C4LQTAKPbexT66SI3Q8pcHJJoMT7VCZnGp93LqIXZchAyYfTMmKy_y_LFOJ-_ruEq8GP1kVESXshaFzJfC" />
-      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=0xsline/OpenChatCut&type=date&legend=top-left&sealed_token=KKfeYtGGCjyG1QN9_Ev6Tvyyrcp5LW6bzOT8ZKED1EE0qNRqM3KrThzzbXWdcP6K-sr3vKbmoFZYDviSMtf8SI5UqAPYQf9v8qXCpM04S2C4LQTAKPbexT66SI3Q8pcHJJoMT7VCZnGp93LqIXZchAyYfTMmKy_y_LFOJ-_ruEq8GP1kVESXshaFzJfC" />
-      <img alt="OpenChatCut Star History Chart" src="https://api.star-history.com/chart?repos=0xsline/OpenChatCut&type=date&legend=top-left&sealed_token=KKfeYtGGCjyG1QN9_Ev6Tvyyrcp5LW6bzOT8ZKED1EE0qNRqM3KrThzzbXWdcP6K-sr3vKbmoFZYDviSMtf8SI5UqAPYQf9v8qXCpM04S2C4LQTAKPbexT66SI3Q8pcHJJoMT7VCZnGp93LqIXZchAyYfTMmKy_y_LFOJ-_ruEq8GP1kVESXshaFzJfC" />
-    </picture>
-  </a>
-</p>
+## Later (after release 1)
+Asset library across projects · tracking reframe and speaker-aware cuts · captions behind the subject / background removal · keyframe lanes and colour wheels · silence/filler cleanup levels · visual search tuning · HDR and 4K export · GIF export · `.reelpack` portable projects · style references ("make it look like this video") · more recipes (clock vlog, travel collage strips, photo dump, aftermovie) · FCPXML round-trip to Final Cut.
 
----
+## Out of scope
+Cloud sync, share links and comments, collaboration, billing, voice cloning, dubbing, downloading clips from social platforms, and paid generative video/music. OpenChatCut's generation features can stay as optional extras behind your own API keys.
 
-## License
-
-OpenChatCut is licensed under the [GNU Affero General Public License v3.0 or later](LICENSE).
-Third-party components and assets remain subject to their respective licenses.
-
----
-
-
-## Contributing
-
-1. Create a branch from `main`.
-2. Add an executable check for non-trivial logic.
-3. Run `npm test`, `npm run lint`, and `npm run build` before committing.
-4. Open a Pull Request and include screenshots or acceptance evidence for UI or video-behavior changes.
-
-Use [GitHub Issues](https://github.com/0xsline/OpenChatCut/issues) for bug reports and feature requests.
+## Rules for AI agents working in this repo
+- Never read, store or forward Claude.ai/ChatGPT credentials or tokens. Agents run through the user's own unmodified `claude`/`codex` CLIs. See spec §4.3 for the current Anthropic/OpenAI rules. They changed several times in 2026, so re-check them before sharing builds.
+- Agents act only through validated, undoable editor tools.
+- Keep footage local. Anything that uploads must be opt-in.

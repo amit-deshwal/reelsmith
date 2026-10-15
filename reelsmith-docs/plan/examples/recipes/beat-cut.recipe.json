@@ -1,0 +1,31 @@
+{
+  "$schema": "../../schemas/recipe.schema.json",
+  "schemaVersion": 1,
+  "id": "beat-cut",
+  "version": "1.0.0",
+  "name": "Beat Cut",
+  "category": "beat-cut",
+  "description": "High-energy rapid cuts on every beat after the drop, with optional flash accents on bar starts.",
+  "preview": { "poster": "previews/beat-cut.jpg", "loop": "previews/beat-cut.mp4", "generatedFrom": "synthetic-sample" },
+  "canvas": { "width": 1080, "height": 1920, "fps": { "num": 30, "den": 1 } },
+  "duration": { "mode": "fitMusic", "minSec": 6, "targetSec": 15, "maxSec": 45 },
+  "inputs": [
+    { "id": "clips", "kind": "media", "accept": ["video", "image"], "min": 8, "max": 120, "label": "Clips", "constraints": { "minClipSec": 0.3 } },
+    { "id": "music", "kind": "media", "accept": ["audio"], "min": 1, "max": 1, "label": "Song with a clear beat" }
+  ],
+  "params": [
+    { "id": "dropAtS", "type": "seconds", "label": "Drop time in the song (0 = auto)", "default": 0, "min": 0, "max": 600, "step": 0.01 },
+    { "id": "flashOnBars", "type": "boolean", "label": "Flash on bar starts", "default": true },
+    { "id": "beforeDrop", "type": "enum", "label": "Before the drop", "default": "everyBar", "options": ["everyBar", "every2Beats"] }
+  ],
+  "music": { "inputId": "music", "required": true, "startPolicy": "loudestSection", "endPolicy": "endOnBar", "fadeOutSec": 0.5, "gainDb": -2, "clipAudioGainDb": -96, "duckUnderSpeech": false },
+  "assembler": { "strategy": "beat-montage@1", "options": { "introBeats": 0, "outroHoldBeats": 2, "dropDetection": "energyJump" }, "aiSelection": "optional" },
+  "structure": [
+    { "section": "build", "lengthBeats": 16, "fill": "clips", "cutRule": "everyBar" },
+    { "section": "drop", "fill": "clips", "cutRule": "everyBeat", "transition": "flash" }
+  ],
+  "styles": {},
+  "look": { "colorLook": "vivid", "grain": 0, "vignette": 0 },
+  "agentHints": "Prefer clips with strong motion during the drop. Never place the same clip twice; if there are fewer clips than beats, switch the drop to every 2 beats and tell the user.",
+  "constraints": { "noRepeatClips": true, "insufficientMediaPolicy": "askUser", "keepChronological": false, "textSafeZone": true }
+}
