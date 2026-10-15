@@ -15,6 +15,7 @@ import type { DisplayMessage } from '../../agent/agent-session';
 import { readStoredServerRun } from '../../agent/serverRunSessionStorage';
 import type { ChatPanelController } from './chatPanelController';
 import { CapabilityBanner } from './CapabilityGapBanner';
+import { AgentPrivacyNotice } from '../../reelsmith/ui/AgentPrivacyNotice';
 
 const MESSAGE_WINDOW_SIZE = 40;
 
@@ -261,6 +262,7 @@ function ExpandedPanel({ controller }: { controller: ChatPanelController }) {
       style={{ gridColumn: 1, gridRow: '2 / 5', display: 'flex', flexDirection: 'column', borderRight: `0.5px solid ${theme.border}`, background: theme.panel, minHeight: 0, minWidth: 0 }}>
       <ChatHeader controller={controller} />
       <CapabilityBanner controller={controller} />
+      <AgentPrivacyNotice projectId={controller.props.projectId} />
       <MessageWorkspace controller={controller} />
       <ComposerSection controller={controller} />
     </aside>

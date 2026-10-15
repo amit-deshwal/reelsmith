@@ -62,3 +62,7 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 ## Beat grid on the music clip (RS-601)
 - `src/components/timeline/ClipMediaLayers.tsx`: audio clips also render `BeatTicks` (bars purple, beats cyan) from `props.rsBeats`, even when no waveform is available.
 - `src/components/inspector/InspectorContent.tsx`: a "Beat grid" section for a single selected audio clip (`BeatGridControls`: find the beat, ±20 ms phase, ½×/2×, downbeat at playhead, tap tempo, clear). Changes go through `onItemPropChange('rsBeats', …)`.
+
+## Agent privacy notice and frames switch (RS-703)
+- `src/agent/tools.ts`: `executeTool` now refuses `view_timeline_frames`/`view_asset_frames` when the project's frames switch is off and strips `__images` from every tool result (`src/reelsmith/framePrivacy.ts`); the old body is `executeToolUngated`.
+- `src/components/chat/ChatPanelView.tsx`: renders `AgentPrivacyNotice` under the capability banner (first-use explanation, then a compact "Allow frames" checkbox).

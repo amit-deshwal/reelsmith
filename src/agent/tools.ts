@@ -57,6 +57,7 @@ import { COLOR_SCOPE_TOOL_NAMES, COLOR_SCOPE_TOOL_SCHEMAS } from './tools/schema
 import { AUTO_GRADE_TOOL_NAMES, AUTO_GRADE_TOOL_SCHEMAS } from './tools/schemas/auto-grade-tools';
 import { BEAT_TOOL_NAMES, BEAT_TOOL_SCHEMAS } from './tools/schemas/beat-tools';
 import { REELS_TOOL_NAMES, REELS_TOOL_SCHEMAS } from '../reelsmith/agent/reelsToolSchemas';
+import { frameToolGate, stripFramesIfOff } from '../reelsmith/framePrivacy';
 import {
   MUSIC_INTELLIGENCE_TOOL_NAMES,
   MUSIC_INTELLIGENCE_TOOL_SCHEMAS,
@@ -310,6 +311,20 @@ export async function executeTool(
   args: Args,
   ctx: AgentContext,
   searchCatalog: readonly AgentToolSchema[] = TOOL_SCHEMAS,
+  harness?: HarnessToolExecutionContext,
+): Promise<unknown> {
+  // Reelsmith (RS-703): the per-project frames switch gates frame tools and strips images from results
+  const projectId = ctx.getProjectId?.();
+  const refused = frameToolGate(name, projectId);
+  if (refused) return refused;
+  return stripFramesIfOff(await executeToolUngated(name, args, ctx, searchCatalog, harness), projectId);
+}
+
+async function executeToolUngated(
+  name: string,
+  args: Args,
+  ctx: AgentContext,
+  searchCatalog: readonly AgentToolSchema[],
   harness?: HarnessToolExecutionContext,
 ): Promise<unknown> {
   if (name === 'track_progress') {
