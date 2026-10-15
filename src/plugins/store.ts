@@ -142,7 +142,7 @@ async function requestServer(path = '', init?: RequestInit): Promise<Response> {
   const response = await fetch(`${API_PATH}${path}`, init);
   if (!response.ok) {
     const body = await response.json().catch(() => null) as { error?: string } | null;
-    throw new Error(body?.error ?? `扩展存储请求失败 (${response.status})`);
+    throw new Error(body?.error ?? `Extension storage request failed (${response.status})`);
   }
   return response;
 }
@@ -260,7 +260,7 @@ export function fxDefOf(pack: PluginPack, item: PluginFxItem): SerializableFxDef
   return {
     id: pluginAssetId(pack.id, item.id),
     name: item.name,
-    desc: item.desc ?? `${pack.name} 插件特效`,
+    desc: item.desc ?? `${pack.name} plugin effect`,
     frag: item.frag,
     props: item.props ?? [],
     ...(item.passes ? { passes: item.passes } : {}),
@@ -272,19 +272,19 @@ export function lutDefOf(pack: PluginPack, item: PluginLutItem, cubeUrl: string,
   return {
     id: pluginAssetId(pack.id, item.id),
     name: item.name,
-    desc: item.desc ?? `${pack.name} 插件 LUT`,
+    desc: item.desc ?? `${pack.name} plugin LUT`,
     frag: lutFrag,
-    props: [{ key: 'intensity', label: '强度', default: 1, min: 0, max: 1, step: 0.01 }],
+    props: [{ key: 'intensity', label: 'Strength', default: 1, min: 0, max: 1, step: 0.01 }],
     cube: cubeUrl,
   };
 }
 
 export function lutShaderDefOf(pack: PluginPack, item: PluginLutItem): SerializableFxDef {
-  if (!item.frag) throw new Error(`LUT「${item.name}」缺少 frag`);
+  if (!item.frag) throw new Error(`LUT "${item.name}" is missing frag`);
   return {
     id: pluginAssetId(pack.id, item.id),
     name: item.name,
-    desc: item.desc ?? `${pack.name} 插件 LUT`,
+    desc: item.desc ?? `${pack.name} plugin LUT`,
     frag: item.frag,
     props: item.props ?? [],
   };

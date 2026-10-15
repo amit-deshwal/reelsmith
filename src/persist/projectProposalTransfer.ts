@@ -52,10 +52,10 @@ export function portableProposalRecord(
 ): StoredProposalRecord | undefined {
   if (raw === undefined) return undefined;
   const parsed = parseStoredProposalRecord(raw);
-  if (!parsed) throw new Error('工程包提案记录校验不通过');
+  if (!parsed) throw new Error('Project-package proposal record failed validation');
   const { sessionGeneration: _sessionGeneration, ...proposal } = parsed;
   const portable = parseStoredProposalRecord(transformPortableValue(proposal, replacements));
-  if (!portable) throw new Error('工程包提案记录转换失败');
+  if (!portable) throw new Error('Project-package proposal record could not be converted');
   return portable;
 }
 

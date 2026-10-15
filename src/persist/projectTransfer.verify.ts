@@ -140,7 +140,7 @@ try {
       manifest,
       ...mediaRows(victimSrc, 'abc'),
       `${JSON.stringify({ type: 'corrupt-tail' })}\n`,
-    ])), /未知记录/);
+    ])), /unknown record/);
     assert.equal(await (await getMediaBlob(victimSrc))?.blob.text(), 'victim-idb');
     assert.equal(serverMedia.get(victimSrc), 'victim-server');
     assert.equal(await getMediaBlob(isolatedSrc), undefined);

@@ -19,10 +19,10 @@ assert.equal(parsed.style.fonts[0]?.family, 'Inter');
 assert.equal(parsed.style.styleGuide, '快节奏，避免闪白转场。');
 
 assert.throws(() => parseDesignStyleRecipe('{'), /JSON/);
-assert.throws(() => parseDesignStyleRecipe(JSON.stringify({ ...built, version: 2 })), /版本/);
+assert.throws(() => parseDesignStyleRecipe(JSON.stringify({ ...built, version: 2 })), /version/);
 assert.throws(() => parseDesignStyleRecipe(JSON.stringify({
   ...built,
   style: { colors: [{ role: 'accent' }], fonts: [] },
-})), /颜色值/);
+})), /colour value/);
 
 console.log('designStyleTransfer.verify: ok');
