@@ -1,13 +1,13 @@
 // Recipes tab: pick a recipe, choose pool media, tune params, press Assemble.
 // Everything heavy lives in ../runRecipe.ts and ../assembler; this file is only the form.
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import type { Recipe } from '../../../shared/reelsmith/recipe';
 import type { BatchAction } from '../../editor/reducerActions';
 import type { MediaAsset } from '../../editor/types';
 import { theme } from '../../theme';
 import { analyzeApi } from '../analyzeApi';
 import { bundledCatalog } from '../bundledRecipes';
-import { buildGallery, categoryLabel, previewUrl, type RecipeCard } from '../galleryModel';
+import { RecipeGallery } from './RecipeGallery';
 import { runRecipe } from '../runRecipe';
 import { requestPreview } from '../previewClient';
 import { saveRun } from '../runStore';
@@ -25,6 +25,7 @@ export interface RecipesPanelProps {
   onApply: (action: BatchAction) => void;
   /** prefill the chat with a request (agent shot selection) */
   onAskAgent?: (text: string) => void;
+  initialRecipeId?: string;
 }
 
 export const AGENT_PICK_PROMPT = [
@@ -33,35 +34,17 @@ export const AGENT_PICK_PROMPT = [
   'then answer with propose_selection: the best clips in shot order, varied, no near-duplicates. Tell me in one or two lines why.',
 ].join(' ');
 
-const card: React.CSSProperties = {
-  border: `0.5px solid ${theme.border}`, borderRadius: 8, background: theme.panelAlt, padding: 12, cursor: 'pointer',
-  textAlign: 'left', color: theme.text, display: 'grid', gap: 4,
-};
 const label: React.CSSProperties = { fontSize: 11.5, color: theme.textDim };
 const input: React.CSSProperties = {
   background: theme.inset, color: theme.text, border: `0.5px solid ${theme.border}`, borderRadius: 5, padding: '5px 7px', fontSize: 12.5,
 };
 
-export function RecipesPanel({ projectId, assets, itemCount, fps, onApply, onAskAgent }: RecipesPanelProps) {
-  const [category, setCategory] = useState<Recipe['category'] | 'all'>('all');
-  const [recipe, setRecipe] = useState<Recipe | null>(null);
-  const gallery = useMemo(() => buildGallery(catalog.recipes, { category }), [category]);
+export function RecipesPanel({ projectId, assets, itemCount, fps, onApply, onAskAgent, initialRecipeId }: RecipesPanelProps) {
+  const [recipe, setRecipe] = useState<Recipe | null>(() => catalog.recipes.find((r) => r.id === initialRecipeId) ?? null);
   if (!recipe) {
     return (
       <div style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'grid', gap: 10, alignContent: 'start' }}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {gallery.categories.map((c) => (
-            <button key={c.id} type="button" onClick={() => setCategory(c.id)} style={{
-              ...input, cursor: 'pointer', background: category === c.id ? theme.accent : theme.inset,
-              color: category === c.id ? theme.onAccent : theme.text,
-            }}>{c.label} ({c.count})</button>
-          ))}
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 10 }}>
-          {gallery.cards.map((c) => (
-            <RecipeCardView key={c.id} card={c} onOpen={() => setRecipe(catalog.recipes.find((r) => r.id === c.id)!)} />
-          ))}
-        </div>
+        <RecipeGallery recipes={catalog.recipes} onSelect={setRecipe} />
         {catalog.rejected.length > 0 && <div style={{ ...label, color: theme.danger }}>{catalog.rejected.join('; ')}</div>}
       </div>
     );
@@ -69,27 +52,6 @@ export function RecipesPanel({ projectId, assets, itemCount, fps, onApply, onAsk
   return <SetupForm key={recipe.id} recipe={recipe} projectId={projectId} assets={assets} itemCount={itemCount} fps={fps} onBack={() => setRecipe(null)} onApply={onApply} onAskAgent={onAskAgent} />;
 }
 
-/** Poster with a muted loop that plays while hovered (RS-102). */
-function RecipeCardView({ card: c, onOpen }: { card: RecipeCard; onOpen: () => void }) {
-  const [hover, setHover] = useState(false);
-  const poster = previewUrl(c.poster);
-  const loop = previewUrl(c.loop);
-  return (
-    <button type="button" style={{ ...card, padding: 0, overflow: 'hidden', gap: 0 }} onClick={onOpen}
-      onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)} onFocus={() => setHover(true)} onBlur={() => setHover(false)}>
-      <div style={{ position: 'relative', aspectRatio: '9 / 16', background: theme.inset, width: '100%' }}>
-        {poster && <img src={poster} alt="" loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
-        {hover && loop && <video src={loop} muted autoPlay loop playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
-        <span style={{ position: 'absolute', left: 6, top: 6, fontSize: 10.5, padding: '2px 6px', borderRadius: 4, background: 'rgba(0,0,0,0.55)', color: '#fff' }}>{categoryLabel(c.category)}</span>
-      </div>
-      <div style={{ display: 'grid', gap: 3, padding: '8px 9px 10px' }}>
-        <b style={{ fontSize: 13 }}>{c.name}</b>
-        <span style={label}>{c.aspect}{c.typicalLength ? ` · ${c.typicalLength}` : ''}</span>
-        <span style={{ ...label, color: theme.gold }}>Needs {c.requires}</span>
-      </div>
-    </button>
-  );
-}
 
 function SetupForm({ recipe, projectId, assets, itemCount, fps, onBack, onApply, onAskAgent }: RecipesPanelProps & { recipe: Recipe; onBack: () => void }) {
   const [values, setValues] = useState<SetupValues>(() => defaultValues(recipe));

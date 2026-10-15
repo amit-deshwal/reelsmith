@@ -1,3 +1,4 @@
+import { RecipeHome } from '../../reelsmith/ui/RecipeHome';
 import { Suspense, useEffect } from 'react';
 import type { ProjectMeta } from '../../persist/projectStoreCoordinators';
 import { theme } from '../../theme';
@@ -79,7 +80,7 @@ function ProjectToolbar({ projects, model }: { projects: ProjectMeta[]; model: D
   const t = useT();
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
-      <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>{t('工程')}</h1>
+      <h1 style={{ margin: 0, fontSize: 20, fontWeight: 700, letterSpacing: '-0.02em' }}>Recent projects</h1>
       {model.transfer.note && <span style={{ color: theme.textDim, fontSize: 12, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{model.transfer.note}</span>}
       <span style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 10 }}>
         <ProjectSearch value={model.query} onChange={model.setQuery} />
@@ -180,6 +181,7 @@ export function DashboardContent({ props, model }: { props: DashboardProps; mode
     <main style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
       <div style={{ maxWidth: 1120, margin: '0 auto', padding: '28px 24px 80px' }}>
         {model.modelSnapshot.loaded && model.modelSnapshot.choices.length === 0 && <ModelSetupCard onOpen={() => model.setDialog('settings', true)} />}
+        {props.onStartRecipe && <RecipeHome onStartRecipe={props.onStartRecipe} />}
         <ProjectToolbar projects={props.projects} model={model} />
         <ProjectGrid props={props} model={model} />
       </div>

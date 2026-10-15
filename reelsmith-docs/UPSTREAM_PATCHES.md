@@ -93,3 +93,11 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 - `src/components/settings/transcription-language.verify.ts`: expects the English "Multilingual (… Hindi …)" label.
 - Default names in English: `src/persist/templateStore.ts` ("Untitled template"), `src/persist/ownedStyleStore.ts` ("Untitled style"), `src/plugins/export.ts` ("Custom transition"). AssemblyAI progress and audio-extraction errors in English: `src/transcript/assemblyai.ts`.
 - Error messages changed straight to English: `src/plugins/{validate,install,store}.ts`, `src/persist/{mediaBlobStore,projectTransferStream,mediaBlobUpload,projectProposalTransfer,designStyleTransfer}.ts`; `designStyleTransfer.verify.ts` and `projectTransfer.verify.ts` match the English text.
+
+## Recipe-first home screen (RS-102)
+- `src/components/dashboard/DashboardViews.tsx`: adds `RecipeHome` above the project list and labels that list "Recent projects"; existing project actions and search remain available.
+- `src/components/dashboard/useDashboardModel.ts`: optional `onStartRecipe` callback; active projects displayed by descending update time without mutating the input list.
+- `src/app/useDashboardActions.ts`: validates the selected bundled recipe, creates a new empty project at its canvas/fps, and navigates after refreshing the project list. The one-time handoff lives in `src/reelsmith/recipeStart.ts`.
+- `src/library/LibraryPanel.tsx`: reads the project-scoped recipe handoff on mount, initially opens Recipes and passes the selected recipe to setup; clears the handoff after mounting. Existing projects keep the usual My Media start.
+- `package.json`: adds `recipeStart.verify.ts` and `recipeGallery.verify.tsx` to `test:reelsmith` (the TSX verify uses the app's JSX config).
+- Reelsmith-owned UI: `RecipeGallery.tsx` shares cards/filters between home and editor; `RecipeHome.tsx` handles pending creation and visible failures; `RecipesPanel.tsx` accepts an initial recipe.

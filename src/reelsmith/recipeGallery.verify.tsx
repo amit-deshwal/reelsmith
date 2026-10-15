@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { parseRecipe } from '../../shared/reelsmith/recipe';
+import { RecipeGallery } from './ui/RecipeGallery';
+
+const parsed = parseRecipe(readFileSync('recipes/travel-beat-montage.recipe.json', 'utf8'));
+assert.ok(parsed.ok);
+const recipes = Array.from({ length: 20 }, (_, i) => ({ ...parsed.recipe, id: `recipe-${i}`, name: `Recipe ${i}` }));
+const start = performance.now();
+const html = renderToStaticMarkup(<RecipeGallery recipes={recipes} onSelect={() => assert.fail('render must not create a project')} />);
+const ms = performance.now() - start;
+assert.equal((html.match(/Needs 6–80 clips/g) ?? []).length, 20);
+assert.equal((html.match(/loading="lazy"/g) ?? []).length, 20);
+assert.match(html, /Recipe categories/);
+assert.match(html, /aria-pressed="true"/);
+assert.match(html, /9:16/);
+assert.doesNotMatch(html, /<video/, 'loops are not loaded until hover or keyboard focus');
+assert.ok(ms < 1000, `20 cards render in ${ms.toFixed(1)} ms`);
+const disabled = renderToStaticMarkup(<RecipeGallery recipes={[parsed.recipe]} onSelect={() => {}} disabled />);
+assert.match(disabled, /disabled=""/);
+console.log(`recipeGallery.verify: 20 cards rendered in ${ms.toFixed(1)} ms`);

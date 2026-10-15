@@ -8,6 +8,7 @@ export interface DashboardProps {
   projects: ProjectMeta[];
   onOpen: (id: string) => void;
   onNew: () => void;
+  onStartRecipe?: (recipeId: string) => Promise<void>;
   onRename: (id: string, name: string) => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => Promise<void>;
@@ -175,9 +176,9 @@ export function useDashboardModel(props: DashboardProps): DashboardModel {
   const modelSnapshot = useSyncExternalStore(subscribeAgentModels, getAgentModelSnapshot);
   const [query, setQuery] = useState('');
   const normalizedQuery = query.trim().toLocaleLowerCase();
-  const visibleProjects = normalizedQuery
-    ? props.projects.filter((project) => project.name.toLocaleLowerCase().includes(normalizedQuery))
-    : props.projects;
+  const visibleProjects = props.projects
+    .filter((project) => !project.deletedAt && (!normalizedQuery || project.name.toLocaleLowerCase().includes(normalizedQuery)))
+    .sort((a, b) => b.updatedAt - a.updatedAt);
   const { dialogs, setDialog } = useDashboardDialogs();
   const rename = useProjectRename(props.onRename);
   const transfer = useProjectTransfer(props.onImport);
