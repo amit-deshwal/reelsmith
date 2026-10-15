@@ -2,6 +2,7 @@
 import type { Recipe, RecipeSection } from '../../../shared/reelsmith/recipe';
 import type { AtomicAction } from '../../editor/reducerActions';
 import { renderTemplate } from '../../../shared/reelsmith/recipe';
+import { sourcePlacement } from './sourcePlacement';
 import { fitFontSize } from './common';
 import { makeRng, stableId } from './rng';
 import type {
@@ -276,9 +277,9 @@ export function assembleBeatMontage(input: AssembleInput): AssembleResult {
     const duration = shot.durationInFrames;
     const id = stableId('rs', tag, onlySection ? 'sec' : seed, shotIndex(shot), onlySection ? seed : 0);
     const isVideo = clip.kind === 'video';
-    const srcIn = isVideo ? Math.max(0, Math.min(clip.bestStartFrame ?? 0, Math.max(0, clip.durationInFrames - 1))) : undefined;
-    const available = isVideo ? Math.max(1, clip.durationInFrames - (srcIn ?? 0)) : duration;
-    const rate = isVideo ? Math.max(0.25, Math.min(1, available / duration)) : undefined;
+    const placement = isVideo ? sourcePlacement(clip, duration) : undefined;
+    const srcIn = placement?.srcInFrame;
+    const rate = placement?.playbackRate;
     if (isVideo && rate !== undefined && rate < 0.5) warnings.push(`shot ${i + 1}: source is short, slowed to ${rate.toFixed(2)}x`);
     actions.push({
       type: 'add',

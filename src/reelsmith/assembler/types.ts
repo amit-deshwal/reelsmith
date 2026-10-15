@@ -17,6 +17,12 @@ export interface AssemblyClip {
   captureTimeMs?: number;
   /** best window inside the source, frames (default: from 0) */
   bestStartFrame?: number;
+  /** Scored source windows and hard cuts, retained for duration-aware placement. */
+  sourceAnalysis?: {
+    minShotFrames: number;
+    windows: Array<{ startFrame: number; endFrame: number; score: number }>;
+    shotBoundariesFrame: number[];
+  };
   /** optional place name for labels */
   place?: string;
   /** word-timed transcript in source ms (talking clips) */

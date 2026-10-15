@@ -1,5 +1,6 @@
 import type { Recipe } from '../../../shared/reelsmith/recipe';
 import type { AtomicAction } from '../../editor/reducerActions';
+import { sourcePlacement } from './sourcePlacement';
 import type { AssemblyClip, AssemblyMusic } from './types';
 
 export const fpsOf = (r: Recipe) => r.canvas.fps.num / r.canvas.fps.den;
@@ -19,14 +20,12 @@ export function clipItem(
   clipGainDb?: number,
 ): AtomicAction {
   const isVideo = clip.kind === 'video';
-  const srcIn = isVideo ? Math.max(0, Math.min(clip.bestStartFrame ?? 0, Math.max(0, clip.durationInFrames - 1))) : undefined;
-  const available = isVideo ? Math.max(1, clip.durationInFrames - (srcIn ?? 0)) : durationInFrames;
-  const rate = isVideo ? Math.max(0.25, Math.min(1, available / durationInFrames)) : undefined;
+  const placement = isVideo ? sourcePlacement(clip, durationInFrames) : undefined;
   return {
     type: 'add',
     item: {
       id, track, kind: clip.kind, name: clip.name, src: clip.src, durationInFrames, sourceAssetId: clip.assetId,
-      ...(isVideo ? { srcInFrame: srcIn, playbackRate: rate === 1 ? undefined : rate } : {}),
+      ...(isVideo ? { srcInFrame: placement!.srcInFrame, playbackRate: placement!.playbackRate === 1 ? undefined : placement!.playbackRate } : {}),
       ...(isVideo && clipGainDb !== undefined ? { volume: dbToGain(clipGainDb) } : {}),
       ...extra,
     } as never,

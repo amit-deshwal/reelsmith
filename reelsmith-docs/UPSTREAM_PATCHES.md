@@ -101,3 +101,15 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 - `src/library/LibraryPanel.tsx`: reads the project-scoped recipe handoff on mount, initially opens Recipes and passes the selected recipe to setup; clears the handoff after mounting. Existing projects keep the usual My Media start.
 - `package.json`: adds `recipeStart.verify.ts` and `recipeGallery.verify.tsx` to `test:reelsmith` (the TSX verify uses the app's JSX config).
 - Reelsmith-owned UI: `RecipeGallery.tsx` shares cards/filters between home and editor; `RecipeHome.tsx` handles pending creation and visible failures; `RecipesPanel.tsx` accepts an initial recipe.
+
+## Recipe setup imports and validation (RS-103)
+- `src/library/LibraryPanel.tsx`: passes the existing `onImportMedia` callback to recipe setup, reusing the normal project media importer. Imports remain in the media pool until assembly adds timeline items.
+- `package.json`: registers `src/reelsmith/slotImport.verify.ts` in `test:reelsmith`.
+- Reelsmith-owned files: `slotImport.ts` handles counts, per-file failures, deduplication and song replacement; `setupForm.ts` checks selections against current project assets and limits agent selection to Off/Claude; `runRecipe.ts` validates before analysis. `RecipesPanel.tsx` offers direct imports, Clear selection, max-count controls, text maxLength and numeric validation, and locks controls while busy.
+
+## Clip scoring and source-range selection (RS-105)
+- No additional upstream code changes. All implementation lives under `src/reelsmith/` and `server/reelsmith/`.
+- `server/reelsmith/clipFeatures.ts` uses the app's packaged FFmpeg/ffprobe binaries, reads embedded capture dates, clamps video windows to source duration, and supports still-image quality/dHash extraction. The local analysis route includes media kind in its cache key.
+- `src/reelsmith/subjectFeatures.ts` reuses upstream MediaPipe geometry and bundled models for video and photo face scores. Inference is bounded, cached per source revision, and optional; unavailable models preserve the model-free measurements. `analyzeApi.ts` merges these measurements before assembly.
+- `src/reelsmith/assembler/sourcePlacement.ts` retains scoring windows and cut bounds through placement, choosing a duration-aware range within a single shot. Montage, vlog, collage and B-roll use it. Captioned Story's talking clips keep the existing transcript-aligned edit path.
+- `package.json`: registers `assembler/sourcePlacement.verify.ts`, `subjectFeatures.verify.ts` and `analyzeApi.verify.ts`; expands the existing scoring and FFmpeg fixture checks.

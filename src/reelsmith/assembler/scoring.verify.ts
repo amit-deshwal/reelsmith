@@ -42,3 +42,5 @@ assert.ok(picked.some((c) => c.assetId === 'b'), 'best of the group wins');
 assert.ok(!picked.some((c) => c.assetId === 'a' || c.assetId === 'c'));
 
 console.log('scoring.verify: ok');
+
+assert.equal(hammingDistance('not-a-hash', 'not-a-hash'), 64, 'invalid hashes must not create duplicate groups');

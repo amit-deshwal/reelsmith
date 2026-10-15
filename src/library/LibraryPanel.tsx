@@ -243,7 +243,7 @@ export function LibraryPanel({ semanticScopeId, templates, onAddTemplate, onAddA
         </div>
       ) : isRecipes ? (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, borderTop: `0.5px solid ${theme.border}` }}>
-          <RecipesPanel initialRecipeId={initialRecipeId} projectId={semanticScopeId} assets={assets} itemCount={items.length} fps={fps} onApply={onApplyRecipe} onAskAgent={onAskAgent} />
+          <RecipesPanel onImportMedia={onImportMedia} initialRecipeId={initialRecipeId} projectId={semanticScopeId} assets={assets} itemCount={items.length} fps={fps} onApply={onApplyRecipe} onAskAgent={onAskAgent} />
         </div>
       ) : isSkills ? (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, borderTop: `0.5px solid ${theme.border}` }}>

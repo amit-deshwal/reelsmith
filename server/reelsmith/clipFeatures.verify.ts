@@ -3,8 +3,10 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { extractClipFeatures } from './clipFeatures.ts';
-import { groupNearDuplicates } from '../../src/reelsmith/assembler/scoring.ts';
+import { captureTimeFromMetadata, extractClipFeatures } from './clipFeatures.ts';
+import { sourcePlacement } from '../../src/reelsmith/assembler/sourcePlacement';
+import { pickClips } from '../../src/reelsmith/assembler/beatMontage';
+import { toAssemblyClips, groupNearDuplicates } from '../../src/reelsmith/assembler/scoring.ts';
 
 const dir = mkdtempSync(join(tmpdir(), 'rs-feat-'));
 const gen = (name: string, src: string) => {
@@ -41,6 +43,15 @@ try {
   assert.ok(Math.abs(at - 60) <= 8, `cut found at ${at}`);
   assert.ok(c.windows.every((w) => !(w.startFrame < at && w.endFrame > at)), 'no window spans the cut');
   assert.equal(a.shotBoundariesFrame?.length, 0, 'a continuous clip has no cuts');
+  const scored = toAssemblyClips([a, a2, c].map((feature) => ({ assetId: feature.assetId, name: feature.assetId, src: '/fixture', kind: 'video' as const, durationInFrames: 120 })), [a, a2, c], 15);
+  const picks = pickClips(scored, 3, false, 7);
+  assert.ok(!(picks.some((pick) => pick.assetId === 'sharp') && picks.some((pick) => pick.assetId === 'sharp2')), 'fixture picker excludes duplicate footage');
+  const cutClip = scored.find((clip) => clip.assetId === 'cut')!;
+  for (const length of [15, 30, 60, 90]) {
+    const placement = sourcePlacement(cutClip, length);
+    const sourceEnd = placement.srcInFrame + length * placement.playbackRate;
+    assert.ok(!(placement.srcInFrame < at && sourceEnd > at), 'rendered source range stays inside the extracted shot boundary');
+  }
 
   // subject: a detailed centre on a flat background beats a uniform texture
   const centred = join(dir, 'centred.mp4');
@@ -63,6 +74,31 @@ try {
   assert.ok(ft.windows.some((w) => w.speech), 'bursty voice-band audio reads as speech');
   assert.ok(fo.windows.every((w) => !w.speech), 'a steady tone is not speech');
   assert.ok(f.windows.every((w) => !w.speech), 'no audio, no speech');
+
+  // Embedded dates, rather than the upload/copy time, drive chronological recipes.
+  const captured = join(dir, 'captured.mp4');
+  execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', sharp, '-c', 'copy', '-metadata', 'creation_time=2024-06-01T12:00:00Z', captured]);
+  const dated = await extractClipFeatures(captured, 'dated', 30);
+  assert.equal(dated.captureTimeMs, Date.parse('2024-06-01T12:00:00Z'));
+  assert.equal(captureTimeFromMetadata({ format: { tags: { creation_time: '2024-06-01T12:00:00Z', 'com.apple.quicktime.creationdate': '2024-05-01T17:30:00+0530' } } }), Date.parse('2024-05-01T12:00:00Z'));
+  assert.equal(captureTimeFromMetadata({ streams: [{ tags: { creation_time: '2024-06-01T12:00:00' } }] }), Date.parse('2024-06-01T12:00:00Z'));
+  assert.equal(captureTimeFromMetadata({ format: { tags: { creation_time: 'invalid' } } }), undefined);
+
+  // Photos also receive quality and dHash analysis; they are not all neutral-score picks.
+  const photo = join(dir, 'photo.png');
+  const blank = join(dir, 'blank.png');
+  execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', sharp, '-frames:v', '1', photo]);
+  execFileSync('ffmpeg', ['-v', 'error', '-y', '-i', flat, '-frames:v', '1', blank]);
+  const [p, p2, pb] = await Promise.all([
+    extractClipFeatures(photo, 'photo', 30, { stillImage: true }),
+    extractClipFeatures(photo, 'photo-copy', 30, { stillImage: true }),
+    extractClipFeatures(blank, 'blank-photo', 30, { stillImage: true }),
+  ]);
+  assert.ok(p.windows[0]!.sharpness > pb.windows[0]!.sharpness);
+  const photoGroups = groupNearDuplicates([p, p2, pb]);
+  assert.equal(photoGroups.get('photo'), photoGroups.get('photo-copy'));
+  assert.equal(photoGroups.has('blank-photo'), false);
+
   console.log('clipFeatures.verify: ok');
 } finally {
   rmSync(dir, { recursive: true, force: true });

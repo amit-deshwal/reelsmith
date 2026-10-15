@@ -1,7 +1,8 @@
 // RS-105: extract scoring features from a video with ffmpeg (no network, no AI).
 // Samples frames as small grayscale rawvideo, then computes sharpness, exposure, motion, a centre-subject
 // saliency proxy and a dHash; splits windows at hard cuts (shot boundaries); estimates speech from the audio.
-import { spawn } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
+import { ffmpegBin, ffprobeBin } from '../media-binaries';
 import type { ClipFeatures, WindowFeatures } from '../../src/reelsmith/assembler/scoring';
 
 const W = 64;
@@ -9,10 +10,10 @@ const H = 64;
 const SAMPLE_FPS = 4;
 const WINDOW_SEC = 2;
 
-function readGrayFrames(file: string, maxSec: number): Promise<Buffer[]> {
+function readGrayFrames(file: string, maxSec: number, stillImage = false): Promise<Buffer[]> {
   return new Promise((resolve, reject) => {
-    const args = ['-v', 'error', '-t', String(maxSec), '-i', file, '-an', '-vf', `fps=${SAMPLE_FPS},scale=${W}:${H}:flags=area,format=gray`, '-f', 'rawvideo', '-'];
-    const ff = spawn('ffmpeg', args);
+    const args = ['-v', 'error', '-t', String(maxSec), ...(stillImage ? ['-loop', '1'] : []), '-i', file, '-an', '-vf', `fps=${SAMPLE_FPS},scale=${W}:${H}:flags=area,format=gray`, '-f', 'rawvideo', '-'];
+    const ff = spawn(ffmpegBin(), args);
     const chunks: Buffer[] = [];
     let err = '';
     ff.stdout.on('data', (d: Buffer) => chunks.push(d));
@@ -101,10 +102,11 @@ const AUDIO_HOP = 160; // 20 ms
 /** Speech-band (300-3400 Hz) mono PCM; empty when the file has no audio. */
 function readSpeechBand(file: string, maxSec: number): Promise<Int16Array> {
   return new Promise((resolve) => {
-    const ff = spawn('ffmpeg', ['-v', 'error', '-t', String(maxSec), '-i', file, '-vn', '-ac', '1', '-ar', String(AUDIO_RATE),
+    const ff = spawn(ffmpegBin(), ['-v', 'error', '-t', String(maxSec), '-i', file, '-vn', '-ac', '1', '-ar', String(AUDIO_RATE),
       '-af', 'highpass=f=300,lowpass=f=3400', '-f', 's16le', '-']);
     const chunks: Buffer[] = [];
     ff.stdout.on('data', (d: Buffer) => chunks.push(d));
+    ff.stderr.resume();
     ff.on('error', () => resolve(new Int16Array(0)));
     ff.on('close', () => {
       const all = Buffer.concat(chunks);
@@ -160,11 +162,48 @@ export function dHashOf(f: Buffer): string {
   return hex;
 }
 
+interface ClipMetadata {
+  format?: { tags?: Record<string, string>; duration?: string };
+  streams?: Array<{ codec_type?: string; duration?: string; tags?: Record<string, string> }>;
+}
+
+/** Prefer the camera's QuickTime date over the container's creation date. Missing zones mean UTC. */
+export function captureTimeFromMetadata(metadata: ClipMetadata): number | undefined {
+  const tags = [metadata.format?.tags, ...(metadata.streams ?? []).map((stream) => stream.tags)]
+    .map((entry) => Object.fromEntries(Object.entries(entry ?? {}).map(([key, value]) => [key.toLowerCase(), value])));
+  for (const key of ['com.apple.quicktime.creationdate', 'creation_time', 'date']) {
+    for (const entry of tags) {
+      const value = entry[key];
+      if (!value || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value)) continue;
+      const time = Date.parse(/(?:z|[+-]\d{2}:?\d{2})$/i.test(value) ? value : `${value}Z`);
+      if (Number.isFinite(time)) return time;
+    }
+  }
+  return undefined;
+}
+
+function readMetadata(file: string): Promise<ClipMetadata> {
+  return new Promise((resolve) => {
+    execFile(ffprobeBin(), ['-v', 'error', '-show_entries', 'format=duration:format_tags:stream=codec_type,duration:stream_tags', '-of', 'json', file],
+      { timeout: 10_000, maxBuffer: 1024 * 1024 }, (error, stdout) => {
+        if (error) { resolve({}); return; }
+        try { resolve(JSON.parse(stdout) as ClipMetadata); } catch { resolve({}); }
+      });
+  });
+}
+
 export async function extractClipFeatures(
-  file: string, assetId: string, fps: number, opts: { maxSec?: number; captureTimeMs?: number } = {},
+  file: string, assetId: string, fps: number, opts: { maxSec?: number; captureTimeMs?: number; stillImage?: boolean } = {},
 ): Promise<ClipFeatures> {
-  const maxSec = opts.maxSec ?? 120;
-  const [frames, pcm] = await Promise.all([readGrayFrames(file, maxSec), readSpeechBand(file, maxSec)]);
+  const maxSec = opts.stillImage ? 1 / SAMPLE_FPS : opts.maxSec ?? 120;
+  const [frames, pcm, metadata] = await Promise.all([
+    readGrayFrames(file, maxSec, opts.stillImage),
+    opts.stillImage ? Promise.resolve(new Int16Array(0)) : readSpeechBand(file, maxSec),
+    readMetadata(file),
+  ]);
+  if (!frames.length) throw new Error('No video frames could be analysed');
+  const durationSec = Number(metadata.streams?.find((stream) => stream.codec_type === 'video')?.duration ?? metadata.format?.duration);
+  const lastFrame = Number.isFinite(durationSec) && durationSec > 0 ? Math.floor(durationSec * fps) : Infinity;
   const isSpeech = speechDetector(pcm);
   const perWindow = WINDOW_SEC * SAMPLE_FPS;
   const cuts = shotBoundaries(frames);
@@ -180,7 +219,7 @@ export async function extractClipFeatures(
       const motions = slice.slice(1).map((f, i) => motionBetween(slice[i]!, f));
       windows.push({
         startFrame: Math.round((s / SAMPLE_FPS) * fps),
-        endFrame: Math.round(((s + slice.length) / SAMPLE_FPS) * fps),
+        endFrame: Math.min(lastFrame, Math.round(((s + slice.length) / SAMPLE_FPS) * fps)),
         sharpness: mean(slice.map(sharpnessOf)),
         exposure: mean(slice.map(exposureOf)),
         motion: mean(motions),
@@ -191,7 +230,7 @@ export async function extractClipFeatures(
   }
   const mid = frames[Math.floor(frames.length / 2)];
   return {
-    assetId, dHash: mid ? dHashOf(mid) : '0'.repeat(16), captureTimeMs: opts.captureTimeMs, windows,
+    assetId, dHash: mid ? dHashOf(mid) : '0'.repeat(16), captureTimeMs: opts.captureTimeMs ?? captureTimeFromMetadata(metadata), windows,
     shotBoundariesFrame: cuts.map((i) => Math.round((i / SAMPLE_FPS) * fps)),
   };
 }

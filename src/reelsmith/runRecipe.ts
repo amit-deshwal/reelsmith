@@ -5,7 +5,7 @@ import type { AtomicAction, BatchAction } from '../editor/reducerActions';
 import type { MediaAsset } from '../editor/types';
 import { assemble, type AssembleInput, type AssembleResult, type AssemblyClip, type AssemblyMusic, type RecipeRunRecord } from './assembler';
 import { toAssemblyClips, type ClipFeatures } from './assembler/scoring';
-import type { SetupValues } from './setupForm';
+import { validateSetup, type SetupValues } from './setupForm';
 
 export interface AnalyzeApi {
   clipFeatures(asset: MediaAsset, fps: number): Promise<ClipFeatures | null>;
@@ -65,12 +65,11 @@ export async function prepareAssembly(api: AnalyzeApi, o: RunOptions): Promise<P
   let done = 0;
   for (const b of base) {
     o.onProgress?.(`Analysing clips ${++done}/${base.length}`);
-    if (b.kind !== 'video') continue;
     const f = await api.clipFeatures(byId.get(b.assetId)!, o.fps).catch(() => null);
     if (f) features.push({ ...f, assetId: b.assetId });
     else messages.push(`${b.name}: could not be analysed, using a neutral score`);
   }
-  const minShot = Math.round(o.fps * 1.0);
+  const minShot = Math.max(1, Math.round(o.fps * (clipInputs[0]?.kind === 'media' ? clipInputs[0].constraints?.minClipSec ?? 0.3 : 0.3)));
   const scored = toAssemblyClips(base.map(({ input: _i, ...rest }) => rest), features, minShot);
   // clips without features keep a neutral score so they are still usable
   const clips = scored.map((c) => (features.some((f) => f.assetId === c.assetId) ? c : { ...c, score: 0.5 }));
@@ -113,6 +112,8 @@ export function withBeatGrid(actions: AtomicAction[], music: AssemblyMusic | und
 }
 
 export async function runRecipe(api: AnalyzeApi, o: RunOptions): Promise<RunOutcome> {
+  const errors = validateSetup(o.recipe, o.values, o.assets);
+  if (errors.length) throw new Error(errors.map((e) => `${o.recipe.inputs.find((i) => i.id === e.field)?.label ?? o.recipe.params.find((p) => p.id === e.field)?.label ?? e.field}: ${e.message}`).join('; '));
   const { input, messages } = await prepareAssembly(api, o);
   o.onProgress?.('Assembling');
   const result = assemble(input);

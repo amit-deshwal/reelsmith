@@ -46,7 +46,7 @@ export function assembleCaptionedStory(input: AssembleInput): AssembleResult {
   talking.forEach((clip, i) => {
     const words = clip.transcript!;
     const dur = editedFrames(words, none, fps, edit);
-    const act = clipItem(stableId('rs', tag, seed, 'talk', i), clip, 'V1', dur, {
+    const act = clipItem(stableId('rs', tag, seed, 'talk', i), { ...clip, sourceAnalysis: undefined, bestStartFrame: 0 }, 'V1', dur, {
       props: { rsSection: i === 0 ? 'hook' : 'story', rsRun: tag },
     }, 0);
     const item = (act as { item: Record<string, unknown> }).item;

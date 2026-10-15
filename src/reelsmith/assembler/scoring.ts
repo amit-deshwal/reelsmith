@@ -14,6 +14,8 @@ export interface WindowFeatures {
   /** size of the largest face/salient region, 0..1 of frame area */
   subject: number;
   speech: boolean;
+  /** Locally detected face area, distinct from the model-free saliency proxy. */
+  face?: number;
 }
 
 export interface ClipFeatures {
@@ -33,7 +35,7 @@ export const DEFAULT_WEIGHTS: ScoreWeights = { sharpness: 0.3, exposure: 0.25, m
 export function scoreWindow(w: WindowFeatures, weights: ScoreWeights = DEFAULT_WEIGHTS): number {
   const total = weights.sharpness + weights.exposure + weights.motion + weights.subject + weights.speech;
   const sum = w.sharpness * weights.sharpness + w.exposure * weights.exposure + w.motion * weights.motion
-    + Math.min(1, w.subject * 3) * weights.subject + (w.speech ? weights.speech : 0);
+    + Math.min(1, Math.max(w.subject, w.face ?? 0) * 3) * weights.subject + (w.speech ? weights.speech : 0);
   return Math.max(0, Math.min(1, sum / total));
 }
 
@@ -52,7 +54,7 @@ function popcount16hex(hex: string): number {
 }
 
 export function hammingDistance(a: string, b: string): number {
-  if (a.length !== b.length) return 64;
+  if (!/^[0-9a-f]{16}$/i.test(a) || !/^[0-9a-f]{16}$/i.test(b)) return 64;
   let d = 0;
   for (let i = 0; i < a.length; i += 1) d += popcount16hex((parseInt(a[i]!, 16) ^ parseInt(b[i]!, 16)).toString(16));
   return d;
@@ -90,9 +92,11 @@ export function toAssemblyClips(
 ): AssemblyClip[] {
   const byId = new Map(features.map((f) => [f.assetId, f]));
   const groups = groupNearDuplicates(features);
-  return base.map((c) => {
+  return base.flatMap((c) => {
     const f = byId.get(c.assetId);
     if (!f) return { ...c, score: 0 };
+    const cuts = [0, ...(f.shotBoundariesFrame ?? []), c.durationInFrames].sort((a, b) => a - b);
+    if (c.kind === 'video' && !cuts.some((end, i) => i > 0 && end - cuts[i - 1]! >= minShotFrames)) return [];
     const win = bestWindow(f, minShotFrames, weights);
     return {
       ...c,
@@ -100,6 +104,12 @@ export function toAssemblyClips(
       groupId: groups.get(c.assetId),
       captureTimeMs: f.captureTimeMs,
       bestStartFrame: win?.startFrame,
+      sourceAnalysis: {
+        minShotFrames,
+        windows: f.windows.map((w) => ({ startFrame: Math.max(0, w.startFrame), endFrame: Math.min(c.durationInFrames, w.endFrame), score: scoreWindow(w, weights) }))
+          .filter((w) => w.endFrame > w.startFrame).sort((a, b) => a.startFrame - b.startFrame),
+        shotBoundariesFrame: [...(f.shotBoundariesFrame ?? [])],
+      },
     };
   });
 }

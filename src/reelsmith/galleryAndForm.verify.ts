@@ -58,3 +58,17 @@ assert.equal(widgetFor(travel.params.find((p) => p.id === 'clipAudio')!), 'toggl
 const beat = load('beat-cut.recipe.json');
 assert.equal(widgetFor(beat.params.find((p) => p.id === 'dropAtS')!), 'slider');
 console.log('galleryAndForm.verify: ok');
+
+// Validate against the current project, rather than trusting stale UI picks.
+const available = [...clips.map((c) => ({ id: c.assetId, kind: c.kind })), { id: 'song', kind: 'audio' }];
+assert.equal(canAssemble(travel, v, available), true);
+assert.match(validateSetup(travel, v, available.filter((a) => a.id !== clips[0]!.assetId))[0]!.message, /no longer in the project/);
+assert.match(validateSetup(travel, v, available.map((a) => a.id === clips[0]!.assetId ? { ...a, kind: 'audio' } : a))[0]!.message, /not video\/image/);
+v.params.accent = '#FFD23F';
+v.agentPick = 'claude';
+assert.equal(canAssemble(travel, v, available), true);
+v.params.accent = NaN;
+assert.equal(canAssemble(travel, v, available), false);
+v.params.accent = '#FFD23F';
+v.agentPick = 'codex' as never;
+assert.match(validateSetup(travel, v, available).find((e) => e.field === 'agentPick')!.message, /Off or Claude/);

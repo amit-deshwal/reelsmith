@@ -73,3 +73,11 @@ console.log('runRecipe.verify: ok');
   assert.ok(without.messages.some((m) => /transcribe/.test(m)));
 }
 console.log('runRecipe captioned-story: ok');
+
+// Invalid/stale form selections must never reach expensive analysis or timeline assembly.
+const noAnalysis: AnalyzeApi = {
+  clipFeatures: async () => assert.fail('invalid input must not analyse clips'),
+  musicGrid: async () => assert.fail('invalid input must not analyse music'),
+};
+await assert.rejects(runRecipe(noAnalysis, { recipe: r.recipe, values: defaultValues(r.recipe), assets, fps: 30, replaceTimeline: true }), /Trip clips.*at least 6/);
+await assert.rejects(runRecipe(noAnalysis, { recipe: r.recipe, values, assets: assets.filter((a) => a.id !== 'song'), fps: 30, replaceTimeline: true }), /Song.*no longer in the project/);

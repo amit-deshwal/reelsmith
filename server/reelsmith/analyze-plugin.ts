@@ -45,10 +45,10 @@ export function reelsmithAnalyzePlugin(): Plugin {
         if (typeof file !== 'string') throw new Error(file.error);
         const fps = Number(body.fps) > 0 ? Number(body.fps) : 30;
         const { mtimeMs, size } = await stat(file);
-        const key = `${file}|${mtimeMs}|${size}|${fps}`;
+        const key = `${file}|${mtimeMs}|${size}|${fps}|${body.kind === 'image'}`;
         let features = featureCache.get(key);
         if (!features) {
-          features = await extractClipFeatures(file, String(body.assetId ?? ''), fps, { maxSec: 90 });
+          features = await extractClipFeatures(file, String(body.assetId ?? ''), fps, { maxSec: 90, stillImage: body.kind === 'image' });
           if (featureCache.size > 500) featureCache.delete(featureCache.keys().next().value!);
           featureCache.set(key, features);
         }

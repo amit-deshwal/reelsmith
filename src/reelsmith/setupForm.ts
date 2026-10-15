@@ -1,7 +1,8 @@
 // RS-103: the setup form model. Built from a recipe's inputs/params; says whether "Assemble" is allowed and why not.
 import type { Recipe, RecipeMediaInput, RecipeParam } from '../../shared/reelsmith/recipe';
 
-export type PickKind = 'off' | 'claude' | 'codex';
+export type PickKind = 'off' | 'claude';
+type AvailableAsset = { id: string; kind: string };
 
 export interface SetupValues {
   media: Record<string, Array<{ assetId: string; kind: 'video' | 'image' | 'audio' }>>;
@@ -34,13 +35,16 @@ function paramError(p: RecipeParam, v: unknown): string | null {
   }
 }
 
-export function validateSetup(recipe: Recipe, v: SetupValues): FieldError[] {
+export function validateSetup(recipe: Recipe, v: SetupValues, assets?: readonly AvailableAsset[]): FieldError[] {
   const errors: FieldError[] = [];
+  const available = assets ? new Map(assets.map((asset) => [asset.id, asset])) : undefined;
   for (const input of recipe.inputs) {
     if (input.kind === 'media') {
       const picked = v.media[input.id] ?? [];
-      const bad = picked.filter((m) => !input.accept.includes(m.kind));
-      if (bad.length) errors.push({ field: input.id, message: `${bad.length} file(s) are not ${input.accept.join('/')}` });
+      const missing = available && picked.some((m) => !available.has(m.assetId));
+      const bad = picked.filter((m) => !input.accept.includes(m.kind) || (available && !input.accept.includes(available.get(m.assetId)?.kind as never)));
+      if (missing) errors.push({ field: input.id, message: 'a selected file is no longer in the project; choose it again' });
+      else if (bad.length) errors.push({ field: input.id, message: `${bad.length} file(s) are not ${input.accept.join('/')}` });
       else if (picked.length < input.min) errors.push({ field: input.id, message: `add at least ${input.min} (have ${picked.length})` });
       else if (picked.length > input.max) errors.push({ field: input.id, message: `at most ${input.max} (have ${picked.length})` });
       else if (new Set(picked.map((m) => m.assetId)).size !== picked.length) errors.push({ field: input.id, message: 'the same file is added twice' });
@@ -54,13 +58,14 @@ export function validateSetup(recipe: Recipe, v: SetupValues): FieldError[] {
     const e = paramError(p, v.params[p.id]);
     if (e) errors.push({ field: p.id, message: e });
   }
+  if (v.agentPick !== 'off' && v.agentPick !== 'claude') errors.push({ field: 'agentPick', message: 'choose Off or Claude' });
   const aiAllowed = recipe.assembler.aiSelection ?? 'optional';
   if (v.agentPick !== 'off' && aiAllowed === 'off') errors.push({ field: 'agentPick', message: 'this recipe does not use an agent' });
   return errors;
 }
 
-export function canAssemble(recipe: Recipe, v: SetupValues): boolean {
-  return validateSetup(recipe, v).length === 0;
+export function canAssemble(recipe: Recipe, v: SetupValues, assets?: readonly AvailableAsset[]): boolean {
+  return validateSetup(recipe, v, assets).length === 0;
 }
 
 /** Widget a param needs, for the form renderer. */
