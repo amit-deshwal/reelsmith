@@ -74,3 +74,18 @@ const order = a.report.usedAssetIds.map((id) => Number(id.slice(1)));
 assert.deepEqual(order, [...order].sort((x, y) => x - y), 'chronological');
 
 console.log('assembler.verify: ok');
+
+// RS-106: malformed / repeated AI picks are rejected and the reel still assembles
+import { validateSelection } from './selection';
+const pool = clips(40);
+const check = validateSelection({ assetIds: ['c5', 'c5', 'nope', 42, 'c9'] }, pool, 10);
+assert.deepEqual(check.accepted, ['c5', 'c9']);
+assert.equal(check.rejected.length, 3);
+assert.equal(validateSelection({ assetIds: 'c1' }, pool, 10).ok, false);
+const ai = assemble({ ...base, clips: pool, preferredAssetIds: check.accepted });
+assert.ok(ai.action, 'still assembles');
+assert.ok(ai.report.usedAssetIds.includes('c5') && ai.report.usedAssetIds.includes('c9'), 'AI picks honoured');
+assert.equal(new Set(ai.report.usedAssetIds).size, ai.report.usedAssetIds.length);
+const garbage = assemble({ ...base, clips: pool, preferredAssetIds: ['x', 'y'] });
+assert.equal(JSON.stringify(garbage.report.usedAssetIds), JSON.stringify(assemble({ ...base, clips: pool }).report.usedAssetIds), 'all-bad picks fall back to the heuristic');
+console.log('selection checks: ok');

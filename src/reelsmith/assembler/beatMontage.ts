@@ -127,6 +127,28 @@ function uniqueUsable(clips: AssemblyClip[]): number {
   return n;
 }
 
+/** Honour validated AI picks first (kept in the order given), then top up with the heuristic. */
+export function pickWithPreferred(
+  clips: AssemblyClip[], preferred: string[], count: number, chronological: boolean, seed: number,
+): AssemblyClip[] {
+  const byId = new Map(clips.map((c) => [c.assetId, c]));
+  const chosen: AssemblyClip[] = [];
+  const usedGroups = new Set<string>();
+  for (const id of preferred) {
+    const c = byId.get(id);
+    if (!c || chosen.includes(c) || (c.groupId && usedGroups.has(c.groupId))) continue;
+    chosen.push(c);
+    if (c.groupId) usedGroups.add(c.groupId);
+    if (chosen.length === count) break;
+  }
+  if (chosen.length < count) {
+    const rest = clips.filter((c) => !chosen.includes(c) && !(c.groupId && usedGroups.has(c.groupId)));
+    const fill = pickClips(rest, count - chosen.length, chronological, seed);
+    chosen.push(...fill);
+  }
+  return chosen;
+}
+
 const dbToGain = (db: number) => 10 ** (db / 20);
 
 export function assembleBeatMontage(input: AssembleInput): AssembleResult {
@@ -157,7 +179,10 @@ export function assembleBeatMontage(input: AssembleInput): AssembleResult {
   }
   const shots = plan.shots;
   const allowRepeat = policy === 'allowRepeat';
-  let picked = pickClips(clips, shots.length, recipe.constraints?.keepChronological ?? true, seed);
+  const chronological = recipe.constraints?.keepChronological ?? true;
+  let picked = input.preferredAssetIds?.length
+    ? pickWithPreferred(clips, input.preferredAssetIds, shots.length, chronological, seed)
+    : pickClips(clips, shots.length, chronological, seed);
   if (picked.length < shots.length) {
     if (!allowRepeat) {
       shots.length = picked.length; // out of footage: drop trailing shots

@@ -40,6 +40,8 @@ export interface AssembleInput {
   texts: Record<string, string>;
   params: Record<string, string | number | boolean>;
   seed: number;
+  /** validated AI picks, in shot order (RS-106); gaps are filled by the heuristic */
+  preferredAssetIds?: string[];
 }
 
 export interface PlannedShot {
