@@ -14,7 +14,7 @@ import { extractClipFeatures } from './clipFeatures.ts';
 import { finalizeForInstagram } from './instagramFinalize.ts';
 import { exportParity } from './exportParity.ts';
 import { renderRecipePreview, type PreviewRequest } from './previewRender.ts';
-import { REEL_PRESETS } from '../../shared/reelsmith/instagramPreset.ts';
+import { REEL_PRESETS, presetForCanvas } from '../../shared/reelsmith/instagramPreset.ts';
 
 function localFile(src: unknown): string | { error: string } {
   const name = typeof src === 'string' ? uploadNameOfSource(src) : null;
@@ -67,7 +67,10 @@ export function reelsmithAnalyzePlugin(): Plugin {
         if (typeof file !== 'string') throw new Error(file.error);
         const preset = REEL_PRESETS[String(body.presetId ?? 'instagram-reel')];
         if (!preset) throw new Error(`unknown preset ${String(body.presetId)}`);
-        return { result: await finalizeForInstagram(file, preset) };
+        // RS-904: the size follows the project's canvas; only supported shapes are accepted
+        const sized = body.width === undefined && body.height === undefined ? preset : presetForCanvas(preset, Number(body.width), Number(body.height));
+        if (!sized) throw new Error(`unsupported canvas ${String(body.width)}x${String(body.height)}`);
+        return { result: await finalizeForInstagram(file, sized) };
       });
       route('/api/reelsmith/music-grid', async (body) => {
         const file = localFile(body.src);

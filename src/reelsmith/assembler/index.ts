@@ -6,6 +6,7 @@ import { assembleStoryVlog } from './storyVlog';
 import { assembleCollageGrid } from './collageGrid';
 import { assembleCaptionedStory } from './captionedStory';
 import { assembleTravelDiary } from './travelDiary';
+import { ratioOf } from '../../../shared/reelsmith/ratios';
 import { withMusicOverrides } from '../musicPolicy';
 
 export type { AssembleInput, AssembleResult, AssemblyClip, AssemblyMusic, RecipeRunRecord, AssembleReport } from './types';
@@ -35,6 +36,8 @@ export function assemble(raw: AssembleInput): AssembleResult {
         },
       };
   }
+  const ratio = ratioOf(input.recipe.canvas.width, input.recipe.canvas.height);
+  if (ratio) result.run = { ...result.run, ratio };
   if (result.action) result.action = { ...result.action, actions: result.action.actions.map((action) => action.type === 'add'
     ? { ...action, item: { ...action.item, props: { ...action.item.props, rsRun: `${input.recipe.id}@${input.recipe.version}` } } }
     : action) };

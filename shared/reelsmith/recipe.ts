@@ -2,6 +2,7 @@
 // Recipes are declarative JSON. Validation = JSON Schema (structure) + semantic checks (cross references, templates).
 import Ajv2020, { type ErrorObject } from 'ajv/dist/2020';
 import { RECIPE_SCHEMA } from './recipe-schema';
+import { RATIO_IDS, RATIO_SIZES, ratioOf, type RatioId } from './ratios';
 
 export type RecipeParamType = 'number' | 'integer' | 'boolean' | 'enum' | 'color' | 'font' | 'seconds';
 
@@ -48,6 +49,8 @@ export interface Recipe {
   structure: RecipeSection[];
   styles: Record<string, Record<string, unknown>>;
   look?: { colorLook?: string; grain?: number; vignette?: number };
+  /** RS-901: other shapes this recipe supports; each may replace keys of named styles (text size, position) */
+  ratios?: Partial<Record<RatioId, { styles?: Record<string, Record<string, unknown>> }>>;
   /** RS-109: tags wanted for the opening and closing shot (scenery, people, portrait, action, food, detail, city, water, night) */
   casting?: { opener?: string[]; closer?: string[] };
   agentHints?: string;
@@ -111,6 +114,11 @@ function semanticErrors(r: Recipe): string[] {
     else if (m.kind !== 'media' || !m.accept.includes('audio')) errors.push(`music.inputId "${m.id}" must accept audio`);
   }
   const styleIds = new Set(Object.keys(r.styles));
+  const baseRatio = ratioOf(r.canvas.width, r.canvas.height);
+  for (const [ratio, o] of Object.entries(r.ratios ?? {})) {
+    if (ratio === baseRatio) errors.push(`ratios/${ratio}: this is the recipe's own canvas; leave it out`);
+    for (const id of Object.keys(o?.styles ?? {})) if (!styleIds.has(id)) errors.push(`ratios/${ratio}/styles: unknown style "${id}"`);
+  }
   const sections = new Set<string>();
   for (const [si, s] of r.structure.entries()) {
     if (sections.has(s.section)) errors.push(`duplicate section "${s.section}"`);
@@ -160,4 +168,24 @@ export function renderTemplate(
     const v = m[1] === 'inputs' ? scope.inputs[m[2]!] : scope.params[m[2]!];
     return v === undefined ? '' : String(v);
   });
+}
+
+/** Ratios a recipe can be made in: its own canvas first (when it is one of the supported shapes), then `ratios`. */
+export function supportedRatios(recipe: Recipe): RatioId[] {
+  const own = ratioOf(recipe.canvas.width, recipe.canvas.height);
+  const extra = RATIO_IDS.filter((id) => id !== own && recipe.ratios?.[id]);
+  return own ? [own, ...extra] : extra;
+}
+
+/**
+ * The recipe as it should run in `ratio`: the canvas of that shape and the ratio's style overrides.
+ * Returns null when the recipe does not support the ratio. The result has no `ratios` of its own.
+ */
+export function recipeForRatio(recipe: Recipe, ratio: RatioId): Recipe | null {
+  if (!supportedRatios(recipe).includes(ratio)) return null;
+  const { ratios, ...rest } = recipe;
+  if (ratio === ratioOf(recipe.canvas.width, recipe.canvas.height)) return rest;
+  const styles = { ...recipe.styles };
+  for (const [id, override] of Object.entries(ratios?.[ratio]?.styles ?? {})) styles[id] = { ...styles[id], ...override };
+  return { ...rest, canvas: { ...recipe.canvas, ...RATIO_SIZES[ratio] }, styles };
 }

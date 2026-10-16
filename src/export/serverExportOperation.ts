@@ -1,4 +1,4 @@
-import { finalizeExportForInstagram, instagramReportStore, loadInstagramPreference, isVertical } from '../reelsmith/instagramExport';
+import { finalizeExportForInstagram, instagramReportStore, loadInstagramPreference, isSupportedShape } from '../reelsmith/instagramExport';
 import { writeSrtSidecar } from '../reelsmith/instagramSrt';
 import type { BackgroundExportJobSetters, ExportJobStore } from './backgroundExportStore';
 import { isAbortError } from './browserExport';
@@ -187,7 +187,7 @@ async function exportMedia(
     targetCommitted = await saveCompleted(context, format, codec, completed, renderId, claim, signal);
     if (format === 'video') recordServerPerformance(context, completed, startedAt);
     // Reelsmith (RS-301): optional .srt next to the delivered video (also for plain browser downloads, which never report a committed target); a failure here never fails the export
-    if (format === 'video' && isVertical(context.options.state)) {
+    if (format === 'video' && isSupportedShape(context.options.state)) {
       const pref = loadInstagramPreference();
       const sidecar = await writeSrtSidecar({
         enabled: pref.enabled && pref.srt, captions: context.options.subtitleCaptions, items: context.options.state.items,

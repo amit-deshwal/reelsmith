@@ -12,6 +12,7 @@ import { candidateFacts, selectionKey, selectionPools, selectionSnapshot } from 
 import { lintReel } from '../reelLint';
 import { snapTrackToBeats } from '../snapAction';
 import { strobeForTimeline } from '../strobeAction';
+import { isRatioId } from '../../../shared/reelsmith/ratios';
 import { prepareAssembly, runRecord, withBeatGrid, type AnalyzeApi, type Prepared } from '../runRecipe';
 import { loadRun, recutSection, saveRun, type Kv } from '../runStore';
 import type { SetupValues } from '../setupForm';
@@ -51,7 +52,7 @@ async function rebuild(ctx: AgentContext, deps: ReelsDeps): Promise<{ run: Recip
   const state = ctx.getState();
   const assets = ctx.getDoc().assets ?? [];
   const prepared = await prepareAssembly(deps.api, {
-    recipe, values: valuesFromRun(run, assets), assets: [...assets], fps: state.fps, replaceTimeline: false, seed: run.seed, preferredAssetIds: run.preferredAssetIds, preferredBrollAssetIds: run.preferredBrollAssetIds,
+    recipe, ...(isRatioId(run.ratio) ? { ratio: run.ratio } : {}), values: valuesFromRun(run, assets), assets: [...assets], fps: state.fps, replaceTimeline: false, seed: run.seed, preferredAssetIds: run.preferredAssetIds, preferredBrollAssetIds: run.preferredBrollAssetIds,
   });
   const key = await selectionKey(snapshot, run);
   if (selectionSnapshot(projectId(ctx), ctx.getDoc()) !== snapshot) return { error: 'The timeline or media changed during analysis. Call reels_selection_candidates again before making picks.' };

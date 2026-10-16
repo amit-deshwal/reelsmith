@@ -1,6 +1,7 @@
 // RS-301/RS-302 client side: after a server video export renders (before it is delivered), make it
 // Instagram-ready when the user asked for it and the canvas is 9:16. The report is kept for the dialog.
 import type { TimelineState } from '../editor/types';
+import { ratioOf } from '../../shared/reelsmith/ratios';
 import type { ExportJobResult } from '../export/exportWorkflowTypes';
 
 export interface InstagramExportPreference { enabled: boolean; silent: boolean; srt: boolean }
@@ -36,6 +37,8 @@ export const instagramReportStore = {
 };
 
 export const isVertical = (s: Pick<TimelineState, 'width' | 'height'>) => Math.abs(s.width / s.height - 9 / 16) < 0.01;
+/** RS-904: any of the supported shapes (9:16, 3:4, 4:5, 1:1, 16:9, 4:3) can be checked and finalised */
+export const isSupportedShape = (s: Pick<TimelineState, 'width' | 'height'>) => ratioOf(s.width, s.height) !== undefined;
 
 export function presetIdFor(fps: number, silent: boolean): string {
   if (silent) return 'instagram-reel-silent';
@@ -47,8 +50,8 @@ export async function finalizeExportForInstagram(
   opts: { fetcher?: typeof fetch; setBusy?: (text: string | null) => void } = {},
 ): Promise<InstagramExportReport> {
   const pref = loadInstagramPreference();
-  if (!pref.enabled || !completed.path || codec !== 'h264' || !isVertical(state)) {
-    const r: InstagramExportReport = { status: 'skipped', message: !pref.enabled ? 'off' : !isVertical(state) ? 'canvas is not 9:16' : 'not an H.264 MP4' };
+  if (!pref.enabled || !completed.path || codec !== 'h264' || !isSupportedShape(state)) {
+    const r: InstagramExportReport = { status: 'skipped', message: !pref.enabled ? 'off' : !isSupportedShape(state) ? 'canvas is not one of the supported shapes' : 'not an H.264 MP4' };
     instagramReportStore.set(r);
     return r;
   }
@@ -57,7 +60,7 @@ export async function finalizeExportForInstagram(
   try {
     const res = await (opts.fetcher ?? fetch)('/api/reelsmith/instagram-finalize', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, signal,
-      body: JSON.stringify({ src: completed.path, presetId: presetIdFor(completed.fps ?? state.fps, pref.silent) }),
+      body: JSON.stringify({ src: completed.path, presetId: presetIdFor(completed.fps ?? state.fps, pref.silent), width: state.width, height: state.height }),
     });
     const body = await res.json().catch(() => null) as { result?: { ok: boolean; reencoded: boolean; first: { checks: Check[] }; second?: { checks: Check[] }; failedPath?: string }; error?: string } | null;
     if (!res.ok || !body?.result) throw new Error(body?.error ?? `Instagram check failed (${res.status})`);

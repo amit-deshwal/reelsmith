@@ -1,4 +1,5 @@
-// RS-301: the "Instagram Reel" export presets.
+// RS-301: the "Instagram Reel" export presets. RS-904: the size follows the project's shape (any supported ratio).
+import { ratioOf } from './ratios';
 export interface ReelPreset {
   id: string;
   label: string;
@@ -35,4 +36,12 @@ export const REEL_PRESETS: Record<string, ReelPreset> = {
 
 export function withSrt(p: ReelPreset, on: boolean): ReelPreset {
   return { ...p, srtSidecar: on };
+}
+
+/** The preset at the project's own size, when that is one of the supported shapes (otherwise null). */
+export function presetForCanvas(p: ReelPreset, width: number, height: number): ReelPreset | null {
+  const ratio = ratioOf(width, height);
+  if (!ratio) return null;
+  if (ratio === '9:16') return p;
+  return { ...p, width, height, label: p.label.replace('Instagram Reel', `Instagram ${ratio}`).replace('1080×1920', `${width}×${height}`) };
 }

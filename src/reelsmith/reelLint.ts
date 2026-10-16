@@ -1,4 +1,5 @@
 // Timeline lint for Reels (RS-303 wiring, RS-702 "lint before finishing").
+import { ratioOf } from '../../shared/reelsmith/ratios';
 import type { TimelineState } from '../editor/types';
 import { resolveTrackId } from '../editor/types';
 import { findMusicItem, readBeatGrid, timelineBeatFrames } from './beatSnap';
@@ -11,7 +12,11 @@ export function lintReel(state: TimelineState): { errors: number; warnings: numb
   const fps = state.fps;
   const canvas = { width: state.width, height: state.height };
   if (Math.abs(state.width / state.height - 9 / 16) > 0.01) {
-    issues.push({ level: 'error', message: `canvas is ${state.width}x${state.height}, not 9:16 (1080x1920)` });
+    // RS-904: other shapes are fine (feed posts, landscape); only a shape we cannot export is an error
+    const shape = ratioOf(state.width, state.height);
+    issues.push(shape
+      ? { level: 'warning', message: `canvas is ${shape} (${state.width}x${state.height}), not 9:16 (a Reel); fine for a feed post or landscape video` }
+      : { level: 'error', message: `canvas is ${state.width}x${state.height}, which is not one of the supported shapes (9:16, 3:4, 4:5, 1:1, 16:9, 4:3)` });
   }
   for (const z of lintSafeZone(state.items, canvas)) issues.push({ level: 'warning', frame: z.startFrame, itemId: z.itemId, message: z.message });
 

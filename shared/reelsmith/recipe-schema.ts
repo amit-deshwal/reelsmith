@@ -200,6 +200,15 @@ export const RECIPE_SCHEMA = {
         "closer": { "type": "array", "items": { "enum": ["scenery", "people", "portrait", "action", "food", "detail", "city", "water", "night"] } }
       }
     },
+    "ratios": {
+      "type": "object",
+      "description": "Other output shapes this recipe supports besides its canvas (RS-901). The canvas size comes from the ratio; `styles` replaces keys of the named styles for that ratio (text size, position).",
+      "additionalProperties": false,
+      "properties": {
+        "9:16": { "$ref": "#/$defs/ratioOverrides" }, "3:4": { "$ref": "#/$defs/ratioOverrides" }, "4:5": { "$ref": "#/$defs/ratioOverrides" },
+        "1:1": { "$ref": "#/$defs/ratioOverrides" }, "16:9": { "$ref": "#/$defs/ratioOverrides" }, "4:3": { "$ref": "#/$defs/ratioOverrides" }
+      }
+    },
     "agentHints": { "type": "string", "maxLength": 1500, "description": "Natural-language guidance passed to the agent when AI selection or chat edits run. Treated as instructions from the recipe author (built-in recipes only)." },
     "constraints": {
       "type": "object",
@@ -213,6 +222,13 @@ export const RECIPE_SCHEMA = {
     }
   },
   "$defs": {
+    "ratioOverrides": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "styles": { "type": "object", "additionalProperties": { "type": "object" } }
+      }
+    },
     "key": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9_]{0,31}$" }
   }
 } as const;

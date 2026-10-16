@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from 'node:os';
 import { extname, join, resolve } from 'node:path';
 import { parseRecipe } from '../../shared/reelsmith/recipe.ts';
-import { REEL_PRESETS } from '../../shared/reelsmith/instagramPreset.ts';
+import { REEL_PRESETS, presetForCanvas } from '../../shared/reelsmith/instagramPreset.ts';
 import { emptyProjectDoc } from '../../src/app/appShell.ts';
 import { historyReduce, type History } from '../../src/editor/reduce.ts';
 import { activeTimeline, type MediaAsset } from '../../src/editor/types.ts';
@@ -97,7 +97,8 @@ argv.forEach((x, i) => {
   if (x === '--param') values.params[kv[1]!] = kv[2] === 'true' ? true : kv[2] === 'false' ? false : Number.isFinite(Number(kv[2])) && kv[2] !== '' ? Number(kv[2]) : kv[2]!;
   if (x === '--text') values.texts[kv[1]!] = kv[2]!;
 });
-const out = await runRecipe(api, { recipe, values, assets, fps: FPS, replaceTimeline: true, seed: 7 });
+const ratioArg = argv.find((x) => x.startsWith('--ratio='))?.slice(8) as import('../../shared/reelsmith/ratios.ts').RatioId | undefined;
+const out = await runRecipe(api, { recipe, ...(ratioArg ? { ratio: ratioArg } : {}), values, assets, fps: FPS, replaceTimeline: true, seed: 7 });
 t = lap('analyse + assemble', t);
 console.log(`slowest clip analysis: ${Object.entries(feat).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${k} ${(v / 1000).toFixed(1)}s`).join(', ')}`);
 if (!out.action) throw new Error(`could not assemble: ${out.messages.join('; ')}`);
@@ -122,7 +123,7 @@ try {
 const exportMs = Date.now() - t;
 console.log(`export: ${(exportMs / 1000).toFixed(1)} s for a ${(end / FPS).toFixed(1)} s reel (${(exportMs / 1000 / (end / FPS)).toFixed(2)}x real time), ${(statSync(raw).size / 1e6).toFixed(1)} MB`);
 t = Date.now();
-const fin = await finalizeForInstagram(raw, REEL_PRESETS['instagram-reel']!);
+const fin = await finalizeForInstagram(raw, presetForCanvas(REEL_PRESETS['instagram-reel']!, tl.width, tl.height) ?? REEL_PRESETS['instagram-reel']!);
 t = lap(`instagram finalize (${fin.ok ? (fin.reencoded ? 're-encoded' : 'already passed') : 'FAILED'})`, t);
 for (const c of (fin.second ?? fin.first).checks) console.log(`  ${c.id} ${c.status} ${c.detail}`);
 const v8 = await exportParity(raw, { ...tl, assets: doc.assets } as never);

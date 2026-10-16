@@ -93,6 +93,8 @@ export interface AssembleReport {
 export interface RecipeRunRecord {
   recipeId: string;
   recipeVersion: string;
+  /** RS-901: output shape, so re-cuts from chat rebuild the same canvas (absent = the recipe's own canvas) */
+  ratio?: string;
   assembler: string;
   seed: number;
   params: Record<string, string | number | boolean>;

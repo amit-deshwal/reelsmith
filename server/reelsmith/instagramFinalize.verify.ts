@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { REEL_PRESETS } from '../../shared/reelsmith/instagramPreset.ts';
+import { REEL_PRESETS, presetForCanvas } from '../../shared/reelsmith/instagramPreset.ts';
 import { encodeForInstagram } from './instagramEncode.ts';
 import { finalizeForInstagram } from './instagramFinalize.ts';
 
@@ -26,6 +26,21 @@ try {
   const again = await finalizeForInstagram(render, preset);
   assert.equal(again.ok, true);
   assert.equal(again.reencoded, false);
+
+  // RS-904: a 4:5 and a 16:9 project are finalised at their own size, not padded into 9:16
+  for (const [w, h, name] of [[1080, 1350, '4:5'], [1920, 1080, '16:9']] as const) {
+    const sized = presetForCanvas(preset, w, h)!;
+    const shaped = join(dir, `shape-${w}x${h}.mp4`);
+    ff('-f', 'lavfi', '-i', `testsrc2=size=${w}x${h}:rate=25`, '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=44100',
+      '-t', '2', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-c:a', 'aac', shaped);
+    const r = await finalizeForInstagram(shaped, sized);
+    assert.equal(r.ok, true, `${name}: ${JSON.stringify((r.second ?? r.first).checks)}`);
+    const size = execFileSync('ffprobe', ['-v', 'error', '-select_streams', 'v', '-show_entries', 'stream=width,height', '-of', 'csv=p=0', shaped]).toString().trim();
+    assert.equal(size, `${w},${h}`, `${name} keeps its own size`);
+  }
+  assert.equal(presetForCanvas(preset, 1000, 1000), null, 'unsupported shapes get no preset');
+  assert.equal(presetForCanvas(preset, 1080, 1920), preset);
+  assert.match(presetForCanvas(preset, 1080, 1350)!.label, /4:5.*1080×1350/);
 
   // when the safe encoder also fails, the bad result is kept as .failed.mp4 and the original is untouched
   const other = join(dir, 'other.mp4');

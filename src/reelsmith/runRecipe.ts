@@ -1,6 +1,7 @@
 // Turns what the Recipes panel has (pool assets + setup values) into an AssembleInput, runs the assembler,
 // and returns one batch action ready for `commands.batch`. Analysis calls are injected so this stays testable.
-import type { Recipe } from '../../shared/reelsmith/recipe';
+import { recipeForRatio, type Recipe } from '../../shared/reelsmith/recipe';
+import type { RatioId } from '../../shared/reelsmith/ratios';
 import type { AtomicAction, BatchAction } from '../editor/reducerActions';
 import type { MediaAsset } from '../editor/types';
 import { assemble, type AssembleInput, type AssembleResult, type AssemblyClip, type AssemblyMusic, type RecipeRunRecord } from './assembler';
@@ -17,6 +18,8 @@ export interface AnalyzeApi {
 
 export interface RunOptions {
   recipe: Recipe;
+  /** RS-901: output shape; defaults to the recipe's own canvas */
+  ratio?: RatioId;
   values: SetupValues;
   assets: MediaAsset[];
   /** timeline fps; the recipe's frame math follows the timeline */
@@ -48,7 +51,9 @@ const timelineKind = (a: MediaAsset): 'video' | 'image' | null => (a.kind === 'v
 
 /** Analyse the chosen media and build the assembler input (no timeline changes). */
 export async function prepareAssembly(api: AnalyzeApi, o: RunOptions): Promise<Prepared> {
-  const recipe: Recipe = { ...o.recipe, canvas: { ...o.recipe.canvas, fps: { num: o.fps, den: 1 } } };
+  const shaped = o.ratio ? recipeForRatio(o.recipe, o.ratio) : o.recipe;
+  if (!shaped) throw new Error(`${o.recipe.name} is not available in ${o.ratio}`);
+  const recipe: Recipe = { ...shaped, canvas: { ...shaped.canvas, fps: { num: o.fps, den: 1 } } };
   const byId = new Map(o.assets.map((a) => [a.id, a]));
   const messages: string[] = [];
   const pick = (inputId: string) => (o.values.media[inputId] ?? []).map((m) => byId.get(m.assetId)).filter((a): a is MediaAsset => !!a);
