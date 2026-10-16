@@ -1,6 +1,6 @@
 // RS-101: recipe manifest types, validation and loader helpers.
 // Recipes are declarative JSON. Validation = JSON Schema (structure) + semantic checks (cross references, templates).
-import Ajv2020, { type ErrorObject } from 'ajv/dist/2020';
+import Ajv2020, { type ErrorObject } from 'ajv/dist/2020.js';
 import { RECIPE_SCHEMA } from './recipe-schema';
 import { RATIO_IDS, RATIO_SIZES, ratioOf, type RatioId } from './ratios';
 
