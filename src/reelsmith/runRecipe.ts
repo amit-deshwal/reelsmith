@@ -15,6 +15,8 @@ export interface AnalyzeApi {
   /** RS-109: what each clip shows, when the visual model has indexed them (empty otherwise) */
   shotTags?(assets: MediaAsset[], onProgress?: (text: string) => void): Promise<Map<string, ClipShotTags>>;
   musicGrid(asset: MediaAsset): Promise<Omit<AssemblyMusic, 'assetId' | 'name' | 'src'> | null>;
+  /** One numbered contact sheet per 20 candidates (agent shot selection); null when the server cannot build it */
+  selectionSheet?(items: Array<{ asset: MediaAsset; atSec: number; label: string }>): Promise<{ sheets: Array<{ base64: string; labels: string[] }>; skipped: string[] } | null>;
 }
 
 export interface RunOptions {

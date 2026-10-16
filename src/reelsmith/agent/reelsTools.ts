@@ -28,6 +28,9 @@ export interface ReelsDeps {
 }
 
 /** Items a recipe made carry ids starting with "rs-" (stableId in assembler/rng.ts). */
+/** How many top-scoring candidates go on the contact sheet (2 sheets of 20). */
+const SHEET_CANDIDATES = 40;
+
 export const isRecipeItem = (id: string) => /^rs-/.test(id);
 
 function projectId(ctx: AgentContext): string {
@@ -136,8 +139,8 @@ export async function execReelsTool(name: string, args: Args, ctx: AgentContext,
         selectionKey: built.selectionKey,
         slots: pool.slots,
         brollSlots: pool.brollSlots,
-        candidates: pool.primary.map((clip) => candidateFacts(clip, state.fps, allowFrames)),
-        brollCandidates: pool.broll.map((clip) => candidateFacts(clip, state.fps, allowFrames)),
+        candidates: pool.primary.map((clip) => candidateFacts(clip, state.fps, false)),
+        brollCandidates: pool.broll.map((clip) => candidateFacts(clip, state.fps, false)),
         heuristicPick: heuristic.report.usedAssetIds,
         textInputs: built.recipe.inputs.filter((i) => i.kind === 'text').map((i) => ({
           id: i.id, label: i.label, value: input.texts[i.id] ?? '', ...(i.kind === 'text' && i.maxLength ? { maxLength: i.maxLength } : {}),
@@ -145,8 +148,44 @@ export async function execReelsTool(name: string, args: Args, ctx: AgentContext,
         ...(built.recipe.agentHints ? { recipeHints: built.recipe.agentHints } : {}),
         framesAllowed: allowFrames,
         hint: allowFrames
-          ? 'Use the inspect requests for small contact sheets of uncertain clips, then propose_selection with this selectionKey. Prefer variety and clear action; never choose two from one groupId.'
+          ? 'Call reels_selection_sheet once for numbered contact sheets of the best candidates, then propose_selection with this selectionKey. Do not inspect clips one by one. Prefer variety and clear action; never choose two from one groupId.'
           : 'Frame sharing is off. Choose from names, scores, capture times and transcript excerpts; do not request frames. Call propose_selection with this selectionKey.',
+      };
+    }
+
+    case 'reels_selection_sheet': {
+      const built = await rebuild(ctx, deps);
+      if ('error' in built) return built;
+      if (built.recipe.assembler.aiSelection === 'off') return { error: 'This recipe does not support agent shot selection.' };
+      if (!framesAllowed(built.projectId)) return { error: 'Frame sharing is off. Choose from reels_selection_candidates names and scores instead.' };
+      if (!deps.api.selectionSheet) return { error: 'Contact sheets are not available here. Use reels_selection_candidates.' };
+      const { input } = built.prepared;
+      let heuristic;
+      try { heuristic = assemble(input); } catch (error) { return { error: String(error) }; }
+      if (!heuristic.action) return { error: 'The recipe cannot currently assemble; keep the existing reel.', warnings: heuristic.report.warnings };
+      const pool = selectionPools(input, heuristic);
+      const assets = ctx.getDoc().assets ?? [];
+      const seen = new Set<string>();
+      const ranked = [...pool.primary].sort((a, b) => b.score - a.score || a.assetId.localeCompare(b.assetId)).filter((clip) => {
+        if (clip.groupId) { if (seen.has(clip.groupId)) return false; seen.add(clip.groupId); }
+        return assets.some((asset) => asset.id === clip.assetId);
+      }).slice(0, SHEET_CANDIDATES);
+      const legend = ranked.map((clip, i) => ({
+        n: i + 1, assetId: clip.assetId, name: clip.name, kind: clip.kind, score: +clip.score.toFixed(2),
+        bestStartSec: +((clip.bestStartFrame ?? 0) / state.fps).toFixed(2),
+      }));
+      const made = await deps.api.selectionSheet(ranked.map((clip, i) => ({
+        asset: assets.find((asset) => asset.id === clip.assetId)!,
+        atSec: (clip.bestStartFrame ?? 0) / state.fps + (clip.kind === 'video' ? 0.25 : 0), label: String(i + 1),
+      }))).catch(() => null);
+      if (!made?.sheets.length) return { error: 'Could not build the contact sheet. Use reels_selection_candidates.' };
+      return {
+        __images: made.sheets.map((sheet, i) => ({ frame: i, base64: sheet.base64 })),
+        recipe: built.recipe.name, selectionKey: built.selectionKey, slots: pool.slots,
+        note: `${made.sheets.length} contact sheet image(s), 5 cells per row, left to right then top to bottom; each cell is stamped with its number n from legend (20 per sheet).`,
+        legend, ...(made.skipped.length ? { unreadable: made.skipped } : {}),
+        ...(built.recipe.agentHints ? { recipeHints: built.recipe.agentHints } : {}),
+        hint: `Pick ${pool.slots} cells (assetIds from legend) in shot order, then call propose_selection with this selectionKey. Do not inspect clips one by one.`,
       };
     }
 

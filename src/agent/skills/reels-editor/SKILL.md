@@ -40,7 +40,7 @@ A reel made from the Recipes tab remembers its recipe run.
 ## Choosing the shots ("let my agent choose")
 
 1. `reels_selection_candidates` gives `selectionKey`, primary `slots` and candidates, optional `brollSlots`/`brollCandidates`, and `framesAllowed`. Scores, near-duplicate groups, best windows, capture times and short transcript excerpts help you choose.
-2. When `framesAllowed` is true, use candidate `inspect` requests with `view_asset_frames` for small contact sheets of uncertain clips. When false, choose from text facts without requesting pictures.
+2. When `framesAllowed` is true, call `reels_selection_sheet` once: it returns numbered contact sheets of the best ~40 candidates and a legend of cell number to `assetId`. Judge all cells in that one look; do not inspect clips one by one with `view_asset_frames` (slow). When false, choose from text facts without requesting pictures.
 3. Call `propose_selection` with the exact `selectionKey`, primary `assetIds` in shot order (at most `slots`) and optional `brollAssetIds` (at most `brollSlots`). Never choose two from the same `groupId`. Keep vlog capture-time order; keep talking clips coherent. Refresh candidates when a stale-selection error occurs. Give a one-line rationale.
 4. Report the accepted picks, rejected picks and heuristic fills. If none are usable or the agent is unavailable, the current assembled reel remains usable.
 

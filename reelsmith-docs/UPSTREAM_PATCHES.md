@@ -234,3 +234,7 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 
 ## Longer Claude CLI turns
 - `server/agent-runs/claude-code-turn.ts`: `CLAUDE_CODE_TURN_TIMEOUT_MS` raised from 10 to 30 minutes so a whole-reel turn over many clips is not cut off.
+
+## Contact-sheet shot selection
+- `src/agent/external-tool-policy.ts`: `reels_selection_sheet` (ours) added to the read-only tool names.
+- `src/agent/skills/reels-editor/SKILL.md` (ours), `assets/agent/openchatcut-tool-schemas.json` (regenerated).

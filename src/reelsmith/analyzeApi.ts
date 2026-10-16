@@ -17,6 +17,12 @@ export function createAnalyzeApi(fetcher: typeof fetch = fetch, subjects: typeof
       ]);
       return result?.features ? mergeSubjectFeatures(result.features, geometry, fps) : null;
     },
+    selectionSheet: async (items) => {
+      const result = await post<{ sheets: Array<{ base64: string; labels: string[] }>; skipped: string[] }>('/api/reelsmith/selection-sheet', {
+        items: items.map(({ asset, atSec, label }) => ({ src: asset.src, kind: asset.kind === 'image' ? 'image' : 'video', atSec, label })),
+      });
+      return result?.sheets ? { sheets: result.sheets, skipped: result.skipped ?? [] } : null;
+    },
     musicGrid: async (asset) => (await post<{ grid: never }>('/api/reelsmith/music-grid', { src: asset.src }))?.grid ?? null,
   };
 }

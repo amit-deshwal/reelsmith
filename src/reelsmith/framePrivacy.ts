@@ -26,7 +26,7 @@ export function markPrivacyNoticeSeen(): void {
 }
 
 /** Tools whose whole purpose is to send pictures to the model. */
-export const FRAME_TOOLS = new Set(['view_timeline_frames', 'view_asset_frames']);
+export const FRAME_TOOLS = new Set(['view_timeline_frames', 'view_asset_frames', 'reels_selection_sheet']);
 
 export const FRAMES_OFF_MESSAGE = 'Frame sharing is off for this project (Reelsmith privacy switch "Allow frames to be sent to my agent"). '
   + 'Work from names, durations, scores and transcripts instead, or ask the user to turn frame sharing on.';

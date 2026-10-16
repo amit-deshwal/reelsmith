@@ -3,6 +3,7 @@
 //   POST /api/reelsmith/music-grid     { src }       -> bpm, beats, downbeat, energy, drop, loudest section
 //   POST /api/reelsmith/instagram-finalize { src, presetId } -> validation report; re-encodes in place when needed
 //   POST /api/reelsmith/export-parity  { src, state } -> V8 check: 5 editor stills vs the same frames of the exported file
+//   POST /api/reelsmith/selection-sheet { items: [{ src, kind, atSec, label }] } -> numbered contact sheets for agent shot selection
 //   POST /api/reelsmith/preview        { project, seconds } -> 360x640 muted loop of an assembled recipe
 import { stat } from 'node:fs/promises';
 import type { Plugin } from 'vite';
@@ -13,6 +14,7 @@ import { analyzeBeatsFile } from './beatDetect.ts';
 import { extractClipFeatures } from './clipFeatures.ts';
 import { finalizeForInstagram } from './instagramFinalize.ts';
 import { exportParity } from './exportParity.ts';
+import { buildSelectionSheets } from './selectionSheet.ts';
 import { renderRecipePreview, type PreviewRequest } from './previewRender.ts';
 import { REEL_PRESETS, presetForCanvas } from '../../shared/reelsmith/instagramPreset.ts';
 
@@ -55,6 +57,16 @@ export function reelsmithAnalyzePlugin(): Plugin {
           featureCache.set(key, features);
         }
         return { features: { ...features, assetId: String(body.assetId ?? features.assetId) } };
+      });
+      route('/api/reelsmith/selection-sheet', async (body) => {
+        const raw = Array.isArray(body.items) ? body.items.slice(0, 60) : [];
+        const items = raw.flatMap((entry) => {
+          const e = entry as Record<string, unknown>;
+          const file = localFile(e.src);
+          return typeof file === 'string' ? [{ file, kind: e.kind === 'image' ? 'image' as const : 'video' as const, atSec: Number(e.atSec) || 0, label: String(e.label ?? '').slice(0, 12) }] : [];
+        });
+        if (!items.length) throw new Error('no usable items');
+        return await buildSelectionSheets(items);
       });
       route('/api/reelsmith/preview', async (body) => renderRecipePreview(body as unknown as PreviewRequest));
       route('/api/reelsmith/export-parity', async (body) => {

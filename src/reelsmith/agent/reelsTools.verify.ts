@@ -107,6 +107,34 @@ const freshCand = await execReelsTool('reels_selection_candidates', {}, ctx, dep
 const junk = await execReelsTool('propose_selection', { selectionKey: freshCand.selectionKey, assetIds: 'all of them' }, ctx, deps) as { ok?: boolean; filledByHeuristic: number };
 assert.ok(junk.ok && junk.filledByHeuristic > 0);
 
+// one contact sheet of the best candidates: numbered legend, one call, respects frame sharing, same selectionKey as the candidates
+{
+  const memory = new Map<string, string>();
+  (globalThis as { localStorage?: unknown }).localStorage = { getItem: (k: string) => memory.get(k) ?? null, setItem: (k: string, v: string) => { memory.set(k, v); } };
+  const { setFramesAllowed } = await import('../framePrivacy');
+  const sheetCalls: Array<Array<{ id: string; label: string }>> = [];
+  const sheetApi: AnalyzeApi = { ...api, selectionSheet: async (items) => {
+    sheetCalls.push(items.map((x) => ({ id: x.asset.id, label: x.label })));
+    return { sheets: [{ base64: 'AAAA', labels: items.map((x) => x.label) }], skipped: [] };
+  } };
+  const sheetDeps: ReelsDeps = { ...deps, api: sheetApi };
+  setFramesAllowed('p1', false);
+  assert.match((await execReelsTool('reels_selection_sheet', {}, ctx, sheetDeps) as { error: string }).error, /Frame sharing is off/);
+  assert.equal(sheetCalls.length, 0, 'no frames are cut while sharing is off');
+  setFramesAllowed('p1', true);
+  assert.match((await execReelsTool('reels_selection_sheet', {}, ctx, deps) as { error: string }).error, /not available/, 'no sheet builder: points back to the table');
+  const c = await execReelsTool('reels_selection_candidates', {}, ctx, sheetDeps) as { selectionKey: string; hint: string; candidates: Array<{ inspect?: unknown }> };
+  assert.match(c.hint, /reels_selection_sheet/);
+  assert.ok(c.candidates.every((x) => x.inspect === undefined), 'no per-clip inspect requests any more');
+  const sheet = await execReelsTool('reels_selection_sheet', {}, ctx, sheetDeps) as { __images: unknown[]; selectionKey: string; slots: number; legend: Array<{ n: number; assetId: string; score: number }> };
+  assert.equal(sheetCalls.length, 1, 'a single sheet request');
+  assert.equal(sheet.__images.length, 1);
+  assert.equal(sheet.selectionKey, c.selectionKey, 'same key, so propose_selection accepts it');
+  assert.ok(sheet.legend.length === 14 && sheet.legend.every((x, i) => x.n === i + 1 && (i === 0 || x.score <= sheet.legend[i - 1]!.score)), 'legend numbered, best first');
+  assert.deepEqual(sheetCalls[0]!.map((x) => x.label), sheet.legend.map((x) => String(x.n)), 'cell labels match the legend');
+  setFramesAllowed('p1', false);
+}
+
 // the agent can set the recipe's text in the same rebuild, even with no shot picks
 {
   const c = await execReelsTool('reels_selection_candidates', {}, ctx, deps) as { selectionKey: string; textInputs: Array<{ id: string; value: string; maxLength?: number }> };

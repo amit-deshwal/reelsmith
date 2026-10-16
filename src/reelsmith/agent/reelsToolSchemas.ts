@@ -75,7 +75,17 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
     description: [
       'For "let my agent choose the shots": list the candidate clips of the recipe run as a compact table (assetId, name, seconds,',
       'heuristic score 0..1, near-duplicate groupId, best window start, capture time) plus how many shots (slots) the reel needs.',
-      'Returns selectionKey, framesAllowed, inspect requests for contact sheets, and separate B-roll candidates/slot counts for captioned stories. Look at uncertain clips only if framesAllowed, then call propose_selection with the returned selectionKey.',
+      'Returns selectionKey, framesAllowed and separate B-roll candidates/slot counts for captioned stories. When framesAllowed, call reels_selection_sheet once to see the best candidates in one image, then call propose_selection with the returned selectionKey.',
+    ].join(' '),
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'reels_selection_sheet',
+    description: [
+      'One look at the candidates: returns numbered contact sheet image(s) of the best ~40 candidate clips (one frame each, at its best window)',
+      'plus a legend mapping each cell number to assetId, name and score. Call it once after reels_selection_candidates instead of inspecting clips',
+      'one by one (that is slow), judge every cell in this single look, then call propose_selection with the same selectionKey.',
+      'Needs frame sharing on; otherwise choose from the candidate table.',
     ].join(' '),
     input_schema: { type: 'object', properties: {} },
   },
@@ -101,5 +111,5 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
 ];
 
 export const REELS_TOOL_NAMES = new Set(REELS_TOOL_SCHEMAS.map((t) => t.name));
-export const REELS_READ_TOOL_NAMES = ['reels_lint', 'reels_run_info', 'reels_selection_candidates'] as const;
+export const REELS_READ_TOOL_NAMES = ['reels_lint', 'reels_run_info', 'reels_selection_candidates', 'reels_selection_sheet'] as const;
 export const REELS_EDIT_TOOL_NAMES = ['reels_recut_section', 'reels_snap_cuts_to_beats', 'reels_strobe', 'propose_selection'] as const;
