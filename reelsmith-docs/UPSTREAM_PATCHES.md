@@ -139,3 +139,8 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 - `src/components/timeline/ClipContextMenu.tsx`: "Flip horizontal/vertical" and "Detach audio" items, implemented in `src/reelsmith/clipOps.ts`.
 - `src/editor/keyframeRegistry.ts`: the uniform scale readout shows the magnitude, so a flipped (negative) axis does not read as -100%.
 - `package.json`: `clipOps.verify.ts`, `textStyle.verify.tsx` and `textAnimation.verify.ts` added to `test:reelsmith`.
+
+## Faster `npm test` (255 s -> ~70 s on an M-series Mac)
+- `package.json`: `pretest`/`posttest` renamed `test:pre`/`test:post` (they ran ~210 s of verifies serially around the pool); `npm test` defaults to 8 workers (`TEST_CONCURRENCY` still overrides).
+- `scripts/run-tests.mjs`: runs `test:pre`, `test:serial` and `test:post` in one pool, starts the known-slow segments first and prints the slowest segments.
+- `scripts/verify-gate-coverage.verify.mjs`: reads `test:pre`/`test:post` instead of `pretest`/`posttest`.

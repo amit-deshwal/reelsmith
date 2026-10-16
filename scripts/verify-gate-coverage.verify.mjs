@@ -19,7 +19,7 @@ import yaml from 'js-yaml';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const scripts = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).scripts ?? {};
 
-// `npm test` runs pretest, then run-tests.mjs over the `test:serial` segments, then posttest.
+// `npm test` runs run-tests.mjs over the `test:pre`, `test:serial` and `test:post` segments (one pool).
 const expandNpmRun = (command, depth = 0) => (
   depth > 8 || !command
     ? ''
@@ -28,7 +28,7 @@ const expandNpmRun = (command, depth = 0) => (
     ))
 );
 const gate = expandNpmRun(
-  [scripts.pretest, scripts['test:serial'], scripts.posttest].filter(Boolean).join(' && '),
+  [scripts['test:pre'], scripts['test:serial'], scripts['test:post']].filter(Boolean).join(' && '),
 );
 
 // Longest-first alternation: a plain `ts|tsx` order truncates "Foo.verify.tsx" to
