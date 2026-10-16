@@ -18,6 +18,7 @@
   ],
   "params": [
     { "id": "dropAtS", "type": "seconds", "label": "Drop time in the song (0 = auto)", "default": 0, "min": 0, "max": 600, "step": 0.01 },
+    { "id": "skipMismatchedPhotos", "type": "boolean", "label": "Skip photos that do not fit the frame (landscape photos)", "default": true },
     { "id": "flashOnBars", "type": "boolean", "label": "Flash on bar starts", "default": true },
     { "id": "captionFont", "type": "font", "label": "Caption font", "default": "Inter Tight" }
   ],

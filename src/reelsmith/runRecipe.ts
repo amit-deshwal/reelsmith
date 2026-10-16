@@ -53,6 +53,16 @@ export interface Prepared {
 const timelineKind = (a: MediaAsset): 'video' | 'image' | null => (a.kind === 'video' ? 'video' : a.kind === 'image' ? 'image' : null);
 
 /** Analyse the chosen media and build the assembler input (no timeline changes). */
+/** Recipe param (boolean): leave out photos that do not fit the frame instead of cropping them badly. */
+export const SKIP_MISMATCHED_PARAM = 'skipMismatchedPhotos';
+/** How different a photo's shape may be from the frame's (1 = same, 2 = twice as wide). Phone portrait in 4:5 is 1.42; landscape 4:3 in 4:5 is 1.67. */
+export const MISMATCH_LIMIT = 1.6;
+export function aspectMismatch(width: number | undefined, height: number | undefined, frameAspect: number): number {
+  if (!width || !height || !(frameAspect > 0)) return 1;
+  const ratio = width / height / frameAspect;
+  return ratio >= 1 ? ratio : 1 / ratio;
+}
+
 export async function prepareAssembly(api: AnalyzeApi, o: RunOptions): Promise<Prepared> {
   const shaped = o.ratio ? recipeForRatio(o.recipe, o.ratio) : o.recipe;
   if (!shaped) throw new Error(`${o.recipe.name} is not available in ${o.ratio}`);
@@ -71,6 +81,15 @@ export async function prepareAssembly(api: AnalyzeApi, o: RunOptions): Promise<P
     for (const a of pick(input.id)) {
       const kind = timelineKind(a);
       if (kind) base.push({ assetId: a.id, name: a.name, src: a.src, kind, width: a.width, height: a.height, durationInFrames: a.durationInFrames, input: input.id, ...(a.transcript?.length ? { transcript: a.transcript } : {}) });
+    }
+  }
+  // a photo whose shape is far from the frame (a landscape photo in 4:5) loses its subject when cropped: leave it out
+  const frameAspect = recipe.canvas.width / recipe.canvas.height;
+  if (o.values.params[SKIP_MISMATCHED_PARAM] === true) {
+    const skipped = base.filter((b) => b.kind === 'image' && aspectMismatch(b.width, b.height, frameAspect) > MISMATCH_LIMIT);
+    if (skipped.length) {
+      for (const s of skipped) base.splice(base.indexOf(s), 1);
+      messages.push(`Skipped ${skipped.length} photo${skipped.length === 1 ? '' : 's'} that do not fit the frame without cutting off the subject: ${skipped.slice(0, 6).map((s) => s.name).join(', ')}${skipped.length > 6 ? '…' : ''}.`);
     }
   }
   const features: ClipFeatures[] = [];

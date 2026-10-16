@@ -209,6 +209,8 @@ function overlayActions(
   tag: string, seed: number, warnings: string[],
 ): AtomicAction[] {
   const out: AtomicAction[] = [];
+  // flash accents sit on V2 and overlap long captions; one track cannot hold overlapping items, so captions go above them
+  const textTrack = params.flashOnBars === true ? 'V3' : 'V2';
   const beatFrames = (beat: number, span: SectionSpan) => {
     // linear within the section; beats are even enough for placing a title
     return span.startFrame + Math.round(((span.endFrame - span.startFrame) * beat) / Math.max(1, span.lengthBeats));
@@ -231,7 +233,7 @@ function overlayActions(
       out.push({
         type: 'add',
         item: {
-          id: stableId('rs-t', tag, seed, si, oi), track: 'V2', kind: 'text', name: text.slice(0, 24),
+          id: stableId('rs-t', tag, seed, si, oi), track: textTrack, kind: 'text', name: text.slice(0, 24),
           durationInFrames: Math.max(1, endFrame - startFrame), width: recipe.canvas.width, height: recipe.canvas.height,
           props: {
             text: style.textTransform === 'uppercase' ? text.toUpperCase() : text,
