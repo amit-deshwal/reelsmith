@@ -11,7 +11,7 @@ import { validateSetup, type SetupValues } from './setupForm';
 export interface AnalyzeApi {
   clipFeatures(asset: MediaAsset, fps: number): Promise<ClipFeatures | null>;
   /** RS-109: what each clip shows, when the visual model has indexed them (empty otherwise) */
-  shotTags?(assets: MediaAsset[]): Promise<Map<string, ClipShotTags>>;
+  shotTags?(assets: MediaAsset[], onProgress?: (text: string) => void): Promise<Map<string, ClipShotTags>>;
   musicGrid(asset: MediaAsset): Promise<Omit<AssemblyMusic, 'assetId' | 'name' | 'src'> | null>;
 }
 
@@ -74,8 +74,7 @@ export async function prepareAssembly(api: AnalyzeApi, o: RunOptions): Promise<P
     else messages.push(`${b.name}: could not be analysed, using a neutral score`);
   }
   const minShot = Math.max(1, Math.round(o.fps * (clipInputs[0]?.kind === 'media' ? clipInputs[0].constraints?.minClipSec ?? 0.3 : 0.3)));
-  const tags = await (api.shotTags?.(base.map((b) => byId.get(b.assetId)!)) ?? Promise.resolve(new Map<string, ClipShotTags>())).catch(() => new Map<string, ClipShotTags>());
-  if (tags.size) o.onProgress?.('Reading what the shots show');
+  const tags = await (api.shotTags?.(base.map((b) => byId.get(b.assetId)!), o.onProgress) ?? Promise.resolve(new Map<string, ClipShotTags>())).catch(() => new Map<string, ClipShotTags>());
   const scored = toAssemblyClips(base.map(({ input: _i, ...rest }) => rest), features, minShot);
   // clips without features keep a neutral score so they are still usable
   const clips = scored.map((c) => {
