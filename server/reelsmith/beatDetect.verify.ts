@@ -22,10 +22,10 @@ try {
   const gaps = a!.beatTimesSec.slice(1).map((t, i) => t - a!.beatTimesSec[i]!);
   assert.ok(gaps.every((g) => Math.abs(g - 60 / a!.bpm) < 1e-6));
   // the drop at 8 s is found within a bar
-  const drop = detectDropBeat(a!.energyPerBeat, 4);
+  const drop = detectDropBeat(a!.energyPerBeat, 4, 2, a!.downbeatIndex);
   assert.ok(drop !== null, 'drop found');
   const dropSec = a!.beatTimesSec[drop!]!;
-  assert.ok(Math.abs(dropSec - 8) <= 2.1, `drop at ${dropSec}`);
+  assert.ok(Math.abs(dropSec - 8) <= 2.1, `drop at ${dropSec}`); // bar starts only, so within one bar
   assert.ok(a!.loudestStartSec >= 6, 'loudest section is after the quiet intro');
   // silence => no tempo, no crash
   const s = join(dir, 'silence.wav');

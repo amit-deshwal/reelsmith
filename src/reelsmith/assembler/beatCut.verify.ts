@@ -19,18 +19,23 @@ const clips = (n: number): AssemblyClip[] => Array.from({ length: n }, (_, i) =>
 const energy = Array.from({ length: 60 }, (_, i) => (i < 24 ? 0.2 : 0.9));
 assert.equal(detectDropBeat(energy, 4), 24);
 assert.equal(detectDropBeat(Array(60).fill(0.5), 4), null, 'flat energy has no drop');
+// bars that start at beat 3 (downbeat index): a step at beat 31 is a bar start, and is reported as such
+const shifted = Array.from({ length: 64 }, (_, i) => (i < 31 ? 0.05 : 0.9));
+assert.equal(detectDropBeat(shifted, 4, 2, 3), 31, 'drop follows the downbeat offset');
 
 const params = { dropAtS: 0, flashOnBars: true, beforeDrop: 'everyBar' };
 const dropSec = 0.25 + 24 * 0.5; // beat 24 of the song
 const res = assemble({ recipe, clips: clips(80), music: { ...music, dropSec }, texts: {}, params, seed: 3 });
 assert.ok(res.action);
 const v1 = res.action!.actions.filter((a: any) => a.item?.track === 'V1') as any[];
-const dropFrame = 24 * 15;
+// the reel starts one build (16 beats) before the drop, so the drop lands at frame 16 beats in
+const dropFrame = 16 * 15;
 const before = v1.filter((a) => a.startFrame < dropFrame);
 const after = v1.filter((a) => a.startFrame >= dropFrame);
 assert.ok(before.every((a) => a.item.durationInFrames === 60), 'build: one cut per bar');
 assert.ok(after.every((a) => a.item.durationInFrames === 15), 'drop: one cut per beat');
-assert.equal(before.length, 6); assert.equal(after.length, 4);
+assert.equal(before.length, 4); assert.equal(after.length, 12);
+assert.equal(res.report.musicStartSec, 0.25 + 8 * 0.5, 'music starts 16 beats before the drop');
 const flashes = res.action!.actions.filter((a: any) => a.item?.kind === 'solid') as any[];
 assert.ok(flashes.length > 0 && flashes.every((f) => f.startFrame >= dropFrame && f.startFrame % 60 === 0), 'flash on bar starts in the drop only');
 assert.equal(assemble({ recipe, clips: clips(80), music: { ...music, dropSec }, texts: {}, params: { ...params, flashOnBars: false }, seed: 3 })

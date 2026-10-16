@@ -67,7 +67,7 @@ export function reelsmithAnalyzePlugin(): Plugin {
         if (typeof file !== 'string') throw new Error(file.error);
         const a = await analyzeBeatsFile(file);
         if (!a) return { grid: null };
-        const dropBeat = detectDropBeat(a.energyPerBeat, 4);
+        const dropBeat = detectDropBeat(a.energyPerBeat, 4, 2, a.downbeatIndex);
         return {
           grid: {
             bpm: a.bpm, beatTimesSec: a.beatTimesSec, beatsPerBar: 4, downbeatIndex: a.downbeatIndex,

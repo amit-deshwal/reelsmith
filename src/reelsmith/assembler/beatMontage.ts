@@ -23,6 +23,14 @@ export function musicStartSec(recipe: Recipe, music: AssemblyMusic, params: Asse
   const policy = recipe.music?.startPolicy ?? 'fromStart';
   const downbeat = music.beatTimesSec[music.downbeatIndex] ?? music.beatTimesSec[0] ?? 0;
   if (policy === 'firstDownbeat') return downbeat;
+  // RS-203: a build+drop recipe with a known drop starts one build-length before it, so the build is actually heard
+  const build = recipe.structure.find((x) => x.section === 'build');
+  const dropAt = Number(params.dropAtS ?? 0) > 0 ? Number(params.dropAtS) : music.dropSec;
+  if (policy === 'loudestSection' && build?.lengthBeats && dropAt !== undefined && recipe.structure.some((x) => x.section === 'drop')) {
+    const times = music.beatTimesSec;
+    const dropIdx = times.reduce((best, b, i) => (Math.abs(b - dropAt) < Math.abs(times[best]! - dropAt) ? i : best), 0);
+    return times[Math.max(0, dropIdx - build.lengthBeats)] ?? 0;
+  }
   if (policy === 'loudestSection') {
     const t = music.loudestStartSec ?? downbeat;
     // snap to the nearest beat so the first cut lands on one

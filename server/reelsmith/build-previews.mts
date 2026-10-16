@@ -87,7 +87,7 @@ const api: AnalyzeApi = {
   musicGrid: async (a) => {
     const g = await analyzeBeatsFile(byFile(a));
     if (!g) return null;
-    const drop = detectDropBeat(g.energyPerBeat, 4);
+    const drop = detectDropBeat(g.energyPerBeat, 4, 2, g.downbeatIndex);
     return { durationSec: g.durationSec, beatTimesSec: g.beatTimesSec, beatsPerBar: 4, downbeatIndex: g.downbeatIndex, loudestStartSec: g.loudestStartSec, dropSec: drop === null ? undefined : g.beatTimesSec[drop] };
   },
 };
