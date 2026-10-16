@@ -2,12 +2,13 @@ import assert from 'node:assert/strict';
 import type { MediaAsset } from '../editor/types';
 import { matchRelinkFile } from './mediaRelinkMatch';
 
-const file = (name: string, type = ''): File => new File([new Uint8Array([1])], name, { type });
+const file = (name: string, type = '', size = 1): File => new File([new Uint8Array(size)], name, { type });
 
-const asset = (name: string, extra: Partial<{ sourceFilename: string; kind: string }> = {}) => ({
+const asset = (name: string, extra: Partial<{ sourceFilename: string; kind: string; sourceSize: number }> = {}) => ({
   name,
   sourceFilename: extra.sourceFilename,
   kind: (extra.kind ?? 'image') as MediaAsset['kind'],
+  sourceSize: extra.sourceSize,
 });
 
 async function main(): Promise<void> {
@@ -49,6 +50,23 @@ async function main(): Promise<void> {
   assert.equal(
     matchRelinkFile(asset('a.png'), [file('a.png'), file('a.jpg')])?.name,
     'a.png',
+  );
+
+  // 7. Recorded source size gates candidates: a same-named file with different bytes is not the moved media.
+  assert.equal(matchRelinkFile(asset('a.png', { sourceSize: 10 }), [file('a.png', '', 11)]), null);
+  assert.equal(matchRelinkFile(asset('a.png', { sourceSize: 10 }), [file('a.png', '', 10)])?.size, 10);
+  assert.equal(
+    matchRelinkFile(asset('舞蹈.mp4', { kind: 'video', sourceSize: 20 }), [file('舞蹈.mov', '', 19)]),
+    null,
+  );
+  assert.equal(
+    matchRelinkFile(asset('舞蹈.mp4', { kind: 'video', sourceSize: 20 }), [file('舞蹈.mov', '', 19), file('舞蹈.mkv', '', 20)])?.name,
+    '舞蹈.mkv',
+  );
+  // A same-named file of another size loses to a same-size stem match.
+  assert.equal(
+    matchRelinkFile(asset('b.png', { sourceSize: 5 }), [file('b.jpg', '', 5), file('b.png', '', 7)])?.name,
+    'b.jpg',
   );
 
   console.log('mediaRelinkMatch.verify: all assertions passed');
