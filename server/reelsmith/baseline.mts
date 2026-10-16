@@ -68,7 +68,10 @@ const byFile = (a: MediaAsset) => join(media, a.src.replace('/media/uploads/', '
 
 // --- analysis (what Assemble does) --------------------------------------------------------------
 const feat: Record<string, number> = {};
+const tagsArg = argv.find((x) => x.startsWith('--tags='))?.slice(7);
 const api: AnalyzeApi = {
+  // RS-109: shot tags computed beforehand (scripts/tag-clips.mts), keyed by file name
+  ...(tagsArg ? { shotTags: async (as: MediaAsset[]) => { const j = JSON.parse(readFileSync(tagsArg, 'utf8')); return new Map(as.filter((a) => j[a.name!]).map((a) => [a.id, j[a.name!]] as const)); } } : {}),
   clipFeatures: async (a, fps) => { const s = Date.now(); const r = await extractClipFeatures(byFile(a), a.id, fps, { maxSec: 90 }); feat[a.name ?? a.id] = Date.now() - s; return r; },
   musicGrid: async (a) => {
     const g = await analyzeBeatsFile(byFile(a));
