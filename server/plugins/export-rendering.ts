@@ -1,3 +1,4 @@
+import { skipAacPriming } from '../reelsmith/audioPriming.ts';
 import { dirname } from 'node:path';
 import { mkdir, rename, unlink } from 'node:fs/promises';
 import {
@@ -80,6 +81,7 @@ export async function renderExportPlan(
       signal,
     }) as Partial<H264EncoderOutcome>;
     signal?.throwIfAborted();
+    if (plan.media.ext === 'mp4') await skipAacPriming(filepath); // Reelsmith RS-304
     let outcome = rendered.encoder ? { encoder: rendered.encoder, ...(rendered.encoderFallbackReason ? { encoderFallbackReason: rendered.encoderFallbackReason } : {}) } : undefined;
     if (retimed && plan.retimeFps) {
       failureStage = 'encode';

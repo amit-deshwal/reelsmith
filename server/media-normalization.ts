@@ -139,7 +139,20 @@ export interface ProbeMeta {
   nominalFrameRate?: number;
   frameCount?: number;
   variableFrameRate: boolean;
+  /** HLG or PQ transfer: the file is converted to SDR Rec.709 (Reelsmith RS-304). */
+  hdr?: boolean;
 }
+
+/** HLG (arib-std-b67) and PQ (smpte2084) footage, e.g. iPhone HDR video. */
+export function isHdrTransfer(value: unknown): boolean {
+  return value === 'arib-std-b67' || value === 'smpte2084';
+}
+
+/** HDR to SDR Rec.709 8-bit, so the preview and the export decode the same pixels (Reelsmith RS-304). */
+export const HDR_TO_SDR_FILTERS = [
+  'zscale=t=linear:npl=100', 'format=gbrpf32le', 'zscale=p=bt709', 'tonemap=tonemap=hable:desat=0',
+  'zscale=t=bt709:m=bt709:r=tv', 'format=yuv420p',
+];
 
 export function parseFrameRate(value: unknown): number | undefined {
   if (typeof value === 'number') {
@@ -164,6 +177,16 @@ export function isVariableFrameRate(avgFrameRate?: number, nominalFrameRate?: nu
   return Math.abs(avgFrameRate - nominalFrameRate) > Math.max(0.005, reference * 0.0005);
 }
 
+const STANDARD_RATES = [23.976, 24, 25, 29.97, 30, 50, 59.94, 60];
+
+/** Reelsmith RS-304: a variable-rate clip's average (say 31.75) puts its frames between timeline frames. Snap to the
+ *  nearest standard rate when within 8%, so a 30 fps timeline gets frames exactly on its grid. */
+export function snapToStandardRate(fps: number): number {
+  let best = STANDARD_RATES[0]!;
+  for (const r of STANDARD_RATES) if (Math.abs(r - fps) < Math.abs(best - fps)) best = r;
+  return Math.abs(best - fps) / best <= 0.08 ? best : fps;
+}
+
 export function resolveTargetFps(
   requested: unknown,
   avgFrameRate?: number,
@@ -173,7 +196,7 @@ export function resolveTargetFps(
   const explicit = Number(requested);
   if (allowRequested && Number.isFinite(explicit) && explicit >= 1 && explicit <= 120) return explicit;
   const detected = avgFrameRate ?? nominalFrameRate;
-  if (detected && Number.isFinite(detected)) return Math.max(1, Math.min(120, detected));
+  if (detected && Number.isFinite(detected)) return snapToStandardRate(Math.max(1, Math.min(120, detected)));
   return 30;
 }
 
@@ -258,6 +281,7 @@ export async function probeVideo(path: string, signal?: AbortSignal): Promise<Pr
     nominalFrameRate,
     frameCount,
     variableFrameRate: isVariableFrameRate(avgFrameRate, nominalFrameRate),
+    hdr: isHdrTransfer(video.color_transfer),
   };
 }
 
@@ -276,12 +300,12 @@ export interface NormalizeStreamPlan {
 }
 
 export function resolveStreamPlan(
-  meta: Pick<ProbeMeta, 'videoCodec' | 'audioCodec' | 'hasAudio'>,
+  meta: Pick<ProbeMeta, 'videoCodec' | 'audioCodec' | 'hasAudio'> & { hdr?: boolean },
   optimizeOutput: boolean,
   convertToCfr: boolean,
 ): NormalizeStreamPlan {
   return {
-    transcodeVideo: optimizeOutput || convertToCfr || !compatibleVideoCodec(meta.videoCodec),
+    transcodeVideo: optimizeOutput || convertToCfr || meta.hdr === true || !compatibleVideoCodec(meta.videoCodec),
     transcodeAudio: meta.hasAudio && (optimizeOutput || !compatibleAudioCodec(meta.audioCodec)),
   };
 }
@@ -317,6 +341,7 @@ export function normalizeReason(
     const nominal = meta.nominalFrameRate?.toFixed(3) ?? 'unknown';
     return `variable frame rate detected (avg ${avg}, nominal ${nominal})`;
   }
+  if (meta.hdr) return 'HDR (HLG/PQ) footage converted to SDR Rec.709';
   if (!compatibleVideoCodec(meta.videoCodec)) {
     return `video codec ${meta.videoCodec || 'unknown'} is not browser-aligned`;
   }
@@ -342,6 +367,7 @@ interface TranscodeVideoOptions {
   readonly targetBitrate: number;
   readonly targetFps: number;
   readonly convertToCfr: boolean;
+  readonly hdr?: boolean;
 }
 
 async function encodeTranscodedVideo(
@@ -354,6 +380,7 @@ async function encodeTranscodedVideo(
   signal?: AbortSignal,
 ): Promise<void> {
   const filters = [`scale=${options.targetW}:${options.targetH}:flags=lanczos`];
+  if (options.hdr) filters.push(...HDR_TO_SDR_FILTERS);
   if (options.convertToCfr) {
     const fps = String(Math.round(options.targetFps * 1000) / 1000);
     filters.push(`fps=fps=${fps}:start_time=0:round=near`);
@@ -375,6 +402,7 @@ async function encodeTranscodedVideo(
         ...(proxyQuality ? { hardwareQuality: 23, qualityMode: proxyQuality } : {}),
       }),
       '-profile:v', 'high',
+      ...(options.hdr ? ['-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-color_range', 'tv'] : []),
       ...(options.convertToCfr ? ['-fps_mode', 'cfr'] : []),
       ...audioArgs, ...outputArgs,
     ];
@@ -425,12 +453,15 @@ export async function encodeNormalized(
     await run(ffmpeg, [...commonArgs, '-c:v', 'copy', ...audioArgs, ...outputArgs], FFMPEG_TIMEOUT_MS, signal);
     return;
   }
+  // Reelsmith RS-304: with a re-encoded video track, make_zero shifts the video by the encoder's B-frame delay but not
+  // the copied audio's priming, putting them 20-45 ms apart. Leaving the flag out keeps both streams on the source clock.
+  const transcodeOutputArgs = ['-movflags', '+faststart', outputPath];
   await encodeTranscodedVideo(
     ffmpeg,
     commonArgs,
     audioArgs,
-    outputArgs,
-    { targetW, targetH, targetBitrate, targetFps, convertToCfr },
+    transcodeOutputArgs,
+    { targetW, targetH, targetBitrate, targetFps, convertToCfr, hdr: meta.hdr === true },
     outputPath,
     signal,
   );

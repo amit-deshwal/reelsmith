@@ -177,3 +177,8 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 - `src/editor/TimelineComposition.tsx`: `customFrag`/`customUniforms` are also passed for `window` (one condition).
 - `src/components/inspector/InspectorMediaControls.tsx`: renders `WindowControls` for `window`; `TransitionControl` takes an optional `canvasSize` (one import, one prop, one block).
 - `src/components/inspector/InspectorContent.tsx`: passes `canvasSize` to `TransitionControl`.
+
+## HDR, VFR and audio sync (RS-304)
+- `server/media-normalization.ts`: probe sets `hdr` for `arib-std-b67`/`smpte2084`; `normalizeReason` and `resolveStreamPlan` treat it as a reason to transcode; the transcode adds `HDR_TO_SDR_FILTERS` (zscale + hable tone-map, 8-bit Rec.709) and bt709 tags. The transcode path no longer passes `-avoid_negative_ts make_zero` (it put re-encoded video 20-45 ms off the copied audio). `resolveTargetFps` snaps a detected rate to the nearest standard rate within 8% (`snapToStandardRate`).
+- `server/plugins/export-rendering.ts`: `renderExportPlan` calls `skipAacPriming(filepath)` (ours, `server/reelsmith/audioPriming.ts`) right after the Remotion render of an mp4, so the exported audio is no longer 42.7 ms late.
+

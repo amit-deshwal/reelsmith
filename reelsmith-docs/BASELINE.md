@@ -34,5 +34,5 @@ All three reels pass V1-V9, including V8 (SSIM ≥ 0.975 against the editor's ow
 
 ## Still open
 - Preview smoothness and a hand-edited 30 s reel in the GUI.
-- An HDR (HLG) clip and a clearly variable-frame-rate clip.
+- A real HDR (HLG) clip and a real variable-frame-rate clip (RS-304 used synthetic fixtures; the 20-clip set has neither).
 - Export time on a 3-layer timeline at 60 s (RS-803).
