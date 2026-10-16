@@ -38,7 +38,7 @@ export interface CaptionStyle {
   boxShadow?: string;
   /** Dominant box-shadow blur radius. Zero disables the shadow. */
   boxShadowSize?: number;
-  textTransform?: 'none' | 'uppercase';
+  textTransform?: 'none' | 'uppercase' | 'lowercase';
   displayMode?: 'stacked' | 'inline';
   wordsPerPage?: number;
   /** Continuous rendering of the entire sentence: one page is spelled into one text (no word gaps, no word-by-word highlighting), and the background wraps the entire line */
