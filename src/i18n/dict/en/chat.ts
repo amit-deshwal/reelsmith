@@ -373,6 +373,8 @@ export default {
   '工程后来已有其他修改，继续回滚会覆盖后续修改。确定继续吗？': 'The project has newer edits. Rolling back will overwrite them. Continue?',
   '取消创作模式': 'Exit creative mode',
   '回滚此会话': 'Roll back this session',
+  '恢复到此轮之前': 'Restore to before this turn',
+  '回退此轮': 'Revert this turn',
   '当前创作工作流，随消息发送': 'Current creative workflow, sent with the message',
   '确认': 'Confirm',
   // ── Agent 运行检查器（AgentRunInspector）新增分组/tooltip/标题说明 ──

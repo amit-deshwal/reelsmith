@@ -120,12 +120,26 @@ function lastUserTurn(messages: readonly DisplayMessage[]): number {
 }
 
 function MessageEntries({ controller }: { controller: ChatPanelController }) {
-  const { agent, composer, props, visibleMessages, visibleFrom } = controller;
+  const { agent, composer, props, t, visibleMessages, visibleFrom } = controller;
   // Retry re-runs the turn instead of asking again after it: the failed attempt is rewound
   // out of both histories first, so an error or a half-finished tool call cannot steer the
   // second try. Only the latest turn offers it — rewinding an earlier one would discard
   // every turn after it as well.
   const lastUser = lastUserTurn(agent.messages);
+  let lastAssistant = -1;
+  for (let index = agent.messages.length - 1; index > lastUser; index -= 1) {
+    if (agent.messages[index]!.role === 'assistant') { lastAssistant = index; break; }
+  }
+  const lastUserSentAt = lastUser >= 0 ? agent.messages[lastUser]!.sentAt : undefined;
+  const turnChange = !agent.running && lastAssistant >= 0 && lastUserSentAt !== undefined
+    ? [...agent.changeLog].reverse().find((session) => session.createdAt >= lastUserSentAt && session.rollbackable)
+    : undefined;
+  const revertTurn = turnChange ? () => {
+    if (agent.running) return;
+    const current = agent.canRollbackChangeSession(turnChange.id);
+    if (!current && !window.confirm(t('工程后来已有其他修改，继续回滚会覆盖后续修改。确定继续吗？'))) return;
+    agent.rollbackChangeSession(turnChange.id, !current);
+  } : null;
   const onRetry = (index: number, retry: NonNullable<DisplayMessage['retry']>) => {
     if (agent.running) return;
     agent.rewindTurn(index);
@@ -146,6 +160,7 @@ function MessageEntries({ controller }: { controller: ChatPanelController }) {
         onRetry={(retry) => onRetry(item.index, retry)}
         onContinue={item.msg.role === 'continue' && item.index === agent.messages.length - 1 && !agent.running
           ? () => { void agent.send('继续'); } : null}
+        onRevertTurn={item.index === lastAssistant ? revertTurn : null}
         onWidgetSubmit={(answer) => {
           if (!agent.running) void agent.send(answer, { askOnly: composer.mode === 'ask' });
         }} />

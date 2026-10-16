@@ -162,7 +162,7 @@ function setupLocalServerRun(
   prepareServerRunTransport(environment.refs, abort);
   environment.updateMessages((current) => [
     ...current,
-    { role: 'user', text: trimmed, retry: createAgentRetry(trimmed, sendOptions) },
+    { role: 'user', text: trimmed, sentAt: Date.now(), retry: createAgentRetry(trimmed, sendOptions) },
     { role: 'assistant', text: '' },
   ]);
   return {
