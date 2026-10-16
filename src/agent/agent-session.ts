@@ -16,6 +16,8 @@ export interface DisplayMessage {
   /** `note`: a muted system line (e.g. which tool calls failed in a completed run); never sent to the model. */
   role: 'user' | 'assistant' | 'tool' | 'error' | 'continue' | 'note';
   text: string;
+  /** Client timestamp for associating this request with its project rollback snapshot. */
+  sentAt?: number;
   thinking?: string;
   retry?: AgentRetry;
   tool?: { name: string; args: unknown; result: unknown };

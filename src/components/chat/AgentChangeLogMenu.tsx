@@ -77,7 +77,7 @@ export function AgentChangeLogMenu({
                       title={current ? t('恢复到这次 Agent 修改前') : t('工程后来已有其他修改')}
                       onClick={() => requestRollback(session)}
                       style={{ ...rollbackButton, opacity: disabled ? 0.45 : 1, cursor: disabled ? 'default' : 'pointer' }}>
-                      {t('回滚此会话')}
+                      {t('恢复到此轮之前')}
                     </button>
                   </div>
                 );

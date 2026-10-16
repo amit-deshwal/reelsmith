@@ -59,6 +59,8 @@ interface ChatMessageProps {
   widgetSubmitted?: boolean;
   /** maxTurns pauses the card "continue"; only the last continue card can be clicked (the old card is read-only)*/
   onContinue?: (() => void) | null;
+  /** Revert project edits made by this completed assistant turn. */
+  onRevertTurn?: (() => void) | null;
   /** Open settings, optionally on a specific vendor page (used by the missing-model-pack action button). */
   onOpenSettings?: ((route?: string) => void) | null;
 }
@@ -73,7 +75,7 @@ function missingPacksSettingsRoute(result: unknown): string | undefined {
   return typeof route === 'string' ? route : undefined;
 }
 
-export function ChatMessage({ msg, streaming, running = false, retry, onRetry, onWidgetSubmit, widgetSubmitted, onContinue, onOpenSettings }: ChatMessageProps) {
+export function ChatMessage({ msg, streaming, running = false, retry, onRetry, onWidgetSubmit, widgetSubmitted, onContinue, onRevertTurn, onOpenSettings }: ChatMessageProps) {
   const t = useT();
   const [copied, setCopied] = useState(false);
   const copy = () => {
@@ -177,6 +179,12 @@ overflowWrap:anywhere breaks long tokens - long errors/summaries are wrapped in 
         ) : (
           seg.text ? <Markdown key={i} text={seg.text} /> : null
         ),
+      )}
+      {onRevertTurn && !running && (
+        <button type="button" onClick={onRevertTurn}
+          style={{ marginTop: 5, border: 'none', background: 'transparent', color: theme.textDim, borderRadius: 6, padding: '3px 6px', fontSize: 12, cursor: 'pointer' }}>
+          ↶ {t('回退此轮')}
+        </button>
       )}
       {!streaming && segments.some((segment) => segment.type === 'text' && !!segment.text.trim()) && (
         <div style={{ marginTop: 6, marginLeft: -5 }}>
