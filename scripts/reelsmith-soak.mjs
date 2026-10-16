@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Reelsmith project-library soak. Runs real CLI project create/open/edit/render
 // operations against a disposable data directory, then removes the fixture.
-import { spawn } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -19,8 +19,9 @@ const dataDir = join(root, 'library');
 const exportsDir = join(root, 'exports');
 const deadline = Date.now() + hours * 60 * 60 * 1000;
 const cycles = [];
-let baselineRss = null;
-let peakRss = 0;
+let baselineRss = null; // peak child RSS of the first round; later rounds are compared to it
+let peakRss = 0; // highest child RSS seen in any command
+let childPeakRss = 0; // highest child RSS seen since the current cycle started
 let completed = 0;
 let stoppedBySignal = false;
 
@@ -56,15 +57,16 @@ function positiveInt(value, flag) {
   return number;
 }
 
-function rssBytes() {
-  return process.memoryUsage().rss;
-}
-
-async function sampleRss() {
-  const rss = rssBytes();
-  peakRss = Math.max(peakRss, rss);
-  if (baselineRss === null) baselineRss = rss;
-  return rss;
+// The runner itself only spawns `occ` commands, so its own RSS says nothing about the app.
+// Each command is a fresh process; sampling its RSS while it runs gives the app's footprint.
+function sampleChildRss(pid) {
+  return new Promise((resolveSample) => {
+    execFile('ps', ['-o', 'rss=', '-p', String(pid)], (error, stdout) => {
+      const kb = Number(String(stdout).trim());
+      if (!error && kb > 0) childPeakRss = Math.max(childPeakRss, kb * 1024);
+      resolveSample();
+    });
+  });
 }
 
 function runCli(cliArgs) {
@@ -76,10 +78,12 @@ function runCli(cliArgs) {
     });
     let stdout = '';
     let stderr = '';
+    const sampler = setInterval(() => { void sampleChildRss(child.pid); }, 50);
     child.stdout.setEncoding('utf8').on('data', (chunk) => { stdout += chunk; });
     child.stderr.setEncoding('utf8').on('data', (chunk) => { stderr += chunk; });
-    child.once('error', reject);
+    child.once('error', (error) => { clearInterval(sampler); reject(error); });
     child.once('close', (code, signal) => {
+      clearInterval(sampler);
       if (code !== 0) reject(new Error(`occ ${cliArgs.join(' ')} failed (${signal ?? code}): ${stderr.trim() || stdout.trim()}`));
       else resolvePromise(stdout.trim());
     });
@@ -103,6 +107,7 @@ async function prepareProjects() {
 }
 
 async function cycle(project, index, round) {
+  childPeakRss = 0;
   // Opening by reading the persisted document ensures each iteration starts at
   // the storage boundary rather than retaining a project in the driver.
   const opened = await jsonCommand('project', 'show', project.id, '--doc');
@@ -116,13 +121,14 @@ async function cycle(project, index, round) {
   await runCli(['render', '--project', project.id, '--out', output, '--to', '1s', '--resolution', '480p', '--quiet']);
   await rm(output, { force: true });
   completed += 1;
-  const rss = await sampleRss();
-  return { projectId: project.id, rssBytes: rss, ratio };
+  const rss = childPeakRss;
+  peakRss = Math.max(peakRss, rss);
+  return { projectId: project.id, peakChildRssBytes: rss, ratio };
 }
 
 async function writeReport(status, failure) {
-  const finalRss = rssBytes();
-  const referenceRss = baselineRss ?? finalRss;
+  const lastSample = cycles.at(-1)?.samples.at(-1)?.peakChildRssBytes ?? null;
+  const referenceRss = baselineRss ?? lastSample ?? 0;
   const growthPercent = referenceRss > 0 ? ((peakRss - referenceRss) / referenceRss) * 100 : 0;
   const report = {
     version: 1,
@@ -133,7 +139,7 @@ async function writeReport(status, failure) {
     projectCount: count,
     completedProjectCycles: completed,
     rounds: cycles.length,
-    rss: { scope: 'soak runner process only', baselineBytes: baselineRss, peakBytes: peakRss, finalBytes: finalRss, peakGrowthPercent: Number(growthPercent.toFixed(2)), limitPercent },
+    rss: { scope: 'occ child processes (peak RSS per command, sampled every 50 ms)', baselineBytes: baselineRss, peakBytes: peakRss, finalBytes: lastSample, peakGrowthPercent: Number(growthPercent.toFixed(2)), limitPercent },
     rssLimitPassed: baselineRss === null ? null : growthPercent <= limitPercent,
     cycles,
     ...(failure ? { error: failure } : {}),
@@ -148,7 +154,6 @@ let failure;
 let status = 'completed';
 try {
   const projects = await prepareProjects();
-  await sampleRss(); // Establish the runner baseline after project setup.
   let round = 0;
   do {
     const roundStartedAt = Date.now();
@@ -159,7 +164,9 @@ try {
     }
     if (samples.length) {
       cycles.push({ round: round + 1, startedAt: new Date(roundStartedAt).toISOString(), durationMs: Date.now() - roundStartedAt, samples });
-      console.log(`round ${round + 1}: ${samples.length}/${count} projects opened, edited and exported; RSS ${(rssBytes() / 1024 / 1024).toFixed(1)} MiB`);
+      const roundPeak = Math.max(...samples.map((sample) => sample.peakChildRssBytes));
+      if (baselineRss === null) baselineRss = roundPeak;
+      console.log(`round ${round + 1}: ${samples.length}/${count} projects opened, edited and exported; peak child RSS ${(roundPeak / 1024 / 1024).toFixed(1)} MiB`);
     }
     round += 1;
   } while (!stoppedBySignal && round < rounds && Date.now() < deadline);
