@@ -37,8 +37,14 @@ No analytics/telemetry SDKs, no Google Fonts or CDN `<link>`/`<script>` in `inde
 `report_user_friction` only writes to local `localStorage`.
 Native workers set `env.allowRemoteModels = false`.
 
-## Left to verify at runtime
-The static scan can't prove absence for the browser. Before ticking RS-003, run a session in Chrome with DevTools → Network
-(filter "not localhost") through import → edit → export and confirm the list is empty. Log the result below.
+## Runtime check (2026-10-16)
+`src/reelsmith/network-runtime.verify.ts` used Chromium's `Network.requestWillBeSent` events against the
+live local editor at `localhost:5199`, so requests blocked by CORS are included. With no provider keys
+used, a generated 2 s H.264/AAC fixture was imported into a new project, placed on its timeline, and
+exported. The export completed (60/60 frames, automatic quality check: 0 errors, 0 warnings).
+The trace contained **zero non-local browser requests** from page load through export completion.
+A separate run against an existing 14.5 s project also exported with zero non-local browser requests.
 
-- [ ] Runtime check done on: (date) ______
+Scope: this is a browser request trace combined with the static server call-site audit above; it does
+not packet-capture child processes. The fixture run saw local `/api/waveform` and `/api/filmstrip`
+HTTP 500 responses; those affected timeline decoration, not export or the network verdict.
