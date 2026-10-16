@@ -216,3 +216,4 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 ## Crop focus per ratio (RS-903)
 - `src/editor/TimelineMediaLayer.tsx`, `src/gl/ClipFx.tsx`: `objectPosition` / `drawFit` read `rsCropX`/`rsCropY` from clip props (ours, `cropFocus.ts`). Recipes and layout cells no longer write these props; the fill now uses a transform. Remove or keep as a later option.
 - `src/reelsmith/layoutFill.ts` and `src/reelsmith/runRecipe.ts` are ours; `src/reelsmith/assembler/scoring.ts` and `subjectFeatures.ts` are ours too.
+- RS-1005: `src/reelsmith/ui/RecipeHome.tsx` is ours; no upstream file changed. `package.json` `test:reelsmith` gains `shared/reelsmith/trendCache.verify.ts`.
