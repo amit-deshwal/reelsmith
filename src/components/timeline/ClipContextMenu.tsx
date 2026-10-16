@@ -1,3 +1,5 @@
+import { showAppToast } from '../../ui/appToast';
+import { canSubjectReframe, centreFillActions, subjectReframeActions } from '../../reelsmith/subjectReframe';
 import { canDetachAudio, detachAudioActions, flipActions, isFlipped } from '../../reelsmith/clipOps';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { theme, themeAlpha } from '../../theme';
@@ -250,6 +252,8 @@ export function ClipContextMenu({ item, transitions, x, y, playhead, commands, t
       <Item label={t('切分')} icon="scissors" shortcut="C" disabled={!inside} onClick={run(() => commands.splitItem(item.id, playhead))} />
       {isVisual && <Item label={isFlipped(item, 'horizontal') ? 'Unflip horizontal' : 'Flip horizontal'} icon="swap" onClick={run(() => commands.batch(flipActions(item, 'horizontal'), 'Flip horizontal'))} />}
       {isVisual && <Item label={isFlipped(item, 'vertical') ? 'Unflip vertical' : 'Flip vertical'} icon="swap" onClick={run(() => commands.batch(flipActions(item, 'vertical'), 'Flip vertical'))} />}
+      {item.kind === 'video' && <Item label="Fill canvas (centre)" icon="aspect" disabled={!canSubjectReframe(item)} onClick={run(() => { void centreFillActions(item, { width: timeline.width, height: timeline.height }).then((actions) => commands.batch(actions, 'Fill canvas')).catch((e: unknown) => showAppToast(e instanceof Error ? e.message : 'Could not resize this clip', { error: true })); })} />}
+      {item.kind === 'video' && <Item label="Reframe to subject" icon="aspect" disabled={!canSubjectReframe(item)} onClick={run(() => { void subjectReframeActions(item, { width: timeline.width, height: timeline.height, fps: timeline.fps }).then((actions) => commands.batch(actions, 'Reframe to subject')).catch((e: unknown) => showAppToast(e instanceof Error ? e.message : 'Could not reframe this clip', { error: true })); })} />}
       {item.kind === 'video' && <Item label="Detach audio" icon="volume" disabled={!canDetachAudio(item)} onClick={run(() => { const actions = detachAudioActions(item, globalThis.crypto.randomUUID(), globalThis.crypto.randomUUID()); if (actions) commands.batch(actions, 'Detach audio'); })} />}
       <Sep />
       <Item label={applied.length ? t('已应用效果（{n}）', { n: applied.length }) : t('已应用效果')} icon="filter" chevron disabled={applied.length === 0}

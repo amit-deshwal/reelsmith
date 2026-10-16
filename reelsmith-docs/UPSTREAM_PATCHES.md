@@ -145,3 +145,7 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 - `scripts/run-tests.mjs`: runs `test:pre`, `test:serial` and `test:post` in one pool, starts the known-slow segments first and prints the slowest segments.
 - `scripts/verify-gate-coverage.verify.mjs`: reads `test:pre`/`test:post` instead of `pretest`/`posttest`.
 - `src/components/inspector/FontFamilyPicker.tsx`: the "Bundled fonts" group now also lists our bundled families that are not Google entries (Noto Sans Devanagari, Poppins); they were missing from the text-clip font picker.
+
+## Fill canvas and Reframe to subject (RS-402)
+- `src/components/timeline/ClipContextMenu.tsx`: "Fill canvas (centre)" and "Reframe to subject" items for video clips, implemented in `src/reelsmith/subjectReframe.ts` (uses `src/reframe/detect.ts` unchanged).
+- `package.json`: `subjectReframe.verify.ts` added to `test:reelsmith`.
