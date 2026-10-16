@@ -137,7 +137,7 @@ Every item has an acceptance check. "Spec §" refers to `reelsmith-docs/plan/car
 
 ### M8. Reliability and performance
 - [ ] **RS-801 VERIFY:** autosave, reopen and crash recovery. *Check:* `kill -9` at random times (20 trials) never corrupts a project and loses ≤ 2 s of edits.
-- [ ] **RS-802 VERIFY:** relinking moved media.
+- [ ] **RS-802 VERIFY:** relinking moved media. _(Progress: folder relink now requires matching the recorded source byte size when available, before applying the existing filename/stem match. This avoids silently reconnecting a same-named file with a different size; the manual moved-folder UI check remains open.)_
 - [ ] **RS-803 VERIFY:** performance on an Apple M5 with 24 GB. Preview of a 3-layer 1080×1920 timeline drops ≤ 1% of frames; scrub p95 ≤ 150 ms; a 60 s reel exports in ≤ 90 s. If Remotion export is too slow, investigate OpenChatCut's render-concurrency settings (`MACOS-RENDER-TUNING.md`).
 - [ ] **RS-804 NEW:** a 72-hour soak script (open/edit/export 30 projects) with no leaks (RSS growth < 10%).
 
