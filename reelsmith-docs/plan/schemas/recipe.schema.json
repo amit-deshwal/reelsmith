@@ -217,7 +217,7 @@
       "additionalProperties": false,
       "properties": {
         "noRepeatClips": { "type": "boolean", "default": true },
-        "insufficientMediaPolicy": { "enum": ["lengthenShots", "askUser", "allowRepeat"], "default": "lengthenShots" },
+        "insufficientMediaPolicy": { "enum": ["lengthenShots", "askUser", "allowRepeat", "mergeShots"], "default": "lengthenShots", "description": "mergeShots: when there are fewer clips than shots, join some neighbouring shots into longer ones (spread evenly, the first and last stay short) so every clip is used once." },
         "keepChronological": { "type": "boolean", "default": true },
         "textSafeZone": { "type": "boolean", "default": true }
       }

@@ -54,7 +54,7 @@ export interface Recipe {
   /** RS-109: tags wanted for the opening and closing shot (scenery, people, portrait, action, food, detail, city, water, night) */
   casting?: { opener?: string[]; closer?: string[]; boost?: string[]; avoid?: string[] };
   agentHints?: string;
-  constraints?: { noRepeatClips?: boolean; insufficientMediaPolicy?: 'lengthenShots' | 'askUser' | 'allowRepeat'; keepChronological?: boolean; textSafeZone?: boolean };
+  constraints?: { noRepeatClips?: boolean; insufficientMediaPolicy?: 'lengthenShots' | 'askUser' | 'allowRepeat' | 'mergeShots'; keepChronological?: boolean; textSafeZone?: boolean };
 }
 
 export type RecipeValidation =

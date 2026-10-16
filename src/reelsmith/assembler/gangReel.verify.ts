@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { parseRecipe } from '../../../shared/reelsmith/recipe';
 import { defaultValues } from '../setupForm';
 import { assemble, type AssemblyClip, type AssemblyMusic } from './index';
+import { mergeShots } from './beatMontage';
 
 const parsed = parseRecipe(readFileSync('recipes/gang-reel.recipe.json', 'utf8'));
 assert.ok(parsed.ok, parsed.ok ? '' : JSON.stringify(parsed.errors));
@@ -74,4 +75,26 @@ const withTiny = assemble({ recipe, clips: [tiny, ...clips], music, texts: defau
 assert.ok(withTiny.action, 'still assembles');
 assert.ok(!(withTiny.action!.actions as any[]).some((a) => a.item?.sourceAssetId === 'tiny'), 'the too-short clip is not placed');
 assert.ok(withTiny.report.warnings.some((w) => /3\.mov is too short/.test(w)), withTiny.report.warnings.join('; '));
+// fewer clips than beats: neighbouring shots are joined (spread out, ends untouched) and the full reel still builds
+const full = assemble({ recipe, clips, music, texts: defaults.texts, params: defaults.params, seed: 5 });
+const fullShots = (full.action!.actions as any[]).filter((a) => a.item?.track === 'V1');
+const scarce = assemble({ recipe, clips: clips.slice(0, 26), music, texts: defaults.texts, params: defaults.params, seed: 5 });
+assert.ok(scarce.action, `assembles with 26 clips: ${scarce.report.warnings.join('; ')}`);
+const scarceShots = (scarce.action!.actions as any[]).filter((a) => a.item?.track === 'V1').sort((a, b) => a.startFrame - b.startFrame);
+assert.ok(scarceShots.length <= 26 && scarceShots.length >= 20, `uses the clips it has (${scarceShots.length} shots)`);
+assert.equal(new Set(scarceShots.map((a) => a.item.sourceAssetId)).size, scarceShots.length, 'still no repeats');
+assert.equal(scarce.report.totalFrames, full.report.totalFrames, 'the reel is as long as with plenty of clips');
+assert.ok(scarceShots.every((a, i) => i === 0 || a.startFrame === scarceShots[i - 1].startFrame + scarceShots[i - 1].item.durationInFrames), 'no gaps between shots');
+assert.equal(scarceShots[0].item.durationInFrames, fullShots[0].item.durationInFrames, 'the first shot stays one beat');
+assert.ok(scarce.report.warnings.some((w) => /joined into 2-beat shots/.test(w)), scarce.report.warnings.join('; '));
+const unit = Array.from({ length: 10 }, (_, i) => ({ section: 'drop', startBeat: i, lengthBeats: 1, startFrame: i * 10, durationInFrames: 10 }));
+const merged = mergeShots(unit, 3);
+assert.equal(merged.length, 7);
+assert.equal(merged.reduce((sum, s) => sum + s.durationInFrames, 0), 100, 'total length unchanged');
+assert.ok(merged[0]!.lengthBeats === 1 && merged[merged.length - 1]!.lengthBeats === 1, 'first and last stay short');
+assert.equal(mergeShots(unit, 0).length, 10);
+// the 20 s song is used to its end (not cut back to the last bar line)
+const song20: AssemblyMusic = { ...music, durationSec: 20.15, beatTimesSec: Array.from({ length: 43 }, (_, i) => 0.244 + i * 0.4594), dropSec: undefined };
+const whole = assemble({ recipe, clips, music: song20, texts: defaults.texts, params: defaults.params, seed: 5 });
+assert.ok(whole.report.totalFrames >= 19 * 30, `reel covers the song (${whole.report.totalFrames / 30} s)`);
 console.log('gangReel.verify: ok');

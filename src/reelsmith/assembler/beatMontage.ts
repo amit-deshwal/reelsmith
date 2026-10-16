@@ -24,6 +24,8 @@ function fpsOf(recipe: Recipe): number {
 }
 
 export function musicStartSec(recipe: Recipe, music: AssemblyMusic, params: AssembleInput['params']): number {
+  // a recipe can start the song on its first beat (assembler.options.startOnFirstBeat), so every shot is a whole beat
+  if (recipe.assembler.options?.startOnFirstBeat === true) return music.beatTimesSec[0] ?? 0;
   const policy = recipe.music?.startPolicy ?? 'fromStart';
   const downbeat = music.beatTimesSec[music.downbeatIndex] ?? music.beatTimesSec[0] ?? 0;
   if (policy === 'firstDownbeat') return downbeat;
@@ -83,6 +85,34 @@ function sectionBeats(sections: RecipeSection[], totalBeats: number): number[] {
     const give = per + (extra > 0 ? 1 : 0);
     if (extra > 0) extra -= 1;
     return give;
+  });
+}
+
+/**
+ * Join `count` pairs of neighbouring equal-length shots of the same section into one longer shot, spread evenly through
+ * the reel (the first and last shot are never joined), so a reel with too few clips keeps most of its fast cuts.
+ */
+export function mergeShots(shots: PlannedShot[], count: number): PlannedShot[] {
+  const pairs: number[] = [];
+  for (let i = 1; i + 1 < shots.length - 1; i += 1) {
+    const a = shots[i]!; const b = shots[i + 1]!;
+    if (a.section === b.section && a.lengthBeats === b.lengthBeats && a.startFrame + a.durationInFrames === b.startFrame) pairs.push(i);
+  }
+  const chosen: number[] = [];
+  const want = Math.min(count, Math.floor(pairs.length / 2));
+  for (let k = 0; k < want; k += 1) {
+    // evenly spaced picks over the candidate list, skipping any pair that would overlap the previous one
+    let at = Math.floor(((k + 0.5) * pairs.length) / want);
+    while (at < pairs.length && chosen.length && pairs[at]! <= chosen[chosen.length - 1]! + 1) at += 1;
+    if (at < pairs.length) chosen.push(pairs[at]!);
+  }
+  const skip = new Set(chosen.map((i) => i + 1));
+  const joined = new Set(chosen);
+  return shots.flatMap((shot, i) => {
+    if (skip.has(i)) return [];
+    if (!joined.has(i)) return [shot];
+    const next = shots[i + 1]!;
+    return [{ ...shot, lengthBeats: shot.lengthBeats + next.lengthBeats, durationInFrames: shot.durationInFrames + next.durationInFrames }];
   });
 }
 
@@ -275,6 +305,10 @@ export function assembleBeatMontage(input: AssembleInput): AssembleResult {
     // lengthen the flexible sections' shots until there is a unique clip for each shot
     while (plan.shots.length > usable && stretch < 16) { stretch *= 2; plan = planShots(recipe, music, params, stretch); }
     if (stretch > 1) warnings.push(`shots lengthened ${stretch}x to fit ${usable} clips`);
+  } else if (policy === 'mergeShots' && plan.shots.length > usable) {
+    const before = plan.shots.length;
+    plan = { ...plan, shots: mergeShots(plan.shots, before - usable) };
+    if (plan.shots.length < before) warnings.push(`only ${usable} usable clips for ${before} beats: ${before - plan.shots.length} pairs of neighbouring shots were joined into 2-beat shots`);
   } else if (policy === 'askUser' && plan.shots.length > usable) {
     warnings.push(`need ${plan.shots.length} clips, have ${usable}`);
     return empty({ shots: plan.shots.length, musicStartSec: plan.startSec, needsMoreMedia: { have: usable, need: plan.shots.length } });

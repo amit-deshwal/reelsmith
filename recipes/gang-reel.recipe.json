@@ -22,8 +22,8 @@
     { "id": "flashOnBars", "type": "boolean", "label": "Flash on bar starts", "default": true },
     { "id": "captionFont", "type": "font", "label": "Caption font", "default": "Inter Tight" }
   ],
-  "music": { "inputId": "music", "required": true, "startPolicy": "firstDownbeat", "endPolicy": "endOnBar", "fadeOutSec": 0.5, "gainDb": -2, "clipAudioGainDb": -96, "duckUnderSpeech": false },
-  "assembler": { "strategy": "beat-montage@1", "options": { "introBeats": 0, "outroHoldBeats": 0, "dropDetection": "energyJump" }, "aiSelection": "recommended" },
+  "music": { "inputId": "music", "required": true, "startPolicy": "fromStart", "endPolicy": "fadeOut", "fadeOutSec": 0.5, "gainDb": -2, "clipAudioGainDb": -96, "duckUnderSpeech": false },
+  "assembler": { "strategy": "beat-montage@1", "options": { "introBeats": 0, "outroHoldBeats": 0, "dropDetection": "energyJump", "startOnFirstBeat": true }, "aiSelection": "recommended" },
   "structure": [
     { "section": "build", "lengthBeats": 8, "fill": "clips", "cutRule": "everyBeat", "transition": "cut", "overlays": [ { "kind": "title", "text": "{{inputs.caption}}", "styleId": "caption", "animationIn": "none", "position": "lowerThird" } ] },
     { "section": "drop", "fill": "clips", "cutRule": "everyBeat", "transition": "flash", "overlays": [ { "kind": "title", "text": "{{inputs.caption}}", "styleId": "caption", "animationIn": "none", "position": "lowerThird" } ] },
@@ -37,5 +37,5 @@
   "casting": { "opener": ["laughing", "shouting", "falling", "dancing"], "closer": ["celebrating", "people"], "boost": ["laughing", "shouting", "falling", "dancing", "celebrating", "posing", "portrait", "action"], "avoid": ["scenery", "detail", "food", "city", "water", "night"] },
   "agentHints": "Every shot must be a character moment: faces, reactions, laughing, falls, poses, people doing something wild or brave. Skip empty scenery. Put the best shots on the drop. Open on the funniest or most chaotic shot. Never repeat a clip. Give every person screen time.",
   "ratios": { "9:16": { "styles": { "caption": { "sizePx": 80 } } } },
-  "constraints": { "noRepeatClips": true, "insufficientMediaPolicy": "askUser", "keepChronological": false, "textSafeZone": true }
+  "constraints": { "noRepeatClips": true, "insufficientMediaPolicy": "mergeShots", "keepChronological": false, "textSafeZone": true }
 }
