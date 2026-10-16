@@ -166,7 +166,7 @@ export function captionTypographyStyle(
     textDecorationLine: decoration,
     letterSpacing: finiteNumber(preset.letterSpacing, 0),
     lineHeight: positiveNumber(preset.lineHeight, 1.25),
-    textTransform: preset.textTransform === 'uppercase' ? 'uppercase' : 'none',
+    textTransform: preset.textTransform === 'uppercase' ? 'uppercase' : preset.textTransform === 'lowercase' ? 'lowercase' : 'none',
   };
 }
 

@@ -107,7 +107,7 @@ export function mapCaptionStyle(json: Record<string, unknown>, canvasHeight: num
 
   // typography / display
   const tt = str(json.textTransform);
-  if (tt === 'uppercase' || tt === 'none') o.textTransform = tt;
+  if (tt === 'uppercase' || tt === 'lowercase' || tt === 'none') o.textTransform = tt;
   const dm = str(json.displayMode);
   if (dm === 'stacked') o.displayMode = 'stacked';
   else if (dm === 'single') o.displayMode = 'inline';

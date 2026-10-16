@@ -54,7 +54,7 @@ export const REELS_CAPTION_STYLES: readonly ReelsCaptionStyle[] = [
   {
     id: 'minimal-lower', label: 'Minimal lowercase', hint: 'Small, quiet, sentence-style text',
     template: 'plain', pacing: 'phrase', motionPreset: 'fade-up',
-    styleOverride: { fontFamily: 'Inter', fontWeight: 500, fontSize: 0.032, textShadow: '0 1px 6px #000b', wordsPerPage: 6 },
+    styleOverride: { fontFamily: 'Inter', fontWeight: 500, fontSize: 0.032, textTransform: 'lowercase', textShadow: '0 1px 6px #000b', wordsPerPage: 6 },
     layout: ABOVE_IG_UI,
   },
 ];
