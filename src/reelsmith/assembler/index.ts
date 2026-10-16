@@ -5,6 +5,7 @@ import { assembleBeatMontage } from './beatMontage';
 import { assembleStoryVlog } from './storyVlog';
 import { assembleCollageGrid } from './collageGrid';
 import { assembleCaptionedStory } from './captionedStory';
+import { assembleTravelDiary } from './travelDiary';
 import { withMusicOverrides } from '../musicPolicy';
 
 export type { AssembleInput, AssembleResult, AssemblyClip, AssemblyMusic, RecipeRunRecord, AssembleReport } from './types';
@@ -22,6 +23,8 @@ export function assemble(raw: AssembleInput): AssembleResult {
       result = assembleCollageGrid(input); break;
     case 'captioned-story@1':
       result = assembleCaptionedStory(input); break;
+    case 'travel-diary@1':
+      result = assembleTravelDiary(input); break;
     default:
       result = {
         action: null,

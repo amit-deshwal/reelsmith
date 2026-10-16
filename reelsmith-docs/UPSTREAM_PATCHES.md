@@ -186,3 +186,6 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 ## Ramped music ducking (RS-603)
 - `src/editor/TimelineComposition.tsx`: `duckGain` calls `duckGainAt` (ours, `src/reelsmith/duckEnvelope.ts`): a 0.2 s attack before each anchor clip and a 0.4 s release after it, linear in dB, in place of the hard on/off step (one import, two lines).
 - `package.json`: `duckEnvelope.verify.ts` added to the test chain.
+
+## Travel Diary recipe (RS-206)
+- `package.json`: `travelDiary.verify.ts` added to the test chain. Everything else is in our folders (the reveals use the editor's existing `custom-shader` transition).

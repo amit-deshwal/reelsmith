@@ -1,5 +1,5 @@
 // RS-004: baseline on real footage. Scripted stand-in for "import, assemble, export" (no GUI):
-//   npx tsx server/reelsmith/baseline.mts <folder with clips + one song> [recipe-id] [--seconds N]
+//   npx tsx server/reelsmith/baseline.mts <folder with clips + one song> [recipe-id] [--seconds N] [--param k=v] [--text k=v] [--keep]
 // Reports per-step timings, then exports the reel through the app's server pipeline, finalizes it for Instagram and
 // runs the V1-V9 checks plus the V8 parity sample. Nothing is written outside a temp folder and the report on stdout.
 import { execFileSync } from 'node:child_process';
@@ -87,6 +87,13 @@ for (const input of recipe.inputs) {
   const pool = input.accept.includes('audio') ? [song] : videos;
   values.media[input.id] = pool.slice(0, input.accept.includes('audio') ? 1 : input.max).map((a) => ({ assetId: a.id, kind: a.kind as 'video' | 'audio' }));
 }
+// --param key=value overrides a setup value (e.g. --param musicStart=fromStart); --text id=value sets a text input
+argv.forEach((x, i) => {
+  const kv = /^([A-Za-z]\w*)=(.*)$/.exec(argv[i + 1] ?? '');
+  if (!kv) return;
+  if (x === '--param') values.params[kv[1]!] = kv[2] === 'true' ? true : kv[2] === 'false' ? false : Number.isFinite(Number(kv[2])) && kv[2] !== '' ? Number(kv[2]) : kv[2]!;
+  if (x === '--text') values.texts[kv[1]!] = kv[2]!;
+});
 const out = await runRecipe(api, { recipe, values, assets, fps: FPS, replaceTimeline: true, seed: 7 });
 t = lap('analyse + assemble', t);
 console.log(`slowest clip analysis: ${Object.entries(feat).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${k} ${(v / 1000).toFixed(1)}s`).join(', ')}`);
