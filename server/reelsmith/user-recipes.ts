@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { parseRecipe, validateRecipe, type Recipe } from '../../shared/reelsmith/recipe.ts';
 import { runtimeProfile } from '../runtime-profile.ts';
 
-const userRecipeDir = () => join(runtimeProfile().rootDir, 'user-recipes');
+export const userRecipeDir = () => join(runtimeProfile().rootDir, 'user-recipes');
 const safeId = /^ai-[a-z0-9][a-z0-9-]{2,63}$/;
 
 export interface UserRecipeCatalog { recipes: Recipe[]; rejected: Array<{ file: string; errors: string[] }> }
@@ -47,8 +47,18 @@ export async function saveUserRecipe(value: unknown, replace = false): Promise<R
   return parsed.recipe;
 }
 
+const previewFile = /^ai-[a-z0-9][a-z0-9-]{2,63}\.(jpg|mp4)$/;
+
+/** Generated poster/loop of an AI-made recipe (written by build-previews.mts --user), or null. */
+export async function readUserPreview(file: string): Promise<{ data: Buffer; type: string } | null> {
+  if (!previewFile.test(file)) return null;
+  try { return { data: await readFile(join(userRecipeDir(), 'previews', file)), type: file.endsWith('.jpg') ? 'image/jpeg' : 'video/mp4' }; }
+  catch { return null; }
+}
+
 export async function deleteUserRecipe(id: string): Promise<boolean> {
   if (!safeId.test(id)) throw new Error('invalid user recipe id');
+  for (const ext of ['jpg', 'mp4']) await unlink(join(userRecipeDir(), 'previews', `${id}.${ext}`)).catch(() => undefined);
   const path = join(userRecipeDir(), `${id}.recipe.json`);
   try { await unlink(path); return true; }
   catch (error) {

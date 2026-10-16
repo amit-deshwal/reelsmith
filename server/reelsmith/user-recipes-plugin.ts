@@ -1,11 +1,18 @@
 import type { Plugin } from 'vite';
-import { deleteUserRecipe, listUserRecipes, saveUserRecipe } from './user-recipes.ts';
+import { deleteUserRecipe, listUserRecipes, readUserPreview, saveUserRecipe } from './user-recipes.ts';
 import { readJsonBody, sendJson } from '../plugins/export-http.ts';
 
 export function userRecipesPlugin(): Plugin {
   return {
     name: 'reelsmith-user-recipes',
     configureServer(server) {
+      server.middlewares.use('/api/reelsmith/user-recipe-previews', async (req, res) => {
+        const preview = req.method === 'GET' ? await readUserPreview(decodeURIComponent((req.url ?? '').split('?')[0]!.replace(/^\//, ''))) : null;
+        if (!preview) { res.statusCode = 404; res.end(); return; }
+        res.setHeader('Content-Type', preview.type);
+        res.setHeader('Cache-Control', 'no-cache');
+        res.end(preview.data);
+      });
       server.middlewares.use('/api/reelsmith/user-recipes', async (req, res) => {
         try {
           if (req.method === 'GET') { sendJson(res, 200, await listUserRecipes()); return; }

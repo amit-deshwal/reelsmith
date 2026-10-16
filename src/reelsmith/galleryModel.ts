@@ -24,7 +24,9 @@ export const categoryLabel = (c: Recipe['category']) => CATEGORY_LABEL[c];
 /** Recipe files name previews as "previews/<file>"; the build (server/reelsmith/build-previews.mts) writes them to assets/recipe-previews (served at /recipe-previews). */
 export function previewUrl(path: string | undefined): string | undefined {
   if (!path || /^(https?:|data:|blob:)/.test(path) || path.includes('..')) return undefined;
-  return `/recipe-previews/${path.replace(/^\/?(recipe-)?previews\//, '')}`;
+  const file = path.replace(/^\/?(recipe-)?previews\//, '');
+  // AI-made recipes keep their generated previews in the user's recipe folder, not in the app bundle
+  return /^ai-[a-z0-9-]+\.(jpg|mp4)$/.test(file) ? `/api/reelsmith/user-recipe-previews/${file}` : `/recipe-previews/${file}`;
 }
 
 function gcd(a: number, b: number): number { return b ? gcd(b, a % b) : a; }

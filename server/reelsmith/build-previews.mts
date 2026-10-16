@@ -3,9 +3,11 @@
 // detection on the synthetic files) and rendered through the app's own export pipeline.
 // Run: npx tsx server/reelsmith/build-previews.mts [recipe-id ...] [--param key=value ...] [--out <dir>]
 // --parity also runs the RS-302 V8 sample (editor stills vs the rendered frames) on each recipe's render.
+// --user: build previews for the AI-made recipes in the user's recipe folder instead (--user-dir <dir> to override),
+// writing <dir>/previews/<id>.jpg|mp4 and setting `preview` in the recipe file (served by the user-recipes plugin).
 // Output: assets/recipe-previews/<id>.jpg (poster) and <id>.mp4 (muted 360x640 loop, ~4 s), served at /recipe-previews/.
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseRecipe, type Recipe } from '../../shared/reelsmith/recipe.ts';
@@ -19,6 +21,7 @@ import { withExportPermit } from '../plugins/export-runtime.ts';
 import { renderTimelineStills } from '../../remotion/render.mjs';
 import { checkParity, sampleFrames } from './parityCheck.ts';
 import { seedKeystore } from '../keystore.ts';
+import { userRecipeDir } from './user-recipes.ts';
 import { analyzeBeatsFile } from './beatDetect.ts';
 import { extractClipFeatures } from './clipFeatures.ts';
 import { detectDropBeat } from '../../src/reelsmith/assembler/drop.ts';
@@ -29,9 +32,12 @@ import { bindTracks } from '../../src/reelsmith/trackBinding.ts';
 const FPS = 30;
 const argv = process.argv.slice(2);
 const flag = (name: string) => argv.flatMap((a, i) => (a === `--${name}` && argv[i + 1] ? [argv[i + 1]!] : []));
-const OUT = flag('out')[0] ?? join(process.cwd(), 'assets', 'recipe-previews');
+const USER_MODE = argv.includes('--user');
+const USER_DIR = flag('user-dir')[0] ?? userRecipeDir();
+const OUT = flag('out')[0] ?? (USER_MODE ? join(USER_DIR, 'previews') : join(process.cwd(), 'assets', 'recipe-previews'));
 const PARAM_OVERRIDES = Object.fromEntries(flag('param').map((kv) => [kv.split('=')[0]!, kv.split('=').slice(1).join('=')]));
 const only = argv.filter((a, i) => !a.startsWith('--') && !argv[i - 1]?.startsWith('--'));
+const RECIPE_DIR = USER_MODE ? USER_DIR : 'recipes';
 const work = mkdtempSync(join(tmpdir(), 'rs-previews-'));
 const media = join(work, 'media');
 mkdirSync(media, { recursive: true });
@@ -96,8 +102,8 @@ const api: AnalyzeApi = {
 };
 
 // --- per recipe ----------------------------------------------------------------------------------
-const recipes: Recipe[] = readdirSync('recipes').filter((f) => f.endsWith('.recipe.json')).map((f) => {
-  const r = parseRecipe(readFileSync(join('recipes', f), 'utf8'));
+const recipes: Recipe[] = readdirSync(RECIPE_DIR).filter((f) => f.endsWith('.recipe.json')).map((f) => {
+  const r = parseRecipe(readFileSync(join(RECIPE_DIR, f), 'utf8'));
   if (!r.ok) throw new Error(`${f}: ${r.errors[0]}`);
   return r.recipe;
 }).filter((r) => !only.length || only.includes(r.id));
@@ -152,6 +158,12 @@ for (const recipe of recipes) {
   ff('-i', raw, '-t', '4.5', '-an', '-vf', 'scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2,fps=24',
     '-c:v', 'libx264', '-preset', 'slow', '-crf', '30', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', loop);
   ff('-ss', '1.2', '-i', raw, '-frames:v', '1', '-vf', 'scale=360:640:force_original_aspect_ratio=decrease,pad=360:640:(ow-iw)/2:(oh-ih)/2', '-q:v', '4', poster);
+  if (USER_MODE) {
+    const file = join(USER_DIR, `${recipe.id}.recipe.json`);
+    const next = { ...JSON.parse(readFileSync(file, 'utf8')), preview: { poster: `previews/${recipe.id}.jpg`, loop: `previews/${recipe.id}.mp4`, generatedFrom: 'synthetic-sample' } };
+    writeFileSync(`${file}.tmp`, `${JSON.stringify(next, null, 2)}\n`);
+    renameSync(`${file}.tmp`, file);
+  }
   console.log(`${recipe.id}: ${((Date.now() - started) / 1000).toFixed(1)} s  poster ${(statSync(poster).size / 1024).toFixed(0)} KB  loop ${(statSync(loop).size / 1024).toFixed(0)} KB`);
 }
 if (existsSync(work)) rmSync(work, { recursive: true, force: true });
