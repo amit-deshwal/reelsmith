@@ -1,4 +1,5 @@
-import { finalizeExportForInstagram } from '../reelsmith/instagramExport';
+import { finalizeExportForInstagram, instagramReportStore, loadInstagramPreference, isVertical } from '../reelsmith/instagramExport';
+import { writeSrtSidecar } from '../reelsmith/instagramSrt';
 import type { BackgroundExportJobSetters, ExportJobStore } from './backgroundExportStore';
 import { isAbortError } from './browserExport';
 import { recordExport } from '../persist/exportHistoryStore';
@@ -8,6 +9,7 @@ import {
   exportDestinationErrorMessage,
   exportDestinationFilename,
   exportHistoryDestinationId,
+  writeBlobToDestination,
   writeUrlToDestination,
   type ExportDestination,
 } from './exportDestination';
@@ -184,6 +186,23 @@ async function exportMedia(
     if (!claim) throw new ExportDestinationError('此导出正在由另一个窗口恢复，请稍后重试');
     targetCommitted = await saveCompleted(context, format, codec, completed, renderId, claim, signal);
     if (format === 'video') recordServerPerformance(context, completed, startedAt);
+    // Reelsmith (RS-301): optional .srt next to the delivered video (also for plain browser downloads, which never report a committed target); a failure here never fails the export
+    if (format === 'video' && isVertical(context.options.state)) {
+      const pref = loadInstagramPreference();
+      const sidecar = await writeSrtSidecar({
+        enabled: pref.enabled && pref.srt, captions: context.options.subtitleCaptions, items: context.options.state.items,
+        fps: context.options.state.fps, videoName: completed.name ?? `${context.options.base}.${exportMediaExtension(format, codec)}`,
+        write: (filename, blob) => writeBlobToDestination(context.destination, filename, blob, signal),
+      });
+      const last = instagramReportStore.get();
+      if (sidecar.status !== 'skipped' || pref.srt) {
+        instagramReportStore.set({
+          ...(last ?? { status: 'skipped' as const }),
+          srt: sidecar.status === 'written' ? `Captions saved as ${sidecar.name}.`
+            : sidecar.status === 'failed' ? `Could not save the .srt: ${sidecar.message}` : `No .srt saved: ${sidecar.reason}.`,
+        });
+      }
+    }
     return completed;
   } finally {
     if (claim) await releaseServerExportDelivery(renderId, claim).catch(() => undefined);

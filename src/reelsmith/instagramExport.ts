@@ -3,21 +3,23 @@
 import type { TimelineState } from '../editor/types';
 import type { ExportJobResult } from '../export/exportWorkflowTypes';
 
-export interface InstagramExportPreference { enabled: boolean; silent: boolean }
+export interface InstagramExportPreference { enabled: boolean; silent: boolean; srt: boolean }
 interface Check { id: string; status: 'PASS' | 'WARN' | 'FAIL'; detail: string }
 export interface InstagramExportReport {
   status: 'running' | 'passed' | 'fixed' | 'failed' | 'error' | 'skipped';
   checks?: Check[];
   failedPath?: string;
   message?: string;
+  /** outcome of the optional .srt sidecar, shown under the report */
+  srt?: string;
 }
 
 const KEY = 'reelsmith:instagram-export';
 export function loadInstagramPreference(): InstagramExportPreference {
   try {
     const v = JSON.parse(globalThis.localStorage?.getItem(KEY) ?? 'null') as Partial<InstagramExportPreference> | null;
-    return { enabled: v?.enabled !== false, silent: v?.silent === true };
-  } catch { return { enabled: true, silent: false }; }
+    return { enabled: v?.enabled !== false, silent: v?.silent === true, srt: v?.srt === true };
+  } catch { return { enabled: true, silent: false, srt: false }; }
 }
 export function saveInstagramPreference(p: InstagramExportPreference): void {
   try { globalThis.localStorage?.setItem(KEY, JSON.stringify(p)); } catch { /* storage unavailable */ }
