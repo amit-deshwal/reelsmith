@@ -29,7 +29,7 @@ export interface RecipeSection {
   section: string; lengthBeats?: number; lengthSec?: number;
   fill?: 'none' | 'clips' | 'photos' | 'speech' | 'layout';
   cutRule?: 'everyBeat' | 'every2Beats' | 'everyBar' | 'onSpeechPhrases' | 'fixedSec';
-  shotSec?: [number, number]; layout?: string; transition?: string; overlays?: RecipeOverlay[];
+  shotSec?: [number, number]; layout?: string; transition?: string; strobe?: boolean; overlays?: RecipeOverlay[];
 }
 
 export interface Recipe {

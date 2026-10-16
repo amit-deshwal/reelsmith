@@ -5,6 +5,7 @@ import { renderTemplate } from '../../../shared/reelsmith/recipe';
 import { sourcePlacement } from './sourcePlacement';
 import { fitFontSize } from './common';
 import { makeRng, stableId } from './rng';
+import { pickTransitions, transitionActions } from './transitions';
 import type {
   AssembleInput, AssembleReport, AssembleResult, AssemblyClip, AssemblyMusic, PlannedShot, RecipeRunRecord,
 } from './types';
@@ -84,7 +85,15 @@ export function planShots(
   const beats = beatsFrom(music, startSec);
   const bpb = music.beatsPerBar;
   const totalBeats = Math.min(targetBeatCount(recipe, beats, bpb), beats.length - 1);
-  const lens = sectionBeats(recipe.structure, totalBeats);
+  // RS-412: a `strobe` section is a flash-cut hook: its length and cut step follow the params hookSec (1.5) and flashSec (0.5, kept
+  // within 0.3-0.6 s), in whole beats.
+  const beatSec = beats.length > 1 ? (beats[beats.length - 1]! - beats[0]!) / (beats.length - 1) : 0.5;
+  const flashSec = Math.min(0.6, Math.max(0.3, Number(params.flashSec ?? 0.5) || 0.5));
+  const hookSec = Math.max(flashSec, Number(params.hookSec ?? 1.5) || 1.5);
+  const strobeStep = Math.max(1, Math.round(flashSec / beatSec));
+  const strobeBeats = strobeStep * Math.max(1, Math.round(hookSec / (strobeStep * beatSec)));
+  const structure = recipe.structure.map((x) => (x.strobe ? { ...x, lengthBeats: strobeBeats } : x));
+  const lens = sectionBeats(structure, totalBeats);
   // RS-203: when a drop is known, the 'build' section runs up to the drop (whole bars) and 'drop' takes the rest
   const dropAt = Number(params.dropAtS ?? 0) > 0 ? Number(params.dropAtS) : music.dropSec;
   const bi = recipe.structure.findIndex((x) => x.section === 'build');
@@ -102,13 +111,13 @@ export function planShots(
   const spans: SectionSpan[] = [];
   const frameAt = (beat: number) => Math.round((beats[Math.min(beat, beats.length - 1)] ?? 0) * fps);
   let cursor = 0;
-  recipe.structure.forEach((section, si) => {
+  structure.forEach((section, si) => {
     const len = Math.min(lens[si]!, totalBeats - cursor);
     if (len > 0) spans.push({ section: section.section, startBeat: cursor, lengthBeats: len, startFrame: frameAt(cursor), endFrame: frameAt(cursor + len) });
     if (len <= 0 || section.fill === 'none') { cursor += Math.max(0, len); return; }
     // a `cutRule` param drives the flexible (no lengthBeats) sections
     const rule = section.lengthBeats === undefined && paramRule ? paramRule : section.cutRule ?? 'everyBar';
-    let step = (STEP_BEATS[rule] ?? STEP_BEATS.everyBar!)(bpb);
+    let step = section.strobe ? strobeStep : (STEP_BEATS[rule] ?? STEP_BEATS.everyBar!)(bpb);
     if (section.lengthBeats === undefined) step *= stretch;
     for (let b = 0; b < len; b += step) {
       const lengthBeats = Math.min(step, len - b);
@@ -280,12 +289,14 @@ export function assembleBeatMontage(input: AssembleInput): AssembleResult {
   const actions: AtomicAction[] = [];
   const tag = `${recipe.id}@${recipe.version}`;
   const startSrc = Math.round(plan.startSec * fps);
+  const shotIds: string[] = [];
   shots.forEach((shot, i) => {
     const clip = picked[i]!;
     const last = i === shots.length - 1;
     // the last shot runs to the end of the reel so the music and picture end together
     const duration = shot.durationInFrames;
     const id = stableId('rs', tag, onlySection ? 'sec' : seed, shotIndex(shot), onlySection ? seed : 0);
+    shotIds.push(id);
     const isVideo = clip.kind === 'video';
     const placement = isVideo ? sourcePlacement(clip, duration) : undefined;
     const srcIn = placement?.srcInFrame;
@@ -319,6 +330,15 @@ export function assembleBeatMontage(input: AssembleInput): AssembleResult {
         });
       }
     }
+  }
+  {
+    // RS-412: transitions named by the sections (Flash stays a solid accent when the recipe has the flashOnBars param)
+    const tctx = {
+      options: recipe.assembler.options, params, seed, fps,
+      legacyFlash: recipe.params.some((p) => p.id === 'flashOnBars'),
+    };
+    const placed = shots.slice(0, shotIds.length);
+    actions.push(...transitionActions(placed, shotIds, pickTransitions(placed, tctx), tctx, tag, onlySection ? `sec${seed}` : seed));
   }
   if (!onlySection) actions.push(...overlayActions(recipe, plan.spans, params, texts, tag, seed, warnings));
   const total = allShots[allShots.length - 1]!.startFrame + allShots[allShots.length - 1]!.durationInFrames;

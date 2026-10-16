@@ -1,0 +1,51 @@
+{
+  "$schema": "../../schemas/recipe.schema.json",
+  "schemaVersion": 1,
+  "id": "place-stats-reel",
+  "version": "1.0.0",
+  "name": "Place and Stats Reel",
+  "category": "travel",
+  "description": "A trip reel with a strobe flash hook, shots that break in through bars, wide bars or a growing window on the beat, a place title with a stats line, and a flash closer.",
+  "tags": ["travel", "stats", "hook", "break-in"],
+  "preview": { "poster": "previews/place-stats-reel.jpg", "loop": "previews/place-stats-reel.mp4", "generatedFrom": "synthetic-sample" },
+  "canvas": { "width": 1080, "height": 1920, "fps": { "num": 30, "den": 1 } },
+  "duration": { "mode": "fitMusic", "minSec": 10, "targetSec": 22, "maxSec": 60 },
+  "inputs": [
+    { "id": "clips", "kind": "media", "accept": ["video", "image"], "min": 10, "max": 80, "label": "Trip clips and photos", "hint": "The first and last clips become quick flashes; 15–30 is ideal", "constraints": { "minClipSec": 0.5, "preferOrientation": "any" } },
+    { "id": "music", "kind": "media", "accept": ["audio"], "min": 1, "max": 1, "label": "Song (your own file)" },
+    { "id": "place", "kind": "text", "label": "Place name", "placeholder": "Kalsubai", "optional": true, "maxLength": 40 },
+    { "id": "stat", "kind": "text", "label": "Stats line", "placeholder": "6 km · 3 h · 1,646 m", "optional": true, "maxLength": 50 }
+  ],
+  "params": [
+    { "id": "cutRule", "type": "enum", "label": "Cut on", "default": "every2Beats", "options": ["everyBeat", "every2Beats", "everyBar"] },
+    { "id": "breakIn", "type": "enum", "label": "Transition style", "default": "auto", "options": ["auto", "bars", "wide-bars", "window", "flash", "cut"] },
+    { "id": "hookSec", "type": "seconds", "label": "Hook and closer length", "default": 1.5, "min": 0.6, "max": 3, "step": 0.1 },
+    { "id": "flashSec", "type": "seconds", "label": "Length of one flash", "default": 0.5, "min": 0.3, "max": 0.6, "step": 0.05 },
+    { "id": "accent", "type": "color", "label": "Title colour", "default": "#FFD23F" },
+    { "id": "titleFont", "type": "font", "label": "Title font", "default": "Anton" }
+  ],
+  "music": { "inputId": "music", "required": true, "startPolicy": "firstDownbeat", "endPolicy": "endOnBar", "fadeOutSec": 0.8, "gainDb": -3, "clipAudioGainDb": -96, "duckUnderSpeech": false },
+  "assembler": {
+    "strategy": "beat-montage@1",
+    "options": { "transitionParam": "breakIn", "autoTransitions": ["bars", "wide-bars", "window", "flash"] },
+    "aiSelection": "optional"
+  },
+  "structure": [
+    { "section": "hook", "strobe": true, "fill": "clips", "transition": "flash" },
+    {
+      "section": "body", "fill": "clips", "cutRule": "every2Beats", "transition": "auto",
+      "overlays": [
+        { "kind": "placeName", "text": "{{inputs.place}}", "styleId": "title.big", "animationIn": "pop", "position": "upperThird", "atBeat": 0, "durationBeats": 8 },
+        { "kind": "label", "text": "{{inputs.stat}}", "styleId": "stat.line", "animationIn": "slideUp", "position": "lowerThird", "atBeat": 2, "durationBeats": 8 }
+      ]
+    },
+    { "section": "closer", "strobe": true, "fill": "clips", "transition": "flash" }
+  ],
+  "styles": {
+    "title.big": { "fontFamily": "Anton", "fontWeight": 400, "sizePx": 150, "color": "#FFD23F", "textTransform": "uppercase", "shadow": { "color": "#00000099", "blurPx": 18, "dx": 0, "dy": 6 }, "align": "center" },
+    "stat.line": { "fontFamily": "Poppins", "fontWeight": 600, "sizePx": 56, "color": "#FFFFFF", "shadow": { "color": "#00000099", "blurPx": 12, "dx": 0, "dy": 4 }, "align": "center" }
+  },
+  "look": { "colorLook": "vivid", "grain": 0.08, "vignette": 0.12 },
+  "agentHints": "Open on the most striking moments for the hook flashes and close on the widest view. Keep one transition style per reel unless the user wants variety (set the transition style param). Keep the place title short. Never repeat a clip; if footage runs short, lengthen shots.",
+  "constraints": { "noRepeatClips": true, "insufficientMediaPolicy": "lengthenShots", "keepChronological": false, "textSafeZone": true }
+}
