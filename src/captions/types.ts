@@ -85,6 +85,8 @@ export interface CaptionsData {
    * numeric keys remain readable; new writes also persist `wordRef` so edits
    * continue to follow the same source word after regrouping or source reorder. */
   wordOverrides?: Record<number, CaptionWordOverride>;
+  /** Word-level text edits keyed by the source refs that formed the edited cue. */
+  cueEdits?: Record<string, CaptionCueEdit>;
   /** custom style fields layered OVER the template preset (edit_captions
    * action=style). Only what the user set; unset fields inherit the preset. */
   styleOverride?: CaptionStyleOverride;
@@ -108,6 +110,11 @@ export interface CaptionWordOverride {
   forceBreak?: boolean;
   /** Display-only timing shift for moving generated cues independently of source media. */
   timingOffsetMs?: number;
+}
+
+export interface CaptionCueEdit {
+  sourceRefs: string[];
+  words: Array<{ text: string; sourceRef?: string; beforeRef?: string; afterRef?: string; insertionIndex?: number; insertionCount?: number }>;
 }
 
 // ──Multi-lane captions (edit_captions three brothers positions / layout_policy / source_update)──
