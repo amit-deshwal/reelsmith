@@ -1,6 +1,6 @@
 import type { TimelineItem } from '../editor/types';
 import { buildCaptionPages } from './captionPages';
-import type { CaptionsData, CaptionWordOverride } from './types';
+import type { CaptionsData, CaptionCueEdit, CaptionWordOverride } from './types';
 import { joinCaptionWords } from './types';
 import { setCaptionWordOverride } from './wordOverrides';
 
@@ -52,15 +52,49 @@ export function cueTextPatch(
     next = setCaptionWordOverride(next, allIndices, source, wordRef, patch);
   };
   const trimmed = text.trim();
-  if (!trimmed) {
-    cue.srcIdxs.forEach((source, position) => put(source, cue.wordRefs[position]!, { hidden: true }));
-  } else {
-    const [first, ...rest] = cue.srcIdxs;
-    put(first!, cue.wordRefs[0]!, { text: trimmed, hidden: false, forceBreak: true });
-    rest.forEach((source, position) => put(source, cue.wordRefs[position + 1]!, { hidden: true }));
-    const nextFirst = rows[index + 1]?.srcIdxs[0];
-    const nextRef = rows[index + 1]?.wordRefs[0];
-    if (nextFirst !== undefined && nextRef) put(nextFirst, nextRef, { forceBreak: true });
+  const tokens = trimmed.match(/\S+/gu) ?? [];
+  const sourceWords = cue.wordRefs.map((ref) => {
+    const prior = captions.cueEdits?.[ref]?.words;
+    return prior?.find((word) => word.sourceRef === ref)?.text;
+  }).filter((word): word is string => !!word);
+  const matchingWords = sourceWords.length === cue.wordRefs.length
+    ? sourceWords
+    : cue.text.match(/\S+/gu) ?? [];
+  // LCS keeps exact source word timings where text is unchanged. Unmatched
+  // tokens are assigned to the gap between their nearest preserved anchors.
+  const dp = Array.from({ length: matchingWords.length + 1 }, () => Array(tokens.length + 1).fill(0));
+  for (let i = matchingWords.length - 1; i >= 0; i--) for (let j = tokens.length - 1; j >= 0; j--) {
+    dp[i]![j] = matchingWords[i]!.toLocaleLowerCase() === tokens[j]!.toLocaleLowerCase()
+      ? dp[i + 1]![j + 1]! + 1 : Math.max(dp[i + 1]![j]!, dp[i]![j + 1]!);
   }
-  return { wordOverrides: next };
+  const pairs = new Map<number, number>();
+  for (let i = 0, j = 0; i < matchingWords.length && j < tokens.length;) {
+    if (matchingWords[i]!.toLocaleLowerCase() === tokens[j]!.toLocaleLowerCase()) { pairs.set(j, i); i++; j++; }
+    else if (dp[i + 1]![j]! >= dp[i]![j + 1]!) i++; else j++;
+  }
+  const editWords: CaptionCueEdit['words'] = [];
+  for (let j = 0; j < tokens.length; j++) {
+    const sourcePosition = pairs.get(j);
+    if (sourcePosition !== undefined) {
+      editWords.push({ text: tokens[j]!, sourceRef: cue.wordRefs[sourcePosition]! });
+      continue;
+    }
+    let before: number | undefined; let after: number | undefined;
+    for (let k = j - 1; k >= 0 && before === undefined; k--) before = pairs.get(k);
+    for (let k = j + 1; k < tokens.length && after === undefined; k++) after = pairs.get(k);
+    const gap = editWords.filter((word) => !word.sourceRef && word.beforeRef === (before === undefined ? undefined : cue.wordRefs[before]) && word.afterRef === (after === undefined ? undefined : cue.wordRefs[after]));
+    editWords.push({ text: tokens[j]!, ...(before === undefined ? {} : { beforeRef: cue.wordRefs[before] }), ...(after === undefined ? {} : { afterRef: cue.wordRefs[after] }), insertionIndex: gap.length, insertionCount: tokens.slice(j).filter((_, tokenIndex) => !pairs.has(tokenIndex) && (after === undefined || tokenIndex < after)).length });
+  }
+  // Clearing a cue hides its source words; with no edit record they would otherwise reappear.
+  if (!tokens.length) cue.srcIdxs.forEach((source, position) => put(source, cue.wordRefs[position]!, { hidden: true }));
+  const cueEdits = { ...(captions.cueEdits ?? {}) };
+  const editKey = cue.wordRefs[0]!;
+  if (editKey) {
+    if (tokens.length) cueEdits[editKey] = { sourceRefs: [...cue.wordRefs], words: editWords };
+    else delete cueEdits[editKey];
+  }
+  const nextFirst = rows[index + 1]?.srcIdxs[0];
+  const nextRef = rows[index + 1]?.wordRefs[0];
+  if (nextFirst !== undefined && nextRef) put(nextFirst, nextRef, { forceBreak: true });
+  return { wordOverrides: next, cueEdits };
 }

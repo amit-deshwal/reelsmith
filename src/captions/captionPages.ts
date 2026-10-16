@@ -18,6 +18,39 @@ import {
   type CaptionSourceEntry,
 } from './types.js';
 
+function withCueEdits<T extends { words: import('../transcript/types.js').TranscriptWord[]; indices: number[]; wordRefs: string[] }>(value: T, edits: CaptionsData['cueEdits']): T {
+  if (!edits) return value;
+  const positions = new Map(value.wordRefs.map((ref, index) => [ref, index]));
+  const replacements = new Map<number, { words: import('../transcript/types.js').TranscriptWord[]; indices: number[]; refs: string[]; sourceRefs: string[] }>();
+  for (const [key, edit] of Object.entries(edits)) {
+    const sourcePositions = edit.sourceRefs.map((ref) => positions.get(ref));
+    if (sourcePositions.some((position) => position === undefined)) continue;
+    const first = sourcePositions[0]!;
+    if (!sourcePositions.every((position, offset) => position === first + offset)) continue;
+    const anchor = (ref?: string) => ref ? value.words[positions.get(ref) ?? -1] : undefined;
+    const output = edit.words.map((part, partIndex) => {
+      const source = part.sourceRef ? anchor(part.sourceRef) : undefined;
+      if (source) return { word: { ...source, text: part.text }, ref: part.sourceRef!, index: value.indices[positions.get(part.sourceRef!)!]! };
+      const before = anchor(part.beforeRef);
+      const after = anchor(part.afterRef);
+      const count = Math.max(1, part.insertionCount ?? 1);
+      const fraction = ((part.insertionIndex ?? 0) + 1) / (count + 1);
+      const start = before && after ? before.end + (after.start - before.end) * (fraction - 0.0) : before ? before.end : after ? after.start : value.words[first]!.start;
+      const end = before && after ? before.end + (after.start - before.end) * Math.min(1, fraction + 0.18) : before ? before.end + Math.max(1, (value.words[sourcePositions[sourcePositions.length - 1]!]!.end - before.end) / (count + 1)) : after ? Math.max(0, after.start - Math.max(1, (after.start - value.words[first]!.start) / (count + 1))) : value.words[first]!.end;
+      return { word: { ...value.words[first]!, id: `${key}:insert:${partIndex}`, text: part.text, start, end: Math.max(start, end) }, ref: `${key}:insert:${partIndex}`, index: value.indices[first]! };
+    });
+    replacements.set(first, { words: output.map((entry) => entry.word), refs: output.map((entry) => entry.ref), indices: output.map((entry) => entry.index), sourceRefs: edit.sourceRefs });
+  }
+  if (!replacements.size) return value;
+  const words: typeof value.words = []; const indices: number[] = []; const wordRefs: string[] = [];
+  for (let index = 0; index < value.words.length;) {
+    const replacement = replacements.get(index);
+    if (!replacement) { words.push(value.words[index]!); indices.push(value.indices[index]!); wordRefs.push(value.wordRefs[index]!); index++; continue; }
+    words.push(...replacement.words); indices.push(...replacement.indices); wordRefs.push(...replacement.refs); index += replacement.sourceRefs.length;
+  }
+  return { ...value, words, indices, wordRefs };
+}
+
 export interface CaptionPageIdentity {
   id: string;
   laneId: string;
@@ -47,7 +80,7 @@ function lanePages(
   // Stable source identity is authoritative. Numeric legacy positions are only
   const sourceIndices = refs.map((ref) => globalIndexByRef.get(ref) ?? -1);
   const indices = isStableIdentity(entry.id) ? sourceIndices.map(() => -1) : sourceIndices;
-  const applied = applyWordOverrides(words, indices, captions.wordOverrides, refs);
+  const applied = withCueEdits(applyWordOverrides(words, indices, captions.wordOverrides, refs), captions.cueEdits);
   const requestedLines = captions.perSource?.[entry.id]?.maxLines;
   const validLines = typeof requestedLines === 'number' && Number.isFinite(requestedLines)
     ? Math.floor(requestedLines)
@@ -103,7 +136,7 @@ function computeCaptionPages(captions: CaptionsData, items: TimelineItem[], fps:
     return entries.flatMap((entry, laneOrder) => lanePages(captions, entry, laneOrder, projection.entries!.get(entry)!, globalIndexByRef))
       .sort((left, right) => left.page.start - right.page.start || left.laneOrder - right.laneOrder || left.page.end - right.page.end || left.id.localeCompare(right.id));
   }
-  const applied = applyWordOverrides(projection.words, projection.indices, captions.wordOverrides, projection.wordRefs);
+  const applied = withCueEdits(applyWordOverrides(projection.words, projection.indices, captions.wordOverrides, projection.wordRefs), captions.cueEdits);
   const pages = paginate(applied.words, captions.pacing, effectivePreset(captions).wordsPerPage, applied.breakBefore, CAPTION_MAX_CHARS_PER_LINE, CAPTION_MAX_VISUAL_LINES);
   let cursor = 0;
   return pages.map((page) => {
