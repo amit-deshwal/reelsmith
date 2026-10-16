@@ -25,6 +25,33 @@ export function coveredBands(canvas: { width: number; height: number }, z: SafeZ
   ];
 }
 
+/**
+ * RS-904: which guide applies to a canvas. 9:16 gets the Reel UI zones; 4:5 and 1:1 feed posts show the centred
+ * 3:4 tile the profile grid crops to; 3:4 is that tile already, and landscape shapes have no overlay.
+ */
+export type SafeArea =
+  | { kind: 'reel'; safe: Rect; bands: Rect[]; labels: string[] }
+  | { kind: 'grid'; safe: Rect; bands: Rect[]; labels: string[] }
+  | { kind: 'none' };
+
+export function safeAreaFor(canvas: { width: number; height: number }, z: SafeZone = DEFAULT_SAFE_ZONE): SafeArea {
+  const ratio = canvas.width / canvas.height;
+  if (Math.abs(ratio - 9 / 16) < 0.01) {
+    return { kind: 'reel', safe: safeRect(canvas, z), bands: coveredBands(canvas, z), labels: ['Instagram header', 'Caption and audio', '', 'Like / comment / share'] };
+  }
+  if (ratio > 3 / 4 + 0.01 && ratio <= 1.01) {
+    const w = canvas.height * 3 / 4;
+    const x = (canvas.width - w) / 2;
+    return {
+      kind: 'grid',
+      safe: { x, y: 0, w, h: canvas.height },
+      bands: [{ x: 0, y: 0, w: x, h: canvas.height }, { x: x + w, y: 0, w: x, h: canvas.height }],
+      labels: ['Cropped in grid', 'Cropped in grid'],
+    };
+  }
+  return { kind: 'none' };
+}
+
 interface LintItem {
   id: string; kind: string; name?: string; startFrame: number; durationInFrames: number;
   width?: number; height?: number; props?: Record<string, unknown>; transform?: { x?: number; y?: number; scale?: number };
@@ -47,7 +74,10 @@ export function textBox(item: LintItem, canvas: { width: number; height: number 
 export function lintSafeZone(
   items: ReadonlyArray<LintItem>, canvas: { width: number; height: number }, z: SafeZone = DEFAULT_SAFE_ZONE,
 ): SafeZoneIssue[] {
-  const safe = safeRect(canvas, z);
+  const area = safeAreaFor(canvas, z);
+  if (area.kind === 'none') return [];
+  const safe = area.safe;
+  const where = area.kind === 'reel' ? 'the Instagram UI' : 'the 3:4 profile-grid crop';
   const issues: SafeZoneIssue[] = [];
   for (const it of items) {
     if (it.kind !== 'text') continue;
@@ -57,7 +87,7 @@ export function lintSafeZone(
     if (b.y + b.h > safe.y + safe.h) out.push('bottom');
     if (b.x < safe.x) out.push('left');
     if (b.x + b.w > safe.x + safe.w) out.push('right');
-    if (out.length) issues.push({ itemId: it.id, startFrame: it.startFrame, message: `Text "${String(it.props?.text ?? it.name ?? '').slice(0, 24)}" overlaps the Instagram UI (${out.join(', ')})` });
+    if (out.length) issues.push({ itemId: it.id, startFrame: it.startFrame, message: `Text "${String(it.props?.text ?? it.name ?? '').slice(0, 24)}" overlaps ${where} (${out.join(', ')})` });
   }
   return issues;
 }
