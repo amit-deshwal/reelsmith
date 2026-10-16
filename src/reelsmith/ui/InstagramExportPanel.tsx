@@ -1,11 +1,12 @@
 // RS-301/RS-302: "Instagram-ready" toggle and the last check report, shown on the Video export tab.
 import { useState, useSyncExternalStore } from 'react';
 import type { TimelineState } from '../../editor/types';
+import { ratioOf } from '../../../shared/reelsmith/ratios';
 import { theme } from '../../theme';
-import { instagramReportStore, isVertical, loadInstagramPreference, saveInstagramPreference } from '../instagramExport';
+import { instagramReportStore, isSupportedShape, loadInstagramPreference, saveInstagramPreference } from '../instagramExport';
 
 const NAMES: Record<string, string> = {
-  V1: 'MP4, faststart', V2: 'Video H.264 High, 1080×1920, 30 fps, Rec.709', V3: 'Audio AAC 48 kHz stereo', V4: 'Audio and video same length',
+  V1: 'MP4, faststart', V2: 'Video H.264 High, canvas size, constant fps, Rec.709', V3: 'Audio AAC 48 kHz stereo', V4: 'Audio and video same length',
   V5: 'Decodes without errors', V6: 'Loudness -14 LUFS, peak -1 dBTP', V7: 'No unintended black frames', V8: 'Export matches the preview', V9: 'File size and bitrate',
 };
 
@@ -13,7 +14,8 @@ export function InstagramExportPanel({ state }: { state: TimelineState }) {
   const [pref, setPref] = useState(loadInstagramPreference);
   const report = useSyncExternalStore(instagramReportStore.subscribe, instagramReportStore.get, instagramReportStore.get);
   const update = (p: typeof pref) => { setPref(p); saveInstagramPreference(p); };
-  const vertical = isVertical(state);
+  const shape = ratioOf(state.width, state.height);
+  const supported = isSupportedShape(state);
   const muted: React.CSSProperties = { fontSize: 11.5, color: theme.textDim };
   return (
     <section style={{ display: 'grid', gap: 6, padding: '10px 12px', border: `0.5px solid ${theme.border}`, borderRadius: 8, marginTop: 10 }}>
@@ -22,9 +24,9 @@ export function InstagramExportPanel({ state }: { state: TimelineState }) {
         Make it Instagram-ready
       </label>
       <span style={muted}>
-        {vertical
-          ? '1080×1920, H.264 High, AAC 48 kHz, -14 LUFS, faststart. Checked after rendering; fixed with a safe re-encode only if needed.'
-          : `The canvas is ${state.width}×${state.height}, not 9:16, so this step is skipped.`}
+        {supported
+          ? `${shape} (${state.width}×${state.height}), H.264 High, AAC 48 kHz, -14 LUFS, faststart. Checked after rendering; fixed with a safe re-encode only if needed. Change the shape with the ratio control on the timeline.`
+          : `The canvas is ${state.width}×${state.height}, which is not one of the supported shapes (9:16, 3:4, 4:5, 1:1, 16:9, 4:3), so this step is skipped.`}
       </span>
       {pref.enabled && (
         <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12 }}>
