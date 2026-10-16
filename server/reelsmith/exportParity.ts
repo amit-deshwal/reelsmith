@@ -2,6 +2,7 @@
 // exported file. Failure to run the sample is reported as a WARN, never as a failed export.
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+// @ts-expect-error — plain .mjs render pipeline has no .d.ts
 import { renderTimelineStills } from '../../remotion/render.mjs';
 import { ffprobeBin } from '../media-binaries.ts';
 import { acceptExportSubmission } from '../plugins/export-submission.ts';
