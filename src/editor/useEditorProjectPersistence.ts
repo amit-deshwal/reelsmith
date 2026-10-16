@@ -17,6 +17,9 @@ import type { ProjectDoc, TimelineState } from './types';
 
 type MutableRef<T> = { current: T };
 
+/** Save during long editing gestures too; the idle debounce alone can be postponed indefinitely. */
+export const PROJECT_AUTOSAVE_MAX_INTERVAL_MS = 1_000;
+
 interface EditorProjectPersistenceOptions {
   projectId: string;
   doc: ProjectDoc;
@@ -88,6 +91,10 @@ function useEditorAutosave(projectId: string, doc: ProjectDoc): () => Promise<bo
     const timer = setTimeout(() => { enqueuePendingSave(); }, 500);
     return () => clearTimeout(timer);
   }, [doc, enqueuePendingSave, projectId, unsavedRef]);
+  useEffect(() => {
+    const interval = window.setInterval(() => { enqueuePendingSave(); }, PROJECT_AUTOSAVE_MAX_INTERVAL_MS);
+    return () => window.clearInterval(interval);
+  }, [enqueuePendingSave]);
   const flushBeforeLeave = useCallback(async (): Promise<boolean> => {
     enqueuePendingSave();
     const result = await flushProjectSaves(projectId);
