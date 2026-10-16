@@ -28,10 +28,10 @@ A reel made from the Recipes tab remembers its recipe run.
 
 ## Choosing the shots ("let my agent choose")
 
-1. `reels_selection_candidates` gives the slot count and a compact table: score (sharpness, exposure, motion), near-duplicate `groupId`, best window, capture time.
-2. Look at uncertain clips with `view_asset_frames` (small frames only). Skip this if the user turned frame sharing off.
-3. Answer with `propose_selection`: asset ids in shot order, at most `slots`, never two from the same `groupId`. Strong opener, variety in the middle, a calm or iconic last shot. Give a one-line rationale.
-4. Report what was accepted and what the heuristic filled.
+1. `reels_selection_candidates` gives `selectionKey`, primary `slots` and candidates, optional `brollSlots`/`brollCandidates`, and `framesAllowed`. Scores, near-duplicate groups, best windows, capture times and short transcript excerpts help you choose.
+2. When `framesAllowed` is true, use candidate `inspect` requests with `view_asset_frames` for small contact sheets of uncertain clips. When false, choose from text facts without requesting pictures.
+3. Call `propose_selection` with the exact `selectionKey`, primary `assetIds` in shot order (at most `slots`) and optional `brollAssetIds` (at most `brollSlots`). Never choose two from the same `groupId`. Keep vlog capture-time order; keep talking clips coherent. Refresh candidates when a stale-selection error occurs. Give a one-line rationale.
+4. Report the accepted picks, rejected picks and heuristic fills. If none are usable or the agent is unavailable, the current assembled reel remains usable.
 
 ## Without a recipe
 

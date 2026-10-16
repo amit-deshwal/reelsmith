@@ -57,7 +57,7 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
     description: [
       'For "let my agent choose the shots": list the candidate clips of the recipe run as a compact table (assetId, name, seconds,',
       'heuristic score 0..1, near-duplicate groupId, best window start, capture time) plus how many shots (slots) the reel needs.',
-      'Look at clips with view_asset_frames if frames are allowed, then answer with propose_selection.',
+      'Returns selectionKey, framesAllowed, inspect requests for contact sheets, and separate B-roll candidates/slot counts for captioned stories. Look at uncertain clips only if framesAllowed, then call propose_selection with the returned selectionKey.',
     ].join(' '),
     input_schema: { type: 'object', properties: {} },
   },
@@ -66,15 +66,17 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
     description: [
       'Answer a shot-selection request: the assetIds to use, in shot order (at most `slots` from reels_selection_candidates).',
       'Unknown, repeated or near-duplicate picks are rejected and reported; empty slots are filled by the heuristic.',
-      'The recipe output is rebuilt with these picks as one undo step; clips the user added by hand are kept.',
+      'Works across all recipes; captioned stories accept separate brollAssetIds. Valid picks lead, remaining slots use the heuristic. Pass selectionKey from the latest candidates call: stale picks are refused. The rebuild is one undo step and manual items are kept; no usable picks leave the current reel unchanged.',
     ].join(' '),
     input_schema: {
       type: 'object',
       properties: {
-        assetIds: { type: 'array', items: { type: 'string' }, description: 'Chosen asset ids in shot order.' },
+        selectionKey: { type: 'string', description: 'Exact selectionKey from the latest reels_selection_candidates response. Refresh candidates after any timeline/media change.' },
+        assetIds: { type: 'array', items: { type: 'string' }, description: 'Chosen primary asset ids in shot order.' },
+        brollAssetIds: { type: 'array', items: { type: 'string' }, description: 'Optional captioned-story B-roll ids, in slot order; use brollCandidates and brollSlots.' },
         rationale: { type: 'string', description: 'One or two sentences on why, shown to the user.' },
       },
-      required: ['assetIds'],
+      required: ['selectionKey', 'assetIds'],
     },
   },
 ];

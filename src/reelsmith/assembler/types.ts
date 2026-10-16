@@ -56,6 +56,8 @@ export interface AssembleInput {
   seed: number;
   /** validated AI picks, in shot order (RS-106); gaps are filled by the heuristic */
   preferredAssetIds?: string[];
+  /** Optional B-roll order for captioned stories. */
+  preferredBrollAssetIds?: string[];
   /** RS-108: regenerate one section only, never reusing clips placed elsewhere */
   /** 0..1: how much randomness (from the seed) may override score when picking; 0 = pure score */
   variety?: number;
@@ -92,6 +94,9 @@ export interface RecipeRunRecord {
   assetIds: string[];
   /** RS-108: asset ids per recipe input, so the run can be rebuilt from chat */
   media?: Record<string, string[]>;
+  preferredAssetIds?: string[];
+  preferredBrollAssetIds?: string[];
+  selectionRationale?: string;
 }
 
 export interface AssembleResult {

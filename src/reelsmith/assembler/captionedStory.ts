@@ -4,7 +4,7 @@ import { renderTemplate } from '../../../shared/reelsmith/recipe';
 import type { AtomicAction } from '../../editor/reducerActions';
 import { editedFrames, projectRetimedWords, type EditOpts } from '../../transcript/edit';
 import { clipItem, dbToGain, fpsOf, textItem } from './common';
-import { pickClips } from './beatMontage';
+import { pickClips, pickWithPreferred } from './beatMontage';
 import { captionsFor } from '../captionStyles';
 import { stableId } from './rng';
 import type { AssembleInput, AssembleResult } from './types';
@@ -29,10 +29,12 @@ export function assembleCaptionedStory(input: AssembleInput): AssembleResult {
     warnings.push(m);
     return { action: null, run, report: { shots: 0, usedAssetIds: [], musicStartSec: 0, totalFrames: 0, warnings } };
   };
-  const talking = input.clips.filter((c) => c.kind === 'video' && c.transcript?.length);
+  let talking = input.clips.filter((c) => c.kind === 'video' && c.transcript?.length);
   for (const c of input.clips) if (!c.transcript?.length) warnings.push(`${c.name}: no transcript yet`);
   if (!talking.length) return fail('transcribe the talking clips first: install a speech model in Settings → Local AI, then transcribe each clip (right-click it in My Media)');
   talking.sort((a, b) => (a.captureTimeMs ?? Infinity) - (b.captureTimeMs ?? Infinity) || a.name.localeCompare(b.name));
+
+  if (input.preferredAssetIds?.length) talking = pickWithPreferred(talking, input.preferredAssetIds, talking.length, true, seed);
 
   const opts = recipe.assembler.options ?? {};
   const level = String(params.tighten ?? 'balanced');
@@ -81,6 +83,7 @@ export function assembleCaptionedStory(input: AssembleInput): AssembleResult {
 
   // B-roll over sentences, at most one per `brollEvery` seconds, never during the hook
   const pool = input.broll ?? [];
+  const usedBroll: string[] = [];
   if (pool.length) {
     const gap = Math.round(Number(params.brollEvery ?? 6) * fps);
     const hookEnd = Math.round((recipe.structure.find((s) => s.section === 'hook')?.lengthSec ?? 3) * fps);
@@ -93,7 +96,13 @@ export function assembleCaptionedStory(input: AssembleInput): AssembleResult {
       slots.push({ frame: s.frame, dur });
       last = s.frame;
     }
-    const picks = pickClips(pool, slots.length, false, seed);
+    const usedGroups = new Set(talking.map((c) => c.groupId).filter(Boolean));
+    const usedIds = new Set(talking.map((c) => c.assetId));
+    const eligible = pool.filter((c) => !usedIds.has(c.assetId) && !(c.groupId && usedGroups.has(c.groupId)));
+    const picks = input.preferredBrollAssetIds?.length
+      ? pickWithPreferred(eligible, input.preferredBrollAssetIds, slots.length, false, seed)
+      : pickClips(eligible, slots.length, false, seed);
+    usedBroll.push(...picks.map((c) => c.assetId));
     if (picks.length < slots.length) warnings.push('fewer B-roll clips than slots');
     picks.forEach((clip, i) => {
       const act = clipItem(stableId('rs', tag, seed, 'broll', i), clip, 'V2', slots[i]!.dur, { props: { rsSection: 'story' } }, -96);
@@ -123,6 +132,6 @@ export function assembleCaptionedStory(input: AssembleInput): AssembleResult {
   }
   return {
     action: { type: 'batch', actions, label: `Assemble ${recipe.name}` }, run,
-    report: { shots: talking.length, usedAssetIds: talking.map((c) => c.assetId), musicStartSec: 0, totalFrames: total, warnings },
+    report: { shots: talking.length + usedBroll.length, usedAssetIds: [...talking.map((c) => c.assetId), ...usedBroll], musicStartSec: 0, totalFrames: total, warnings },
   };
 }

@@ -33,7 +33,9 @@ export interface RecipesPanelProps {
 export const AGENT_PICK_PROMPT = [
   'Choose the shots for the reel I just assembled from a recipe.',
   'Call reels_selection_candidates, look at the candidates (view_asset_frames on the ones you are unsure about),',
-  'then answer with propose_selection: the best clips in shot order, varied, no near-duplicates. Tell me in one or two lines why.',
+  'Respect framesAllowed: when it is false, work from names, scores and transcripts without requesting pictures.',
+  'Then call propose_selection with the returned selectionKey and the best assetIds in shot order, varied, no near-duplicates.',
+  'For a captioned story, choose brollAssetIds separately using brollCandidates and brollSlots. Tell me in one or two lines why.',
 ].join(' ');
 
 const label: React.CSSProperties = { fontSize: 11.5, color: theme.textDim };

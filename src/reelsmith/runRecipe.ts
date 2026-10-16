@@ -23,6 +23,7 @@ export interface RunOptions {
   seed?: number;
   /** validated AI picks (RS-106), in shot order */
   preferredAssetIds?: string[];
+  preferredBrollAssetIds?: string[];
   onProgress?: (text: string) => void;
 }
 
@@ -92,6 +93,7 @@ export async function prepareAssembly(api: AnalyzeApi, o: RunOptions): Promise<P
       recipe, clips: primary, broll: secondary, music,
       texts: o.values.texts, params: o.values.params, seed: o.seed ?? 1,
       ...(o.preferredAssetIds?.length ? { preferredAssetIds: o.preferredAssetIds } : {}),
+      ...(o.preferredBrollAssetIds?.length ? { preferredBrollAssetIds: o.preferredBrollAssetIds } : {}),
     },
   };
 }

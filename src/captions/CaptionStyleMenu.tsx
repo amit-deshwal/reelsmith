@@ -14,6 +14,7 @@ import { captionsForTrack } from './captionTrack';
 import { newManualCaptions } from './manualCaptions';
 import { captionTemplatePatch } from './captionTemplatePatch';
 import { MenuDrillHeader } from '../components/timeline/MenuDrillHeader';
+import { ReelsCaptionStyles } from '../reelsmith/ui/ReelsCaptionStyles';
 
 const CAPTION_LANGS = ['English', '日本語', '한국어', 'Español', 'Français', 'Deutsch', 'Português'];
 
@@ -125,6 +126,12 @@ export function CaptionStyleMenu({ state, commands, trackId, pos, error, onError
   return (
     <div className="cc-caption-style-menu" style={{ position: 'fixed', left: pos.left, top: pos.top }} onPointerDown={(e) => e.stopPropagation()}>
       <MenuDrillHeader title={t('字幕样式')} onBack={backToParent} />
+      <ReelsCaptionStyles captions={captionsForTrack(state, trackId) ?? newManualCaptions()} onApply={(patch) => {
+        if (current) commands.updateCaptions(patch, trackId);
+        else commands.setCaptions({ ...(captionsForTrack(state, trackId) ?? newManualCaptions()), ...patch }, trackId);
+        onError(null);
+        onClose();
+      }} />
       <div className="cc-caption-style-list">
         {CAPTION_STYLES.map((style) => {
           return (

@@ -9,17 +9,18 @@ import { assembleCaptionedStory } from './captionedStory';
 export type { AssembleInput, AssembleResult, AssemblyClip, AssemblyMusic, RecipeRunRecord, AssembleReport } from './types';
 
 export function assemble(input: AssembleInput): AssembleResult {
+  let result: AssembleResult;
   switch (input.recipe.assembler.strategy) {
     case 'beat-montage@1':
-      return assembleBeatMontage(input);
+      result = assembleBeatMontage(input); break;
     case 'story-vlog@1':
-      return assembleStoryVlog(input);
+      result = assembleStoryVlog(input); break;
     case 'collage-grid@1':
-      return assembleCollageGrid(input);
+      result = assembleCollageGrid(input); break;
     case 'captioned-story@1':
-      return assembleCaptionedStory(input);
+      result = assembleCaptionedStory(input); break;
     default:
-      return {
+      result = {
         action: null,
         report: { shots: 0, usedAssetIds: [], musicStartSec: 0, totalFrames: 0, warnings: [`strategy ${input.recipe.assembler.strategy} not implemented yet`] },
         run: {
@@ -28,4 +29,8 @@ export function assemble(input: AssembleInput): AssembleResult {
         },
       };
   }
+  if (result.action) result.action = { ...result.action, actions: result.action.actions.map((action) => action.type === 'add'
+    ? { ...action, item: { ...action.item, props: { ...action.item.props, rsRun: `${input.recipe.id}@${input.recipe.version}` } } }
+    : action) };
+  return result;
 }

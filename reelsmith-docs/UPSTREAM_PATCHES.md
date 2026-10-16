@@ -113,3 +113,14 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 - `src/reelsmith/subjectFeatures.ts` reuses upstream MediaPipe geometry and bundled models for video and photo face scores. Inference is bounded, cached per source revision, and optional; unavailable models preserve the model-free measurements. `analyzeApi.ts` merges these measurements before assembly.
 - `src/reelsmith/assembler/sourcePlacement.ts` retains scoring windows and cut bounds through placement, choosing a duration-aware range within a single shot. Montage, vlog, collage and B-roll use it. Captioned Story's talking clips keep the existing transcript-aligned edit path.
 - `package.json`: registers `assembler/sourcePlacement.verify.ts`, `subjectFeatures.verify.ts` and `analyzeApi.verify.ts`; expands the existing scoring and FFmpeg fixture checks.
+
+## Optional agent shot selection across recipes (RS-106)
+- `assets/agent/openchatcut-tool-schemas.json`: regenerated to describe selectionKey, separate B-roll picks, privacy-aware contact-sheet requests and graceful fallback.
+- `package.json`: registers `src/reelsmith/agent/selectionFlow.verify.ts` in `test:reelsmith`.
+- Reelsmith-owned files: vlog/collage/captioned-story assemblers honour preferred picks; captioned stories report B-roll use. The assembler tags generated items with their recipe run so replacing shots preserves unrelated manual items, including ids starting with `rs-`.
+- `src/reelsmith/agent/selectionContext.ts`: compact candidate facts and SHA-256 selection keys over the project/run snapshot; selection highlights are excluded. `reelsTools.ts` refuses stale picks and changes during analysis, fills partial answers, preserves the existing reel on unusable answers and reports persistence failures after a successful edit accurately.
+- `src/agent/skills/reels-editor/SKILL.md` (our bundled skill) and the setup chat prompt describe the updated workflow. Candidate frames remain behind the existing project privacy switch and `view_asset_frames` dispatcher gate.
+- Validation: all five recipe integration tests, the full Reelsmith suite, TypeScript, skill loading and MCP tool exposure pass. A real Claude CLI run on synthetic fixture photos successfully inspected frames, proposed picks, linted and reviewed the edit session.
+
+## Reels caption style picker (RS-502)
+- `src/captions/CaptionsControls.tsx`, `src/captions/CaptionStyleMenu.tsx`: render the shared `src/reelsmith/ui/ReelsCaptionStyles.tsx` picker. Each preset applies template, style overrides, pacing, motion and safe placement through the existing caption commands; source-entry appearance overrides are cleared so the selected look is visible. Caption content, timing and translations are preserved. Manual testing is delegated to the user.

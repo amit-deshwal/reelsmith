@@ -11,6 +11,7 @@ import { ManualCaptionEditor } from './ManualCaptionEditor';
 import { beginCaptionStylePointerDrag } from './captionStyleDrag';
 import { captionTemplatePatch } from './captionTemplatePatch';
 import { CaptionMotionControls } from './CaptionMotionControls';
+import { ReelsCaptionStyles } from '../reelsmith/ui/ReelsCaptionStyles';
 
 interface CaptionsControlsProps {
   captionTrackId?: TrackId;
@@ -117,6 +118,8 @@ export function CaptionsControls({
           {!captions.enabled && (
             <p className="cc-cap-hint warn">{t('字幕已关闭，预览/导出都不会烧录。再点「显示」或勾选即可恢复。')}</p>
           )}
+
+          <ReelsCaptionStyles captions={captions} onApply={onUpdate} />
 
           {/* Style: color block + Chinese name */}
           <div className="cc-cap-field">

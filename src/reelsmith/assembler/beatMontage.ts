@@ -121,6 +121,7 @@ export function planShots(
 
 /** Pick `count` clips: drop near-duplicates (best of each group), top scores, then chronological if asked. */
 export function pickClips(clips: AssemblyClip[], count: number, chronological: boolean, seed: number, variety = 0): AssemblyClip[] {
+  if (count <= 0) return [];
   const rng = makeRng(seed);
   const jitter = new Map(clips.map((c) => [c.assetId, rng()]));
   const eff = (c: AssemblyClip) => c.score * (1 - variety) + jitter.get(c.assetId)! * variety;
@@ -152,6 +153,7 @@ function uniqueUsable(clips: AssemblyClip[]): number {
 export function pickWithPreferred(
   clips: AssemblyClip[], preferred: string[], count: number, chronological: boolean, seed: number,
 ): AssemblyClip[] {
+  if (count <= 0) return [];
   const byId = new Map(clips.map((c) => [c.assetId, c]));
   const chosen: AssemblyClip[] = [];
   const usedGroups = new Set<string>();

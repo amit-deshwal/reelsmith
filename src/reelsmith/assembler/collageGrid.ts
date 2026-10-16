@@ -3,7 +3,7 @@ import { renderTemplate } from '../../../shared/reelsmith/recipe';
 import type { AtomicAction } from '../../editor/reducerActions';
 import { placeInSlot, type SlotRect } from '../../editor/layouts';
 import { clipItem, dbToGain, fpsOf, metronome, textItem } from './common';
-import { pickClips, musicStartSec } from './beatMontage';
+import { pickClips, pickWithPreferred, musicStartSec } from './beatMontage';
 import { stableId } from './rng';
 import type { AssembleInput, AssembleResult } from './types';
 
@@ -65,7 +65,9 @@ export function assembleCollageGrid(input: AssembleInput): AssembleResult {
   if (!layoutList.length) return empty(`need more clips (have ${input.clips.length})`);
   if (layoutList.length * bpb < gridBeats) warnings.push('footage ran short: the grid section is shorter than the target');
 
-  const pickedAll = pickClips(input.clips, needClips, recipe.constraints?.keepChronological ?? false, seed);
+  const pickedAll = input.preferredAssetIds?.length
+    ? pickWithPreferred(input.clips, input.preferredAssetIds, needClips, recipe.constraints?.keepChronological ?? false, seed)
+    : pickClips(input.clips, needClips, recipe.constraints?.keepChronological ?? false, seed);
   // the picker can return fewer clips than asked (near-duplicates are skipped): drop layouts until they fit
   while (layoutList.length && needClips > pickedAll.length) needClips -= LAYOUT_SLOTS[layoutList.pop()!]!.length;
   if (!layoutList.length) return empty(`need more distinct clips (have ${pickedAll.length} after removing near-duplicates)`);

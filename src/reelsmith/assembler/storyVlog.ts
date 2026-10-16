@@ -5,7 +5,7 @@ import type { AtomicAction } from '../../editor/reducerActions';
 import { placeInSlot } from '../../editor/layouts';
 import { clipItem, dbToGain, fpsOf, metronome, textItem } from './common';
 import { stableId } from './rng';
-import { musicStartSec, pickClips } from './beatMontage';
+import { musicStartSec, pickClips, pickWithPreferred } from './beatMontage';
 import type { AssembleInput, AssembleResult, AssemblyClip } from './types';
 
 export function formatMoment(ms: number, tzOffsetMin: number): string {
@@ -52,7 +52,9 @@ export function assembleStoryVlog(input: AssembleInput): AssembleResult {
   const needed = (n: number) => n + Array.from({ length: n }, (_, i) => i).filter(isSplit).length;
   const usable = new Set(clips.map((c) => c.groupId ?? c.assetId)).size;
   while (slotCount > 1 && needed(slotCount) > usable) slotCount -= 1;
-  const picked = pickClips(clips, needed(slotCount), true, seed);
+  const picked = input.preferredAssetIds?.length
+    ? pickWithPreferred(clips, input.preferredAssetIds, needed(slotCount), true, seed)
+    : pickClips(clips, needed(slotCount), true, seed);
   while (slotCount > 1 && needed(slotCount) > picked.length) slotCount -= 1;
   const used = picked.slice(0, needed(slotCount));
   if (used.length < needed(slotCount)) return fail('not enough clips');

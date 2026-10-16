@@ -91,11 +91,11 @@ assert.equal(gridCalls, 1);
 assert.ok((tl().items.find((i) => i.id === music.id)!.props as { rsBeats?: unknown }).rsBeats, 'grid saved');
 
 // selection candidates + propose_selection
-const cand = await execReelsTool('reels_selection_candidates', {}, ctx, deps) as { slots: number; candidates: Array<{ assetId: string }> };
+const cand = await execReelsTool('reels_selection_candidates', {}, ctx, deps) as { selectionKey: string; slots: number; candidates: Array<{ assetId: string }> };
 assert.ok(cand.slots > 0 && cand.candidates.length === 14);
 const picks = [...cand.candidates.map((c) => c.assetId)].reverse().slice(0, cand.slots);
 const bad = ['ghost', picks[0], picks[0]];
-const res = await execReelsTool('propose_selection', { assetIds: [...bad, ...picks.slice(1)] }, ctx, deps) as { ok?: boolean; rejected: Array<{ reason: string }>; accepted: number };
+const res = await execReelsTool('propose_selection', { selectionKey: cand.selectionKey, assetIds: [...bad, ...picks.slice(1)] }, ctx, deps) as { ok?: boolean; rejected: Array<{ reason: string }>; accepted: number };
 assert.ok(res.ok);
 assert.ok(res.rejected.some((x) => x.reason === 'unknown asset') && res.rejected.some((x) => x.reason === 'repeated'), 'malformed picks rejected');
 const v1 = tl().items.filter((i) => isRecipeItem(i.id) && i.kind === 'video').sort((a, b) => a.startFrame - b.startFrame);
@@ -103,7 +103,8 @@ assert.equal(v1[0]!.sourceAssetId, picks[0], 'first shot is the agent\'s first p
 assert.ok(tl().items.some((i) => i.id === 'mine'), 'manual item kept after re-assembly');
 assert.equal(tl().items.filter((i) => i.kind === 'audio').length, 1, 'no duplicate music');
 // garbage answer still assembles (heuristic fills)
-const junk = await execReelsTool('propose_selection', { assetIds: 'all of them' }, ctx, deps) as { ok?: boolean; filledByHeuristic: number };
+const freshCand = await execReelsTool('reels_selection_candidates', {}, ctx, deps) as { selectionKey: string };
+const junk = await execReelsTool('propose_selection', { selectionKey: freshCand.selectionKey, assetIds: 'all of them' }, ctx, deps) as { ok?: boolean; filledByHeuristic: number };
 assert.ok(junk.ok && junk.filledByHeuristic > 0);
 
 // no run saved => clear error
