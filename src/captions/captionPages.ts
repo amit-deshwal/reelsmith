@@ -30,7 +30,7 @@ function withCueEdits<T extends { words: import('../transcript/types.js').Transc
     const anchor = (ref?: string) => ref ? value.words[positions.get(ref) ?? -1] : undefined;
     const output = edit.words.map((part, partIndex) => {
       const source = part.sourceRef ? anchor(part.sourceRef) : undefined;
-      if (source) return { word: { ...source, text: part.text }, ref: part.sourceRef!, index: value.indices[positions.get(part.sourceRef)!]! };
+      if (source) return { word: { ...source, text: part.text }, ref: part.sourceRef!, index: value.indices[positions.get(part.sourceRef!)!]! };
       const before = anchor(part.beforeRef);
       const after = anchor(part.afterRef);
       const count = Math.max(1, part.insertionCount ?? 1);

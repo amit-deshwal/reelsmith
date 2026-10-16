@@ -85,6 +85,8 @@ export function cueTextPatch(
     const gap = editWords.filter((word) => !word.sourceRef && word.beforeRef === (before === undefined ? undefined : cue.wordRefs[before]) && word.afterRef === (after === undefined ? undefined : cue.wordRefs[after]));
     editWords.push({ text: tokens[j]!, ...(before === undefined ? {} : { beforeRef: cue.wordRefs[before] }), ...(after === undefined ? {} : { afterRef: cue.wordRefs[after] }), insertionIndex: gap.length, insertionCount: tokens.slice(j).filter((_, tokenIndex) => !pairs.has(tokenIndex) && (after === undefined || tokenIndex < after)).length });
   }
+  // Clearing a cue hides its source words; with no edit record they would otherwise reappear.
+  if (!tokens.length) cue.srcIdxs.forEach((source, position) => put(source, cue.wordRefs[position]!, { hidden: true }));
   const cueEdits = { ...(captions.cueEdits ?? {}) };
   const editKey = cue.wordRefs[0]!;
   if (editKey) {
