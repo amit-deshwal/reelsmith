@@ -220,3 +220,4 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 ## Lowercase caption transform (RS-502)
 - `src/captions/styles.ts`, `src/captions/styleMap.ts`, `src/captions/renderStyles.ts`: `textTransform` accepts `lowercase` (was none/uppercase) so the "Minimal lowercase" style really lowercases; one line each.
 - Tests: `src/reelsmith/captionStyles.verify.ts` (ours, in `test:reelsmith`).
+- RS-1005: `src/reelsmith/ui/RecipeHome.tsx` is ours; no upstream file changed. `package.json` `test:reelsmith` gains `shared/reelsmith/trendCache.verify.ts`.

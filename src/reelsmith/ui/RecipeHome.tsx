@@ -5,6 +5,7 @@ import type { RatioId } from '../../../shared/reelsmith/ratios';
 import { theme } from '../../theme';
 import { bundledCatalog } from '../bundledRecipes';
 import { localIdeaBrief, rankLocalIdeas, trendResearchPrompt } from '../../../shared/reelsmith/trendScout';
+import { formatNotesDate, isStale, loadTrendNotes, parseTrendResults, saveTrendNotes, type TrendNotes } from '../../../shared/reelsmith/trendCache';
 import { RecipeGallery } from './RecipeGallery';
 import { listUserRecipes } from '../userRecipesApi';
 
@@ -18,18 +19,30 @@ export function RecipeHome({ onStartRecipe }: { onStartRecipe: (recipeId: string
   const [clipCount, setClipCount] = useState(8);
   const [research, setResearch] = useState(false);
   const [userRecipes, setUserRecipes] = useState<Recipe[]>([]);
+  const [notes, setNotes] = useState<TrendNotes | null>(() => { try { return loadTrendNotes(window.localStorage); } catch { return null; } });
+  const [pasted, setPasted] = useState('');
+  const [notesError, setNotesError] = useState('');
   const starting = useRef(false);
+  const saveNotes = () => {
+    const { briefs, errors } = parseTrendResults(pasted);
+    if (!briefs.length) { setNotesError(errors.join('; ') || 'No briefs found.'); return; }
+    let saved: TrendNotes | null = null;
+    try { saved = saveTrendNotes(window.localStorage, topic, briefs); } catch { /* storage blocked */ }
+    if (!saved) { setNotesError('Could not save notes in this browser.'); return; }
+    setNotes(saved); setPasted(''); setNotesError(errors.join('; '));
+  };
   const ideas = useMemo(() => rankLocalIdeas(bundledCatalog.recipes, topic), [topic]);
   useEffect(() => { void listUserRecipes().then((result) => setUserRecipes(result.recipes)).catch(() => {}); }, []);
-  const start = async (recipeId: string, fromIdeas = false, ratio?: RatioId) => {
+  const start = async (recipeId: string, fromIdeas = false, ratio?: RatioId, forceResearch = false) => {
     if (starting.current) return;
     const recipe = [...bundledCatalog.recipes, ...userRecipes].find((candidate) => candidate.id === recipeId);
     if (!recipe) return;
     starting.current = true;
     setBusyId(recipeId); setError('');
-    const options = { topic, availableClips: clipCount, research };
+    const doResearch = research || forceResearch;
+    const options = { topic, availableClips: clipCount, research: doResearch };
     const brief = fromIdeas ? localIdeaBrief(recipe, options) : undefined;
-    const prompt = fromIdeas && research ? trendResearchPrompt(options, bundledCatalog.recipes) : undefined;
+    const prompt = fromIdeas && doResearch ? trendResearchPrompt(options, bundledCatalog.recipes) : undefined;
     try { await onStartRecipe(recipe.id, { ratio, ...(fromIdeas ? { brief, prompt } : {}) }); }
     catch (e) { setError(e instanceof Error ? e.message : String(e)); }
     finally { starting.current = false; setBusyId(''); }
@@ -59,6 +72,20 @@ export function RecipeHome({ onStartRecipe }: { onStartRecipe: (recipeId: string
           ? 'Opting in sends your topic and clip count to your configured agent for web research. It will return dated sources in the editor chat; no audio is downloaded.'
           : 'Offline mode uses only bundled recipes and makes no research request.'}
       </span>
+      <div aria-label="Saved trend notes" style={{ display: 'grid', gap: 6, padding: 8, border: `0.5px solid ${theme.border}`, borderRadius: 7 }}>
+        <b style={{ fontSize: 12.5 }}>Saved trend notes{notes ? ` · ${formatNotesDate(notes)}` : ''}{notes && isStale(notes) ? ' · stale (over 14 days old)' : ''}</b>
+        {notes ? <>
+          {notes.topic && <span style={{ color: theme.textDim, fontSize: 11.5 }}>Topic: {notes.topic}</span>}
+          {notes.briefs.map((brief, i) => <div key={i} style={{ fontSize: 11.5 }}>
+            <b>{brief.target.recipeId}</b> {brief.target.ratio}: {brief.whyTrending ?? 'No reason given'}
+            {brief.sources?.map((src) => /^https:\/\//.test(src.url) ? <span key={src.url}> · <a href={src.url} target="_blank" rel="noreferrer noopener" style={{ color: theme.text }}>{src.title}{src.publishedAt ? ` (${src.publishedAt})` : ''}</a></span> : null)}
+          </div>)}
+          <button type="button" disabled={!!busyId || !ideas[0]} onClick={() => { void start(ideas[0]!.id, true, undefined, true); }} style={button}>Refresh (sends topic to your agent)</button>
+        </> : <span style={{ color: theme.textDim, fontSize: 11.5 }}>No saved notes yet. Paste the agent's JSON briefs below to keep them here.</span>}
+        <textarea aria-label="Paste research briefs JSON" value={pasted} onChange={(event) => setPasted(event.target.value)} rows={2} placeholder="Paste briefs JSON from the agent" style={{ ...button, textAlign: 'left' }} />
+        <button type="button" disabled={!pasted.trim()} onClick={saveNotes} style={button}>Save as trend notes</button>
+        {notesError && <span role="alert" style={{ color: theme.danger, fontSize: 11.5 }}>{notesError}</span>}
+      </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8 }}>
         {ideas.map((recipe) => <article key={recipe.id} style={{ display: 'grid', gap: 7, padding: 10, border: `0.5px solid ${theme.border}`, borderRadius: 7, background: theme.panelAlt }}>
           <strong style={{ fontSize: 12.5 }}>{recipe.name}</strong>
