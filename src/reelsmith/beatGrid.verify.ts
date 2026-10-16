@@ -12,6 +12,10 @@ assert.ok(shiftPhase(g, -0.5).beatTimesSec.every((t) => t >= 0));
 const shiftedPastStart = shiftPhase(g, -0.5);
 assert.equal(shiftedPastStart.downbeatIndex, 3, 'removing a leading beat preserves bar positions');
 near(shiftedPastStart.beatTimesSec[3]!, g.beatTimesSec[4]! - 0.5);
+const later = shiftPhase(g, 0.3); // first beat 0.6 s: one beat now fits in front of it
+assert.equal(later.beatTimesSec.length, g.beatTimesSec.length + 1);
+near(later.beatTimesSec[0]!, 0.1); near(later.beatTimesSec[1]!, 0.6);
+assert.equal(later.downbeatIndex, (g.downbeatIndex + 1) % 4, 'the old downbeat is still the same beat');
 assert.equal(shiftPhase(g, -100), g, 'phase edits cannot discard the whole grid');
 
 // tap tempo, with one sloppy tap

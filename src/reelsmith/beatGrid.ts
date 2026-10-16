@@ -6,6 +6,13 @@ export function shiftPhase(g: BeatGrid, deltaSec: number): BeatGrid {
   const shifted = g.beatTimesSec.map((t) => t + deltaSec);
   const removed = shifted.findIndex((t) => t >= 0);
   if (removed < 0 || shifted.length - removed < 2) return g;
+  if (removed === 0 && shifted.length >= 2) {
+    // moved later: keep the beats the grid had before its first beat, so the start of the song is not left bare
+    const period = shifted[1]! - shifted[0]!;
+    const lead: number[] = [];
+    if (period > 0.05) for (let t = shifted[0]! - period; t >= -1e-9; t -= period) lead.unshift(Math.max(0, t));
+    if (lead.length) return { ...g, beatTimesSec: [...lead, ...shifted], downbeatIndex: (g.downbeatIndex + lead.length) % g.beatsPerBar };
+  }
   return {
     ...g,
     beatTimesSec: shifted.slice(removed),
