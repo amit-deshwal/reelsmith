@@ -1,5 +1,6 @@
 import { showAppToast } from '../../ui/appToast';
 import { canSubjectReframe, centreFillActions, subjectReframeActions } from '../../reelsmith/subjectReframe';
+import { KEN_BURNS, KEN_BURNS_ORDER, canKenBurns, clearKenBurnsActions, kenBurnsActions } from '../../reelsmith/kenBurns';
 import { canDetachAudio, detachAudioActions, flipActions, isFlipped } from '../../reelsmith/clipOps';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { theme, themeAlpha } from '../../theme';
@@ -145,6 +146,7 @@ export function ClipContextMenu({ item, transitions, x, y, playhead, commands, t
   }, [onClose]);
 
   const [showSpeed, setShowSpeed] = useState(false);
+  const [showKenBurns, setShowKenBurns] = useState(false);
   const [showApplied, setShowApplied] = useState(false);
   // Use conservative clamping for the initial value, and accurately shrink it after measuring the actual size (expanding sub-area/weight when changing anchor)
   const [pos, setPos] = useState(() => ({ left: Math.min(x, window.innerWidth - 210), top: Math.min(y, window.innerHeight - 380) }));
@@ -287,6 +289,19 @@ export function ClipContextMenu({ item, transitions, x, y, playhead, commands, t
                 }}>{s}×</button>
             );
           })}
+        </div>
+      )}
+      {canKenBurns(item) && <Item label="Ken Burns motion" icon="aspect" chevron onClick={() => setShowKenBurns((v) => !v)} />}
+      {canKenBurns(item) && showKenBurns && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '2px 9px 6px 35px' }}>
+          {KEN_BURNS_ORDER.map((p) => (
+            <button key={p} onClick={run(() => commands.batch(kenBurnsActions(item, p), KEN_BURNS[p].label))}
+              style={{ cursor: 'pointer', fontSize: 11, padding: '3px 8px', borderRadius: 5, border: `0.5px solid ${theme.border}`, background: 'none', color: theme.text }}>{KEN_BURNS[p].label}</button>
+          ))}
+          {(item.zoom?.reframeCurve?.keyframes.length ?? 0) > 0 && (
+            <button onClick={run(() => commands.batch(clearKenBurnsActions(item), 'Remove motion'))}
+              style={{ cursor: 'pointer', fontSize: 11, padding: '3px 8px', borderRadius: 5, border: `0.5px solid ${theme.border}`, background: 'none', color: theme.textDim }}>Remove</button>
+          )}
         </div>
       )}
       <Sep />

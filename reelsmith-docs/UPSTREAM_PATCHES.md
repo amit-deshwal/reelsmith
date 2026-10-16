@@ -149,3 +149,7 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 ## Fill canvas and Reframe to subject (RS-402)
 - `src/components/timeline/ClipContextMenu.tsx`: "Fill canvas (centre)" and "Reframe to subject" items for video clips, implemented in `src/reelsmith/subjectReframe.ts` (uses `src/reframe/detect.ts` unchanged).
 - `package.json`: `subjectReframe.verify.ts` added to `test:reelsmith`.
+
+## Ken Burns motion (RS-406)
+- `src/components/timeline/ClipContextMenu.tsx`: "Ken Burns motion" submenu for photo/gif/svg clips, implemented in `src/reelsmith/kenBurns.ts`.
+- `package.json`: `kenBurns.verify.ts` added to `test:reelsmith`.
