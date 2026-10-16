@@ -25,24 +25,44 @@ export const KEN_BURNS_ORDER = Object.keys(KEN_BURNS) as KenBurnsPreset[];
 export const canKenBurns = (item: Pick<TimelineItem, 'kind'>): boolean => item.kind === 'image' || item.kind === 'gif' || item.kind === 'svg';
 
 /**
- * How much a contain-fitted picture must be enlarged to cover the canvas (1 when the shapes match or a size is unknown).
- * Ken Burns zooms are relative to the contain fit, so without this a photo of another shape shows bands at the start.
+ * The part of the canvas a contain-fitted picture covers along the axis where its shape differs, after any fill
+ * transform the clip already has (1 = no bands). Ken Burns zooms about a point of the canvas, so with bands
+ * the zoom must be big enough, and anchored inside the picture, to keep them out of frame.
  */
-export function coverScale(src?: { width?: number; height?: number }, canvas?: { width: number; height: number }): number {
-  if (!(src?.width && src.height && canvas && canvas.width > 0 && canvas.height > 0)) return 1;
+export function pictureExtent(
+  src?: { width?: number; height?: number; transform?: { scale?: number } },
+  canvas?: { width: number; height: number },
+): { axis: 'x' | 'y'; extent: number } | null {
+  if (!(src?.width && src.height && canvas && canvas.width > 0 && canvas.height > 0)) return null;
   const ratio = (src.width / src.height) / (canvas.width / canvas.height);
-  return ratio >= 1 ? ratio : 1 / ratio;
+  const existing = typeof src.transform?.scale === 'number' && src.transform.scale > 0 ? src.transform.scale : 1;
+  const extent = Math.min(1, existing * (ratio >= 1 ? 1 / ratio : ratio));
+  return extent < 1 - 1e-6 ? { axis: ratio >= 1 ? 'y' : 'x', extent } : null;
+}
+
+/** Pose adjusted so the picture still covers the canvas: anchor mapped into the picture, zoom at least what that anchor needs. */
+export function coverPose(p: Pose, fit: { axis: 'x' | 'y'; extent: number } | null): Pose {
+  if (!fit) return p;
+  const { extent: s } = fit;
+  const f = Math.min(0.95, Math.max(0.05, fit.axis === 'x' ? p.x : p.y));
+  const top = (1 - s) / 2;
+  const anchor = top + f * s;
+  const need = Math.max(anchor / (f * s), (1 - anchor) / ((1 - f) * s));
+  const m = Math.max(p.m / s, need);
+  return fit.axis === 'x' ? { x: anchor, y: p.y, m } : { x: p.x, y: anchor, m };
 }
 
 /** Replace the clip's reframe curve with the preset's two keyframes. Pure. */
 export function kenBurnsActions(
   item: Pick<TimelineItem, 'id' | 'zoom' | 'durationInFrames'>, preset: KenBurnsPreset,
-  fit?: { src?: { width?: number; height?: number }; canvas?: { width: number; height: number } },
+  fit?: { src?: { width?: number; height?: number; transform?: { scale?: number } }; canvas?: { width: number; height: number } },
 ): AtomicAction[] {
-  const { from, to } = KEN_BURNS[preset];
-  const cover = coverScale(fit?.src, fit?.canvas);
+  const motion = KEN_BURNS[preset];
+  const extent = pictureExtent(fit?.src, fit?.canvas);
+  const from = coverPose(motion.from, extent);
+  const to = coverPose(motion.to, extent);
   const last = Math.max(1, item.durationInFrames - 1);
-  const key = (frame: number, p: Pose): AtomicAction => ({ type: 'reframeKeyframe', id: item.id, frame, focalPointX: p.x, focalPointY: p.y, magnification: p.m * cover });
+  const key = (frame: number, p: Pose): AtomicAction => ({ type: 'reframeKeyframe', id: item.id, frame, focalPointX: p.x, focalPointY: p.y, magnification: p.m });
   return [
     ...(item.zoom?.reframeCurve?.keyframes ?? []).map((k) => ({ type: 'removeReframeKeyframe' as const, id: item.id, frame: k.frame })),
     key(0, from),
