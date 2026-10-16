@@ -7,6 +7,8 @@ import type { FocusRect } from '../cropFocus';
 /** A media item the assembler may place. All frame values are at the recipe's fps. */
 export interface AssemblyClip {
   assetId: string;
+  /** set on an extra moment of a long video: the real asset it comes from (assetId is then "<asset>#<n>") */
+  baseAssetId?: string;
   name: string;
   src: string;
   kind: 'video' | 'image';

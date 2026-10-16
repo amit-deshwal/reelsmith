@@ -5,6 +5,7 @@ import { renderTemplate } from '../../../shared/reelsmith/recipe';
 import { sourcePlacement } from './sourcePlacement';
 import { fitFontSize } from './common';
 import { makeRng, stableId } from './rng';
+import { realAssetId, spreadSameSource, videosOnLongShots, withExtraWindows } from './extraWindows';
 import { applyCastingBias, castSlots, planToOrder } from './casting';
 import { pickTransitions, transitionActions } from './transitions';
 import { fitToBars, musicStart } from '../beatGrid';
@@ -284,7 +285,8 @@ function overlayActions(
 const dbToGain = (db: number) => 10 ** (db / 20);
 
 export function assembleBeatMontage(input: AssembleInput): AssembleResult {
-  const { recipe, clips, music, params, seed, texts } = input;
+  const { recipe, music, params, seed, texts } = input;
+  let clips = input.clips;
   const run: RecipeRunRecord = {
     recipeId: recipe.id, recipeVersion: recipe.version, assembler: recipe.assembler.strategy,
     seed, params, texts, assetIds: clips.map((c) => c.assetId).sort(),
@@ -298,6 +300,14 @@ export function assembleBeatMontage(input: AssembleInput): AssembleResult {
   if (music.beatTimesSec.length < 2) { warnings.push('music has no usable beat grid'); return empty({}); }
 
   const policy = recipe.constraints?.insufficientMediaPolicy ?? 'lengthenShots';
+  // mergeShots: before joining shots, take more than one moment from the long videos so every cut can stay on a beat
+  let extraMomentsAdded = false;
+  if (policy === 'mergeShots') {
+    const base = planShots(recipe, music, params, 1);
+    const longest = Math.max(1, ...base.shots.map((s) => s.durationInFrames));
+    const extra = withExtraWindows(clips, base.shots.length - uniqueUsable(clips), longest);
+    if (extra.length) { clips = [...clips, ...extra]; extraMomentsAdded = true; }
+  }
   const usable = uniqueUsable(clips);
   let stretch = 1;
   let plan = planShots(recipe, music, params, stretch);
@@ -317,7 +327,7 @@ export function assembleBeatMontage(input: AssembleInput): AssembleResult {
   const allShots = plan.shots;
   const shots = onlySection ? allShots.filter((s) => s.section === onlySection.name) : allShots;
   const shotIndex = (s: PlannedShot) => allShots.indexOf(s);
-  const unbiased = onlySection ? clips.filter((c) => !onlySection.excludeAssetIds.includes(c.assetId)) : clips;
+  const unbiased = onlySection ? clips.filter((c) => !onlySection.excludeAssetIds.includes(realAssetId(c))) : clips;
   const pool = recipe.casting ? applyCastingBias(unbiased, recipe.casting) : unbiased;
   const allowRepeat = policy === 'allowRepeat';
   const chronological = recipe.constraints?.keepChronological ?? true;
@@ -329,6 +339,8 @@ export function assembleBeatMontage(input: AssembleInput): AssembleResult {
     : cast ? planToOrder(cast)
     : pickClips(pool, shots.length, chronological, seed, input.variety ?? 0);
   if (cast) warnings.push(cast.note);
+  if (extraMomentsAdded) picked = spreadSameSource(picked, 0);
+  if (policy === 'mergeShots') picked = videosOnLongShots(picked, shots.map((s) => s.lengthBeats));
   // the user's chosen opener takes the first shot; it is never repeated, nor is a near-duplicate of it
   const opener = !onlySection && input.openerAssetId ? pool.find((c) => c.assetId === input.openerAssetId) : undefined;
   if (opener) {
@@ -387,7 +399,7 @@ export function assembleBeatMontage(input: AssembleInput): AssembleResult {
       type: 'add',
       item: {
         id, track: 'V1', kind: clip.kind, name: clip.name, src: clip.src, durationInFrames: duration,
-        sourceAssetId: clip.assetId,
+        sourceAssetId: realAssetId(clip),
         props: { rsSection: shot.section, rsRun: tag },
         ...(isVideo ? { srcInFrame: srcIn, playbackRate: rate === 1 ? undefined : rate, volume: dbToGain(recipe.music?.clipAudioGainDb ?? -96) } : {}),
       },
@@ -440,8 +452,10 @@ export function assembleBeatMontage(input: AssembleInput): AssembleResult {
       startFrame: 0,
     });
   }
+  const fromExtra = picked.filter((c) => c.baseAssetId).length;
+  if (fromExtra) warnings.push(`${fromExtra} shots are different moments of your longer videos, so every cut can stay on a beat`);
   const report: AssembleReport = {
-    shots: shots.length, usedAssetIds: picked.map((c) => c.assetId), musicStartSec: plan.startSec,
+    shots: shots.length, usedAssetIds: [...new Set(picked.map(realAssetId))], musicStartSec: plan.startSec,
     totalFrames: total, warnings,
   };
   return { action: { type: 'batch', actions, label: `Assemble ${recipe.name}` }, report, run };

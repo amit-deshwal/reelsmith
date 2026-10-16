@@ -97,4 +97,45 @@ assert.equal(mergeShots(unit, 0).length, 10);
 const song20: AssemblyMusic = { ...music, durationSec: 20.15, beatTimesSec: Array.from({ length: 43 }, (_, i) => 0.244 + i * 0.4594), dropSec: undefined };
 const whole = assemble({ recipe, clips, music: song20, texts: defaults.texts, params: defaults.params, seed: 5 });
 assert.ok(whole.report.totalFrames >= 19 * 30, `reel covers the song (${whole.report.totalFrames / 30} s)`);
+// 25 clips for ~37 beats, but the videos are long: different moments of them keep every cut one beat (nothing joined)
+const longClips: AssemblyClip[] = Array.from({ length: 25 }, (_, i) => ({
+  assetId: `L${i}`, name: `L${i}`, src: `/L${i}`, kind: 'video', durationInFrames: 1200, score: 0.9 - i * 0.01, bestStartFrame: 0,
+  sourceAnalysis: { minShotFrames: 9, shotBoundariesFrame: [],
+    windows: Array.from({ length: 20 }, (_, w) => ({ startFrame: w * 60, endFrame: w * 60 + 60, score: 0.9 - i * 0.01 - w * 0.02 })) },
+}));
+const moments = assemble({ recipe, clips: longClips, music, texts: defaults.texts, params: defaults.params, seed: 5 });
+assert.ok(moments.action, moments.report.warnings.join('; '));
+const mShots = (moments.action!.actions as any[]).filter((a) => a.item?.track === 'V1').sort((a, b) => a.startFrame - b.startFrame);
+assert.ok(mShots.length >= 30, `a cut on every beat (${mShots.length} shots)`);
+assert.ok(mShots.every((a) => Math.abs(a.item.durationInFrames - beat) <= 1), 'every shot is one beat long, none joined');
+assert.ok(!moments.report.warnings.some((w) => /joined/.test(w)), moments.report.warnings.join('; '));
+assert.ok(mShots.every((a) => /^L\d+$/.test(a.item.sourceAssetId)), 'the timeline names the real asset, not the extra-moment id');
+assert.ok(moments.report.usedAssetIds.every((id) => /^L\d+$/.test(id)) && new Set(moments.report.usedAssetIds).size === moments.report.usedAssetIds.length, 'used assets are real and listed once');
+const spots = mShots.map((a) => `${a.item.sourceAssetId}@${a.item.srcInFrame}`);
+assert.equal(new Set(spots).size, spots.length, 'no moment is used twice');
+const perAsset = new Map<string, number[]>();
+for (const a of mShots) perAsset.set(a.item.sourceAssetId, [...(perAsset.get(a.item.sourceAssetId) ?? []), a.item.srcInFrame]);
+for (const [id, starts] of perAsset) { const s = [...starts].sort((x, y) => x - y); assert.ok(s.every((v, i) => i === 0 || v - s[i - 1]! >= beat), `${id}: moments of one video do not overlap`); }
+assert.ok(mShots.every((a, i) => i === 0 || a.item.sourceAssetId !== mShots[i - 1].item.sourceAssetId), 'two moments of the same video are never neighbours');
+{
+  const { spreadSameSource } = await import('./extraWindows');
+  const c = (id: string, base?: string): AssemblyClip => ({ assetId: id, ...(base ? { baseAssetId: base } : {}), name: id, src: '/', kind: 'video', durationInFrames: 100, score: 0.5 });
+  const order = [c('a'), c('a#1', 'a'), c('a#2', 'a'), c('b'), c('c'), c('b#1', 'b')];
+  const spread = spreadSameSource(order, 1);
+  assert.equal(spread[0]!.assetId, 'a', 'the opener stays first');
+  assert.ok(spread.every((x, i) => i === 0 || (x.baseAssetId ?? x.assetId) !== (spread[i - 1]!.baseAssetId ?? spread[i - 1]!.assetId)), spread.map((x) => x.assetId).join(','));
+  assert.deepEqual(spread.map((x) => x.assetId).sort(), order.map((x) => x.assetId).sort(), 'nothing lost or duplicated');
+  assert.deepEqual(spreadSameSource([c('a'), c('b')]).map((x) => x.assetId), ['a', 'b'], 'already fine: unchanged');
+}
+{
+  const { videosOnLongShots } = await import('./extraWindows');
+  const m = (id: string, kind: 'video' | 'image'): AssemblyClip => ({ assetId: id, name: id, src: '/', kind, durationInFrames: 100, score: 0.5 });
+  const order = [m('v0', 'video'), m('p1', 'image'), m('v2', 'video'), m('v3', 'video'), m('p4', 'image')];
+  const swapped = videosOnLongShots(order, [1, 2, 1, 2, 1]);
+  assert.equal(swapped[0]!.assetId, 'v0', 'the opener stays');
+  assert.ok(swapped[1]!.kind === 'video' && swapped[3]!.kind === 'video', 'long shots hold videos');
+  assert.equal(videosOnLongShots(order, [1, 1, 1, 1, 1]).map((x) => x.assetId).join(), order.map((x) => x.assetId).join(), 'no long shots: unchanged');
+  assert.equal(videosOnLongShots([m('p', 'image'), m('q', 'image')], [1, 2])[1]!.assetId, 'q', 'no video to swap in: left alone');
+}
+assert.ok(moments.report.warnings.some((w) => /different moments of your longer videos/.test(w)), moments.report.warnings.join('; '));
 console.log('gangReel.verify: ok');
