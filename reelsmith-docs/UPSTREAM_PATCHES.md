@@ -132,3 +132,10 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 ## Instagram SRT sidecar (RS-301)
 - `src/export/serverExportOperation.ts`: after a server video export is delivered, `writeSrtSidecar` (ours, `src/reelsmith/instagramSrt.ts`) saves `<video>.srt` to the same destination when the "Also save the captions as an .srt" option is on. It runs only after the target is committed and never fails the export; the outcome shows under the Instagram report.
 - `package.json`: `src/reelsmith/network-runtime.verify.ts` added to `test:reelsmith` (it skips without REELSMITH_AUDIT_URL).
+
+## Text outline/shadow/animation, flip and detach audio (RS-404, RS-407)
+- `src/editor/TimelineGraphicLayers.tsx`: `TextLayer` reads `strokeWidth`/`strokeColor` and the shadow props through `shared/reelsmith/textStyle.ts` (the old hard-coded shadow stays the default; an explicit `textShadow` string still wins).
+- `src/components/inspector/InspectorContent.tsx`: mounts our `TextStyleControls` (Basic tab, after the text controls) and `TextAnimationControls` (Animation tab) for text clips. Animations are ordinary opacity/y/scale keyframes.
+- `src/components/timeline/ClipContextMenu.tsx`: "Flip horizontal/vertical" and "Detach audio" items, implemented in `src/reelsmith/clipOps.ts`.
+- `src/editor/keyframeRegistry.ts`: the uniform scale readout shows the magnitude, so a flipped (negative) axis does not read as -100%.
+- `package.json`: `clipOps.verify.ts`, `textStyle.verify.tsx` and `textAnimation.verify.ts` added to `test:reelsmith`.

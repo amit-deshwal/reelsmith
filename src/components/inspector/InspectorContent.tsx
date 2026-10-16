@@ -1,4 +1,6 @@
 import { BeatGridControls } from '../../reelsmith/ui/BeatGridControls';
+import { TextStyleControls } from '../../reelsmith/ui/TextStyleControls';
+import { TextAnimationControls } from '../../reelsmith/ui/TextAnimationControls';
 import { useEffect, useId, type KeyboardEvent } from 'react';
 import type { PropSpec } from '../../types';
 import type { TimelineItem } from '../../editor/types';
@@ -146,7 +148,7 @@ function BasicTab({ panel, item, schema, playheadLocal }: InspectorContentProps)
           />
         </>
       )}
-      {item.kind === 'text' && panel.selectedItems.every((entry) => entry.kind === 'text') && <><SectionLabel>{t('文字')}</SectionLabel><TextControl item={item} mixed={(key) => isMixed(panel, (entry) => entry.props?.[key])} onPropChange={panel.onItemPropChange} /></>}
+      {item.kind === 'text' && panel.selectedItems.every((entry) => entry.kind === 'text') && <><SectionLabel>{t('文字')}</SectionLabel><TextControl item={item} mixed={(key) => isMixed(panel, (entry) => entry.props?.[key])} onPropChange={panel.onItemPropChange} /><TextStyleControls item={item} onPropChange={panel.onItemPropChange} /></>}
       {panel.selectedItems.every((entry) => entry.kind !== 'audio') && <><SectionLabel onReset={() => panel.onResetItemKeyframes(transformProps)} resetDisabled={resetDisabled && !transformProps.some((prop) => isMixed(panel, (entry) => getKeyframePropertyDefinition(prop).getBaseValue(entry))) && !isMixed(panel, (entry) => entry.transform?.crop)}>{t('变换')}</SectionLabel><TransformControl item={item} mixed={(prop) => {
         const definition = getKeyframePropertyDefinition(prop);
         return isMixed(panel, (entry) => entry.keyframes?.[prop] ?? definition.getBaseValue(entry));
@@ -227,6 +229,7 @@ function AnimationTab({ panel, item }: InspectorContentProps) {
       }} onChange={panel.onItemZoomChange} getLocalFrame={() => Math.max(0, Math.min(item.durationInFrames - 1, panel.getPlayhead() - item.startFrame))} fps={panel.fps} onSetKeyframe={panel.onSetReframeKeyframe} onRemoveKeyframe={panel.onRemoveReframeKeyframe} /></>}
       {visual && panel.selectedItems.length === 1 && <><SectionLabel>{t('转场')}</SectionLabel><TransitionControl transition={panel.transition} fps={panel.fps} onAdd={panel.onAddTransition} onSet={panel.onSetTransition} onRemove={panel.onRemoveTransition} audioMode={false} previewStatus={panel.selectedPreviewStatuses?.find((status) => status.kind === 'transition' && status.targetId === panel.transition?.id)} /></>}
       {item.kind === 'audio' && panel.selectedItems.length === 1 && <><SectionLabel>{t('音频转场')}</SectionLabel><TransitionControl transition={panel.transition} fps={panel.fps} onAdd={panel.onAddTransition} onSet={panel.onSetTransition} onRemove={panel.onRemoveTransition} audioMode /></>}
+      {item.kind === 'text' && panel.selectedItems.length === 1 && <><SectionLabel>Text animation</SectionLabel><TextAnimationControls item={item} panel={panel} /></>}
       {item.kind === 'audio' && panel.selectedItems.length === 1 && <><SectionLabel>Beat grid</SectionLabel><BeatGridControls item={item} fps={panel.fps} getPlayhead={panel.getPlayhead} onChange={(grid) => panel.onItemPropChange('rsBeats', grid)} /></>}
       <SectionLabel onReset={() => panel.onItemFadeChange({ fadeInFrames: 0, fadeOutFrames: 0 })} resetDisabled={(item.fadeInFrames ?? 0) === 0 && (item.fadeOutFrames ?? 0) === 0 && !isMixed(panel, (entry) => [entry.fadeInFrames ?? 0, entry.fadeOutFrames ?? 0])}>{t('淡入淡出')}</SectionLabel>
       <FadeControl item={item} mixed={{ fadeInFrames: isMixed(panel, (entry) => entry.fadeInFrames ?? 0), fadeOutFrames: isMixed(panel, (entry) => entry.fadeOutFrames ?? 0) }} fps={panel.fps} onChange={panel.onItemFadeChange} />

@@ -1,3 +1,4 @@
+import { canDetachAudio, detachAudioActions, flipActions, isFlipped } from '../../reelsmith/clipOps';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { theme, themeAlpha } from '../../theme';
 import type { EditorCommands } from '../../editor/store';
@@ -247,6 +248,9 @@ export function ClipContextMenu({ item, transitions, x, y, playhead, commands, t
       <Sep />
       <Item label={t('复制')} icon="copy" shortcut="⌘C" onClick={run(() => commands.duplicateItem(item.id))} />
       <Item label={t('切分')} icon="scissors" shortcut="C" disabled={!inside} onClick={run(() => commands.splitItem(item.id, playhead))} />
+      {isVisual && <Item label={isFlipped(item, 'horizontal') ? 'Unflip horizontal' : 'Flip horizontal'} icon="swap" onClick={run(() => commands.batch(flipActions(item, 'horizontal'), 'Flip horizontal'))} />}
+      {isVisual && <Item label={isFlipped(item, 'vertical') ? 'Unflip vertical' : 'Flip vertical'} icon="swap" onClick={run(() => commands.batch(flipActions(item, 'vertical'), 'Flip vertical'))} />}
+      {item.kind === 'video' && <Item label="Detach audio" icon="volume" disabled={!canDetachAudio(item)} onClick={run(() => { const actions = detachAudioActions(item, globalThis.crypto.randomUUID(), globalThis.crypto.randomUUID()); if (actions) commands.batch(actions, 'Detach audio'); })} />}
       <Sep />
       <Item label={applied.length ? t('已应用效果（{n}）', { n: applied.length }) : t('已应用效果')} icon="filter" chevron disabled={applied.length === 0}
         onClick={applied.length ? () => setShowApplied((v) => !v) : undefined} />

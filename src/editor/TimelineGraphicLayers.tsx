@@ -3,6 +3,7 @@ import { getCompiledTemplate } from '../template-host';
 import type { AspectFit, TimelineItem, Watermark } from './types';
 import { VisualClipSurface } from './TimelineMediaLayer';
 import { fontFamilyCss } from '../fonts/googleFontCatalog';
+import { textShadowCss } from '../../shared/reelsmith/textStyle';
 
 export function SolidLayer({ item, canvasW, canvasH, borderRadius }: {
   item: TimelineItem;
@@ -37,6 +38,7 @@ export function WatermarkLayer({ watermark, canvasH }: { watermark: Watermark; c
   return <AbsoluteFill style={{ pointerEvents: 'none' }}><div style={style}>{watermark.text}</div></AbsoluteFill>;
 }
 
+/** Reelsmith: shadow/stroke props (shared/reelsmith/textStyle.ts) with the old hard-coded shadow as the default. */
 export function TextLayer({ item, canvasW, canvasH, fit }: {
   item: TimelineItem;
   canvasW: number;
@@ -62,9 +64,8 @@ export function TextLayer({ item, canvasW, canvasH, fit }: {
     ? (typeof props.letterSpacing === 'number' ? `${props.letterSpacing}px` : String(props.letterSpacing))
     : 'normal';
   const lineHeight = props.lineHeight !== undefined ? Number(props.lineHeight) : 1.2;
-  const textShadow = props.textShadow !== undefined
-    ? String(props.textShadow)
-    : '0 3px 16px rgba(0,0,0,0.55)';
+  const textShadow = textShadowCss(props);
+  const strokeWidth = Number(props.strokeWidth ?? 0);
 
   // Container / backdrop properties:
   const bgEnabled = Boolean(props.bgEnabled ?? false);
@@ -80,6 +81,7 @@ export function TextLayer({ item, canvasW, canvasH, fit }: {
       lineHeight,
       textAlign: align,
       textShadow,
+      ...(strokeWidth > 0 ? { WebkitTextStroke: `${strokeWidth}px ${String(props.strokeColor ?? '#000000')}`, paintOrder: 'stroke fill' as const } : {}),
       whiteSpace: 'pre-wrap',
       width: bgEnabled ? undefined : '100%',
     }}>

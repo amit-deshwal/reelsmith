@@ -32,7 +32,8 @@ export const KEYFRAME_PROPERTY_REGISTRY: Record<KeyframeProp, KeyframePropertyDe
     id: 'scale', label: '缩放比例', ...scaleRange, supports: visual,
     getBaseValue: (item) => {
       const { scaleX, scaleY } = resolveClipScaleAxes(item.transform);
-      return Math.abs(scaleX - scaleY) < 1e-6 ? scaleX : (item.transform?.scale ?? scaleX);
+      // Reelsmith: a flipped axis has negative scale; the uniform readout shows the magnitude.
+      return Math.abs(Math.abs(scaleX) - Math.abs(scaleY)) < 1e-6 ? Math.abs(scaleX) : (item.transform?.scale ?? Math.abs(scaleX));
     },
     // Uniform control keeps axes linked and clears prior non-uniform residue.
     toTransformPatch: (scale) => uniformScalePatch(scale),
