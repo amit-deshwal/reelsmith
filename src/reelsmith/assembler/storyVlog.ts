@@ -4,6 +4,7 @@ import type { AtomicAction } from '../../editor/reducerActions';
 import { placeInSlot } from '../../editor/layouts';
 import { clipItem, dbToGain, fpsOf, metronome, textItem } from './common';
 import { stableId } from './rng';
+import { musicEndFrame, musicFadeFrames } from '../musicPolicy';
 import { musicStartSec, pickClips, pickWithPreferred } from './beatMontage';
 import type { AssembleInput, AssembleResult, AssemblyClip } from './types';
 
@@ -113,15 +114,15 @@ export function assembleStoryVlog(input: AssembleInput): AssembleResult {
     }
   }
   if (music) {
-    const endPolicy = recipe.music?.endPolicy ?? 'fadeOut';
-    const fade = Math.round((recipe.music?.fadeOutSec ?? 0) * fps);
+    const musicLen = musicEndFrame(recipe, music, startSec, total, fps, 'fadeOut');
+    const fade = musicFadeFrames(recipe, fps, musicLen, 'fadeOut');
     actions.push({
       type: 'add', startFrame: 0,
       item: {
         id: stableId('rs', tag, seed, 'music'), track: 'A1', kind: 'audio', name: music.name, src: music.src,
-        durationInFrames: total, srcInFrame: Math.round(startSec * fps), sourceAssetId: music.assetId,
+        durationInFrames: musicLen, srcInFrame: Math.round(startSec * fps), sourceAssetId: music.assetId,
         volume: dbToGain(recipe.music?.gainDb ?? -6),
-        ...(endPolicy === 'fadeOut' ? { fadeOutFrames: Math.min(fade, total) } : {}),
+        ...(fade > 0 ? { fadeOutFrames: fade } : {}),
       } as never,
     });
   }

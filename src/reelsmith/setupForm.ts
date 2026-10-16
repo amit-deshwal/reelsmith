@@ -1,5 +1,6 @@
 // RS-103: the setup form model. Built from a recipe's inputs/params; says whether "Assemble" is allowed and why not.
 import type { Recipe, RecipeMediaInput, RecipeParam } from '../../shared/reelsmith/recipe';
+import { musicDefaults, musicFormErrors } from './musicPolicy';
 
 export type PickKind = 'off' | 'claude';
 type AvailableAsset = { id: string; kind: string };
@@ -14,7 +15,7 @@ export interface SetupValues {
 export interface FieldError { field: string; message: string }
 
 export function defaultValues(recipe: Recipe): SetupValues {
-  const params: SetupValues['params'] = {};
+  const params: SetupValues['params'] = musicDefaults(recipe);
   for (const p of recipe.params) params[p.id] = p.default as string | number | boolean;
   return { media: {}, texts: {}, params, agentPick: 'off' };
 }
@@ -58,6 +59,7 @@ export function validateSetup(recipe: Recipe, v: SetupValues, assets?: readonly 
     const e = paramError(p, v.params[p.id]);
     if (e) errors.push({ field: p.id, message: e });
   }
+  errors.push(...musicFormErrors(v.params));
   if (v.agentPick !== 'off' && v.agentPick !== 'claude') errors.push({ field: 'agentPick', message: 'choose Off or Claude' });
   const aiAllowed = recipe.assembler.aiSelection ?? 'optional';
   if (v.agentPick !== 'off' && aiAllowed === 'off') errors.push({ field: 'agentPick', message: 'this recipe does not use an agent' });

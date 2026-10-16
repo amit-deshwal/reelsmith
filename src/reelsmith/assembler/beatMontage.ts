@@ -6,6 +6,8 @@ import { sourcePlacement } from './sourcePlacement';
 import { fitFontSize } from './common';
 import { makeRng, stableId } from './rng';
 import { pickTransitions, transitionActions } from './transitions';
+import { fitToBars, musicStart } from '../beatGrid';
+import { MUSIC_PARAM, musicFadeFrames } from '../musicPolicy';
 import type {
   AssembleInput, AssembleReport, AssembleResult, AssemblyClip, AssemblyMusic, PlannedShot, RecipeRunRecord,
 } from './types';
@@ -32,12 +34,9 @@ export function musicStartSec(recipe: Recipe, music: AssemblyMusic, params: Asse
     const dropIdx = times.reduce((best, b, i) => (Math.abs(b - dropAt) < Math.abs(times[best]! - dropAt) ? i : best), 0);
     return times[Math.max(0, dropIdx - build.lengthBeats)] ?? 0;
   }
-  if (policy === 'loudestSection') {
-    const t = music.loudestStartSec ?? downbeat;
-    // snap to the nearest beat so the first cut lands on one
-    return music.beatTimesSec.reduce((best, b) => (Math.abs(b - t) < Math.abs(best - t) ? b : best), downbeat);
-  }
-  if (policy === 'userOffset') return Math.max(0, Number(params.musicOffsetSec ?? 0));
+  // RS-602: loudest section and a chosen time both snap to the nearest downbeat, so the reel starts on a bar
+  if (policy === 'loudestSection') return musicStart('loudestSection', music, { loudestSec: music.loudestStartSec ?? downbeat });
+  if (policy === 'userOffset') return musicStart('userOffset', music, { offsetSec: Number(params[MUSIC_PARAM.offsetSec] ?? 0) || 0 });
   return 0;
 }
 
@@ -50,13 +49,24 @@ function beatsFrom(music: AssemblyMusic, startSec: number): number[] {
   return rel;
 }
 
-function targetBeatCount(recipe: Recipe, beats: number[], beatsPerBar: number): number {
+function targetBeatCount(recipe: Recipe, music: AssemblyMusic, startSec: number, beats: number[], params: AssembleInput['params']): number {
+  const beatsPerBar = music.beatsPerBar;
   const d = recipe.duration ?? {};
   const maxSec = d.maxSec ?? d.targetSec ?? Infinity;
   const wantSec = Math.min(d.targetSec ?? maxSec, maxSec);
   let n = beats.findIndex((t) => t >= wantSec);
   if (n < 0) n = beats.length - 1;
-  if ((recipe.music?.endPolicy ?? 'hardCut') === 'endOnBar') n = Math.floor(n / beatsPerBar) * beatsPerBar;
+  // RS-602: "fit reel length to whole bars" takes the bar nearest the target within [minSec, maxSec];
+  // "end on a bar" takes the last full bar at or before it. Bars are the song's own, counted from its downbeat.
+  const fit = params[MUSIC_PARAM.fitBars] === true;
+  if (fit || (recipe.music?.endPolicy ?? 'hardCut') === 'endOnBar') {
+    const lastSec = beats[beats.length - 1] ?? 0;
+    const endRel = fit
+      ? fitToBars(music, startSec, wantSec, 'nearest', { minSec: d.minSec ?? 0, maxSec: Math.min(maxSec, lastSec) })
+      : fitToBars(music, startSec, wantSec, 'down', { maxSec: lastSec });
+    const k = beats.findIndex((t) => Math.abs(t - endRel) < 1e-3);
+    if (k > 0) n = k;
+  }
   return Math.max(beatsPerBar, n);
 }
 
@@ -84,7 +94,7 @@ export function planShots(
   const startSec = musicStartSec(recipe, music, params);
   const beats = beatsFrom(music, startSec);
   const bpb = music.beatsPerBar;
-  const totalBeats = Math.min(targetBeatCount(recipe, beats, bpb), beats.length - 1);
+  const totalBeats = Math.min(targetBeatCount(recipe, music, startSec, beats, params), beats.length - 1);
   // RS-412: a `strobe` section is a flash-cut hook: its length and cut step follow the params hookSec (1.5) and flashSec (0.5, kept
   // within 0.3-0.6 s), in whole beats.
   const beatSec = beats.length > 1 ? (beats[beats.length - 1]! - beats[0]!) / (beats.length - 1) : 0.5;
@@ -343,15 +353,14 @@ export function assembleBeatMontage(input: AssembleInput): AssembleResult {
   if (!onlySection) actions.push(...overlayActions(recipe, plan.spans, params, texts, tag, seed, warnings));
   const total = allShots[allShots.length - 1]!.startFrame + allShots[allShots.length - 1]!.durationInFrames;
   if (music && !onlySection) {
-    const endPolicy = recipe.music?.endPolicy ?? 'hardCut';
-    const fadeOut = Math.round((recipe.music?.fadeOutSec ?? 0) * fps);
+    const fadeOut = musicFadeFrames(recipe, fps, total, 'hardCut');
     actions.push({
       type: 'add',
       item: {
         id: stableId('rs', tag, seed, 'music'), track: 'A1', kind: 'audio', name: music.name, src: music.src,
         durationInFrames: total, srcInFrame: startSrc, sourceAssetId: music.assetId,
         volume: dbToGain(recipe.music?.gainDb ?? 0),
-        ...(endPolicy === 'fadeOut' || fadeOut > 0 ? { fadeOutFrames: Math.min(fadeOut, total) } : {}),
+        ...(fadeOut > 0 ? { fadeOutFrames: fadeOut } : {}),
       },
       startFrame: 0,
     });

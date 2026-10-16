@@ -5,10 +5,13 @@ import { assembleBeatMontage } from './beatMontage';
 import { assembleStoryVlog } from './storyVlog';
 import { assembleCollageGrid } from './collageGrid';
 import { assembleCaptionedStory } from './captionedStory';
+import { withMusicOverrides } from '../musicPolicy';
 
 export type { AssembleInput, AssembleResult, AssemblyClip, AssemblyMusic, RecipeRunRecord, AssembleReport } from './types';
 
-export function assemble(input: AssembleInput): AssembleResult {
+export function assemble(raw: AssembleInput): AssembleResult {
+  // RS-602: the setup form's music start/end choices (saved in params) override the recipe's own
+  const input: AssembleInput = { ...raw, recipe: withMusicOverrides(raw.recipe, raw.params) };
   let result: AssembleResult;
   switch (input.recipe.assembler.strategy) {
     case 'beat-montage@1':

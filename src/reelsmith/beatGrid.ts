@@ -83,11 +83,14 @@ export function musicStart(policy: StartPolicy, g: BeatGrid, opts: { loudestSec?
 }
 
 /** "Fit reel length to whole bars": the end time (seconds from music start) closest to `wantSec` that falls on a bar. */
-export function fitToBars(g: BeatGrid, startSec: number, wantSec: number, round: 'nearest' | 'down' = 'nearest'): number {
-  const bars: number[] = [];
+export function fitToBars(g: BeatGrid, startSec: number, wantSec: number, round: 'nearest' | 'down' = 'nearest', range?: { minSec?: number; maxSec?: number }): number {
+  let bars: number[] = [];
   for (let i = g.downbeatIndex; i < g.beatTimesSec.length; i += g.beatsPerBar) {
     if (g.beatTimesSec[i]! > startSec + 1e-6) bars.push(g.beatTimesSec[i]! - startSec);
   }
+  // keep within [minSec, maxSec] when any bar fits there
+  const inRange = bars.filter((b) => b >= (range?.minSec ?? 0) - 1e-6 && b <= (range?.maxSec ?? Infinity) + 1e-6);
+  if (inRange.length) bars = inRange;
   if (!bars.length) return wantSec;
   if (round === 'down') return [...bars].reverse().find((b) => b <= wantSec + 1e-6) ?? bars[0]!;
   return bars.reduce((best, b) => (Math.abs(b - wantSec) < Math.abs(best - wantSec) ? b : best), bars[0]!);

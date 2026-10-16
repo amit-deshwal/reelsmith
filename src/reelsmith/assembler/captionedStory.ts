@@ -4,7 +4,8 @@ import { renderTemplate } from '../../../shared/reelsmith/recipe';
 import type { AtomicAction } from '../../editor/reducerActions';
 import { editedFrames, projectRetimedWords, type EditOpts } from '../../transcript/edit';
 import { clipItem, dbToGain, fpsOf, textItem } from './common';
-import { pickClips, pickWithPreferred } from './beatMontage';
+import { musicStartSec, pickClips, pickWithPreferred } from './beatMontage';
+import { musicEndFrame, musicFadeFrames } from '../musicPolicy';
 import { captionsFor } from '../captionStyles';
 import { stableId } from './rng';
 import type { AssembleInput, AssembleResult } from './types';
@@ -118,20 +119,24 @@ export function assembleCaptionedStory(input: AssembleInput): AssembleResult {
     actions.push(textItem(stableId('rs-t', tag, seed), hookText, 0, hookDur, recipe.canvas,
       (hook.styleId ? recipe.styles[hook.styleId] : undefined) ?? {}, -22, 'V3'));
   }
+  let musicStart = 0;
   if (input.music) {
     const m = input.music;
-    const fade = Math.round((recipe.music?.fadeOutSec ?? 0) * fps);
+    // RS-602: the song can start later (downbeat, loudest part, a chosen time) and stop on a bar; the speech sets the reel length
+    musicStart = musicStartSec(recipe, m, params);
+    const musicLen = musicEndFrame(recipe, m, musicStart, total, fps, 'fadeOut');
+    const fade = musicFadeFrames(recipe, fps, musicLen, 'fadeOut');
     actions.push({
       type: 'add', startFrame: 0,
       item: {
         id: stableId('rs', tag, seed, 'music'), track: 'A1', kind: 'audio', name: m.name, src: m.src,
-        durationInFrames: total, srcInFrame: 0, sourceAssetId: m.assetId,
-        volume: dbToGain(recipe.music?.gainDb ?? -18), fadeOutFrames: Math.min(fade, total),
+        durationInFrames: musicLen, srcInFrame: Math.round(musicStart * fps), sourceAssetId: m.assetId,
+        volume: dbToGain(recipe.music?.gainDb ?? -18), ...(fade > 0 ? { fadeOutFrames: fade } : {}),
       } as never,
     });
   }
   return {
     action: { type: 'batch', actions, label: `Assemble ${recipe.name}` }, run,
-    report: { shots: talking.length + usedBroll.length, usedAssetIds: [...talking.map((c) => c.assetId), ...usedBroll], musicStartSec: 0, totalFrames: total, warnings },
+    report: { shots: talking.length + usedBroll.length, usedAssetIds: [...talking.map((c) => c.assetId), ...usedBroll], musicStartSec: musicStart, totalFrames: total, warnings },
   };
 }

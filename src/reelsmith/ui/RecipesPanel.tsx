@@ -8,6 +8,7 @@ import { theme } from '../../theme';
 import { analyzeApi } from '../analyzeApi';
 import { bundledCatalog } from '../bundledRecipes';
 import { RecipeGallery } from './RecipeGallery';
+import { MusicPolicyControls } from './MusicPolicyControls';
 import { runRecipe } from '../runRecipe';
 import { requestPreview } from '../previewClient';
 import { saveRun } from '../runStore';
@@ -193,6 +194,11 @@ export function SetupForm({ recipe, projectId, assets, itemCount, fps, onBack, o
             </label>
           );
         })}
+
+        {recipe.music && (
+          <MusicPolicyControls params={values.params} errorFor={errorFor} canFitBars={recipe.assembler.strategy.startsWith('beat-montage')}
+            onChange={(id, val) => setValues((v) => ({ ...v, params: { ...v.params, [id]: val } }))} />
+        )}
 
         {(recipe.assembler.aiSelection ?? 'optional') !== 'off' && onAskAgent && (
           <label style={{ display: 'grid', gap: 4 }}>

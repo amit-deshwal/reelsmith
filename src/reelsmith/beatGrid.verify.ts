@@ -47,4 +47,6 @@ near(musicStart('userOffset', g, { offsetSec: 0 }), 0.3);
 near(fitToBars(g, 0.3, 14.2), 14);
 near(fitToBars(g, 0.3, 15.5, 'down'), 14);
 near(fitToBars(g, 0.3, 15.5, 'nearest'), 16);
+near(fitToBars(g, 0.3, 15.5, 'nearest', { maxSec: 15 }), 14); // nearest bar inside the max length
+near(fitToBars(g, 0.3, 1, 'nearest', { minSec: 5 }), 6); // nearest bar inside the min length
 console.log('beatGrid.verify: ok');

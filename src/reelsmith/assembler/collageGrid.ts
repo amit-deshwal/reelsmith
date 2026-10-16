@@ -5,6 +5,7 @@ import { placeInSlot, type SlotRect } from '../../editor/layouts';
 import { clipItem, dbToGain, fpsOf, metronome, textItem } from './common';
 import { pickClips, pickWithPreferred, musicStartSec } from './beatMontage';
 import { stableId } from './rng';
+import { musicEndFrame, musicFadeFrames } from '../musicPolicy';
 import type { AssembleInput, AssembleResult } from './types';
 
 const rows = (n: number): SlotRect[] => Array.from({ length: n }, (_, i) => ({ x: 0, y: i / n, w: 1, h: 1 / n }));
@@ -127,13 +128,14 @@ export function assembleCollageGrid(input: AssembleInput): AssembleResult {
       (title.styleId ? recipe.styles[title.styleId] : undefined) ?? {}, 0, 'T1'));
   }
   if (music) {
-    const fade = Math.round((recipe.music?.fadeOutSec ?? 0) * fps);
+    const musicLen = musicEndFrame(recipe, music, startSec, total, fps, 'fadeOut');
+    const fade = musicFadeFrames(recipe, fps, musicLen, 'fadeOut');
     actions.push({
       type: 'add', startFrame: 0,
       item: {
         id: stableId('rs', tag, seed, 'music'), track: 'A1', kind: 'audio', name: music.name, src: music.src,
-        durationInFrames: total, srcInFrame: Math.round(startSec * fps), sourceAssetId: music.assetId,
-        volume: dbToGain(recipe.music?.gainDb ?? -4), fadeOutFrames: Math.min(fade, total),
+        durationInFrames: musicLen, srcInFrame: Math.round(startSec * fps), sourceAssetId: music.assetId,
+        volume: dbToGain(recipe.music?.gainDb ?? -4), ...(fade > 0 ? { fadeOutFrames: fade } : {}),
       } as never,
     });
   }
