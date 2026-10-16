@@ -15,7 +15,9 @@ import {
   useAgentPersistence,
 } from './useAgentPersistence';
 import { saveServerRunChat } from '../persist/projectStore';
-import type { AgentChangeSession } from './changeLog';
+import { appendAgentChange, createAgentChangeSession, type AgentChangeSession } from './changeLog';
+import type { Operation } from './proposal';
+import type { ProjectDoc } from '../editor/types';
 import type {
   ServerRunPreparation,
   ServerRunRecovery,
@@ -47,6 +49,8 @@ export interface ServerRunProposalBridge {
   readonly rollbackChangeSession: (id: string, force?: boolean) => boolean;
   readonly canRollbackChangeSession: (id: string) => boolean;
   readonly rewindTurn: (index: number) => boolean;
+  /** RS-701: add an edit made through the external bridge (Claude Code turns) to the change log. */
+  readonly recordExternalChange: (summary: string, operations: readonly Operation[], before: ProjectDoc, after: ProjectDoc) => void;
 }
 
 function useServerRunSession(
@@ -127,6 +131,12 @@ export function useServerRunProposalBridge(
   const historyActions = useAgentHistoryActions(state, projectId);
   const callbacks = useServerRunProposalCallbacks(state, ctx, projectId);
   const session = useServerRunSession(state, projectId);
+  const recordExternalChange = useCallback((
+    summary: string, operations: readonly Operation[], before: ProjectDoc, after: ProjectDoc,
+  ) => {
+    const entry = createAgentChangeSession(summary, operations, before, after, true);
+    state.setChangeLog((current) => appendAgentChange(current, entry));
+  }, [state.setChangeLog]);
   return {
     ...callbacks,
     session,
@@ -135,6 +145,7 @@ export function useServerRunProposalBridge(
       state.proposal && isProposalStale(state.proposal, ctx.getDoc()),
     ),
     changeLog: state.changeLog,
+    recordExternalChange,
     ...proposalActions,
     ...historyActions,
   };

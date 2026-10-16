@@ -6,7 +6,7 @@ import {
   type ExternalEditSessionTerminalStatus,
 } from './external-edit-session';
 import { storedExternalSession } from './external-bridge-session';
-import { isProposalStale, type Proposal } from './proposal';
+import { isProposalStale, type Operation, type Proposal } from './proposal';
 import { replayActions } from '../editor/store';
 import type { ProjectDoc } from '../editor/types';
 import { saveProject } from '../persist/projectStore';
@@ -41,6 +41,9 @@ export type ExternalProposalCommitResult =
   | {
     readonly status: 'committed';
     readonly result: ProjectDoc;
+    /** RS-701: the project before the commit and what was applied, so the turn can be reverted. */
+    readonly previous: ProjectDoc;
+    readonly operations: readonly Operation[];
     readonly appliedOperationCount: number;
     readonly indexUpdated: boolean;
   };
@@ -195,7 +198,7 @@ export async function commitExternalProposal(
   }
   await publishAppliedProposal(input, chosen.length, currentDoc, result);
   return {
-    status: 'committed', result,
+    status: 'committed', result, previous: currentDoc, operations: chosen,
     appliedOperationCount: chosen.length, indexUpdated: committed.save.indexUpdated,
   };
 }

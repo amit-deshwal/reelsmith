@@ -3,6 +3,7 @@ import type { DisplayMessage, LiveTool } from './agent-session';
 import type { AgentChangeSession } from './changeLog';
 import type { Proposal } from './proposal';
 import type { AgentSend } from './useAgentRun';
+import type { ServerRunProposalBridge } from './serverRunProposalBridge';
 
 /**
  * The controller surface exposed to the chat panel. Server-side execution is
@@ -30,4 +31,6 @@ export interface AgentController {
   readonly canRollbackChangeSession: (id: string) => boolean;
   /** Drop the user turn at `index` and everything after it from both histories; false = untouched. */
   readonly rewindTurn: (index: number) => boolean;
+  /** RS-701: record an edit committed through the external bridge so "Revert this turn" can undo it. */
+  readonly recordExternalChange?: ServerRunProposalBridge['recordExternalChange'];
 }

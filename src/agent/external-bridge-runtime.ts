@@ -19,7 +19,7 @@ import { finalizeExternalSessionRun } from './external-run-terminal';
 import { validateExternalInvocation } from './external-tool-schemas';
 import { executeTool } from './tools';
 import { isExternalGlobalReadTool, isExternalRealTool } from './external-tool-policy';
-import { isProposalStale, type Proposal } from './proposal';
+import { isProposalStale, type Operation, type Proposal } from './proposal';
 import type { StoredExternalProposal } from '../persist/externalProposalStore';
 import { formatToolApprovalDetails, type ApprovalDetail } from './approval-details';
 import { redactTextForAgentRuntime } from './runtime-artifact';
@@ -31,6 +31,13 @@ export interface ExternalProposalSnapshot { proposal: Proposal | null; stale: bo
  * issued from an external session; the user decides in the OpenChatCut UI. */
 export interface ExternalGuardRequest { kind: 'real_tool_confirmation'; id: string; sessionId: string; tool: string; summary: string; details: readonly ApprovalDetail[]; argsDigest: string; operationId?: string }
 export interface ExternalBridgeBinding { projectId: string; editorInstanceId: string; baseRevision: string }
+export interface ExternalAppliedChange {
+  readonly summary: string;
+  readonly operations: readonly Operation[];
+  readonly previous: ProjectDoc;
+  readonly result: ProjectDoc;
+}
+
 export class ExternalBridgeRuntime {
   private sessions = new Map<string, ExternalEditSession>(); private terminalRevisions = new Map<string, string>();
   private sessionWarnings = new Map<string, string>(); private proposalSessionId: string | null = null;
@@ -41,6 +48,8 @@ export class ExternalBridgeRuntime {
   private readonly runs = new Map<string, ExternalSessionRunLedger>();
   private readonly approvalGate = new ExternalApprovalGate();
   onGuardRequest: ((request: ExternalGuardRequest) => void) | null = null;
+  /** RS-701: called after an agent edit is committed, so the chat can offer "Revert this turn". */
+  onApplied: ((change: ExternalAppliedChange) => void) | null = null;
   constructor(
     projectId: string, editorInstanceId: string, getContext: () => AgentContext,
     publish: (snapshot: ExternalProposalSnapshot) => void,
@@ -272,6 +281,9 @@ export class ExternalBridgeRuntime {
     await this.finishCommittedApply(
       session, committed.result, committed.appliedOperationCount, committed.indexUpdated,
     );
+    try {
+      this.onApplied?.({ summary: proposal.summary, operations: committed.operations, previous: committed.previous, result: committed.result });
+    } catch { /* the change log is a convenience; the edit is already committed */ }
   }
   private async finishCommittedApply(
     session: ExternalEditSession, result: ProjectDoc, appliedOperationCount: number,

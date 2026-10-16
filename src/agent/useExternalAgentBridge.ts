@@ -3,7 +3,7 @@ import {
 } from 'react';
 import type { AgentContext } from './context';
 import {
-  ExternalBridgeRuntime, type ExternalGuardRequest, type ExternalProposalSnapshot,
+  ExternalBridgeRuntime, type ExternalAppliedChange, type ExternalGuardRequest, type ExternalProposalSnapshot,
 } from './external-bridge-runtime';
 import {
   ExternalEditSessionOutcomeError, type ExternalEditSessionTerminalStatus,
@@ -449,11 +449,23 @@ function useExternalGuard(
   }, [runtime.readiness, runtime.runtimeRef, projectId]);
   return { pendingGuard, confirmGuard };
 }
-export function useExternalAgentBridge(ctx: AgentContext, projectId: string): ExternalProposalController {
+export function useExternalAgentBridge(
+  ctx: AgentContext,
+  projectId: string,
+  onApplied?: (change: ExternalAppliedChange) => void,
+): ExternalProposalController {
   const [snapshot, setSnapshot] = useState<ExternalProposalSnapshot>({ proposal: null, stale: false });
   const [error, setError] = useState<string | null>(null);
   const t = useT();
   const runtime = useExternalRuntime(ctx, projectId, setSnapshot, setError);
+  const onAppliedRef = useRef(onApplied);
+  onAppliedRef.current = onApplied;
+  useEffect(() => {
+    const slot = runtime.runtimeRef.current;
+    if (!slot) return undefined;
+    slot.runtime.onApplied = (change) => onAppliedRef.current?.(change);
+    return () => { slot.runtime.onApplied = null; };
+  }, [runtime.readiness, runtime.runtimeRef, projectId]);
   useExternalPolling(projectId, runtime, setError);
   const actions = useExternalActions(runtime.runtimeRef, setError);
   const guard = useExternalGuard(runtime, projectId, setError, t);

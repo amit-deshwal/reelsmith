@@ -412,7 +412,9 @@ export function useChatPanelController(props: ChatPanelProps): ChatPanelControll
     props.projectId,
     composer.agentSettings.serverRun,
   );
-  const externalProposal = useExternalAgentBridge(props.ctx, props.projectId);
+  const externalProposal = useExternalAgentBridge(props.ctx, props.projectId, (change) => {
+    agent.recordExternalChange?.(change.summary, change.operations, change.previous, change.result);
+  });
   const scroll = useChatScrollController();
   useComposerProject(composer, props.projectId);
   useComposerSeed(composer, props.seed, props.collapsed);

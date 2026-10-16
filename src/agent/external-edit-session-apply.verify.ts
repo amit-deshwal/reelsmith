@@ -3,6 +3,7 @@ import { makeDraft } from '../editor/store';
 import { activeTimeline } from '../editor/types';
 import { loadAgentRuntimeSidecar } from '../persist/agentRuntimeStore';
 import { ExternalBridgeRuntime } from './external-bridge-runtime';
+import { canRollbackAgentChange, createAgentChangeSession, rollbackAgentChange } from './changeLog';
 import {
   ExternalEditSessionOutcomeError,
   revisionOf,
@@ -49,7 +50,20 @@ const deferredApplyRuntime = new ExternalBridgeRuntime(
   },
 );
 await deferredApplyRuntime.hydrate(await reviewedWithRun('runtime-project'));
+// RS-701: a committed agent edit is reported with the document before it, so the chat can offer "Revert this turn"
+const appliedChanges: Array<{ summary: string; operations: number; previous: typeof base; result: typeof base }> = [];
+deferredApplyRuntime.onApplied = (change) => {
+  appliedChanges.push({ summary: change.summary, operations: change.operations.length, previous: change.previous, result: change.result });
+};
 await deferredApplyRuntime.apply(new Set([0]));
+assert.equal(appliedChanges.length, 1, 'onApplied fires once per committed edit');
+assert.notEqual(revisionOf(appliedChanges[0]!.previous), revisionOf(appliedChanges[0]!.result));
+assert.equal(revisionOf(appliedChanges[0]!.previous), revisionOf(base), 'previous is the project as it was before the edit');
+{
+  const session = createAgentChangeSession(appliedChanges[0]!.summary, [], appliedChanges[0]!.previous, appliedChanges[0]!.result, true);
+  assert.ok(canRollbackAgentChange(session, appliedChanges[0]!.result), 'the recorded turn can be rolled back while the project is unchanged');
+  assert.equal(revisionOf(rollbackAgentChange(session, appliedChanges[0]!.result)!), revisionOf(base), 'rolling back restores the earlier project');
+}
 assert(deferredCommit, 'the UI command receives the committed document');
 deferredApplyLive.commands.applyDoc(deferredCommit);
 const deferredApplyInfo = await deferredApplyRuntime.execute(
