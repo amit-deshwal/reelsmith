@@ -153,3 +153,4 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 ## Ken Burns motion (RS-406)
 - `src/components/timeline/ClipContextMenu.tsx`: "Ken Burns motion" submenu for photo/gif/svg clips, implemented in `src/reelsmith/kenBurns.ts`.
 - `package.json`: `kenBurns.verify.ts` added to `test:reelsmith`.
+- RS-406 drag-to-fill: `src/components/PreviewPanel.tsx` (new optional prop `onDropAssetInCell`, a "Layout" select in the toolbar and `LayoutFillOverlay` in the canvas box) and `src/editor/useEditorController.tsx` (passes `onDropAssetInCell`, one import). Code in `src/reelsmith/layoutFill.ts`, `src/reelsmith/ui/LayoutFillOverlay.tsx`; `layoutFill.verify.ts` added to `test:reelsmith`.

@@ -38,6 +38,9 @@ import { PREVIEW_SHARED_AUDIO_TAGS } from './previewAudioPool';
 import { SafeZoneOverlay } from './SafeZoneOverlay';
 import { PreviewTransformOverlay } from './preview/PreviewTransformOverlay';
 import { InstagramSafeZoneOverlay } from '../reelsmith/ui/InstagramSafeZoneOverlay';
+import { LayoutFillOverlay } from '../reelsmith/ui/LayoutFillOverlay';
+import { FILL_LAYOUTS, type FillLayoutId } from '../reelsmith/layoutFill';
+import type { SlotRect } from '../editor/layouts';
 import { fitPreviewCanvasSize, previewPaddedClientSize, previewStageContentSize, type PreviewCanvasSize } from './preview/previewCanvasGeometry';
 
 const MEDIA_LOADING_NOTICE_DELAY_MS = 160;
@@ -106,10 +109,12 @@ interface PreviewPanelProps {
   onSelectedPreviewStatus?: SelectedPreviewStatusListener;
   slipPreview?: SlipPreview | null;
   hoverPreviewFrame?: number | null;
+  /** RS-406: a media asset was dropped on a layout cell. */
+  onDropAssetInCell?: (assetId: string, slot: SlotRect) => void;
 }
 
 export const PreviewPanel = memo(function PreviewPanel({
-  state, project, playerRef, onImport, offlineSrcs, onUpdateCaptions, onSelectCaption, activeCaptionSelection, onSeedChat,
+  state, project, playerRef, onImport, offlineSrcs, onDropAssetInCell, onUpdateCaptions, onSelectCaption, activeCaptionSelection, onSeedChat,
   onSelectItem, onSetItemTransform, onSetItemKeyframe, onBeginHistoryGesture, onEndHistoryGesture,
   onItemPropChange,
   projectId, timelineId, reviewState, selectedItem, reviewRequest, inspectorOpen, onToggleInspector,
@@ -143,6 +148,7 @@ export const PreviewPanel = memo(function PreviewPanel({
   const [stageSize, setStageSize] = useState<PreviewCanvasSize>({ width: 0, height: 0 });
   const [busy, setBusy] = useState(false);
   const [showSafe, setShowSafe] = useState(false);
+  const [fillLayout, setFillLayout] = useState<FillLayoutId | ''>('');
   const [showIg, setShowIg] = useState(() => { try { return localStorage.getItem('reelsmith:ig-safe-zone') === '1'; } catch { return false; } });
   const [autoEditCaption, setAutoEditCaption] = useState<{ trackId: TrackId; laneId: string } | null>(null);
   // Expose Player during full screen preview (` shortcut key/timeline toolbar button to make Player full screen)
@@ -329,6 +335,14 @@ export const PreviewPanel = memo(function PreviewPanel({
               IG zones
             </button>
           )}
+          {state.items.length > 0 && onDropAssetInCell && (
+            <select aria-label="Layout cells" value={fillLayout} onChange={(e) => setFillLayout(e.target.value as FillLayoutId | '')}
+              title="Show layout cells; drop media on a cell to fill it"
+              style={{ fontSize: 11, padding: '2px 4px', borderRadius: 5, border: `0.5px solid ${theme.border}`, background: fillLayout ? theme.panelAlt : 'transparent', color: fillLayout ? theme.text : theme.textDim }}>
+              <option value="">Layout</option>
+              {FILL_LAYOUTS.map((l) => <option key={l.id} value={l.id}>{l.label}</option>)}
+            </select>
+          )}
           {selectedItem && (
             <button type="button" onClick={onToggleInspector} aria-pressed={inspectorOpen}
               title={inspectorOpen ? t('收起属性') : t('展开属性')}
@@ -448,6 +462,7 @@ export const PreviewPanel = memo(function PreviewPanel({
             )}
             {showSafe && <SafeZoneOverlay />}
             {showIg && <InstagramSafeZoneOverlay width={state.width} height={state.height} />}
+            {fillLayout && onDropAssetInCell && <LayoutFillOverlay layout={fillLayout} onDropAsset={onDropAssetInCell} />}
             {pickMode && <RegionPickOverlay state={state} playerRef={playerRef} />}
             {!pickMode && !fullscreen && transformApi && (
               <PreviewTransformOverlay state={state} playerRef={playerRef} {...transformApi} />
