@@ -231,3 +231,6 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 - `src/agent/useExternalAgentBridge.ts`: optional third argument `onApplied`, wired to the runtime.
 - `src/agent/serverRunProposalBridge.ts`, `src/agent/useAgent.ts`, `src/components/chat/useChatAgentController.ts`, `src/components/chat/chatPanelController.ts`: `recordExternalChange` adds the edit to the existing change log, so the existing "Revert this turn" button appears.
 - Test: `src/agent/external-edit-session-apply.verify.ts` (extended).
+
+## Longer Claude CLI turns
+- `server/agent-runs/claude-code-turn.ts`: `CLAUDE_CODE_TURN_TIMEOUT_MS` raised from 10 to 30 minutes so a whole-reel turn over many clips is not cut off.

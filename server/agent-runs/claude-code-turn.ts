@@ -26,7 +26,7 @@ import {
   rememberClaudeCodeSession,
 } from '../claude-code/resume-store.ts';
 
-const CLAUDE_CODE_TURN_TIMEOUT_MS = 600_000;
+const CLAUDE_CODE_TURN_TIMEOUT_MS = 1_800_000; // Reelsmith: a whole-reel turn over ~35 clips needs more than 10 minutes
 
 export interface ServerClaudeCodeTurnInput {
   readonly run: ServerRun;
