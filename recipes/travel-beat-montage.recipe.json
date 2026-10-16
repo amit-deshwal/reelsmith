@@ -34,6 +34,7 @@
   },
   "look": { "colorLook": "vivid", "grain": 0.1, "vignette": 0.15 },
   "agentHints": "Open on the widest establishing shot. Alternate wide and close shots. Keep chronological order unless the user asks otherwise. Prefer moments with motion on beat-heavy sections. Never repeat a clip; if footage runs short, lengthen shots.",
+  "ratios": { "4:5": { "styles": { "title.big": { "sizePx": 140 } } }, "16:9": { "styles": { "title.big": { "sizePx": 120 } } } },
   "casting": { "opener": ["scenery"], "closer": ["people"] },
   "constraints": { "noRepeatClips": true, "insufficientMediaPolicy": "lengthenShots", "keepChronological": true, "textSafeZone": true }
 }

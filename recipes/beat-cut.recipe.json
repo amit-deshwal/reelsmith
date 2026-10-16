@@ -27,5 +27,6 @@
   "styles": {},
   "look": { "colorLook": "vivid", "grain": 0, "vignette": 0 },
   "agentHints": "Prefer clips with strong motion during the drop. Never place the same clip twice; if there are fewer clips than beats, switch the drop to every 2 beats and tell the user.",
+  "ratios": { "4:5": {}, "16:9": {} },
   "constraints": { "noRepeatClips": true, "insufficientMediaPolicy": "askUser", "keepChronological": false, "textSafeZone": true }
 }
