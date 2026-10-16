@@ -26,7 +26,7 @@ const DRAFT_EDIT_TOOL_NAMES = new Set([
   // itself is a library write, reviewed in offline-tool-authorization.ts.
   'import_asset', 'import_assets', 'import_folder',
   // Reelsmith: timeline edits through the draft's commands (browser-side; they call the local analysis routes)
-  'reels_recut_section', 'reels_snap_cuts_to_beats', 'propose_selection',
+  'reels_recut_section', 'reels_snap_cuts_to_beats', 'reels_strobe', 'propose_selection',
 ]);
 
 const SERVER_DIRECT_READ_TOOL_NAMES: Record<string, true> = {

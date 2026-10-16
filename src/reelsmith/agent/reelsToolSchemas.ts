@@ -53,6 +53,24 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
     },
   },
   {
+    name: 'reels_strobe',
+    description: [
+      'Add a strobe flash-cut hook: 3 very short shots (about 0.5 s each, 1.5 s in total) cut on the beat, each from a different clip or a',
+      'different part of the footage, with a white Flash transition between them. mode "opener" starts on the first beat of the reel;',
+      '"closer" ends on the last bar line before the reel ends. It goes on its own video track above the reel, as one undo step, and',
+      'replaces a previous strobe of the same mode. Needs music with a beat grid. Use it when the user asks for a hook, flash opener or closer.',
+    ].join(' '),
+    input_schema: {
+      type: 'object',
+      properties: {
+        mode: { type: 'string', enum: ['opener', 'closer'], description: 'Where to put the hook (default opener).' },
+        lengthSec: { type: 'number', description: 'Total length of the hook in seconds (default 1.5).' },
+        flashSec: { type: 'number', description: 'Length of one flash in seconds, 0.3 to 0.6 (default 0.5).' },
+        accent: { type: 'boolean', description: 'White flash between shots (default true).' },
+      },
+    },
+  },
+  {
     name: 'reels_selection_candidates',
     description: [
       'For "let my agent choose the shots": list the candidate clips of the recipe run as a compact table (assetId, name, seconds,',
@@ -83,4 +101,4 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
 
 export const REELS_TOOL_NAMES = new Set(REELS_TOOL_SCHEMAS.map((t) => t.name));
 export const REELS_READ_TOOL_NAMES = ['reels_lint', 'reels_run_info', 'reels_selection_candidates'] as const;
-export const REELS_EDIT_TOOL_NAMES = ['reels_recut_section', 'reels_snap_cuts_to_beats', 'propose_selection'] as const;
+export const REELS_EDIT_TOOL_NAMES = ['reels_recut_section', 'reels_snap_cuts_to_beats', 'reels_strobe', 'propose_selection'] as const;

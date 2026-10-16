@@ -161,3 +161,8 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 - `src/editor/transitionPreview.ts`: CSS approximations for the new types.
 - `src/editor/reducerTrackActions.ts`: default length 0.35 s for the break-in types.
 - `package.json`: `breakIn.verify.ts` added to `test:reelsmith`.
+
+## Strobe hook tool (RS-411)
+- `src/agent/external-tool-policy.ts`: `reels_strobe` added to the Reelsmith edit tools.
+- `assets/agent/openchatcut-tool-schemas.json`: regenerated (`npm run generate:server-tool-catalog`).
+- `package.json`: `strobe.verify.ts` added to `test:reelsmith`.

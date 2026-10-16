@@ -11,6 +11,7 @@ import { framesAllowed } from '../framePrivacy';
 import { candidateFacts, selectionKey, selectionPools, selectionSnapshot } from './selectionContext';
 import { lintReel } from '../reelLint';
 import { snapTrackToBeats } from '../snapAction';
+import { strobeForTimeline } from '../strobeAction';
 import { prepareAssembly, runRecord, withBeatGrid, type AnalyzeApi, type Prepared } from '../runRecipe';
 import { loadRun, recutSection, saveRun, type Kv } from '../runStore';
 import type { SetupValues } from '../setupForm';
@@ -105,6 +106,18 @@ export async function execReelsTool(name: string, args: Args, ctx: AgentContext,
       if (!out.ok) return { error: out.error };
       if (out.actions.length) ctx.commands.batch(out.actions, out.label);
       return { ok: true, every, moved: out.moved, unchanged: out.unchanged, skipped: out.skipped };
+    }
+
+    case 'reels_strobe': {
+      const mode = args.mode === 'closer' ? 'closer' : 'opener';
+      const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : undefined);
+      const out = strobeForTimeline(state, ctx.getDoc().assets ?? [], {
+        mode, lengthSec: num(args.lengthSec), flashSec: num(args.flashSec), accent: args.accent === false ? false : undefined,
+        seed: (Date.now() % 1_000_000) + 1,
+      });
+      if (!out.ok) return { error: out.error };
+      ctx.commands.batch(out.actions, out.label);
+      return { ok: true, mode, shots: out.plan.shots.length, startFrame: out.plan.startFrame, endFrame: out.plan.endFrame, warnings: out.plan.warnings };
     }
 
     case 'reels_selection_candidates': {
