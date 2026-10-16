@@ -316,6 +316,23 @@ export function SetupForm({ recipe, projectId, assets, itemCount, fps, initialRa
           );
         })}
 
+        {recipe.assembler.strategy === 'beat-montage@1' && (() => {
+          const first = mediaInputs(recipe).find((i) => !i.accept.includes('audio'));
+          const chosenClips = first ? (values.media[first.id] ?? []).map((m) => assets.find((a) => a.id === m.assetId)).filter((a): a is MediaAsset => !!a) : [];
+          if (chosenClips.length < 2) return null;
+          const current = chosenClips.some((a) => a.id === values.openerAssetId) ? values.openerAssetId : '';
+          return (
+            <label style={{ display: 'grid', gap: 4 }}>
+              <span style={{ fontSize: 12.5 }}>Start the reel with</span>
+              <select aria-label="Opening clip" style={input} value={current} onChange={(e) => setValues((v) => ({ ...v, openerAssetId: e.target.value || undefined }))}>
+                <option value="">Best opening (automatic)</option>
+                {chosenClips.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+              </select>
+              <span style={label}>This clip becomes the first shot. The rest are still chosen for you.</span>
+            </label>
+          );
+        })()}
+
         {recipe.inputs.filter((i) => i.kind === 'text').map((inp) => (
           <label key={inp.id} style={{ display: 'grid', gap: 4 }}>
             <span style={{ fontSize: 12.5 }}>{inp.label}{inp.kind === 'text' && inp.optional && !/optional/i.test(inp.label) ? ' (optional)' : ''}</span>

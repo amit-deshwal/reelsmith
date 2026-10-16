@@ -10,6 +10,8 @@ export interface SetupValues {
   texts: Record<string, string>;
   params: Record<string, string | number | boolean>;
   agentPick: PickKind;
+  /** the clip chosen to open the reel (empty = the assembler decides) */
+  openerAssetId?: string;
 }
 
 export interface FieldError { field: string; message: string }

@@ -63,6 +63,8 @@ export interface AssembleInput {
   seed: number;
   /** validated AI picks, in shot order (RS-106); gaps are filled by the heuristic */
   preferredAssetIds?: string[];
+  /** The user's chosen opening clip: it becomes the first shot (beat-montage recipes). */
+  openerAssetId?: string;
   /** Optional B-roll order for captioned stories. */
   preferredBrollAssetIds?: string[];
   /** RS-108: regenerate one section only, never reusing clips placed elsewhere */
@@ -107,6 +109,8 @@ export interface RecipeRunRecord {
   media?: Record<string, string[]>;
   preferredAssetIds?: string[];
   preferredBrollAssetIds?: string[];
+  /** The clip the user chose to open the reel with */
+  openerAssetId?: string;
   selectionRationale?: string;
   /** RS-1002: the guide shown while preparing this recipe run. */
   brief?: ReelsBrief;

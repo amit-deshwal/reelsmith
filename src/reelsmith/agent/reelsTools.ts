@@ -40,7 +40,7 @@ function projectId(ctx: AgentContext): string {
 function valuesFromRun(run: RecipeRunRecord, assets: readonly MediaAsset[]): SetupValues {
   const kindOf = (id: string) => (assets.find((a) => a.id === id)?.kind ?? 'video') as 'video' | 'image' | 'audio';
   const media = Object.fromEntries(Object.entries(run.media ?? {}).map(([k, ids]) => [k, ids.filter((id) => assets.some((a) => a.id === id)).map((assetId) => ({ assetId, kind: kindOf(assetId) }))]));
-  return { media, texts: run.texts, params: run.params, agentPick: 'off' };
+  return { media, texts: run.texts, params: run.params, agentPick: 'off', ...(run.openerAssetId ? { openerAssetId: run.openerAssetId } : {}) };
 }
 
 async function rebuild(ctx: AgentContext, deps: ReelsDeps): Promise<{ run: RecipeRunRecord; recipe: Recipe; prepared: Prepared; snapshot: string; selectionKey: string; projectId: string } | { error: string }> {
@@ -270,5 +270,6 @@ function validateValues(run: RecipeRunRecord): SetupValues {
   return {
     media: Object.fromEntries(Object.entries(run.media ?? {}).map(([k, ids]) => [k, ids.map((assetId) => ({ assetId, kind: 'video' as const }))])),
     texts: run.texts, params: run.params, agentPick: 'off',
+    ...(run.openerAssetId ? { openerAssetId: run.openerAssetId } : {}),
   };
 }

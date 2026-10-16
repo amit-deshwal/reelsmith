@@ -295,6 +295,12 @@ export function assembleBeatMontage(input: AssembleInput): AssembleResult {
     : cast ? planToOrder(cast)
     : pickClips(pool, shots.length, chronological, seed, input.variety ?? 0);
   if (cast) warnings.push(cast.note);
+  // the user's chosen opener takes the first shot; it is never repeated, nor is a near-duplicate of it
+  const opener = !onlySection && input.openerAssetId ? pool.find((c) => c.assetId === input.openerAssetId) : undefined;
+  if (opener) {
+    const rest = picked.filter((c) => c !== opener && !(opener.groupId && c.groupId === opener.groupId));
+    picked = [opener, ...rest].slice(0, Math.max(1, Math.min(shots.length, picked.length + (picked.includes(opener) ? 0 : 1))));
+  } else if (input.openerAssetId && !onlySection) warnings.push('the clip chosen to open the reel is not among the selected clips');
   if (picked.length < shots.length) {
     if (!allowRepeat) {
       shots.length = picked.length; // out of footage: drop trailing shots

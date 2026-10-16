@@ -53,4 +53,14 @@ const cast = assemble({ recipe, clips: tagged, music, texts: defaults.texts, par
 const used = new Set((cast.action!.actions as any[]).filter((a) => a.item?.track === 'V1').map((a) => a.item.sourceAssetId));
 const sceneryUsed = [...used].filter((id) => tagged.find((c) => c.assetId === id)!.shot!.top === 'scenery').length;
 assert.ok(sceneryUsed <= 3, `scenery is avoided (${sceneryUsed} of ${used.size} shots)`);
+// the user's chosen opener is the first shot, used once, and kept even if it scores low
+const firstShot = (a: ReturnType<typeof assemble>) => (a.action!.actions as any[]).filter((x) => x.item?.track === 'V1').sort((x, y) => x.startFrame - y.startFrame)[0].item.sourceAssetId;
+const weakest = [...clips].sort((a, b) => a.score - b.score)[0]!.assetId;
+const withOpener = assemble({ recipe, clips, music, texts: defaults.texts, params: defaults.params, seed: 5, openerAssetId: weakest });
+assert.equal(firstShot(withOpener), weakest, 'the chosen clip opens the reel');
+const placed = (withOpener.action!.actions as any[]).filter((x) => x.item?.track === 'V1').map((x) => x.item.sourceAssetId);
+assert.equal(placed.filter((id) => id === weakest).length, 1, 'used once');
+assert.equal(new Set(placed).size, placed.length, 'still no repeats');
+assert.equal(placed.length, v1.length, 'same number of shots');
+assert.ok(firstShot(assemble({ recipe, clips, music, texts: defaults.texts, params: defaults.params, seed: 5, openerAssetId: 'nope' })) !== 'nope', 'an unknown opener is ignored');
 console.log('gangReel.verify: ok');

@@ -32,6 +32,8 @@ export interface RunOptions {
   seed?: number;
   /** validated AI picks (RS-106), in shot order */
   preferredAssetIds?: string[];
+  /** the clip the user wants as the first shot */
+  openerAssetId?: string;
   preferredBrollAssetIds?: string[];
   onProgress?: (text: string) => void;
 }
@@ -128,6 +130,7 @@ export async function prepareAssembly(api: AnalyzeApi, o: RunOptions): Promise<P
       recipe, clips: primary, broll: secondary, music,
       texts: o.values.texts, params: withLocalTimezone(recipe, o.values.params), seed: o.seed ?? 1,
       ...(o.preferredAssetIds?.length ? { preferredAssetIds: o.preferredAssetIds } : {}),
+      ...(o.openerAssetId ?? o.values.openerAssetId ? { openerAssetId: (o.openerAssetId ?? o.values.openerAssetId)! } : {}),
       ...(o.preferredBrollAssetIds?.length ? { preferredBrollAssetIds: o.preferredBrollAssetIds } : {}),
     },
   };
@@ -142,7 +145,7 @@ export function withLocalTimezone(recipe: { assembler: { strategy: string } }, p
 /** The saved run: the assembler's record plus which assets went into which input. */
 export function runRecord(result: AssembleResult, values: SetupValues): RecipeRunRecord {
   const media = Object.fromEntries(Object.entries(values.media).map(([k, v]) => [k, v.map((m) => m.assetId)]));
-  return { ...result.run, media };
+  return { ...result.run, media, ...(values.openerAssetId ? { openerAssetId: values.openerAssetId } : {}) };
 }
 
 /** Put the song's beat grid on the music clip so snapping (RS-403) works without re-analysis. */
