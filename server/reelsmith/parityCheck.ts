@@ -45,7 +45,7 @@ export function summariseParity(scores: ParityScore[]): Check {
   const detail = `${valid.length} frames, mean SSIM ${mean.toFixed(3)}, lowest ${worst.ssim.toFixed(3)} at frame ${worst.frame}`;
   return worst.ssim >= PARITY_PASS_SSIM
     ? { id: 'V8', status: 'PASS', detail }
-    : { id: 'V8', status: 'WARN', detail: `${detail}; export differs from the preview there` };
+    : { id: 'V8', status: 'WARN', detail: `${detail}; export differs from the preview there (${valid.map((v) => `${v.frame}: ${v.ssim.toFixed(2)}`).join(', ')})` };
 }
 
 async function ssimOf(exportFrame: string, still: string): Promise<number | null> {
@@ -80,13 +80,21 @@ export async function checkParity(input: ParityInput): Promise<Check> {
       const stillFile = join(dir, `still-${still.frame}.jpg`);
       const frameFile = join(dir, `export-${still.frame}.png`);
       await writeFile(stillFile, Buffer.from(still.base64, 'base64'));
-      const t = (still.frame - (input.firstFrame ?? 0)) / input.fps;
-      try {
-        await run(ffmpegBin(), ['-v', 'error', '-y', '-ss', t.toFixed(4), '-i', input.file, '-frames:v', '1', frameFile]);
-        scores.push({ frame: still.frame, ssim: await ssimOf(frameFile, stillFile) });
-      } catch {
-        scores.push({ frame: still.frame, ssim: null });
+      // The still renderer can land one video frame either side of the export on fast motion (VFR phone clips),
+      // so take the best match over +-1 frame; a wrong colour, crop or layout scores low at every offset.
+      let best: number | null = null;
+      for (const d of [0, -1, 1]) {
+        // aim half a frame early: -ss drops frames stamped before the seek time, so the exact time would skip to the next frame
+        const t = (still.frame + d - (input.firstFrame ?? 0) - 0.5) / input.fps;
+        if (t < 0) continue;
+        try {
+          await run(ffmpegBin(), ['-v', 'error', '-y', '-ss', t.toFixed(4), '-i', input.file, '-frames:v', '1', frameFile]);
+          const v = await ssimOf(frameFile, stillFile);
+          if (v !== null && (best === null || v > best)) best = v;
+          if (best !== null && best >= PARITY_PASS_SSIM) break;
+        } catch { /* frame past the end of the file */ }
       }
+      scores.push({ frame: still.frame, ssim: best });
     }
     return summariseParity(scores);
   } finally {

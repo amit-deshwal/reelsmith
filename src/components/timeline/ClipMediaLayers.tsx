@@ -3,6 +3,7 @@ import { filmstripBackground, peaksPath, useClipPreview } from '../../media/clip
 import type { TimelineFrameWindow } from './timelineUtil';
 import { clipMediaGeometry, type ClipMediaGeometry } from './clipMediaGeometry';
 import { BeatTicks } from '../../reelsmith/ui/BeatTicks';
+import type { BeatGrid } from '../../reelsmith/beatGrid';
 
 // Media preview layer within the clip: The video track displays thumbnail frame bars and the sound waves of the clip's own audio track.
 // Data comes from /api/waveform, /api/filmstrip (see src/media/clipPreview.ts); geometry button
@@ -61,7 +62,7 @@ function WaveLayer({ geometry, height, path, strip, video }: {
 }
 
 export function ClipMediaLayers({ item, px, fps, height, clipStartFrame, durationInFrames,
-  srcInFrame, playbackRate, visibleWindow }: {
+  srcInFrame, playbackRate, visibleWindow, onBeatPhaseChange }: {
   item: TimelineItem;
   px: number;
   /** The height of the fragment content area (px), the amplitude of the sound wave path is calculated based on it */
@@ -72,6 +73,7 @@ export function ClipMediaLayers({ item, px, fps, height, clipStartFrame, duratio
   srcInFrame: number;
   playbackRate: number;
   visibleWindow: TimelineFrameWindow;
+  onBeatPhaseChange?: (grid: BeatGrid) => void;
 }) {
   const preview = useClipPreview(item.src, item.kind, item.sourceRevision);
   const geometry = clipMediaGeometry({
@@ -79,7 +81,8 @@ export function ClipMediaLayers({ item, px, fps, height, clipStartFrame, duratio
   });
   const beats = item.kind === 'audio' ? (
     <BeatTicks item={item} px={px} fps={fps} clipStartFrame={clipStartFrame} durationInFrames={durationInFrames}
-      srcInFrame={srcInFrame} playbackRate={playbackRate} visibleStart={visibleWindow.startFrame} visibleEnd={visibleWindow.endFrame} />
+      srcInFrame={srcInFrame} playbackRate={playbackRate} visibleStart={visibleWindow.startFrame} visibleEnd={visibleWindow.endFrame}
+      onPhaseChange={onBeatPhaseChange} />
   ) : null;
   if (!preview || !geometry || height <= 0) return beats;
 

@@ -3,7 +3,14 @@ export interface BeatGrid { beatTimesSec: number[]; beatsPerBar: number; downbea
 
 /** Move every beat by `deltaSec` (drag the phase). */
 export function shiftPhase(g: BeatGrid, deltaSec: number): BeatGrid {
-  return { ...g, beatTimesSec: g.beatTimesSec.map((t) => t + deltaSec).filter((t) => t >= 0) };
+  const shifted = g.beatTimesSec.map((t) => t + deltaSec);
+  const removed = shifted.findIndex((t) => t >= 0);
+  if (removed < 0 || shifted.length - removed < 2) return g;
+  return {
+    ...g,
+    beatTimesSec: shifted.slice(removed),
+    downbeatIndex: ((g.downbeatIndex - removed) % g.beatsPerBar + g.beatsPerBar) % g.beatsPerBar,
+  };
 }
 
 /** Median of intervals between taps -> bpm; needs at least 3 taps, ignores outliers beyond 40% of the median. */

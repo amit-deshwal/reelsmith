@@ -402,6 +402,7 @@ export function useTimelineController({
   }, [playing, drag, marquee, pickDrag]);
   const startSeekGesture = (event: ReactPointerEvent<HTMLDivElement>) => {
     const target = event.target instanceof Element ? event.target : null;
+    if (target?.closest('[data-beat-phase-handle]')) return;
     if (!target?.closest('[data-timeline-track-lane], .cc-caption-track-lane')) return;
     seekGestureRef.current = {
       pointerId: event.pointerId,

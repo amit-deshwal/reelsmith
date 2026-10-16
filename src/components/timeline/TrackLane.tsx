@@ -377,6 +377,8 @@ export function TrackLane({
                 clipStartFrame={start} durationInFrames={dur}
                 srcInFrame={renderSrcIn} playbackRate={renderPlaybackRate}
                 visibleWindow={visibleWindow}
+                onBeatPhaseChange={!locked && !pickMode && editMode === 'selection'
+                  ? (grid) => commands.updateItemProps(it.id, { rsBeats: grid }) : undefined}
               />
             )}
             {overlapSpans.map((span) => (

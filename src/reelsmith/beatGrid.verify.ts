@@ -9,6 +9,10 @@ assert.equal(g.beatsPerBar, 4);
 // phase drag
 near(shiftPhase(g, 0.1).beatTimesSec[0]!, 0.4);
 assert.ok(shiftPhase(g, -0.5).beatTimesSec.every((t) => t >= 0));
+const shiftedPastStart = shiftPhase(g, -0.5);
+assert.equal(shiftedPastStart.downbeatIndex, 3, 'removing a leading beat preserves bar positions');
+near(shiftedPastStart.beatTimesSec[3]!, g.beatTimesSec[4]! - 0.5);
+assert.equal(shiftPhase(g, -100), g, 'phase edits cannot discard the whole grid');
 
 // tap tempo, with one sloppy tap
 const taps = [0, 0.5, 1.0, 1.52, 2.0, 2.5, 3.9];
