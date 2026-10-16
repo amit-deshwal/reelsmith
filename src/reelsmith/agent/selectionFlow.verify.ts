@@ -67,7 +67,7 @@ for (const id of ['travel-beat-montage', 'beat-cut', 'mini-vlog', 'collage-grid'
   const candidates = await execReelsTool('reels_selection_candidates', {}, h.ctx, h.deps) as Candidates;
   assert.ok(candidates.selectionKey && candidates.slots > 0, id);
   assert.equal(candidates.framesAllowed, true);
-  assert.ok(candidates.candidates.every((candidate) => candidate.inspect), 'contact-sheet requests are supplied');
+  assert.ok(candidates.candidates.every((candidate) => !candidate.inspect), 'one contact sheet (reels_selection_sheet) replaces per-clip inspect requests');
   const picks = [...candidates.candidates].reverse().slice(0, candidates.slots).map((candidate) => candidate.assetId);
   const broll = [...candidates.brollCandidates].reverse().slice(0, candidates.brollSlots).map((candidate) => candidate.assetId);
   if (id === 'mini-vlog') assert.ok(candidates.slots > 15, 'split-screen clips count separately from timeline slots');
