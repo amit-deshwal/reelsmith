@@ -182,3 +182,7 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 - `server/media-normalization.ts`: probe sets `hdr` for `arib-std-b67`/`smpte2084`; `normalizeReason` and `resolveStreamPlan` treat it as a reason to transcode; the transcode adds `HDR_TO_SDR_FILTERS` (zscale + hable tone-map, 8-bit Rec.709) and bt709 tags. The transcode path no longer passes `-avoid_negative_ts make_zero` (it put re-encoded video 20-45 ms off the copied audio). `resolveTargetFps` snaps a detected rate to the nearest standard rate within 8% (`snapToStandardRate`).
 - `server/plugins/export-rendering.ts`: `renderExportPlan` calls `skipAacPriming(filepath)` (ours, `server/reelsmith/audioPriming.ts`) right after the Remotion render of an mp4, so the exported audio is no longer 42.7 ms late.
 
+
+## Ramped music ducking (RS-603)
+- `src/editor/TimelineComposition.tsx`: `duckGain` calls `duckGainAt` (ours, `src/reelsmith/duckEnvelope.ts`): a 0.2 s attack before each anchor clip and a 0.4 s release after it, linear in dB, in place of the hard on/off step (one import, two lines).
+- `package.json`: `duckEnvelope.verify.ts` added to the test chain.

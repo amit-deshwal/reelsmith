@@ -38,6 +38,17 @@ try {
   assert.equal(broken.ok, false);
   assert.ok(broken.failedPath && existsSync(broken.failedPath), 'failed file kept');
   assert.equal(statSync(other).size, size, 'original untouched');
+
+  // RS-603: a quiet mix with loud short peaks (like speech) used to stay ~5 dB under -14 LUFS, because loudnorm's linear mode
+  // will not push peaks past the ceiling. Gain + limiter now reaches the target with the peaks under -1 dBTP.
+  const peaky = join(dir, 'peaky.mp4');
+  ff('-f', 'lavfi', '-i', 'color=c=gray:s=1080x1920:r=30:d=4', '-f', 'lavfi', '-i',
+    'aevalsrc=0.9*sin(2*PI*1000*t)*lt(mod(t\\,0.5)\\,0.01)+0.03*sin(2*PI*300*t):s=48000:d=4',
+    '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p', '-c:a', 'aac', '-b:a', '256k', '-t', '4', peaky);
+  const loud = await finalizeForInstagram(peaky, preset);
+  const v6 = loud.second?.checks.find((c) => c.id === 'V6') ?? loud.first.checks.find((c) => c.id === 'V6');
+  assert.equal(loud.ok, true, JSON.stringify(loud.second?.checks ?? loud.first.checks));
+  assert.equal(v6?.status, 'PASS', v6?.detail);
   console.log('instagramFinalize.verify ok');
 } finally {
   rmSync(dir, { recursive: true, force: true });
