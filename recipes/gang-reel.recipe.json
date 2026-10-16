@@ -22,7 +22,7 @@
     { "id": "flashOnBars", "type": "boolean", "label": "Flash on bar starts", "default": true },
     { "id": "captionFont", "type": "font", "label": "Caption font", "default": "Inter Tight" }
   ],
-  "music": { "inputId": "music", "required": true, "startPolicy": "loudestSection", "endPolicy": "endOnBar", "fadeOutSec": 0.5, "gainDb": -2, "clipAudioGainDb": -96, "duckUnderSpeech": false },
+  "music": { "inputId": "music", "required": true, "startPolicy": "firstDownbeat", "endPolicy": "endOnBar", "fadeOutSec": 0.5, "gainDb": -2, "clipAudioGainDb": -96, "duckUnderSpeech": false },
   "assembler": { "strategy": "beat-montage@1", "options": { "introBeats": 0, "outroHoldBeats": 0, "dropDetection": "energyJump" }, "aiSelection": "recommended" },
   "structure": [
     { "section": "build", "lengthBeats": 8, "fill": "clips", "cutRule": "everyBeat", "transition": "cut", "overlays": [ { "kind": "title", "text": "{{inputs.caption}}", "styleId": "caption", "animationIn": "none", "position": "lowerThird" } ] },

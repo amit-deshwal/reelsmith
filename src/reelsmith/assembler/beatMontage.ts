@@ -317,6 +317,26 @@ export function assembleBeatMontage(input: AssembleInput): AssembleResult {
   const tag = `${recipe.id}@${recipe.version}`;
   const startSrc = Math.round(plan.startSec * fps);
   const shotIds: string[] = [];
+  // a clip too short (or too chopped up) for its shot is swapped for the best unused clip that fits, instead of failing the whole reel
+  const placements: Array<ReturnType<typeof sourcePlacement> | undefined> = [];
+  {
+    const taken = new Set(picked.map((c) => c.assetId));
+    const spare = [...pool].filter((c) => !taken.has(c.assetId)).sort((a, b) => b.score - a.score || a.assetId.localeCompare(b.assetId));
+    const groups = new Set(picked.flatMap((c) => (c.groupId ? [c.groupId] : [])));
+    shots.forEach((shot, i) => {
+      const fit = (clip: AssemblyClip) => (clip.kind === 'video' ? sourcePlacement(clip, shot.durationInFrames) : undefined);
+      try { placements[i] = fit(picked[i]!); return; } catch (error) {
+        const bad = picked[i]!;
+        const k = spare.findIndex((c) => !(c.groupId && groups.has(c.groupId)) && (() => { try { fit(c); return true; } catch { return false; } })());
+        if (k < 0) throw error;
+        const [swap] = spare.splice(k, 1);
+        if (swap!.groupId) groups.add(swap!.groupId);
+        picked[i] = swap!;
+        placements[i] = fit(swap!);
+        warnings.push(`${bad.name} is too short for a shot and was replaced by ${swap!.name}`);
+      }
+    });
+  }
   shots.forEach((shot, i) => {
     const clip = picked[i]!;
     const last = i === shots.length - 1;
@@ -325,7 +345,7 @@ export function assembleBeatMontage(input: AssembleInput): AssembleResult {
     const id = stableId('rs', tag, onlySection ? 'sec' : seed, shotIndex(shot), onlySection ? seed : 0);
     shotIds.push(id);
     const isVideo = clip.kind === 'video';
-    const placement = isVideo ? sourcePlacement(clip, duration) : undefined;
+    const placement = placements[i];
     const srcIn = placement?.srcInFrame;
     const rate = placement?.playbackRate;
     if (isVideo && rate !== undefined && rate < 0.5) warnings.push(`shot ${i + 1}: source is short, slowed to ${rate.toFixed(2)}x`);

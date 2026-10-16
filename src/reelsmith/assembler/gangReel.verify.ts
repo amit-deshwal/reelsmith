@@ -63,4 +63,15 @@ assert.equal(placed.filter((id) => id === weakest).length, 1, 'used once');
 assert.equal(new Set(placed).size, placed.length, 'still no repeats');
 assert.equal(placed.length, v1.length, 'same number of shots');
 assert.ok(firstShot(assemble({ recipe, clips, music, texts: defaults.texts, params: defaults.params, seed: 5, openerAssetId: 'nope' })) !== 'nope', 'an unknown opener is ignored');
+// a drop detected near the END of the song (as in the real 20 s track) must not cut the reel down to a few seconds
+const lateDrop = assemble({ recipe, clips, music: { ...music, durationSec: 20.15, dropSec: 0.19 + 38 * 0.4625 }, texts: defaults.texts, params: defaults.params, seed: 5 });
+assert.ok(lateDrop.report.musicStartSec < 1, `the song starts at the beginning, not ${lateDrop.report.musicStartSec}s in`);
+assert.ok(lateDrop.report.totalFrames >= 17 * 30, `a late drop still gives a full reel (${lateDrop.report.totalFrames} frames)`);
+
+// a clip too short for its shot is swapped for another instead of failing the whole reel
+const tiny: AssemblyClip = { assetId: 'tiny', name: '3.mov', src: '/tiny', kind: 'video', durationInFrames: 40, score: 1, sourceAnalysis: { minShotFrames: 9, windows: [{ startFrame: 0, endFrame: 6, score: 1 }], shotBoundariesFrame: [] } };
+const withTiny = assemble({ recipe, clips: [tiny, ...clips], music, texts: defaults.texts, params: defaults.params, seed: 5 });
+assert.ok(withTiny.action, 'still assembles');
+assert.ok(!(withTiny.action!.actions as any[]).some((a) => a.item?.sourceAssetId === 'tiny'), 'the too-short clip is not placed');
+assert.ok(withTiny.report.warnings.some((w) => /3\.mov is too short/.test(w)), withTiny.report.warnings.join('; '));
 console.log('gangReel.verify: ok');
