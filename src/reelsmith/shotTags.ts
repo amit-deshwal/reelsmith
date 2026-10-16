@@ -3,7 +3,9 @@
 // The prompts are Chinese because the model's text tower is Chinese-RoBERTa; English labels are for the UI.
 import { normalizeVector, dot } from '../media/semantic-search/vectorSearch';
 
-export const SHOT_TAGS = ['scenery', 'people', 'portrait', 'action', 'food', 'detail', 'city', 'water', 'night'] as const;
+export const SHOT_TAGS = ['scenery', 'people', 'portrait', 'action', 'food', 'detail', 'city', 'water', 'night', 'laughing', 'shouting', 'falling', 'dancing', 'celebrating', 'posing'] as const;
+/** Tags for people doing something worth watching (used by character-driven recipes to prefer them over scenery). */
+export const CHARACTER_TAGS: readonly ShotTag[] = ['laughing', 'shouting', 'falling', 'dancing', 'celebrating', 'posing', 'portrait', 'action'];
 export type ShotTag = typeof SHOT_TAGS[number];
 
 export const SHOT_TAG_INFO: Record<ShotTag, { label: string; prompts: string[] }> = {
@@ -16,6 +18,12 @@ export const SHOT_TAG_INFO: Record<ShotTag, { label: string; prompts: string[] }
   city: { label: 'street / buildings', prompts: ['城市街道和建筑', '热闹的街头', '一座古老的建筑或寺庙'] },
   water: { label: 'beach / water', prompts: ['海边的沙滩和海浪', '湖泊或河流', '瀑布'] },
   night: { label: 'night lights', prompts: ['夜晚的城市灯光', '夜景', '篝火或烟花'] },
+  laughing: { label: 'laughing', prompts: ['一个人开怀大笑', '一群朋友笑得前仰后合'] },
+  shouting: { label: 'shouting / big reaction', prompts: ['一个人张大嘴巴大喊大叫', '夸张搞怪的表情'] },
+  falling: { label: 'falling / slipping', prompts: ['一个人摔倒在地', '有人滑倒或跌倒'] },
+  dancing: { label: 'dancing', prompts: ['一个人在跳舞', '几个人一起跳舞'] },
+  celebrating: { label: 'cheering / summit pose', prompts: ['登顶后高举双手欢呼庆祝', '一群人欢呼击掌'] },
+  posing: { label: 'posing', prompts: ['一个人摆拍姿势', '戴着墨镜的人在摆造型'] },
 };
 
 /** Normalised text vectors per tag (one per prompt). */

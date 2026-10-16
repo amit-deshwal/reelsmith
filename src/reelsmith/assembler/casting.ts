@@ -9,6 +9,10 @@ export interface CastingRules {
   opener?: string[];
   /** tags wanted for the closing shot, e.g. a group of people */
   closer?: string[];
+  /** tags that raise a clip's score everywhere (e.g. people doing something) */
+  boost?: string[];
+  /** tags that lower a clip's score everywhere (e.g. empty scenery) */
+  avoid?: string[];
 }
 
 export interface CastPlan {
@@ -40,7 +44,7 @@ function bestPerGroup(clips: AssemblyClip[]): AssemblyClip[] {
 }
 
 /** Highest score, with a bonus for a shot type not used yet and a penalty per repeat. */
-function pickVaried(pool: AssemblyClip[], count: number, already: AssemblyClip[]): AssemblyClip[] {
+function pickVaried(pool: AssemblyClip[], count: number, already: AssemblyClip[], variety = true): AssemblyClip[] {
   const left = [...pool];
   const chosen: AssemblyClip[] = [];
   const used = new Map<ShotTag, number>();
@@ -49,7 +53,7 @@ function pickVaried(pool: AssemblyClip[], count: number, already: AssemblyClip[]
     const value = (c: AssemblyClip) => {
       const t = sureTop(c);
       const n = t ? used.get(t) ?? 0 : 0;
-      return c.score + (t && n === 0 ? 0.15 : 0) - 0.08 * n;
+      return variety ? c.score + (t && n === 0 ? 0.15 : 0) - 0.08 * n : c.score;
     };
     left.sort((a, b) => value(b) - value(a) || a.assetId.localeCompare(b.assetId));
     const c = left.shift()!;
@@ -101,7 +105,8 @@ export function castSlots(
   take(o.openerSlot, rules.opener, 'opens');
   if (closerSlot !== o.openerSlot) take(closerSlot, rules.closer, 'closes');
   const rest = pool.filter((c) => ![...designated.values()].includes(c));
-  let ranked = pickVaried(rest, n - designated.size, [...designated.values()]);
+  // a recipe that boosts tags wants those kinds of shot, so the variety bonus must not pull other kinds back in
+  let ranked = pickVaried(rest, n - designated.size, [...designated.values()], !rules.boost?.length);
   if (o.chronological) {
     ranked.sort((a, b) => (a.captureTimeMs ?? Infinity) - (b.captureTimeMs ?? Infinity) || a.name.localeCompare(b.name) || a.assetId.localeCompare(b.assetId));
   } else {
@@ -117,4 +122,12 @@ export function planToOrder(plan: CastPlan): AssemblyClip[] {
   const out = [...plan.ranked];
   for (const [slot, clip] of [...plan.designated].sort((a, b) => a[0] - b[0])) out.splice(Math.min(slot, out.length), 0, clip);
   return out;
+}
+
+/** How far boosted/avoided tags move a clip's score. Clips without tags are left alone. */
+const BIAS = 0.5;
+/** Raise clips that show the wanted tags and lower the ones that show the unwanted tags, before any picking. */
+export function applyCastingBias(clips: AssemblyClip[], rules: Pick<CastingRules, 'boost' | 'avoid'>): AssemblyClip[] {
+  if (!rules.boost?.length && !rules.avoid?.length) return clips;
+  return clips.map((c) => (c.shot ? { ...c, score: c.score + BIAS * (tagFit(c, rules.boost) - tagFit(c, rules.avoid)) } : c));
 }

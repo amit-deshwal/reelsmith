@@ -33,7 +33,7 @@
     "endcard": { "fontFamily": "Inter Tight", "fontWeight": 700, "sizePx": 56, "color": "#FFFFFF", "align": "center" }
   },
   "look": { "colorLook": "vivid", "grain": 0, "vignette": 0 },
-  "casting": { "opener": ["action", "portrait"], "closer": ["people", "action"] },
+  "casting": { "opener": ["laughing", "shouting", "falling", "dancing"], "closer": ["celebrating", "people"], "boost": ["laughing", "shouting", "falling", "dancing", "celebrating", "posing", "portrait", "action"], "avoid": ["scenery", "detail", "food", "city", "water", "night"] },
   "agentHints": "Every shot must be a character moment: faces, reactions, laughing, falls, poses, people doing something wild or brave. Skip empty scenery. Put the best shots on the drop. Open on the funniest or most chaotic shot. Never repeat a clip. Give every person screen time.",
   "ratios": { "9:16": { "styles": { "caption": { "sizePx": 80 } } } },
   "constraints": { "noRepeatClips": true, "insufficientMediaPolicy": "askUser", "keepChronological": false, "textSafeZone": true }

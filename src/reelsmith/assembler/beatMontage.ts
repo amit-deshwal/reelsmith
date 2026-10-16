@@ -5,7 +5,7 @@ import { renderTemplate } from '../../../shared/reelsmith/recipe';
 import { sourcePlacement } from './sourcePlacement';
 import { fitFontSize } from './common';
 import { makeRng, stableId } from './rng';
-import { castSlots, planToOrder } from './casting';
+import { applyCastingBias, castSlots, planToOrder } from './casting';
 import { pickTransitions, transitionActions } from './transitions';
 import { fitToBars, musicStart } from '../beatGrid';
 import { MUSIC_PARAM, musicFadeFrames } from '../musicPolicy';
@@ -281,7 +281,8 @@ export function assembleBeatMontage(input: AssembleInput): AssembleResult {
   const allShots = plan.shots;
   const shots = onlySection ? allShots.filter((s) => s.section === onlySection.name) : allShots;
   const shotIndex = (s: PlannedShot) => allShots.indexOf(s);
-  const pool = onlySection ? clips.filter((c) => !onlySection.excludeAssetIds.includes(c.assetId)) : clips;
+  const unbiased = onlySection ? clips.filter((c) => !onlySection.excludeAssetIds.includes(c.assetId)) : clips;
+  const pool = recipe.casting ? applyCastingBias(unbiased, recipe.casting) : unbiased;
   const allowRepeat = policy === 'allowRepeat';
   const chronological = recipe.constraints?.keepChronological ?? true;
   // RS-109: cast by what the shots show, when the recipe asks for it, tags exist and the agent did not choose

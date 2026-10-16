@@ -197,8 +197,10 @@ export const RECIPE_SCHEMA = {
       "additionalProperties": false,
       "description": "Cast shots by what they show (RS-109): tags wanted for the opening and closing shot.",
       "properties": {
-        "opener": { "type": "array", "items": { "enum": ["scenery", "people", "portrait", "action", "food", "detail", "city", "water", "night"] } },
-        "closer": { "type": "array", "items": { "enum": ["scenery", "people", "portrait", "action", "food", "detail", "city", "water", "night"] } }
+        "opener": { "type": "array", "items": { "enum": ["scenery", "people", "portrait", "action", "food", "detail", "city", "water", "night", "laughing", "shouting", "falling", "dancing", "celebrating", "posing"] } },
+        "closer": { "type": "array", "items": { "enum": ["scenery", "people", "portrait", "action", "food", "detail", "city", "water", "night", "laughing", "shouting", "falling", "dancing", "celebrating", "posing"] } },
+        "boost": { "type": "array", "items": { "enum": ["scenery", "people", "portrait", "action", "food", "detail", "city", "water", "night", "laughing", "shouting", "falling", "dancing", "celebrating", "posing"] }, "description": "Tags that raise a clip's score everywhere." },
+        "avoid": { "type": "array", "items": { "enum": ["scenery", "people", "portrait", "action", "food", "detail", "city", "water", "night", "laughing", "shouting", "falling", "dancing", "celebrating", "posing"] }, "description": "Tags that lower a clip's score everywhere." }
       }
     },
     "ratios": {

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import { SHOT_TAGS, tagClips, tagSample, type ShotTag, type TagPrompts } from './shotTags';
-import { castSlots, planToOrder } from './assembler/casting';
+import { SHOT_TAGS, SHOT_TAG_INFO, tagClips, tagSample, type ShotTag, type TagPrompts } from './shotTags';
+import { applyCastingBias, castSlots, planToOrder } from './assembler/casting';
 import type { AssemblyClip } from './assembler/types';
 
 // toy 9-d space: tag i is axis i, so prompts are unit vectors
@@ -60,5 +60,14 @@ const chrono = castSlots([
   clip('c3', 'food', 0.5, { captureTimeMs: 3 }), clip('c1', 'scenery', 0.9, { captureTimeMs: 1 }), clip('c2', 'people', 0.7, { captureTimeMs: 2 }),
 ], 3, { opener: ['people'] }, { openerSlot: 0, closerSlot: 2, chronological: true })!;
 assert.deepEqual(planToOrder(chrono).map((c) => c.assetId), ['c1', 'c2', 'c3']);
+
+// character tags exist, and bias lifts people doing things over scenery (and leaves untagged clips alone)
+for (const t of ['laughing', 'shouting', 'falling', 'dancing', 'celebrating', 'posing'] as const) assert.ok(SHOT_TAGS.includes(t) && SHOT_TAG_INFO[t].prompts.length >= 2, t);
+const biasRules = { boost: ['laughing', 'falling'], avoid: ['scenery'] };
+const biased = applyCastingBias([clip('v', 'scenery', 0.9), clip('l', 'laughing', 0.5), clip('u', null, 0.4)], biasRules);
+const byId = new Map(biased.map((c) => [c.assetId, c.score]));
+assert.ok(byId.get('l')! > byId.get('v')!, 'a laughing clip now outranks a prettier scenery clip');
+assert.equal(byId.get('u'), 0.4, 'untagged clips keep their score');
+assert.equal(applyCastingBias([clip('v', 'scenery', 0.9)], {})[0]!.score, 0.9, 'no rules: unchanged');
 
 console.log('shotTags verify ok');

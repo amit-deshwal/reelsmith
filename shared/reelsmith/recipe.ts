@@ -52,7 +52,7 @@ export interface Recipe {
   /** RS-901: other shapes this recipe supports; each may replace keys of named styles (text size, position) */
   ratios?: Partial<Record<RatioId, { styles?: Record<string, Record<string, unknown>> }>>;
   /** RS-109: tags wanted for the opening and closing shot (scenery, people, portrait, action, food, detail, city, water, night) */
-  casting?: { opener?: string[]; closer?: string[] };
+  casting?: { opener?: string[]; closer?: string[]; boost?: string[]; avoid?: string[] };
   agentHints?: string;
   constraints?: { noRepeatClips?: boolean; insufficientMediaPolicy?: 'lengthenShots' | 'askUser' | 'allowRepeat'; keepChronological?: boolean; textSafeZone?: boolean };
 }
