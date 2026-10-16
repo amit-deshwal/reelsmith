@@ -2,6 +2,7 @@
 // no third-party footage). Each recipe is assembled exactly as in the app (real clip analysis and beat
 // detection on the synthetic files) and rendered through the app's own export pipeline.
 // Run: npx tsx server/reelsmith/build-previews.mts [recipe-id ...] [--param key=value ...] [--out <dir>]
+// --parity also runs the RS-302 V8 sample (editor stills vs the rendered frames) on each recipe's render.
 // Output: assets/recipe-previews/<id>.jpg (poster) and <id>.mp4 (muted 360x640 loop, ~4 s), served at /recipe-previews/.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
@@ -15,6 +16,8 @@ import type { TranscriptWord } from '../../src/transcript/types.ts';
 import { acceptExportSubmission } from '../plugins/export-submission.ts';
 import { h264RenderOptions, renderTimeline, setUploadsDirProvider } from '../plugins/export-rendering.ts';
 import { withExportPermit } from '../plugins/export-runtime.ts';
+import { renderTimelineStills } from '../../remotion/render.mjs';
+import { checkParity, sampleFrames } from './parityCheck.ts';
 import { seedKeystore } from '../keystore.ts';
 import { analyzeBeatsFile } from './beatDetect.ts';
 import { extractClipFeatures } from './clipFeatures.ts';
@@ -135,6 +138,12 @@ for (const recipe of recipes) {
       codec: plan.media.codec, frameRange: plan.frameRange, scale: plan.scale, videoBitrate: plan.videoBitrate,
       ...renderOpts,
     }));
+    if (argv.includes('--parity')) {
+      const frames = sampleFrames(to - from).map((f) => f + from);
+      const stills = await renderTimelineStills({ state: plan.state, project: plan.project, timelineId: plan.timelineId, frames }) as Array<{ frame: number; base64: string }>;
+      const v8 = await checkParity({ file: raw, fps: FPS, frames, stills, firstFrame: from });
+      console.log(`${recipe.id}: V8 ${v8.status} ${v8.detail}`);
+    }
   } finally {
     await submission.cleanup();
   }

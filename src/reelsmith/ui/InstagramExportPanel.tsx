@@ -6,7 +6,7 @@ import { instagramReportStore, isVertical, loadInstagramPreference, saveInstagra
 
 const NAMES: Record<string, string> = {
   V1: 'MP4, faststart', V2: 'Video H.264 High, 1080×1920, 30 fps, Rec.709', V3: 'Audio AAC 48 kHz stereo', V4: 'Audio and video same length',
-  V5: 'Decodes without errors', V6: 'Loudness -14 LUFS, peak -1 dBTP', V7: 'No unintended black frames', V9: 'File size and bitrate',
+  V5: 'Decodes without errors', V6: 'Loudness -14 LUFS, peak -1 dBTP', V7: 'No unintended black frames', V8: 'Export matches the preview', V9: 'File size and bitrate',
 };
 
 export function InstagramExportPanel({ state }: { state: TimelineState }) {

@@ -62,9 +62,22 @@ export async function finalizeExportForInstagram(
     const body = await res.json().catch(() => null) as { result?: { ok: boolean; reencoded: boolean; first: { checks: Check[] }; second?: { checks: Check[] }; failedPath?: string }; error?: string } | null;
     if (!res.ok || !body?.result) throw new Error(body?.error ?? `Instagram check failed (${res.status})`);
     const r = body.result;
+    const checks = [...(r.second ?? r.first).checks];
+    if (r.ok) {
+      // V8: a parity sample is informative only; it never blocks delivery
+      opts.setBusy?.('Comparing the export with the preview…');
+      try {
+        const pr = await (opts.fetcher ?? fetch)('/api/reelsmith/export-parity', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, signal,
+          body: JSON.stringify({ src: completed.path, state }),
+        });
+        const pb = await pr.json().catch(() => null) as { check?: Check } | null;
+        if (pr.ok && pb?.check) checks.push(pb.check);
+      } catch { signal?.throwIfAborted(); }
+    }
     const report: InstagramExportReport = {
       status: r.ok ? (r.reencoded ? 'fixed' : 'passed') : 'failed',
-      checks: (r.second ?? r.first).checks,
+      checks,
       ...(r.failedPath ? { failedPath: r.failedPath } : {}),
     };
     instagramReportStore.set(report);
