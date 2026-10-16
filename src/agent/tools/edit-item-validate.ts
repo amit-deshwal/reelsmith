@@ -1,3 +1,4 @@
+import { breakInDefaultFrames } from '../../reelsmith/breakInInfo';
 import type { AgentContext } from '../context';
 import type {
   ClipEffect,
@@ -233,7 +234,7 @@ function validateTransitionAdd(ctx: AgentContext, entry: Entry): OpResult {
   if (requestedOutgoing && requestedOutgoing.id !== outgoing.id) {
     return { error: `outgoingItemId ${entry.outgoingItemId} is not the adjacent prior clip (found ${outgoing.id})` };
   }
-  return transitionPlan(entry, assetId, incoming, outgoing, resolved);
+  return transitionPlan(entry, assetId, incoming, outgoing, resolved, state.fps);
 }
 
 function transitionPlan(
@@ -242,9 +243,10 @@ function transitionPlan(
   incoming: TimelineItem,
   outgoing: TimelineItem,
   resolved: ResolvedTransition,
+  fps: number,
 ): OpResult {
   const maxDuration = Math.max(2, Math.min(outgoing.durationInFrames, incoming.durationInFrames));
-  const defaultDuration = resolved.type === 'audio-cross-fade' ? Math.min(15, maxDuration) : Math.min(30, maxDuration);
+  const defaultDuration = resolved.type === 'audio-cross-fade' ? Math.min(15, maxDuration) : breakInDefaultFrames(resolved.type, fps, maxDuration) ?? Math.min(30, maxDuration);
   const requested = typeof entry.durationInFrames === 'number' && Number.isFinite(entry.durationInFrames)
     ? entry.durationInFrames
     : defaultDuration;

@@ -2,6 +2,7 @@
 // motion-graphics | luts | zoom | fx | audio-fx | sound-effects | transitions
 // audio-fx: open-box isolate_voice (ffmpeg), applied via isolate_voice tool / Inspector.
 
+import { BREAK_IN_INFO } from '../../reelsmith/breakInInfo';
 import { SOUND_EFFECTS } from '../../audio/soundLibrary';
 import {
   TRANSITION_LABELS,
@@ -173,7 +174,7 @@ export function buildLibraryItems(templates: Tpl[]): LibraryItem[] {
       id,
       name: TRANSITION_LABELS[type],
       category: 'transitions',
-      description: `Video transition: ${type}`,
+      description: BREAK_IN_INFO[type] ?? `Video transition: ${type}`,
       group: 'transitions',
       usage: `edit_item adds:[{type:"transition",assetId:"${id}",incomingItemId:"<clip>"}] — places straddle cut into this clip; optional durationInFrames`,
     });

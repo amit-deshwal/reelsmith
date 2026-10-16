@@ -166,3 +166,8 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 - `src/agent/external-tool-policy.ts`: `reels_strobe` added to the Reelsmith edit tools.
 - `assets/agent/openchatcut-tool-schemas.json`: regenerated (`npm run generate:server-tool-catalog`).
 - `package.json`: `strobe.verify.ts` added to `test:reelsmith`.
+
+## Break-in transitions for the agent (RS-413)
+- `src/agent/tools/library-catalog.ts`: transition descriptions come from `BREAK_IN_INFO` (src/reelsmith/breakInInfo.ts) when there is one (one import, one expression).
+- `src/agent/tools/edit-item-validate.ts`: `transitionPlan` takes the timeline fps and uses `breakInDefaultFrames` (0.35 s) as the default length of bars/wide-bars/window (one import, one parameter).
+- `package.json`: `breakInTools.verify.ts` added to `test:reelsmith`.
