@@ -1,5 +1,5 @@
 import type { TimelineItem, TimelineState, TrackFlags, TransitionItem } from './types';
-import { captionTrackEntries, captionsOnTrack, DEFAULT_WATERMARK, defaultTrackId, isAudioTransition, timelineTrackIds, trackEnd, trackKind } from './types';
+import { captionTrackEntries, captionsOnTrack, BREAK_IN_SECONDS, BREAK_IN_TRANSITIONS, DEFAULT_WATERMARK, defaultTrackId, isAudioTransition, timelineTrackIds, trackEnd, trackKind } from './types';
 import { reconcileTimelineCaptionReferences } from '../captions/reconcileSources.js';
 import type { Action } from './reducerActions';
 import { placeTrack, withTrackCaptions } from './reducerTimelineHelpers';
@@ -31,7 +31,7 @@ export function applyTrackAction(
       const out = prior.reduce((best, x) => (x.startFrame + x.durationInFrames > best.startFrame + best.durationInFrames ? x : best));
       if (inItem.startFrame - (out.startFrame + out.durationInFrames) > 2) return s; // must be adjacent
       const maxL = Math.max(2, Math.min(out.durationInFrames, inItem.durationInFrames));
-      const defaultL = audioTr ? Math.min(15, maxL) : Math.min(30, maxL);
+      const defaultL = audioTr ? Math.min(15, maxL) : BREAK_IN_TRANSITIONS.has(a.transType) ? Math.min(Math.max(2, Math.round(BREAK_IN_SECONDS * s.fps)), maxL) : Math.min(30, maxL);
       const L = Math.max(2, Math.min(a.durationInFrames ?? defaultL, maxL));
       const t: TransitionItem = {
         id: a.id, type: a.transType, durationInFrames: L, outgoingItemId: out.id, incomingItemId: inItem.id, trackId: inItem.track, enabled: true,

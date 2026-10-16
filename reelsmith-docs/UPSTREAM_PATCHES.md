@@ -154,3 +154,10 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 - `src/components/timeline/ClipContextMenu.tsx`: "Ken Burns motion" submenu for photo/gif/svg clips, implemented in `src/reelsmith/kenBurns.ts`.
 - `package.json`: `kenBurns.verify.ts` added to `test:reelsmith`.
 - RS-406 drag-to-fill: `src/components/PreviewPanel.tsx` (new optional prop `onDropAssetInCell`, a "Layout" select in the toolbar and `LayoutFillOverlay` in the canvas box) and `src/editor/useEditorController.tsx` (passes `onDropAssetInCell`, one import). Code in `src/reelsmith/layoutFill.ts`, `src/reelsmith/ui/LayoutFillOverlay.tsx`; `layoutFill.verify.ts` added to `test:reelsmith`.
+
+## Break-in transitions (RS-408..RS-410)
+- `src/editor/transitionTypes.ts`: types `bars`, `wide-bars`, `window` added to `GlslTransitionType`, `GLSL_TRANSITION_TYPES`, `TRANSITION_LABELS` (English text), `TRANSITION_ORDER`; new exports `BREAK_IN_TRANSITIONS`, `BREAK_IN_SECONDS`.
+- `src/gl/transitions.ts`: three registry entries and `WINDOW_LIMIT`; shaders `src/gl/shaders/bars.frag`, `window.frag` (+ generated `.frag.ts`).
+- `src/editor/transitionPreview.ts`: CSS approximations for the new types.
+- `src/editor/reducerTrackActions.ts`: default length 0.35 s for the break-in types.
+- `package.json`: `breakIn.verify.ts` added to `test:reelsmith`.

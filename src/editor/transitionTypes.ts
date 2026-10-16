@@ -21,7 +21,10 @@ export type GlslTransitionType =
   | 'circle-wipe'
   | 'radial-blur'
   | 'glitch-cut'
-  | 'dip-to-color';
+  | 'dip-to-color'
+  | 'bars'
+  | 'wide-bars'
+  | 'window';
 
 /** Audio-only transitions (preset `trAudioCrossFade`) — no picture. */
 export type AudioTransitionType = 'audio-cross-fade';
@@ -35,6 +38,7 @@ export const GLSL_TRANSITION_TYPES: ReadonlySet<string> = new Set<string>([
   'cross-dissolve', 'dip-to-black', 'soft-wipe', 'whip-pan', 'flash', 'luma-blend',
   'page-curl', 'rack-focus', 'organic-dissolve', 'impact-shake', 'anticipation-zoom', 'clean-line-wipe',
   'circle-wipe', 'radial-blur', 'glitch-cut', 'dip-to-color',
+  'bars', 'wide-bars', 'window',
   'custom-shader', // takes the GL render path; frag comes from the item, not GLSL_TRANSITIONS
 ]);
 
@@ -73,6 +77,9 @@ export const TRANSITION_LABELS: Record<TransitionType, string> = {
   'radial-blur': '径向模糊转场',
   'glitch-cut': '故障切换转场',
   'dip-to-color': '闪色转场',
+  bars: 'Bars break-in',
+  'wide-bars': 'Wide bars break-in',
+  window: 'Window grow-in',
   /** preset.name.trAudioCrossFade */
   'audio-cross-fade': '音频交叉淡化',
   /** submit_shader-generated custom transition (per-item label in customLabel) */
@@ -97,12 +104,19 @@ export const TRANSITION_ORDER: readonly GlslTransitionType[] = [
   'radial-blur',
   'glitch-cut',
   'dip-to-color',
+  'bars',
+  'wide-bars',
+  'window',
 ];
 
 /** Audio transition catalog (trAudioCrossFade). */
 export const AUDIO_TRANSITION_ORDER: readonly AudioTransitionType[] = [
   'audio-cross-fade',
 ];
+
+/** Reelsmith break-in transitions are short by default (RS-408..410): 0.35 s. */
+export const BREAK_IN_TRANSITIONS: ReadonlySet<string> = new Set(['bars', 'wide-bars', 'window']);
+export const BREAK_IN_SECONDS = 0.35;
 
 export type TransitionDirection = 'left' | 'right' | 'up' | 'down';
 

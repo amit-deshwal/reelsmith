@@ -13,6 +13,9 @@ const PREVIEW_APPROXIMATION: Partial<Record<TransitionItem['type'], CssTransitio
   'radial-blur': 'luma-blend',
   'glitch-cut': 'flash',
   'dip-to-color': 'dip-to-black',
+  bars: 'soft-wipe',
+  'wide-bars': 'soft-wipe',
+  window: 'luma-blend',
 };
 
 export function previewTransitionType(type: TransitionItem['type']): CssTransitionType {

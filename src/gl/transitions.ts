@@ -20,6 +20,8 @@ import circleWipe from './shaders/circle-wipe.frag.ts';
 import radialBlur from './shaders/radial-blur.frag.ts';
 import glitchCut from './shaders/glitch-cut.frag.ts';
 import dipToColor from './shaders/dip-to-color.frag.ts';
+import bars from './shaders/bars.frag.ts';
+import windowGrow from './shaders/window.frag.ts';
 
 export interface GlslTransitionDef {
   frag: string;
@@ -136,4 +138,31 @@ export const GLSL_TRANSITIONS: Record<GlslTransitionType, GlslTransitionDef> = {
       u_hold: 0.12,
     }),
   },
+  // ── Reelsmith break-ins (RS-408..410) ───────────────────────────────────
+  bars: {
+    frag: bars,
+    // vertical bars sliding up/down; left/right (the default) alternates
+    uniforms: ({ direction }) => ({
+      u_count: 6, u_stagger: 0.5, u_horizontal: 0,
+      u_dir: direction === 'up' ? 1 : direction === 'down' ? -1 : 0,
+    }),
+  },
+  'wide-bars': {
+    frag: bars,
+    // 3 wide bars: left/right = horizontal rows sliding sideways (default), up/down = vertical columns
+    uniforms: ({ direction }) => ({
+      u_count: 3, u_stagger: 0.4,
+      u_horizontal: direction === 'up' || direction === 'down' ? 0 : 1,
+      u_dir: direction === 'up' || direction === 'right' ? 1 : direction === 'down' ? -1 : 0,
+    }),
+  },
+  window: {
+    frag: windowGrow,
+    uniforms: ({ aspect }) => ({
+      u_center: [0.5, 0.5], u_start: 0.3, u_limit: WINDOW_LIMIT, u_radius: 0.03, u_shadow: 0.5, u_aspect: aspect,
+    }),
+  },
 };
+
+/** Half width / half height the window reaches at 80% of the transition: inside Instagram's safe zone (top/bottom/right bands). */
+export const WINDOW_LIMIT: [number, number] = [0.4, 0.3];
