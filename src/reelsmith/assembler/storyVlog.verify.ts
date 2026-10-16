@@ -58,4 +58,11 @@ assert.ok(pt[1].endsWith('· Cafe'), pt[1]);
 assert.ok(pt[2].endsWith('· Beach'), pt[2]);
 const pn = assemble({ ...base, texts: { places: 'Home' }, params: { ...params, labels: 'time' } });
 assert.ok((pn.action!.actions.filter((x: any) => x.item?.kind === 'text') as any[]).every((x) => !x.item.props.text.includes('·')));
+// the reel never starts with an empty canvas, even when the song's first beat is a few frames in
+const lateBeat: AssemblyMusic = { ...music, beatTimesSec: music.beatTimesSec.map((b) => b + 0.3) };
+const late = assemble({ ...base, music: lateBeat });
+const lateV1 = late.action!.actions.filter((x: any) => x.item?.track === 'V1') as any[];
+assert.equal(Math.min(...lateV1.map((x) => x.startFrame)), 0, 'first shot starts at frame 0');
+const lateEnd = lateV1.reduce((m, x) => Math.max(m, x.startFrame + x.item.durationInFrames), 0);
+assert.ok(lateEnd > 0);
 console.log('storyVlog.verify: ok');

@@ -144,3 +144,4 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 - `package.json`: `pretest`/`posttest` renamed `test:pre`/`test:post` (they ran ~210 s of verifies serially around the pool); `npm test` defaults to 8 workers (`TEST_CONCURRENCY` still overrides).
 - `scripts/run-tests.mjs`: runs `test:pre`, `test:serial` and `test:post` in one pool, starts the known-slow segments first and prints the slowest segments.
 - `scripts/verify-gate-coverage.verify.mjs`: reads `test:pre`/`test:post` instead of `pretest`/`posttest`.
+- `src/components/inspector/FontFamilyPicker.tsx`: the "Bundled fonts" group now also lists our bundled families that are not Google entries (Noto Sans Devanagari, Poppins); they were missing from the text-clip font picker.

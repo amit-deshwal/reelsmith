@@ -48,7 +48,8 @@ export function assembleStoryVlog(input: AssembleInput): AssembleResult {
   const bars = music ? Math.max(1, Math.round(shotLenSec / barSec)) : 0;
   const shotFrames = music ? Math.round((rel[bars * bpb] ?? bars * barSec) * fps) : Math.round(shotLenSec * fps);
   let slotCount = Math.max(1, Math.floor((targetSec * fps) / shotFrames));
-  const shotStart = (i: number) => (music ? Math.round((rel[Math.min(i * bars * bpb, rel.length - 1)] ?? 0) * fps) : i * shotFrames);
+  // The first shot always starts at frame 0 (the song's first beat can be a few frames in, which left an empty canvas).
+  const shotStart = (i: number) => (i === 0 ? 0 : music ? Math.round((rel[Math.min(i * bars * bpb, rel.length - 1)] ?? 0) * fps) : i * shotFrames);
 
   const splitEvery = Math.max(0, Math.round(Number(params.splitEvery ?? 0)));
   const isSplit = (slot: number) => splitEvery > 0 && slot % splitEvery === splitEvery - 1;

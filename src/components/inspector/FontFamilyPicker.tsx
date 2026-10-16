@@ -2,7 +2,11 @@ import React, { useState, type CSSProperties } from 'react';
 import { useSystemFonts } from '../../fonts/systemFonts';
 import { GOOGLE_FONT_CATALOG } from '../../fonts/googleFontCatalog';
 import { LOCAL_CJK_FONTS } from '../../fonts/localFonts';
+import { REELSMITH_LOCAL_FONTS } from '../../reelsmith/fonts';
 import { useT } from '../../i18n/locale';
+
+// Reelsmith: bundled fonts that are not already Google entries (Noto Sans Devanagari, Poppins) belong in this group too.
+const BUNDLED_FONTS = [...LOCAL_CJK_FONTS, ...REELSMITH_LOCAL_FONTS.filter((f) => !GOOGLE_FONT_CATALOG.some((g) => g.family === f.family))];
 
 export interface FontFamilyPickerProps {
   value: string;
@@ -56,7 +60,7 @@ export function FontFamilyPicker({
     systemFonts.includes(value) ||
     customFonts.includes(value) ||
     GOOGLE_FONT_CATALOG.some((f) => f.family === value) ||
-    LOCAL_CJK_FONTS.some((f) => f.family === value);
+    BUNDLED_FONTS.some((f) => f.family === value);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
@@ -128,8 +132,8 @@ export function FontFamilyPicker({
           </optgroup>
 
           {/* Bundled Display Fonts */}
-          <optgroup label={`${t('内置字体')} (${LOCAL_CJK_FONTS.length})`}>
-            {LOCAL_CJK_FONTS.map((f) => (
+          <optgroup label={`${t('内置字体')} (${BUNDLED_FONTS.length})`}>
+            {BUNDLED_FONTS.map((f) => (
               <option key={`cjk-${f.family}`} value={f.family} style={{ fontFamily: f.family }}>
                 {f.family}
               </option>
