@@ -79,6 +79,7 @@ const RELOCATED_ENTRIES = [
   'project-store-v1',
   'project-store-v1.json',
   'project-store-auth-v1',
+  'user-recipes',
   'deleted-projects-v1.json',
   'generation-operations-v1.json',
   // Upload-Post duplicate-publish record: losing it would let an ambiguous

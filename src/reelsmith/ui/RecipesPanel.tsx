@@ -1,18 +1,20 @@
 // Recipes tab: pick a recipe, choose pool media, tune params, press Assemble.
 // Everything heavy lives in ../runRecipe.ts and ../assembler; this file is only the form.
-import { useRef, useState } from 'react';
-import type { Recipe, RecipeMediaInput } from '../../../shared/reelsmith/recipe';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { parseRecipe, type Recipe, type RecipeMediaInput } from '../../../shared/reelsmith/recipe';
+import { mapBriefToRecipe, type ReelsBrief } from '../../../shared/reelsmith/brief';
 import type { BatchAction } from '../../editor/reducerActions';
 import type { MediaAsset } from '../../editor/types';
 import { theme } from '../../theme';
 import { analyzeApi } from '../analyzeApi';
 import { bundledCatalog } from '../bundledRecipes';
+import { deleteUserRecipe, listUserRecipes, saveUserRecipe } from '../userRecipesApi';
 import { RecipeGallery } from './RecipeGallery';
 import { MusicPolicyControls } from './MusicPolicyControls';
 import { runRecipe } from '../runRecipe';
 import { loadShotTags } from '../shotTagApi';
 import { requestPreview } from '../previewClient';
-import { saveRun } from '../runStore';
+import { loadRun, saveRun } from '../runStore';
 import { kvGet, kvSet } from '../../persist/sharedKv';
 import { importSlotMedia } from '../slotImport';
 import { canAssemble, defaultValues, mediaInputs, validateSetup, widgetFor, type SetupValues } from '../setupForm';
@@ -29,6 +31,10 @@ export interface RecipesPanelProps {
   /** prefill the chat with a request (agent shot selection) */
   onAskAgent?: (text: string, opts?: { autoSend?: boolean }) => void;
   initialRecipeId?: string;
+  /** Optional guided brief supplied by the gallery or Ideas flow. */
+  initialBrief?: ReelsBrief;
+  /** One-time prompt from an opted-in Ideas research handoff. */
+  initialPrompt?: string;
   onImportMedia?: (file: File) => Promise<MediaAsset>;
 }
 
@@ -43,31 +49,146 @@ export const AGENT_PICK_PROMPT = [
   'Tell me in one or two lines why.',
 ].join(' ');
 
+const AI_RECIPE_PROMPT = [
+  'Draft one new Reelsmith recipe manifest as JSON only. Use schemaVersion 1, an id beginning with "ai-", a supported category, 9:16 canvas, declared inputs and params, existing assembler strategy only (beat-montage@1, story-vlog@1, captioned-story@1, collage-grid@1, or travel-diary@1), valid structure/styles, and no executable code or external file paths.',
+  'Keep it practical for ordinary imported clips. Use only existing layout, transition, overlay and animation values from the bundled recipes. Include a concise name, description, required media and optional text inputs. I will validate the JSON before saving it.',
+].join(' ');
+
 const label: React.CSSProperties = { fontSize: 11.5, color: theme.textDim };
 const input: React.CSSProperties = {
   background: theme.inset, color: theme.text, border: `0.5px solid ${theme.border}`, borderRadius: 5, padding: '5px 7px', fontSize: 12.5,
 };
 
-export function RecipesPanel({ projectId, assets, itemCount, fps, onApply, onAskAgent, initialRecipeId, onImportMedia }: RecipesPanelProps) {
-  const [recipe, setRecipe] = useState<Recipe | null>(() => catalog.recipes.find((r) => r.id === initialRecipeId) ?? null);
+export function RecipesPanel({ projectId, assets, itemCount, fps, onApply, onAskAgent, initialRecipeId, initialBrief, initialPrompt, onImportMedia }: RecipesPanelProps) {
+  const selectedRecipeId = initialRecipeId ?? (initialBrief?.target.recipeId !== 'new' ? initialBrief?.target.recipeId : undefined);
+  const [recipe, setRecipe] = useState<Recipe | null>(() => catalog.recipes.find((r) => r.id === selectedRecipeId) ?? null);
+  const [userRecipes, setUserRecipes] = useState<Recipe[]>([]);
+  const [draft, setDraft] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [managerError, setManagerError] = useState('');
+  const [managerBusy, setManagerBusy] = useState(false);
+  useEffect(() => {
+    void listUserRecipes().then((result) => {
+      setUserRecipes(result.recipes);
+      if (result.rejected.length) setManagerError(result.rejected.map((entry) => `${entry.file}: ${entry.errors.join('; ')}`).join('\n'));
+    }).catch((error) => setManagerError(error instanceof Error ? error.message : String(error)));
+  }, []);
+  const saveDraft = async () => {
+    setManagerError('');
+    const parsed = parseRecipe(draft);
+    if (!parsed.ok) { setManagerError(parsed.errors.join('; ')); return; }
+    const allIds = new Set([...catalog.recipes, ...userRecipes].map((entry) => entry.id));
+    const slug = parsed.recipe.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 32) || 'recipe';
+    const id = editingId ?? `ai-${slug}-${crypto.randomUUID().slice(0, 8)}`;
+    if (!editingId && allIds.has(id)) { setManagerError('A recipe with this id already exists. Try saving again.'); return; }
+    const candidate = { ...parsed.recipe, id };
+    const normalized = parseRecipe(JSON.stringify(candidate));
+    if (!normalized.ok) { setManagerError(normalized.errors.join('; ')); return; }
+    setManagerBusy(true);
+    try {
+      const saved = await saveUserRecipe(normalized.recipe, !!editingId);
+      setUserRecipes((current) => [...current.filter((entry) => entry.id !== saved.id), saved].sort((a, b) => a.name.localeCompare(b.name)));
+      setDraft(''); setEditingId(null);
+    } catch (error) { setManagerError(error instanceof Error ? error.message : String(error)); }
+    finally { setManagerBusy(false); }
+  };
+  const duplicate = async (source: Recipe) => {
+    const slug = source.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 28) || 'recipe';
+    const copy = { ...source, id: `ai-${slug}-copy-${crypto.randomUUID().slice(0, 6)}`, name: `${source.name.slice(0, 54)} copy` };
+    setManagerBusy(true); setManagerError('');
+    try {
+      const saved = await saveUserRecipe(copy);
+      setUserRecipes((current) => [...current, saved].sort((a, b) => a.name.localeCompare(b.name)));
+    } catch (error) { setManagerError(error instanceof Error ? error.message : String(error)); }
+    finally { setManagerBusy(false); }
+  };
+  const removeUserRecipe = async (entry: Recipe) => {
+    if (!window.confirm(`Delete the AI-made recipe “${entry.name}”?`)) return;
+    setManagerBusy(true); setManagerError('');
+    try {
+      await deleteUserRecipe(entry.id);
+      setUserRecipes((current) => current.filter((candidate) => candidate.id !== entry.id));
+    } catch (error) { setManagerError(error instanceof Error ? error.message : String(error)); }
+    finally { setManagerBusy(false); }
+  };
   if (!recipe) {
     return (
       <div style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'grid', gap: 10, alignContent: 'start' }}>
-        <RecipeGallery recipes={catalog.recipes} onSelect={setRecipe} />
+        <RecipeGallery recipes={[...catalog.recipes, ...userRecipes]} onSelect={setRecipe} aiMadeIds={new Set(userRecipes.map((entry) => entry.id))} disabled={managerBusy} />
+        <section aria-label="AI-made recipes" style={{ display: 'grid', gap: 8, padding: 10, border: `0.5px solid ${theme.border}`, borderRadius: 8 }}>
+          <b style={{ fontSize: 13 }}>AI-made recipes</b>
+          <span style={label}>Paste recipe JSON drafted by your agent. It is validated before it is saved locally, outside the bundled recipes.</span>
+          {onAskAgent && <button type="button" disabled={managerBusy} onClick={() => onAskAgent(AI_RECIPE_PROMPT)} style={{ ...input, cursor: 'pointer', justifySelf: 'start' }}>Ask agent to draft a recipe</button>}
+          {userRecipes.map((entry) => <div key={entry.id} style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <span style={{ flex: 1, minWidth: 100, fontSize: 12 }}>{entry.name}</span>
+            <button type="button" disabled={managerBusy} style={{ ...input, cursor: 'pointer' }} onClick={() => { setEditingId(entry.id); setDraft(JSON.stringify(entry, null, 2)); }}>Edit</button>
+            <button type="button" disabled={managerBusy} style={{ ...input, cursor: 'pointer' }} onClick={() => { void duplicate(entry); }}>Duplicate</button>
+            <button type="button" disabled={managerBusy} style={{ ...input, cursor: 'pointer' }} onClick={() => { void removeUserRecipe(entry); }}>Delete</button>
+          </div>)}
+          <textarea aria-label="AI-made recipe JSON" value={draft} onChange={(event) => setDraft(event.target.value)} rows={10} spellCheck={false}
+            placeholder="Paste a recipe JSON object from your agent…" style={{ ...input, resize: 'vertical', fontFamily: 'monospace', fontSize: 11.5 }} />
+          <div style={{ display: 'flex', gap: 7 }}>
+            <button type="button" disabled={managerBusy || !draft.trim()} onClick={() => { void saveDraft(); }} style={{ ...input, cursor: 'pointer' }}>{managerBusy ? 'Saving…' : editingId ? 'Save changes' : 'Validate and save'}</button>
+            {editingId && <button type="button" disabled={managerBusy} onClick={() => { setEditingId(null); setDraft(''); }} style={{ ...input, cursor: 'pointer' }}>Cancel</button>}
+          </div>
+          {managerError && <span role="alert" style={{ ...label, color: theme.danger }}>{managerError}</span>}
+        </section>
         {catalog.rejected.length > 0 && <div style={{ ...label, color: theme.danger }}>{catalog.rejected.join('; ')}</div>}
       </div>
     );
   }
-  return <SetupForm key={recipe.id} recipe={recipe} projectId={projectId} assets={assets} itemCount={itemCount} fps={fps} onBack={() => setRecipe(null)} onImportMedia={onImportMedia} onApply={onApply} onAskAgent={onAskAgent} />;
+  return <SetupForm key={recipe.id} recipe={recipe} projectId={projectId} assets={assets} itemCount={itemCount} fps={fps} initialBrief={initialBrief} initialPrompt={initialPrompt} onBack={() => setRecipe(null)} onImportMedia={onImportMedia} onApply={onApply} onAskAgent={onAskAgent} />;
 }
 
-export function SetupForm({ recipe, projectId, assets, itemCount, fps, onBack, onApply, onAskAgent, onImportMedia }: RecipesPanelProps & { recipe: Recipe; onBack: () => void }) {
+export function SetupForm({ recipe, projectId, assets, itemCount, fps, initialBrief, initialPrompt, onBack, onApply, onAskAgent, onImportMedia }: RecipesPanelProps & { recipe: Recipe; onBack: () => void }) {
   const [values, setValues] = useState<SetupValues>(() => defaultValues(recipe));
   const [busy, setBusy] = useState('');
   const working = useRef(false);
   const [notes, setNotes] = useState<string[]>([]);
   const [preview, setPreview] = useState<{ src: string; ms: number } | null>(null);
+  const [brief, setBrief] = useState<ReelsBrief | undefined>(initialBrief);
+  const [confirmedShotRequests, setConfirmedShotRequests] = useState<number[]>([]);
+  const [assembleAnyway, setAssembleAnyway] = useState(false);
+  const promptSent = useRef(false);
+  useEffect(() => {
+    if (!initialPrompt || !onAskAgent || promptSent.current) return;
+    promptSent.current = true;
+    onAskAgent(initialPrompt, { autoSend: true });
+  }, [initialPrompt, onAskAgent]);
+  useEffect(() => {
+    if (initialBrief) return;
+    let active = true;
+    void loadRun({ get: kvGet, set: kvSet }, projectId).then((run) => {
+      if (!active || run?.recipeId !== recipe.id || !run.brief) return;
+      setBrief(run.brief);
+      setConfirmedShotRequests(run.briefConfirmedShotRequests ?? []);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [initialBrief, projectId, recipe.id]);
+  const briefMapping = useMemo(() => brief ? mapBriefToRecipe(brief, recipe) : null, [brief, recipe]);
+  const requiredClipsByInput = new Map<string, number>();
+  for (const { request, input } of briefMapping?.clips ?? []) requiredClipsByInput.set(input.id, (requiredClipsByInput.get(input.id) ?? 0) + request.count);
+  const requiredTextByInput = new Map<string, number>();
+  for (const { request, input } of briefMapping?.text ?? []) requiredTextByInput.set(input.id, (requiredTextByInput.get(input.id) ?? 0) + request.count);
+  const briefItems: Array<{ id: string; label: string; complete: boolean; kind: 'shot' | 'plain'; index?: number }> = briefMapping ? [
+    ...briefMapping.clips.map(({ request, input }, index) => {
+      const selected = (values.media[input.id] ?? []).map((choice) => assets.find((asset) => asset.id === choice.assetId)).filter((asset) => asset && (!request.minLengthSec || asset.durationInFrames / fps >= request.minLengthSec));
+      const required = requiredClipsByInput.get(input.id) ?? request.count;
+      return {
+        id: `clip-${index}`, label: `${selected.length}/${required} ${request.shotType} clips${request.minLengthSec ? `, at least ${request.minLengthSec}s` : ''}`,
+        complete: selected.length >= required && confirmedShotRequests.includes(index), kind: 'shot' as const, index,
+      };
+    }),
+    ...briefMapping.text.map(({ request, input }, index) => {
+      const pieces = (values.texts[input.id] ?? '').split('/').map((part) => part.trim()).filter(Boolean);
+      const wordsFit = request.maxWords === undefined || pieces.every((part) => part.split(/\s+/).filter(Boolean).length <= request.maxWords!);
+      return { id: `text-${index}`, label: `${pieces.length}/${requiredTextByInput.get(input.id) ?? request.count} text item${request.count === 1 ? '' : 's'}${request.maxWords ? `, up to ${request.maxWords} words` : ''}${request.tone ? ` · ${request.tone}` : ''}`, complete: pieces.length >= (requiredTextByInput.get(input.id) ?? request.count) && wordsFit, kind: 'plain' as const };
+    }),
+    ...(brief.music ? [{ id: 'music', label: brief.music.mode === 'instagram' ? 'Add music in Instagram' : brief.music.mode === 'named' ? `Music · ${brief.music.name}` : `Music · ${brief.music.description}`, complete: brief.music.mode === 'instagram' || !!briefMapping.music && (values.media[briefMapping.music.id]?.length ?? 0) > 0, kind: 'plain' as const }]: []),
+  ] : [];
+  const briefComplete = !brief || (!!briefMapping && briefItems.every((item) => item.complete) && briefMapping.warnings.length === 0);
   const errors = validateSetup(recipe, values, assets);
+  const canStartAssembly = canAssemble(recipe, values, assets) && (briefComplete || assembleAnyway) && !busy;
   const errorFor = (field: string) => errors.find((e) => e.field === field)?.message;
   const toggle = (inputId: string, a: MediaAsset, max: number) => setValues((v) => {
     const cur = v.media[inputId] ?? [];
@@ -99,7 +220,7 @@ export function SetupForm({ recipe, projectId, assets, itemCount, fps, onBack, o
       if (out.action) {
         onApply(out.action);
         // RS-108: remember the run so chat can re-cut sections or re-pick shots
-        await saveRun({ get: kvGet, set: kvSet }, projectId, out.run).catch(() => setNotes((n) => [...n, 'Could not save the recipe run; re-cut from chat will not work.']));
+        await saveRun({ get: kvGet, set: kvSet }, projectId, { ...out.run, brief, briefConfirmedShotRequests: confirmedShotRequests }).catch(() => setNotes((n) => [...n, 'Could not save the recipe run; re-cut from chat will not work.']));
         if (values.agentPick !== 'off' && onAskAgent) {
           onAskAgent(AGENT_PICK_PROMPT, { autoSend: true });
           setNotes((n) => [...n, 'The reel is assembled. Your agent is now choosing the shots in the chat, in one undo step. If it has not started, press Enter there.']);
@@ -132,6 +253,23 @@ export function SetupForm({ recipe, projectId, assets, itemCount, fps, onBack, o
       <fieldset aria-label={`${recipe.name} setup`} disabled={!!busy} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: 'grid', gap: 12 }}>
         <button type="button" onClick={onBack} style={{ ...input, cursor: 'pointer', justifySelf: 'start' }}>← All recipes</button>
         <div><b style={{ fontSize: 14 }}>{recipe.name}</b><div style={label}>{recipe.description}</div></div>
+
+        {brief && briefMapping && <section aria-label="Brief checklist" style={{ display: 'grid', gap: 6, padding: 9, border: `0.5px solid ${theme.border}`, borderRadius: 7 }}>
+          <b style={{ fontSize: 12.5 }}>Brief checklist</b>
+          {brief.whyTrending && <span style={label}>{brief.whyTrending}</span>}
+          {brief.sources?.map((source) => <a key={source.url} href={source.url} target="_blank" rel="noreferrer" style={{ ...label, color: theme.accent }}>{source.title}{source.publishedAt ? ` · ${source.publishedAt}` : ''}</a>)}
+          {briefItems.map((item) => <label key={item.id} style={{ display: 'flex', gap: 7, alignItems: 'center', fontSize: 12 }}>
+            {item.kind === 'shot'
+              ? <input type="checkbox" checked={confirmedShotRequests.includes(item.index!)} onChange={(event) => setConfirmedShotRequests((current) => event.target.checked ? [...new Set([...current, item.index!])] : current.filter((id) => id !== item.index))} />
+              : <span aria-label={item.complete ? 'Complete' : 'Incomplete'}>{item.complete ? '✓' : '○'}</span>}
+            <span style={{ color: item.complete ? theme.text : theme.textDim }}>{item.label}</span>
+          </label>)}
+          {briefMapping.text.some(({ request }) => request.count > 1) && <span style={label}>Separate multiple text items with “/”.</span>}
+          {briefMapping.warnings.map((warning) => <span key={warning} style={{ ...label, color: theme.gold }}>{warning}</span>)}
+          {!briefComplete && <label style={{ display: 'flex', gap: 7, alignItems: 'center', fontSize: 11.5, color: theme.textDim }}>
+            <input type="checkbox" checked={assembleAnyway} onChange={(event) => setAssembleAnyway(event.target.checked)} /> Assemble anyway
+          </label>}
+        </section>}
 
         {mediaInputs(recipe).map((inp) => {
           const pool = assets.filter((a) => inp.accept.includes(a.kind as never));
@@ -215,10 +353,10 @@ export function SetupForm({ recipe, projectId, assets, itemCount, fps, onBack, o
           </label>
         )}
 
-        <button type="button" disabled={!canAssemble(recipe, values, assets) || !!busy} onClick={() => { void assemble(); }} style={{
+        <button type="button" disabled={!canStartAssembly} onClick={() => { void assemble(); }} style={{
           padding: '9px 12px', borderRadius: 7, border: 'none', fontSize: 13.5, fontWeight: 600,
-          cursor: canAssemble(recipe, values, assets) && !busy ? 'pointer' : 'not-allowed',
-          background: canAssemble(recipe, values, assets) && !busy ? theme.accent : theme.panelAlt, color: canAssemble(recipe, values, assets) && !busy ? theme.onAccent : theme.textDim,
+          cursor: canStartAssembly ? 'pointer' : 'not-allowed',
+          background: canStartAssembly ? theme.accent : theme.panelAlt, color: canStartAssembly ? theme.onAccent : theme.textDim,
         }}>{busy || 'Assemble'}</button>
         <button type="button" disabled={!canAssemble(recipe, values, assets) || !!busy} onClick={() => { void previewWithMine(); }}
           style={{ ...input, cursor: canAssemble(recipe, values, assets) && !busy ? 'pointer' : 'not-allowed', justifySelf: 'stretch', padding: '7px 10px' }}>

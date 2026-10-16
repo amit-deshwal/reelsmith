@@ -9,8 +9,8 @@ const card: React.CSSProperties = {
 };
 const label: React.CSSProperties = { fontSize: 11.5, color: theme.textDim };
 
-export function RecipeGallery({ recipes, onSelect, disabled = false }: {
-  recipes: Recipe[]; onSelect: (recipe: Recipe) => void; disabled?: boolean;
+export function RecipeGallery({ recipes, onSelect, disabled = false, aiMadeIds = new Set<string>() }: {
+  recipes: Recipe[]; onSelect: (recipe: Recipe) => void; disabled?: boolean; aiMadeIds?: ReadonlySet<string>;
 }) {
   const [category, setCategory] = useState<Recipe['category'] | 'all'>('all');
   const gallery = useMemo(() => buildGallery(recipes, { category }), [recipes, category]);
@@ -22,14 +22,14 @@ export function RecipeGallery({ recipes, onSelect, disabled = false }: {
           color: category === c.id ? theme.onAccent : theme.text }}>{c.label} ({c.count})</button>)}
     </div>
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 }}>
-      {gallery.cards.map((c) => <RecipeCardView key={c.id} card={c} disabled={disabled}
+      {gallery.cards.map((c) => <RecipeCardView key={c.id} card={c} disabled={disabled} aiMade={aiMadeIds.has(c.id)}
         onOpen={() => onSelect(recipes.find((r) => r.id === c.id)!)} />)}
     </div>
   </div>;
 }
 
 /** Poster with a muted loop that plays while hovered (RS-102). */
-export function RecipeCardView({ card: c, onOpen, disabled }: { card: RecipeCard; onOpen: () => void; disabled?: boolean }) {
+export function RecipeCardView({ card: c, onOpen, disabled, aiMade = false }: { card: RecipeCard; onOpen: () => void; disabled?: boolean; aiMade?: boolean }) {
   const [hover, setHover] = useState(false);
   const poster = previewUrl(c.poster);
   const loop = previewUrl(c.loop);
@@ -40,6 +40,7 @@ export function RecipeCardView({ card: c, onOpen, disabled }: { card: RecipeCard
         {poster && <img src={poster} alt="" loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
         {hover && loop && <video src={loop} muted autoPlay loop playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
         <span style={{ position: 'absolute', left: 6, top: 6, fontSize: 10.5, padding: '2px 6px', borderRadius: 4, background: 'rgba(0,0,0,0.55)', color: '#fff' }}>{categoryLabel(c.category)}</span>
+        {aiMade && <span style={{ position: 'absolute', right: 6, top: 6, fontSize: 10, padding: '2px 6px', borderRadius: 4, background: theme.accent, color: theme.onAccent }}>AI-made</span>}
       </div>
       <div style={{ display: 'grid', gap: 3, padding: '8px 9px 10px' }}>
         <b style={{ fontSize: 13 }}>{c.name}</b>

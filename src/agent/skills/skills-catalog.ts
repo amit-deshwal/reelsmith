@@ -177,6 +177,14 @@ export const CREATIVE_SKILL_METADATA: CreativeSkillMetadata[] = [
       '写技能',
       '把流程做成技能'
     ]
+  },
+  {
+    id: '11111111-1240-4000-8000-000000000016',
+    slug: 'reels-trends',
+    name: 'Reels Trend Scout',
+    nameZh: 'Reels 趋势研究',
+    summary: 'Research recent Reels trends only with explicit opt-in and return dated, source-backed ideas as validated Reelsmith briefs.',
+    scenarios: ['reels-trends', 'trend-scout', 'reels-ideas', 'current-reels-trends']
   }
 ];
 

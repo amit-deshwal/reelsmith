@@ -1,4 +1,4 @@
-import { clearRecipeStart, pendingRecipeStart } from '../reelsmith/recipeStart';
+import { clearRecipeStart, pendingRecipeHandoff } from '../reelsmith/recipeStart';
 import { useEffect, useMemo, useState, type RefObject } from 'react';
 import type { SequenceLibraryOption } from './sequenceOptions';
 import type { PlayerRef } from '@remotion/player';
@@ -136,7 +136,8 @@ export function LibraryPanel({ semanticScopeId, templates, onAddTemplate, onAddA
   const t = useT();
   const selKind = selectedItem?.kind ?? null;
   const isVisual = selKind != null && selKind !== 'audio';
-  const [initialRecipeId] = useState(() => pendingRecipeStart(semanticScopeId));
+  const [recipeHandoff] = useState(() => pendingRecipeHandoff(semanticScopeId));
+  const initialRecipeId = recipeHandoff?.recipeId;
   const [mainTab, setMainTab] = useState<(typeof MAIN_TABS)[number]>(initialRecipeId ? 'Recipes' : '我的素材');
   useEffect(() => { clearRecipeStart(semanticScopeId); }, [semanticScopeId]);
   const [subTab, setSubTab] = useState<(typeof SUB_TABS)[number]>('MG 动画');
@@ -243,7 +244,7 @@ export function LibraryPanel({ semanticScopeId, templates, onAddTemplate, onAddA
         </div>
       ) : isRecipes ? (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, borderTop: `0.5px solid ${theme.border}` }}>
-          <RecipesPanel onImportMedia={onImportMedia} initialRecipeId={initialRecipeId} projectId={semanticScopeId} assets={assets} itemCount={items.length} fps={fps} onApply={onApplyRecipe} onAskAgent={onAskAgent} />
+          <RecipesPanel onImportMedia={onImportMedia} initialRecipeId={initialRecipeId} initialBrief={recipeHandoff?.brief} initialPrompt={recipeHandoff?.prompt} projectId={semanticScopeId} assets={assets} itemCount={items.length} fps={fps} onApply={onApplyRecipe} onAskAgent={onAskAgent} />
         </div>
       ) : isSkills ? (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, borderTop: `0.5px solid ${theme.border}` }}>

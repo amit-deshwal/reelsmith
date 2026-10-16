@@ -17,6 +17,7 @@ const expectedCreativeSlugs = [
   'video-thumbnail-generator',
   'news-rough-cut',
   'skill-creator',
+  'reels-trends',
 ];
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const vite = await createServer({
@@ -46,7 +47,7 @@ try {
     normalizeStoredCustomSkill: (value: unknown) => CustomSkill | undefined;
   };
 
-  assert.equal(pluginFiles.PLUGIN_SKILLS.length, 31);
+  assert.equal(pluginFiles.PLUGIN_SKILLS.length, 32);
   assert.deepEqual(catalog.CREATIVE_SKILLS.map((skill) => skill.slug), expectedCreativeSlugs);
   for (const skill of pluginFiles.PLUGIN_SKILLS) {
     for (const match of skill.body.matchAll(/\]\((?:\.\/)?([^)\s#?]+\.md)(?:[?#][^)]*)?\)/g)) {

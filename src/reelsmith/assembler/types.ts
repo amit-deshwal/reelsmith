@@ -1,4 +1,5 @@
 import type { Recipe } from '../../../shared/reelsmith/recipe';
+import type { ReelsBrief } from '../../../shared/reelsmith/brief';
 import type { BatchAction } from '../../editor/reducerActions';
 import type { ShotTag } from '../shotTags';
 
@@ -102,6 +103,10 @@ export interface RecipeRunRecord {
   preferredAssetIds?: string[];
   preferredBrollAssetIds?: string[];
   selectionRationale?: string;
+  /** RS-1002: the guide shown while preparing this recipe run. */
+  brief?: ReelsBrief;
+  /** RS-1002: clip requests the user confirmed by hand when no shot classifier was available. */
+  briefConfirmedShotRequests?: number[];
 }
 
 export interface AssembleResult {
