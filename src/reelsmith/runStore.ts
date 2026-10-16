@@ -35,5 +35,8 @@ export function recutSection(
   const res = assemble({ ...input, seed: newSeed, variety: 0.6, onlySection: { name: section, excludeAssetIds: elsewhere } });
   if (!res.action) return null;
   const removes: AtomicAction[] = mine.map((i) => ({ type: 'remove', id: i.id }));
-  return { type: 'batch', label: `Re-cut ${section}`, actions: [...removes, ...res.action.actions] };
+  // Only beat-montage has a section-only mode. Any other assembler returns the whole reel again, so keep just
+  // the items tagged with this section: untagged extras (the song, untagged overlays) already exist and would be duplicated.
+  const inSection = (a: AtomicAction) => a.type !== 'add' || (a.item.props as { rsSection?: string } | undefined)?.rsSection === section;
+  return { type: 'batch', label: `Re-cut ${section}`, actions: [...removes, ...res.action.actions.filter(inSection)] };
 }

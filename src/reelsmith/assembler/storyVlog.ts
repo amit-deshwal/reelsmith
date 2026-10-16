@@ -105,7 +105,10 @@ export function assembleStoryVlog(input: AssembleInput): AssembleResult {
         const where = labelMode === 'timeAndPlace' ? (a.place ?? places[momentIdx] ?? '') : '';
         momentIdx += 1;
         const text = where ? `${when} · ${where}` : when;
-        actions.push(textItem(stableId('rs-l', tag, seed, s), text, start, dur, recipe.canvas, style, -22, 'V3'));
+        const label = textItem(stableId('rs-l', tag, seed, s), text, start, dur, recipe.canvas, style, -22, 'V3');
+        // part of the body section, so a re-cut replaces the labels together with the shots they describe
+        (label as { item: { props: Record<string, unknown> } }).item.props = { ...(label as { item: { props: Record<string, unknown> } }).item.props, rsSection: 'body', rsRun: tag };
+        actions.push(label);
       }
     }
   }

@@ -54,4 +54,34 @@ const outside = new Set(before.filter((i) => (i.props as any)?.rsSection && (i.p
 assert.ok(body(after).every((i) => !outside.has(i.sourceAssetId)), 'no clip reused from other sections');
 const starts = (xs: typeof before) => body(xs).map((i) => [i.startFrame, i.durationInFrames].join(':'));
 assert.deepEqual(starts(after).sort(), starts(before).sort(), 'section keeps its timing');
+
+// Recipes whose assembler has no section-only mode (story-vlog): a re-cut must not duplicate the song or the labels.
+{
+  const vr = parseRecipe(readFileSync('recipes/mini-vlog.recipe.json', 'utf8'));
+  assert.ok(vr.ok);
+  const T0 = Date.UTC(2026, 5, 1, 7, 0);
+  const vclips: AssemblyClip[] = Array.from({ length: 24 }, (_, i) => ({
+    assetId: `v${i}`, name: `v${i}`, src: `/v${i}`, kind: 'video', durationInFrames: 300, score: ((i * 37) % 11) / 11,
+    captureTimeMs: T0 + i * 8 * 60_000,
+  }));
+  const vinput = { recipe: vr.recipe, clips: vclips, music, texts: { places: 'Home, Cafe' }, params: { labels: 'timeAndPlace', splitEvery: 5, shotLen: 1.6, tzOffsetMin: 0 }, seed: 1 };
+  const vfirst = assemble(vinput);
+  let vh: History = historyReduce({ past: [], present: { ...doc, timelines: [{ ...doc.timelines[0]!, items: [] } as any] }, future: [] }, vfirst.action!);
+  vh = historyReduce(vh, { type: 'add', item: { id: 'mine', track: 'V4', kind: 'text', name: 'mine', durationInFrames: 30 } as any, startFrame: 10 });
+  const vbefore = vh.present.timelines[0]!.items;
+  const count = (xs: typeof vbefore, kind: string) => xs.filter((i) => i.kind === kind).length;
+  const vcut = recutSection(vbefore, vinput, 'body', 7);
+  assert.ok(vcut);
+  const vpast = vh.past.length;
+  vh = historyReduce(vh, vcut!);
+  assert.equal(vh.past.length, vpast + 1, 'one undo step');
+  const vafter = vh.present.timelines[0]!.items;
+  assert.equal(count(vafter, 'audio'), count(vbefore, 'audio'), 'the song is not duplicated');
+  assert.equal(count(vafter, 'text'), count(vbefore, 'text'), 'labels are replaced, not duplicated');
+  assert.ok(vafter.some((i) => i.id === 'mine'), 'manual item kept');
+  assert.equal(vafter.filter((i) => i.kind === 'video').length >= 1, true);
+  const ends = (xs: typeof vbefore) => Math.max(...xs.filter((i) => i.kind === 'video' && i.track === 'V1').map((i) => i.startFrame + i.durationInFrames));
+  assert.equal(Math.min(...vafter.filter((i) => i.kind === 'video' && i.track === 'V1').map((i) => i.startFrame)), 0, 'still starts at frame 0');
+  assert.ok(ends(vafter) > 0);
+}
 console.log('runStore.verify: ok');
