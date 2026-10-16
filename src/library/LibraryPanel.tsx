@@ -123,7 +123,7 @@ interface LibraryPanelProps {
   /** Reelsmith: dispatch an assembled recipe as one undo step */
   onApplyRecipe: (action: BatchAction) => void;
   /** Reelsmith: prefill the chat composer (agent shot selection) */
-  onAskAgent?: (text: string) => void;
+  onAskAgent?: (text: string, opts?: { autoSend?: boolean }) => void;
 }
 
 const MAIN_TABS = ['我的素材', 'Recipes', '序列', '资源库', '文字稿', '字幕', '技能'] as const;

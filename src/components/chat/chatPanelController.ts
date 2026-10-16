@@ -62,7 +62,7 @@ export interface ChatPanelProps {
   collapsed: boolean;
   onToggleCollapse: () => void;
   onPreviewState: (state: TimelineState | null) => void;
-  seed?: { text: string; nonce: number; references?: RefItem[] } | null;
+  seed?: { text: string; nonce: number; references?: RefItem[]; autoSend?: boolean } | null;
   creativeMode: string | null;
   onCreativeModeChange: (id: string | null) => void;
   onImportMedia: ChatMediaImporter;
@@ -221,6 +221,16 @@ function useComposerSeed(
   }, [seed?.nonce]);
 }
 
+
+/** Reelsmith: a seed marked autoSend is sent as if the user pressed Enter, when the agent is ready and idle. */
+function useAutoSendSeed(agent: AgentController, composer: ChatComposerController, seed: ChatPanelProps['seed']): void {
+  useEffect(() => {
+    if (!seed?.autoSend || agent.running || !isAgentModelReady(getAgentModelSnapshot())) return;
+    void agent.send(seed.text, { askOnly: false, references: [] });
+    composer.setInput('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seed?.nonce]);
+}
 
 function useReferenceSelection(
   insertRef: (reference: RefItem) => void,
@@ -406,6 +416,7 @@ export function useChatPanelController(props: ChatPanelProps): ChatPanelControll
   const scroll = useChatScrollController();
   useComposerProject(composer, props.projectId);
   useComposerSeed(composer, props.seed, props.collapsed);
+  useAutoSendSeed(agent, composer, props.seed);
   useChatAutoScroll(scroll, agent.messages, agent.running, agent.proposal);
   usePanelEffects(props, agent, composer);
   const actions = useChatActions(props, t, agent, composer);

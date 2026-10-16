@@ -138,6 +138,10 @@ export async function execReelsTool(name: string, args: Args, ctx: AgentContext,
         candidates: pool.primary.map((clip) => candidateFacts(clip, state.fps, allowFrames)),
         brollCandidates: pool.broll.map((clip) => candidateFacts(clip, state.fps, allowFrames)),
         heuristicPick: heuristic.report.usedAssetIds,
+        textInputs: built.recipe.inputs.filter((i) => i.kind === 'text').map((i) => ({
+          id: i.id, label: i.label, value: input.texts[i.id] ?? '', ...(i.kind === 'text' && i.maxLength ? { maxLength: i.maxLength } : {}),
+        })),
+        ...(built.recipe.agentHints ? { recipeHints: built.recipe.agentHints } : {}),
         framesAllowed: allowFrames,
         hint: allowFrames
           ? 'Use the inspect requests for small contact sheets of uncertain clips, then propose_selection with this selectionKey. Prefer variety and clear action; never choose two from one groupId.'
@@ -151,7 +155,9 @@ export async function execReelsTool(name: string, args: Args, ctx: AgentContext,
       if ('error' in built) return built;
       if (built.recipe.assembler.aiSelection === 'off') return { error: 'This recipe does not support agent shot selection.' };
       if (args.selectionKey !== built.selectionKey) return { error: 'These picks are stale because the timeline, media or recipe run changed. Call reels_selection_candidates again. The current timeline was kept.' };
-      const { input } = built.prepared;
+      const textCheck = checkTexts(args.texts, built.recipe);
+      const textsChanged = Object.entries(textCheck.texts).some(([k, v]) => v !== (built.prepared.input.texts[k] ?? ''));
+      const input = { ...built.prepared.input, texts: { ...built.prepared.input.texts, ...textCheck.texts } };
       let heuristic;
       try { heuristic = assemble(input); } catch (error) { return { error: String(error), fallback: 'The current timeline was kept.' }; }
       if (!heuristic.action) return { error: 'The recipe cannot currently assemble; the current timeline was kept.', warnings: heuristic.report.warnings };
@@ -168,13 +174,13 @@ export async function execReelsTool(name: string, args: Args, ctx: AgentContext,
       const accepted = fallbackReason ? [] : check.accepted.filter((id) => result.report.usedAssetIds.includes(id));
       const acceptedBroll = fallbackReason ? [] : brollCheck.accepted.filter((id) => result.report.usedAssetIds.includes(id));
       const rejected = [
-        ...check.rejected, ...brollCheck.rejected,
+        ...check.rejected, ...brollCheck.rejected, ...textCheck.rejected,
         ...[...check.accepted, ...brollCheck.accepted].filter((id) => !accepted.includes(id) && !acceptedBroll.includes(id))
           .map((value) => ({ value, reason: fallbackReason ?? 'not used by this recipe' })),
       ];
       const warnings = [...result.report.warnings, ...(fallbackReason ? [`Agent picks could not fit: ${fallbackReason}. Kept the automatic selection.`] : [])];
       // With no usable picks the assembled reel is already the fallback; keep manual edits intact.
-      if (!accepted.length && !acceptedBroll.length) return {
+      if (!accepted.length && !acceptedBroll.length && !textsChanged) return {
         ok: true, accepted: 0, acceptedAssetIds: [], acceptedBrollAssetIds: [], rejected,
         filledByHeuristic: heuristic.report.usedAssetIds.length, shots: heuristic.report.shots, keptExisting: true, warnings,
       };
@@ -195,10 +201,28 @@ export async function execReelsTool(name: string, args: Args, ctx: AgentContext,
         ok: true, accepted: accepted.length + acceptedBroll.length, acceptedAssetIds: accepted, acceptedBrollAssetIds: acceptedBroll,
         rejected, filledByHeuristic: result.report.usedAssetIds.filter((id) => !accepted.includes(id) && !acceptedBroll.includes(id)).length,
         shots: result.report.shots, rationale, warnings,
+        ...(textsChanged ? { texts: textCheck.texts } : {}),
       };
     }
   }
   return { error: `unknown tool ${name}` };
+}
+
+/** Text overrides from propose_selection: only the recipe's text inputs, plain strings within their length limit. */
+export function checkTexts(raw: unknown, recipe: { inputs: Array<{ id: string; kind: string; maxLength?: number }> }): { texts: Record<string, string>; rejected: Array<{ value: unknown; reason: string }> } {
+  const texts: Record<string, string> = {};
+  const rejected: Array<{ value: unknown; reason: string }> = [];
+  if (raw === undefined) return { texts, rejected };
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { texts, rejected: [{ value: raw, reason: 'texts must be an object of input id to text' }] };
+  for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
+    const input = recipe.inputs.find((i) => i.id === id && i.kind === 'text');
+    if (!input) { rejected.push({ value: id, reason: 'not a text input of this recipe' }); continue; }
+    if (typeof value !== 'string') { rejected.push({ value: id, reason: 'text must be a string' }); continue; }
+    const text = value.replace(/[{}]/g, '').trim();
+    if (input.maxLength && text.length > input.maxLength) { rejected.push({ value: id, reason: `longer than ${input.maxLength} characters` }); continue; }
+    texts[id] = text;
+  }
+  return { texts, rejected };
 }
 
 /** SetupValues carrying only the media map, for runRecord. */

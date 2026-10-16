@@ -33,6 +33,8 @@ export interface EditorChatSeed {
   text: string;
   nonce: number;
   references?: AgentReference[];
+  /** Reelsmith: send it right away when the agent is ready (a one-press recipe run), else just prefill */
+  autoSend?: boolean;
 }
 
 export interface EditorWorkspaceDialogs {

@@ -107,6 +107,27 @@ const freshCand = await execReelsTool('reels_selection_candidates', {}, ctx, dep
 const junk = await execReelsTool('propose_selection', { selectionKey: freshCand.selectionKey, assetIds: 'all of them' }, ctx, deps) as { ok?: boolean; filledByHeuristic: number };
 assert.ok(junk.ok && junk.filledByHeuristic > 0);
 
+// the agent can set the recipe's text in the same rebuild, even with no shot picks
+{
+  const c = await execReelsTool('reels_selection_candidates', {}, ctx, deps) as { selectionKey: string; textInputs: Array<{ id: string; value: string; maxLength?: number }> };
+  assert.deepEqual(c.textInputs.map((t) => [t.id, t.value, t.maxLength]), [['place', 'Pune', 40]], 'candidates list the text inputs');
+  const past = h.past.length;
+  const set = await execReelsTool('propose_selection', {
+    selectionKey: c.selectionKey, assetIds: [], texts: { place: 'Lonavala', ghost: 'x' }, rationale: 'place name',
+  }, ctx, deps) as { ok?: boolean; texts?: Record<string, string>; rejected: Array<{ value: unknown; reason: string }> };
+  assert.ok(set.ok);
+  assert.deepEqual(set.texts, { place: 'Lonavala' });
+  assert.ok(set.rejected.some((x) => x.value === 'ghost' && /not a text input/.test(x.reason)));
+  assert.equal(h.past.length, past + 1, 'one undo step');
+  assert.ok(tl().items.some((i) => i.kind === 'text' && /LONAVALA/i.test(String((i.props as { text?: string }).text))), 'title uses the new text');
+  assert.ok(!tl().items.some((i) => i.kind === 'text' && /PUNE/i.test(String((i.props as { text?: string }).text))), 'old title gone');
+  const info2 = await execReelsTool('reels_run_info', {}, ctx, deps) as { run: { texts: Record<string, string> } };
+  assert.equal(info2.run.texts.place, 'Lonavala', 'saved with the run');
+  const c2 = await execReelsTool('reels_selection_candidates', {}, ctx, deps) as { selectionKey: string };
+  const long = await execReelsTool('propose_selection', { selectionKey: c2.selectionKey, assetIds: [], texts: { place: 'x'.repeat(41) } }, ctx, deps) as { keptExisting?: boolean; rejected: Array<{ reason: string }> };
+  assert.ok(long.keptExisting && long.rejected.some((x) => /longer than 40/.test(x.reason)), 'too long: refused, reel kept');
+}
+
 // no run saved => clear error
 store.clear();
 assert.match((await execReelsTool('reels_selection_candidates', {}, ctx, deps) as { error: string }).error, /not built by a recipe/);

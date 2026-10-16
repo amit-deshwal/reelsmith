@@ -78,3 +78,42 @@ export function revealUniforms(kind: RevealKind, landSec: number[], durSec: numb
 }
 
 export const REVEAL_LABELS: Record<RevealKind, string> = { tall: 'Tall bars reveal', wide: 'Wide bars reveal', window: 'Window reveal' };
+
+export interface RevealRect { x: number; y: number; w: number; h: number; flash: number }
+
+/**
+ * What the reveal shows at progress `p`, as rectangles in screen fractions (y down) where the incoming shot is visible,
+ * each with its white-flash strength. Same geometry and timing as REVEAL_FRAG (whose texture y runs up), so the
+ * editor's playback preview can draw it with a CSS clip-path instead of a second pair of video decoders.
+ * Returns null once the reveal is over (the incoming shot is full frame).
+ */
+export function revealRects(u: Record<string, number>, p: number): RevealRect[] | null {
+  if (p >= 0.999) return null;
+  const lands = [u.u_l0, u.u_l1, u.u_l2, u.u_l3, u.u_l4].map((x) => (typeof x === 'number' ? x : 2));
+  const dur = u.u_dur ?? 1;
+  const mode = u.u_mode ?? 0;
+  if (mode < 1.5) {
+    const tall = mode < 0.5;
+    const lo = tall ? 0.11 : 0.23;
+    const hi = tall ? 0.89 : 0.77;
+    const gap = tall ? 0.45 : 0.4;
+    const margin = tall ? 0.03 : 0.04;
+    const unit = (hi - lo) / (5 + 4 * gap);
+    const out: RevealRect[] = [];
+    for (let i = 0; i < 5; i += 1) {
+      if (p < lands[i]!) continue;
+      const since = (p - lands[i]!) * dur;
+      const f = Math.max(0, Math.min(1, 1 - since / 0.16));
+      const a = lo + i * unit * (1 + gap);
+      out.push(tall
+        ? { x: a, y: margin, w: unit, h: 1 - 2 * margin, flash: 0.85 * f * f }
+        : { x: margin, y: 1 - a - unit, w: 1 - 2 * margin, h: unit, flash: 0.85 * f * f });
+    }
+    return out;
+  }
+  let step = 0;
+  for (let i = 0; i < 4; i += 1) if (p >= lands[i]!) step = i + 1;
+  if (step === 0) return [];
+  const half = 0.07 + 0.075 * step;
+  return [{ x: 0.44 - half, y: 0.5 - half, w: 2 * half, h: 2 * half, flash: 0 }];
+}

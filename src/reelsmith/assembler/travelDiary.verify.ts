@@ -4,7 +4,7 @@ import { CURRENT_PROJECT_VERSION } from '../../../shared/project-version';
 import { parseRecipe } from '../../../shared/reelsmith/recipe';
 import { historyReduce } from '../../editor/reduce';
 import type { ProjectDoc } from '../../editor/types';
-import { REVEAL_FRAG } from '../travelDiaryReveal';
+import { REVEAL_FRAG, revealRects, revealUniforms } from '../travelDiaryReveal';
 import { assemble, type AssemblyClip, type AssemblyMusic } from './index';
 import { DIARY_SLOTS, pickMoment, REVEAL_LEAD, splitPhrases } from './travelDiary';
 
@@ -65,7 +65,9 @@ const words = acts.filter((a) => a.type === 'add' && a.item.kind === 'text');
 assert.deepEqual(words.map((w) => w.item.props.text), ['AMK..TOUGHEST', 'TREK', 'IN', 'MAHARASHTRA', '2', 'DAYS', 'TREK', '6000', 'CALORIES', 'BURNT']);
 for (let i = 1; i < words.length; i += 1) assert.ok(words[i].startFrame >= words[i - 1].startFrame + words[i - 1].item.durationInFrames);
 assert.ok(words.every((w) => w.item.props.fontFamily === 'Libre Baskerville'));
-assert.ok(words.find((w) => w.item.props.text === 'MAHARASHTRA').item.props.fontSize < 132, 'long word fitted to the frame');
+// MAHARASHTRA measured 996 px at 110 px in the editor's 888 px text box: it must come out narrower than that box
+const maha = words.find((w) => w.item.props.text === 'MAHARASHTRA').item.props.fontSize;
+assert.ok(maha * (996 / 110) <= 888, `long word fits the text box (${maha}px)`);
 // the music runs the length of the reel from the song start
 const song = acts.find((a) => a.item?.kind === 'audio');
 assert.equal(song.item.durationInFrames, end);
@@ -87,6 +89,18 @@ assert.equal(JSON.stringify(res), JSON.stringify(assemble({ recipe, clips: four,
 const picked = assemble({ recipe, clips: four, music, texts: {}, params, seed: 1, preferredAssetIds: ['d', 'c'] });
 const pickedSlots = (picked.action!.actions as any[]).filter((a) => a.type === 'add' && a.item.track === 'V1');
 assert.deepEqual(pickedSlots.slice(0, 2).map((s) => s.item.sourceAssetId), ['d', 'c']);
+
+// the playback preview's rectangles follow the same landing times as the shader
+const uTall = revealUniforms('tall', [0.1, 0.3, 0.5, 0.7, 0.9], 1.08);
+assert.deepEqual(revealRects(uTall, 0.05), [], 'nothing before the first bar lands');
+assert.equal(revealRects(uTall, 0.5)!.length, 3);
+assert.ok(revealRects(uTall, 0.1)![0]!.flash > 0.7 && revealRects(uTall, 0.5)![0]!.flash === 0, 'a bar flashes as it lands, then not');
+assert.equal(revealRects(uTall, 1), null, 'full frame at the cut');
+const bars = revealRects(uTall, 0.95)!;
+assert.ok(bars.every((r, i) => i === 0 || r.x > bars[i - 1]!.x + bars[i - 1]!.w), 'tall bars side by side, no overlap');
+const uWin = revealUniforms('window', [0.2, 0.4, 0.6, 0.8], 1.08);
+const w1 = revealRects(uWin, 0.3)![0]!, w4 = revealRects(uWin, 0.9)![0]!;
+assert.ok(w4.w > w1.w && w1.flash === 0, 'the window grows in steps, no flash');
 
 // phrase splitting
 assert.deepEqual(splitPhrases('a / b c / d').phrases, [['a'], ['b', 'c'], ['d'], [], []]);

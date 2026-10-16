@@ -84,7 +84,7 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
     description: [
       'Answer a shot-selection request: the assetIds to use, in shot order (at most `slots` from reels_selection_candidates).',
       'Unknown, repeated or near-duplicate picks are rejected and reported; empty slots are filled by the heuristic.',
-      'Works across all recipes; captioned stories accept separate brollAssetIds. Valid picks lead, remaining slots use the heuristic. Pass selectionKey from the latest candidates call: stale picks are refused. The rebuild is one undo step and manual items are kept; no usable picks leave the current reel unchanged.',
+      'Works across all recipes; captioned stories accept separate brollAssetIds; texts can set the recipe text inputs (textInputs) in the same rebuild. Valid picks lead, remaining slots use the heuristic. Pass selectionKey from the latest candidates call: stale picks are refused. The rebuild is one undo step and manual items are kept; no usable picks leave the current reel unchanged.',
     ].join(' '),
     input_schema: {
       type: 'object',
@@ -92,6 +92,7 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
         selectionKey: { type: 'string', description: 'Exact selectionKey from the latest reels_selection_candidates response. Refresh candidates after any timeline/media change.' },
         assetIds: { type: 'array', items: { type: 'string' }, description: 'Chosen primary asset ids in shot order.' },
         brollAssetIds: { type: 'array', items: { type: 'string' }, description: 'Optional captioned-story B-roll ids, in slot order; use brollCandidates and brollSlots.' },
+        texts: { type: 'object', additionalProperties: { type: 'string' }, description: "Optional text inputs to set in the same rebuild, keyed by the textInputs ids from reels_selection_candidates (e.g. the Travel Diary line, five phrases split with '/'). Keep the user's words; within maxLength." },
         rationale: { type: 'string', description: 'One or two sentences on why, shown to the user.' },
       },
       required: ['selectionKey', 'assetIds'],

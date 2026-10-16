@@ -26,7 +26,7 @@ export interface RecipesPanelProps {
   fps: number;
   onApply: (action: BatchAction) => void;
   /** prefill the chat with a request (agent shot selection) */
-  onAskAgent?: (text: string) => void;
+  onAskAgent?: (text: string, opts?: { autoSend?: boolean }) => void;
   initialRecipeId?: string;
   onImportMedia?: (file: File) => Promise<MediaAsset>;
 }
@@ -36,7 +36,10 @@ export const AGENT_PICK_PROMPT = [
   'Call reels_selection_candidates, look at the candidates (view_asset_frames on the ones you are unsure about),',
   'Respect framesAllowed: when it is false, work from names, scores and transcripts without requesting pictures.',
   'Then call propose_selection with the returned selectionKey and the best assetIds in shot order, varied, no near-duplicates.',
-  'For a captioned story, choose brollAssetIds separately using brollCandidates and brollSlots. Tell me in one or two lines why.',
+  'For a captioned story, choose brollAssetIds separately using brollCandidates and brollSlots.',
+  'If the candidates list textInputs, also check that text against the recipe hints: when it needs rewording to fit (for example split into phrases with "/"), or is empty, pass the improved text as texts in propose_selection.',
+  "Keep the user's own words and order; when writing a missing line, describe only what the clips show (no invented names, places or dates).",
+  'Tell me in one or two lines why.',
 ].join(' ');
 
 const label: React.CSSProperties = { fontSize: 11.5, color: theme.textDim };
@@ -97,8 +100,8 @@ export function SetupForm({ recipe, projectId, assets, itemCount, fps, onBack, o
         // RS-108: remember the run so chat can re-cut sections or re-pick shots
         await saveRun({ get: kvGet, set: kvSet }, projectId, out.run).catch(() => setNotes((n) => [...n, 'Could not save the recipe run; re-cut from chat will not work.']));
         if (values.agentPick !== 'off' && onAskAgent) {
-          onAskAgent(AGENT_PICK_PROMPT);
-          setNotes((n) => [...n, 'The reel is assembled. Your agent request is in the chat box; press Enter to let it re-pick the shots.']);
+          onAskAgent(AGENT_PICK_PROMPT, { autoSend: true });
+          setNotes((n) => [...n, 'The reel is assembled. Your agent is now choosing the shots in the chat, in one undo step. If it has not started, press Enter there.']);
         }
       }
     } catch (e) {

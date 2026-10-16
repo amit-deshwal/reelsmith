@@ -25,6 +25,7 @@ import { continuousVideoAudioGroups, shareableVisualItem } from './transitionAud
 import { ItemLayer, SolidLayer, TextLayer, WatermarkLayer } from './TimelineGraphicLayers';
 import { isServerVideoDecoder, ServerVideoDecoderContext, type ServerVideoDecoder } from './serverVideoDecoder';
 import { duckGainAt } from '../reelsmith/duckEnvelope';
+import { RevealPreviewIn, revealPreviewUniforms } from '../reelsmith/ui/RevealPreviewIn';
 
 const GRID = 'repeating-conic-gradient(#242424 0% 25%, #1c1c1c 0% 50%) 50% / 40px 40px';
 
@@ -180,7 +181,7 @@ function TimelineContent({ state, project, transparent, browserRenderer = false,
   const texturable = (it?: TimelineItem) => !!it && isRasterMediaKind(it.kind) && it.kind !== 'svg' && it.kind !== 'gif';
   const enabledTransitions = (state.transitions ?? []).filter((t) => t.enabled !== false);
   const visualTransitions = enabledTransitions.filter((t) => !isAudioTransition(t.type));
-  type PreviewEdge = { type: CssTransitionType; frames: number; dir: TransitionDirection; line?: boolean; isolated: boolean };
+  type PreviewEdge = { type: CssTransitionType; frames: number; dir: TransitionDirection; line?: boolean; isolated: boolean; reveal?: Record<string, number> };
   const entranceOf = new Map<string, PreviewEdge>();
   const extendBefore = new Map<string, number>();
   const extendAfter = new Map<string, number>();
@@ -248,6 +249,7 @@ function TimelineContent({ state, project, transparent, browserRenderer = false,
       dir: t.direction ?? 'left',
       line: t.type === 'clean-line-wipe',
       isolated: false,
+      reveal: revealPreviewUniforms(t), // Reelsmith: Travel Diary bars/window drawn by clipping, not a dissolve
     });
     if (selected) {
       const status = staticPreviewFallbackStatus({
@@ -358,7 +360,9 @@ function TimelineContent({ state, project, transparent, browserRenderer = false,
           <Sequence key={item.id} from={item.startFrame - eb} durationInFrames={item.durationInFrames + eb + ea} premountFor={premountFrames} name={item.name}>
             <GlTransitionVisibility itemId={item.id} sequenceFrom={item.startFrame - eb}
               windows={glVisibilityWindows} readyWindows={readyGlWindows}>
-              {entrance
+              {entrance?.reveal
+                ? <RevealPreviewIn uniforms={entrance.reveal} frames={entrance.frames} width={state.width} height={state.height}>{content}</RevealPreviewIn>
+                : entrance
                 ? <PreviewTransitionIn type={entrance.type} frames={entrance.frames} dir={entrance.dir} line={entrance.line} isolated={entrance.isolated}>{content}</PreviewTransitionIn>
                 : content}
             </GlTransitionVisibility>

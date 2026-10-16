@@ -189,3 +189,10 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 
 ## Travel Diary recipe (RS-206)
 - `package.json`: `travelDiary.verify.ts` added to the test chain. Everything else is in our folders (the reveals use the editor's existing `custom-shader` transition).
+- `src/editor/TimelineComposition.tsx`: in the Player, a transition that is not selected gets a CSS stand-in (a dissolve for custom shaders). For our Travel Diary reveals the preview edge now carries the reveal's uniforms (`revealPreviewUniforms`) and the incoming clip is wrapped in `RevealPreviewIn` (ours, `src/reelsmith/ui/RevealPreviewIn.tsx`), which clips it to the same bars/window and flash as the shader. One import, one field, one branch. (Using the real GL path during playback instead stalled the Player on 4K clips: it mounts two extra video decoders per transition.)
+
+## One-press agent shot choice (RS-106)
+- `src/editor/useEditorWorkspaceUi.ts`: `EditorChatSeed` gets an optional `autoSend`.
+- `src/components/chat/chatPanelController.ts`: the seed type takes `autoSend`; `useAutoSendSeed` sends such a seed as if Enter were pressed, only when the agent model is ready and no turn is running (otherwise it stays prefilled as before).
+- `src/library/LibraryPanel.tsx`, `src/editor/useEditorController.tsx`: `onAskAgent(text, { autoSend })` passes the flag through to the seed.
+- `assets/agent/openchatcut-tool-schemas.json`: regenerated (`propose_selection` takes `texts`).

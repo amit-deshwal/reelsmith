@@ -35,8 +35,11 @@ export function clipItem(
 
 /** Average glyph width in em; condensed display faces are much narrower than the default sans. */
 const CONDENSED = /anton|bebas|oswald|league gothic|barlow condensed|fjalla|teko|six caps/i;
+/** Wide book serifs: Libre Baskerville capitals measure ~0.82 em in the editor (MAHARASHTRA at 110 px = 996 px). */
+const WIDE = /baskerville/i;
 function glyphEm(fontFamily: string | undefined, upper: boolean): number {
   if (fontFamily && CONDENSED.test(fontFamily)) return upper ? 0.5 : 0.44;
+  if (fontFamily && WIDE.test(fontFamily)) return upper ? 0.84 : 0.66;
   return upper ? 0.72 : 0.6;
 }
 
