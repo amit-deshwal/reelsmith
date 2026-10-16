@@ -3,22 +3,25 @@ import { kindOfDescriptor } from './mediaProbe';
 import { projectFileAssetKind } from './projectFile';
 
 /**
- * Folder relink matching: exact filename first (case-insensitive), then
- * extension-insensitive stem matching (e.g. `素材.mp4` matches `素材.mov`).
- * Multiple stem candidates prefer the file whose kind matches the asset.
+ * Folder relink matching: candidates must match the recorded byte size when
+ * available, then exact filename wins over extension-insensitive stem
+ * matching. Multiple stem candidates prefer the file whose kind matches.
  */
 export function matchRelinkFile(
-  asset: Pick<MediaAsset, 'sourceFilename' | 'name' | 'kind'>,
+  asset: Pick<MediaAsset, 'sourceFilename' | 'name' | 'kind' | 'sourceSize'>,
   files: readonly File[],
 ): File | null {
   const key = (asset.sourceFilename ?? asset.name).toLowerCase();
   if (!key) return null;
-  const exact = files.find((file) => file.name.toLowerCase() === key);
+  const candidatesBySize = asset.sourceSize === undefined
+    ? files
+    : files.filter((file) => file.size === asset.sourceSize);
+  const exact = candidatesBySize.find((file) => file.name.toLowerCase() === key);
   if (exact) return exact;
 
   const stem = key.replace(/\.[^.]+$/, '');
   if (!stem) return null;
-  const candidates = files.filter((file) => {
+  const candidates = candidatesBySize.filter((file) => {
     const name = file.name.toLowerCase();
     return name !== key && name.replace(/\.[^.]+$/, '') === stem;
   });
