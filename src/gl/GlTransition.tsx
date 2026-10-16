@@ -8,6 +8,7 @@ import { buildEffectShaderFrame, buildTransitionShaderFrame } from './shaderFram
 import { glPreviewFailureReason } from './previewAdapter';
 import type { SelectedPreviewFallbackReason, SelectedPreviewStatusListener } from './previewAdapter';
 import { GLSL_TRANSITIONS } from './transitions';
+import { windowUniforms } from '../reelsmith/windowProps';
 import { glEffects } from './clipEffects';
 import { sourceSize, useCapturedFrame, type CapturedFrame } from './capturedFrame';
 import type { AspectFit, GlslTransitionType, TimelineItem, TransitionDirection } from '../editor/types';
@@ -160,8 +161,10 @@ export function GlTransition({ type, direction, L, windowStart, outgoing, incomi
   const def = useMemo(
     () => (type === 'custom-shader'
       ? (customFrag ? { frag: customFrag, uniforms: () => customUniforms ?? {} } : undefined)
-      : GLSL_TRANSITIONS[type]),
-    [type, customFrag, customUniforms],
+      : type === 'window' && customUniforms
+        ? { ...GLSL_TRANSITIONS.window, uniforms: (c: Parameters<typeof GLSL_TRANSITIONS.window.uniforms>[0]) => windowUniforms(GLSL_TRANSITIONS.window.uniforms(c), customUniforms, { width, height }) as ReturnType<typeof GLSL_TRANSITIONS.window.uniforms> }
+        : GLSL_TRANSITIONS[type]),
+    [type, customFrag, customUniforms, width, height],
   );
   const outgoingEffects = useMemo(() => glEffects(outgoing), [outgoing]);
   const incomingEffects = useMemo(() => glEffects(incoming), [incoming]);

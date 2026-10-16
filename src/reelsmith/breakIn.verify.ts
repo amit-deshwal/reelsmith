@@ -87,4 +87,16 @@ for (let p = 0; p <= 0.8 + 1e-9; p += 0.02) {
   const left = (0.5 - hx) * W, right = (0.5 + hx) * W, top = (0.5 - hy) * H, bottom = (0.5 + hy) * H;
   assert.ok(left >= safe.x - 1e-6 && right <= safe.x + safe.w + 1e-6 && top >= safe.y - 1e-6 && bottom <= safe.y + safe.h + 1e-6, `window inside the safe zone at p=${p.toFixed(2)}`);
 }
+
+// RS-410 props: overrides apply, are clamped, and the centre stays where the 80% window clears the safe zone.
+import { windowCentreYRange, windowUniforms } from './windowProps';
+const canvas = { width: W, height: H };
+const base = GLSL_TRANSITIONS.window.uniforms({ time: 0, aspect: 9 / 16, direction: 'left' });
+const d = windowUniforms(base, undefined, canvas);
+assert.equal(d.u_start, 0.3); assert.deepEqual(d.u_center, [0.5, 0.5]);
+const o = windowUniforms(base, { u_start: 5, u_radius: -1, u_shadow: 0.2, u_cy: 0 }, canvas);
+assert.equal(o.u_start, 1); assert.equal(o.u_radius, 0); assert.equal(o.u_shadow, 0.2);
+const [lo, hi] = windowCentreYRange(canvas);
+assert.equal((o.u_center as number[])[1], lo);
+assert.ok((lo - WINDOW_LIMIT[1]) * H >= safe.y - 1e-6 && (hi + WINDOW_LIMIT[1]) * H <= safe.y + safe.h + 1e-6, 'centre range keeps the window in the safe zone');
 console.log('breakIn.verify ok');

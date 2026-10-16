@@ -234,7 +234,7 @@ function TimelineContent({ state, project, transparent, browserRenderer = false,
         trimIn: sourceFrameAt(inc!, from - inc!.startFrame),
         previewTargetId: selected ? t.id : undefined,
         // custom-shader carries its GLSL + uniforms from the item to GlTransition
-        ...(t.type === 'custom-shader' ? { customFrag: t.customFrag, customUniforms: t.customUniforms } : {}),
+        ...(t.type === 'custom-shader' || t.type === 'window' ? { customFrag: t.customFrag, customUniforms: t.customUniforms } : {}),
       });
       continue;
     }

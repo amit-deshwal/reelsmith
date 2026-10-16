@@ -171,3 +171,9 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 - `src/agent/tools/library-catalog.ts`: transition descriptions come from `BREAK_IN_INFO` (src/reelsmith/breakInInfo.ts) when there is one (one import, one expression).
 - `src/agent/tools/edit-item-validate.ts`: `transitionPlan` takes the timeline fps and uses `breakInDefaultFrames` (0.35 s) as the default length of bars/wide-bars/window (one import, one parameter).
 - `package.json`: `breakInTools.verify.ts` added to `test:reelsmith`.
+
+## Window grow-in props (RS-410)
+- `src/gl/GlTransition.tsx`: for `window`, the shader def merges the item's `customUniforms` via `windowUniforms` (one import, one branch in the def memo).
+- `src/editor/TimelineComposition.tsx`: `customFrag`/`customUniforms` are also passed for `window` (one condition).
+- `src/components/inspector/InspectorMediaControls.tsx`: renders `WindowControls` for `window`; `TransitionControl` takes an optional `canvasSize` (one import, one prop, one block).
+- `src/components/inspector/InspectorContent.tsx`: passes `canvasSize` to `TransitionControl`.

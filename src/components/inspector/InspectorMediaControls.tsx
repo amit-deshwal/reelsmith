@@ -16,6 +16,7 @@ const compactNumber = (value: number) => String(Number(value.toFixed(2)));
 
 const SPEED_PRESETS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 2, 4] as const;
 
+import { WindowControls } from '../../reelsmith/WindowControls';
 export function IsolateVoiceControl({
   item,
   onIsolate,
@@ -388,9 +389,10 @@ export function ZoomControl({ zoom, mixed, onChange, getLocalFrame, fps, onSetKe
 
 // transition INTO the selected clip from the previous adjacent same-track clip.
 // Picking a type creates it; None removes it.
-export function TransitionControl({ transition, fps, onAdd, onSet, onRemove, audioMode, previewStatus }: {
+export function TransitionControl({ transition, fps, canvasSize, onAdd, onSet, onRemove, audioMode, previewStatus }: {
   transition: TransitionItem | null;
   fps: number;
+  canvasSize?: { width: number; height: number };
   onAdd: (type: TransitionType) => void;
   onSet: (patch: Partial<TransitionItem>) => void;
   onRemove: () => void;
@@ -434,6 +436,9 @@ export function TransitionControl({ transition, fps, onAdd, onSet, onRemove, aud
             <div style={{ marginBottom: 4 }}>{t('时长')} <span style={{ opacity: 0.7 }}>{(shown.durationInFrames / fps).toFixed(1)}s</span></div>
             <input type="range" min={2} max={Math.max(4, fps * 2)} step={1} value={shown.durationInFrames} onChange={(e) => onSet({ durationInFrames: Number(e.target.value) })} style={{ width: '100%' }} />
           </label>
+          {shown.type === 'window' && !audioMode && (
+            <WindowControls transition={shown} theme={theme} width={canvasSize?.width ?? 1080} height={canvasSize?.height ?? 1920} onSet={onSet} />
+          )}
           {needsDir && !audioMode && (
             <label style={{ fontSize: 11, color: theme.textDim, display: 'flex', alignItems: 'center', gap: 8 }}>
               {t('方向')}
