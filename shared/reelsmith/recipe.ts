@@ -12,7 +12,7 @@ export interface RecipeMediaInput {
   constraints?: { minClipSec?: number; preferOrientation?: 'portrait' | 'landscape' | 'any'; requiresSpeech?: boolean };
 }
 export interface RecipeTextInput {
-  id: string; kind: 'text'; label: string; placeholder?: string; optional?: boolean; maxLength?: number;
+  id: string; kind: 'text'; label: string; placeholder?: string; default?: string; optional?: boolean; maxLength?: number;
 }
 export type RecipeInput = RecipeMediaInput | RecipeTextInput;
 

@@ -1,0 +1,40 @@
+{
+  "$schema": "../../schemas/recipe.schema.json",
+  "schemaVersion": 1,
+  "id": "gang-reel",
+  "version": "1.0.0",
+  "name": "Gang Reel",
+  "category": "beat-cut",
+  "description": "Rapid-fire character edit: a cut on every beat from the first frame, a constant lowercase caption, best moments on the drop, a flash accent on every bar and a black end card.",
+  "tags": ["friends", "beat", "montage", "characters"],
+  "preview": { "poster": "previews/beat-cut.jpg", "loop": "previews/beat-cut.mp4", "generatedFrom": "synthetic-sample" },
+  "canvas": { "width": 1080, "height": 1350, "fps": { "num": 30, "den": 1 } },
+  "duration": { "mode": "fitMusic", "minSec": 8, "targetSec": 16, "maxSec": 30 },
+  "inputs": [
+    { "id": "clips", "kind": "media", "accept": ["video", "image"], "min": 12, "max": 120, "label": "Clips and photos", "hint": "Faces, reactions and chaos. Skip empty scenery.", "constraints": { "minClipSec": 0.3 } },
+    { "id": "music", "kind": "media", "accept": ["audio"], "min": 1, "max": 1, "label": "Song with a clear beat" },
+    { "id": "caption", "kind": "text", "label": "Caption shown the whole reel", "default": "not a single weak link", "optional": true, "maxLength": 60 },
+    { "id": "endCard", "kind": "text", "label": "End card", "default": "AMK boys", "optional": true, "maxLength": 40 }
+  ],
+  "params": [
+    { "id": "dropAtS", "type": "seconds", "label": "Drop time in the song (0 = auto)", "default": 0, "min": 0, "max": 600, "step": 0.01 },
+    { "id": "flashOnBars", "type": "boolean", "label": "Flash on bar starts", "default": true },
+    { "id": "captionFont", "type": "font", "label": "Caption font", "default": "Inter Tight" }
+  ],
+  "music": { "inputId": "music", "required": true, "startPolicy": "loudestSection", "endPolicy": "endOnBar", "fadeOutSec": 0.5, "gainDb": -2, "clipAudioGainDb": -96, "duckUnderSpeech": false },
+  "assembler": { "strategy": "beat-montage@1", "options": { "introBeats": 0, "outroHoldBeats": 0, "dropDetection": "energyJump" }, "aiSelection": "recommended" },
+  "structure": [
+    { "section": "build", "lengthBeats": 8, "fill": "clips", "cutRule": "everyBeat", "transition": "cut", "overlays": [ { "kind": "title", "text": "{{inputs.caption}}", "styleId": "caption", "animationIn": "none", "position": "lowerThird" } ] },
+    { "section": "drop", "fill": "clips", "cutRule": "everyBeat", "transition": "flash", "overlays": [ { "kind": "title", "text": "{{inputs.caption}}", "styleId": "caption", "animationIn": "none", "position": "lowerThird" } ] },
+    { "section": "end", "lengthBeats": 2, "fill": "none", "overlays": [ { "kind": "title", "text": "{{inputs.endCard}}", "styleId": "endcard", "animationIn": "fade", "position": "center" } ] }
+  ],
+  "styles": {
+    "caption": { "fontFamily": "Inter Tight", "fontWeight": 800, "sizePx": 72, "color": "#FFFFFF", "align": "center", "shadow": { "color": "#00000099", "blurPx": 10, "dx": 0, "dy": 3 } },
+    "endcard": { "fontFamily": "Inter Tight", "fontWeight": 700, "sizePx": 56, "color": "#FFFFFF", "align": "center" }
+  },
+  "look": { "colorLook": "vivid", "grain": 0, "vignette": 0 },
+  "casting": { "opener": ["action", "portrait"], "closer": ["people", "action"] },
+  "agentHints": "Every shot must be a character moment: faces, reactions, laughing, falls, poses, people doing something wild or brave. Skip empty scenery. Put the best shots on the drop. Open on the funniest or most chaotic shot. Never repeat a clip. Give every person screen time.",
+  "ratios": { "9:16": { "styles": { "caption": { "sizePx": 80 } } } },
+  "constraints": { "noRepeatClips": true, "insufficientMediaPolicy": "askUser", "keepChronological": false, "textSafeZone": true }
+}

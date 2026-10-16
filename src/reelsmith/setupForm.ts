@@ -17,7 +17,9 @@ export interface FieldError { field: string; message: string }
 export function defaultValues(recipe: Recipe): SetupValues {
   const params: SetupValues['params'] = musicDefaults(recipe);
   for (const p of recipe.params) params[p.id] = p.default as string | number | boolean;
-  return { media: {}, texts: {}, params, agentPick: 'off' };
+  const texts: SetupValues['texts'] = {};
+  for (const input of recipe.inputs) if (input.kind === 'text' && input.default) texts[input.id] = input.default;
+  return { media: {}, texts, params, agentPick: 'off' };
 }
 
 function paramError(p: RecipeParam, v: unknown): string | null {

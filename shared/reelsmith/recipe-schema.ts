@@ -83,6 +83,7 @@ export const RECIPE_SCHEMA = {
               "kind": { "const": "text" },
               "label": { "type": "string", "maxLength": 80 },
               "placeholder": { "type": "string", "maxLength": 120 },
+              "default": { "type": "string", "maxLength": 500, "description": "Pre-filled text in the setup form." },
               "optional": { "type": "boolean", "default": false },
               "maxLength": { "type": "integer", "minimum": 1, "maximum": 500 }
             }

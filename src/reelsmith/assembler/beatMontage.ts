@@ -114,7 +114,9 @@ export function planShots(
     let k = beats.findIndex((t) => t >= rel - 1e-3);
     if (k > 0) {
       k = Math.round(k / bpb) * bpb;
-      if (k >= bpb && k <= totalBeats - bpb) { lens[bi] = k; lens[di] = totalBeats - k; }
+      // sections after the drop (an end card) keep their own length; the drop takes what is left
+      const others = lens.reduce((sum, n, i) => (i === bi || i === di ? sum : sum + n), 0);
+      if (k >= bpb && k <= totalBeats - others - bpb) { lens[bi] = k; lens[di] = totalBeats - others - k; }
     }
   }
   const paramRule = typeof params.cutRule === 'string' ? params.cutRule : undefined;
@@ -357,7 +359,11 @@ export function assembleBeatMontage(input: AssembleInput): AssembleResult {
     actions.push(...transitionActions(placed, shotIds, pickTransitions(placed, tctx), tctx, tag, onlySection ? `sec${seed}` : seed));
   }
   if (!onlySection) actions.push(...overlayActions(recipe, plan.spans, params, texts, tag, seed, warnings));
-  const total = allShots[allShots.length - 1]!.startFrame + allShots[allShots.length - 1]!.durationInFrames;
+  const lastShot = allShots[allShots.length - 1]!;
+  // a closing `fill: none` section (a black end card) is part of the reel, so the music and the timeline cover it
+  const lastSpan = plan.spans[plan.spans.length - 1];
+  const endsOnCard = !onlySection && lastSpan && recipe.structure.find((x) => x.section === lastSpan.section)?.fill === 'none';
+  const total = Math.max(lastShot.startFrame + lastShot.durationInFrames, endsOnCard ? lastSpan.endFrame : 0);
   if (music && !onlySection) {
     const fadeOut = musicFadeFrames(recipe, fps, total, 'hardCut');
     actions.push({
