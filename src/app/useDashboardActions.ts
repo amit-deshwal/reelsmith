@@ -1,6 +1,7 @@
 import { bundledCatalog } from '../reelsmith/bundledRecipes';
 import { recipeProjectDoc, startRecipeProject } from '../reelsmith/recipeStart';
 import type { ReelsBrief } from '../../shared/reelsmith/brief';
+import type { RatioId } from '../../shared/reelsmith/ratios';
 import { listUserRecipes } from '../reelsmith/userRecipesApi';
 import { useT } from '../i18n/locale';
 import { purgeProjectCascade } from '../persist/mediaCleanup';
@@ -18,7 +19,7 @@ type Translate = (zh: string, params?: Record<string, string | number>) => strin
 export interface DashboardActions {
   onOpen: (id: string) => void;
   onNew: () => Promise<void>;
-  onStartRecipe: (recipeId: string, details?: { brief?: ReelsBrief; prompt?: string }) => Promise<void>;
+  onStartRecipe: (recipeId: string, details?: { ratio?: RatioId; brief?: ReelsBrief; prompt?: string }) => Promise<void>;
   onRename: (id: string, name: string) => Promise<void>;
   onDuplicate: (id: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
@@ -74,7 +75,7 @@ export function useDashboardActions(refresh: () => Promise<void>): DashboardActi
         ?? (await listUserRecipes()).recipes.find((entry) => entry.id === recipeId);
       if (!recipe) throw new Error('This recipe is unavailable. Choose another recipe.');
       await startRecipeProject(recipe, {
-        create: (name, selected) => createProject(name, recipeProjectDoc(emptyProjectDoc(), selected)),
+        create: (name, selected) => createProject(name, recipeProjectDoc(emptyProjectDoc(), selected, details?.ratio ?? details?.brief?.target.ratio)),
         refresh,
         open: (id) => navigateTo(`#/editor/${id}`),
       }, details);

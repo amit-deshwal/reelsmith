@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReelsBrief } from '../../../shared/reelsmith/brief';
 import type { Recipe } from '../../../shared/reelsmith/recipe';
+import type { RatioId } from '../../../shared/reelsmith/ratios';
 import { theme } from '../../theme';
 import { bundledCatalog } from '../bundledRecipes';
 import { localIdeaBrief, rankLocalIdeas, trendResearchPrompt } from '../../../shared/reelsmith/trendScout';
 import { RecipeGallery } from './RecipeGallery';
 import { listUserRecipes } from '../userRecipesApi';
 
-type StartDetails = { brief?: ReelsBrief; prompt?: string };
+type StartDetails = { ratio?: RatioId; brief?: ReelsBrief; prompt?: string };
 
 export function RecipeHome({ onStartRecipe }: { onStartRecipe: (recipeId: string, details?: StartDetails) => Promise<void> }) {
   const [busyId, setBusyId] = useState('');
@@ -20,16 +21,16 @@ export function RecipeHome({ onStartRecipe }: { onStartRecipe: (recipeId: string
   const starting = useRef(false);
   const ideas = useMemo(() => rankLocalIdeas(bundledCatalog.recipes, topic), [topic]);
   useEffect(() => { void listUserRecipes().then((result) => setUserRecipes(result.recipes)).catch(() => {}); }, []);
-  const start = async (recipeId: string, fromIdeas = false) => {
+  const start = async (recipeId: string, fromIdeas = false, ratio?: RatioId) => {
     if (starting.current) return;
-    const recipe = bundledCatalog.recipes.find((candidate) => candidate.id === recipeId);
+    const recipe = [...bundledCatalog.recipes, ...userRecipes].find((candidate) => candidate.id === recipeId);
     if (!recipe) return;
     starting.current = true;
     setBusyId(recipeId); setError('');
     const options = { topic, availableClips: clipCount, research };
     const brief = fromIdeas ? localIdeaBrief(recipe, options) : undefined;
     const prompt = fromIdeas && research ? trendResearchPrompt(options, bundledCatalog.recipes) : undefined;
-    try { await onStartRecipe(recipe.id, fromIdeas ? { brief, prompt } : undefined); }
+    try { await onStartRecipe(recipe.id, { ratio, ...(fromIdeas ? { brief, prompt } : {}) }); }
     catch (e) { setError(e instanceof Error ? e.message : String(e)); }
     finally { starting.current = false; setBusyId(''); }
   };
@@ -70,6 +71,6 @@ export function RecipeHome({ onStartRecipe }: { onStartRecipe: (recipeId: string
     </div>}
     {error && <p role="alert" style={{ color: theme.danger }}>{error}</p>}
     {bundledCatalog.rejected.length > 0 && <p role="alert" style={{ color: theme.danger }}>{bundledCatalog.rejected.join('; ')}</p>}
-    <RecipeGallery recipes={[...bundledCatalog.recipes, ...userRecipes]} aiMadeIds={new Set(userRecipes.map((recipe) => recipe.id))} onSelect={(recipe) => { void start(recipe.id); }} disabled={!!busyId} />
+    <RecipeGallery recipes={[...bundledCatalog.recipes, ...userRecipes]} aiMadeIds={new Set(userRecipes.map((recipe) => recipe.id))} onSelect={(recipe, ratio) => { void start(recipe.id, false, ratio); }} disabled={!!busyId} />
   </section>;
 }

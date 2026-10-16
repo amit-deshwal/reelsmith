@@ -1,7 +1,8 @@
 // Recipes tab: pick a recipe, choose pool media, tune params, press Assemble.
 // Everything heavy lives in ../runRecipe.ts and ../assembler; this file is only the form.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { parseRecipe, type Recipe, type RecipeMediaInput } from '../../../shared/reelsmith/recipe';
+import { parseRecipe, supportedRatios, type Recipe, type RecipeMediaInput } from '../../../shared/reelsmith/recipe';
+import { RATIO_SIZES, type RatioId } from '../../../shared/reelsmith/ratios';
 import { mapBriefToRecipe, type ReelsBrief } from '../../../shared/reelsmith/brief';
 import type { BatchAction } from '../../editor/reducerActions';
 import type { MediaAsset } from '../../editor/types';
@@ -31,6 +32,7 @@ export interface RecipesPanelProps {
   /** prefill the chat with a request (agent shot selection) */
   onAskAgent?: (text: string, opts?: { autoSend?: boolean }) => void;
   initialRecipeId?: string;
+  initialRatio?: RatioId;
   /** Optional guided brief supplied by the gallery or Ideas flow. */
   initialBrief?: ReelsBrief;
   /** One-time prompt from an opted-in Ideas research handoff. */
@@ -59,9 +61,10 @@ const input: React.CSSProperties = {
   background: theme.inset, color: theme.text, border: `0.5px solid ${theme.border}`, borderRadius: 5, padding: '5px 7px', fontSize: 12.5,
 };
 
-export function RecipesPanel({ projectId, assets, itemCount, fps, onApply, onAskAgent, initialRecipeId, initialBrief, initialPrompt, onImportMedia }: RecipesPanelProps) {
+export function RecipesPanel({ projectId, assets, itemCount, fps, onApply, onAskAgent, initialRecipeId, initialRatio, initialBrief, initialPrompt, onImportMedia }: RecipesPanelProps) {
   const selectedRecipeId = initialRecipeId ?? (initialBrief?.target.recipeId !== 'new' ? initialBrief?.target.recipeId : undefined);
   const [recipe, setRecipe] = useState<Recipe | null>(() => catalog.recipes.find((r) => r.id === selectedRecipeId) ?? null);
+  const [chosenRatio, setChosenRatio] = useState<RatioId | undefined>(initialRatio ?? initialBrief?.target.ratio);
   const [userRecipes, setUserRecipes] = useState<Recipe[]>([]);
   const [draft, setDraft] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -114,7 +117,10 @@ export function RecipesPanel({ projectId, assets, itemCount, fps, onApply, onAsk
   if (!recipe) {
     return (
       <div style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'grid', gap: 10, alignContent: 'start' }}>
-        <RecipeGallery recipes={[...catalog.recipes, ...userRecipes]} onSelect={setRecipe} aiMadeIds={new Set(userRecipes.map((entry) => entry.id))} disabled={managerBusy} />
+        <RecipeGallery recipes={[...catalog.recipes, ...userRecipes]} onSelect={(selected, ratio) => {
+          setRecipe(selected);
+          setChosenRatio(ratio ?? (initialRatio && supportedRatios(selected).includes(initialRatio) ? initialRatio : undefined));
+        }} aiMadeIds={new Set(userRecipes.map((entry) => entry.id))} disabled={managerBusy} />
         <section aria-label="AI-made recipes" style={{ display: 'grid', gap: 8, padding: 10, border: `0.5px solid ${theme.border}`, borderRadius: 8 }}>
           <b style={{ fontSize: 13 }}>AI-made recipes</b>
           <span style={label}>Paste recipe JSON drafted by your agent. It is validated before it is saved locally, outside the bundled recipes.</span>
@@ -137,10 +143,12 @@ export function RecipesPanel({ projectId, assets, itemCount, fps, onApply, onAsk
       </div>
     );
   }
-  return <SetupForm key={recipe.id} recipe={recipe} projectId={projectId} assets={assets} itemCount={itemCount} fps={fps} initialBrief={initialBrief} initialPrompt={initialPrompt} onBack={() => setRecipe(null)} onImportMedia={onImportMedia} onApply={onApply} onAskAgent={onAskAgent} />;
+  return <SetupForm key={recipe.id} recipe={recipe} projectId={projectId} assets={assets} itemCount={itemCount} fps={fps} initialRatio={chosenRatio} initialBrief={initialBrief} initialPrompt={initialPrompt} onBack={() => setRecipe(null)} onImportMedia={onImportMedia} onApply={onApply} onAskAgent={onAskAgent} />;
 }
 
-export function SetupForm({ recipe, projectId, assets, itemCount, fps, initialBrief, initialPrompt, onBack, onApply, onAskAgent, onImportMedia }: RecipesPanelProps & { recipe: Recipe; onBack: () => void }) {
+export function SetupForm({ recipe, projectId, assets, itemCount, fps, initialRatio, initialBrief, initialPrompt, onBack, onApply, onAskAgent, onImportMedia }: RecipesPanelProps & { recipe: Recipe; onBack: () => void }) {
+  const ratios = supportedRatios(recipe);
+  const [ratio, setRatio] = useState<RatioId>(() => ratios.includes(initialRatio as RatioId) ? initialRatio! : ratios[0]!);
   const [values, setValues] = useState<SetupValues>(() => defaultValues(recipe));
   const [busy, setBusy] = useState('');
   const working = useRef(false);
@@ -165,7 +173,7 @@ export function SetupForm({ recipe, projectId, assets, itemCount, fps, initialBr
     }).catch(() => {});
     return () => { active = false; };
   }, [initialBrief, projectId, recipe.id]);
-  const briefMapping = useMemo(() => brief ? mapBriefToRecipe(brief, recipe) : null, [brief, recipe]);
+  const briefMapping = useMemo(() => brief ? mapBriefToRecipe(brief, { ...recipe, canvas: { ...recipe.canvas, ...RATIO_SIZES[ratio] } }) : null, [brief, recipe, ratio]);
   const requiredClipsByInput = new Map<string, number>();
   for (const { request, input } of briefMapping?.clips ?? []) requiredClipsByInput.set(input.id, (requiredClipsByInput.get(input.id) ?? 0) + request.count);
   const requiredTextByInput = new Map<string, number>();
@@ -184,7 +192,7 @@ export function SetupForm({ recipe, projectId, assets, itemCount, fps, initialBr
       const wordsFit = request.maxWords === undefined || pieces.every((part) => part.split(/\s+/).filter(Boolean).length <= request.maxWords!);
       return { id: `text-${index}`, label: `${pieces.length}/${requiredTextByInput.get(input.id) ?? request.count} text item${request.count === 1 ? '' : 's'}${request.maxWords ? `, up to ${request.maxWords} words` : ''}${request.tone ? ` · ${request.tone}` : ''}`, complete: pieces.length >= (requiredTextByInput.get(input.id) ?? request.count) && wordsFit, kind: 'plain' as const };
     }),
-    ...(brief.music ? [{ id: 'music', label: brief.music.mode === 'instagram' ? 'Add music in Instagram' : brief.music.mode === 'named' ? `Music · ${brief.music.name}` : `Music · ${brief.music.description}`, complete: brief.music.mode === 'instagram' || !!briefMapping.music && (values.media[briefMapping.music.id]?.length ?? 0) > 0, kind: 'plain' as const }]: []),
+    ...(brief?.music ? [{ id: 'music', label: brief.music.mode === 'instagram' ? 'Add music in Instagram' : brief.music.mode === 'named' ? `Music · ${brief.music.name}` : `Music · ${brief.music.description}`, complete: brief.music.mode === 'instagram' || !!briefMapping.music && (values.media[briefMapping.music.id]?.length ?? 0) > 0, kind: 'plain' as const }]: []),
   ] : [];
   const briefComplete = !brief || (!!briefMapping && briefItems.every((item) => item.complete) && briefMapping.warnings.length === 0);
   const errors = validateSetup(recipe, values, assets);
@@ -215,7 +223,7 @@ export function SetupForm({ recipe, projectId, assets, itemCount, fps, initialBr
     working.current = true;
     setBusy('Starting…'); setNotes([]);
     try {
-      const out = await runRecipe({ ...api, shotTags: (a, progress) => loadShotTags(projectId, a, progress) }, { recipe, values, assets, fps, replaceTimeline: true, onProgress: setBusy });
+      const out = await runRecipe({ ...api, shotTags: (a, progress) => loadShotTags(projectId, a, progress) }, { recipe, ratio, values, assets, fps, replaceTimeline: true, onProgress: setBusy });
       setNotes(out.messages);
       if (out.action) {
         onApply(out.action);
@@ -237,7 +245,7 @@ export function SetupForm({ recipe, projectId, assets, itemCount, fps, initialBr
     setBusy('Preparing preview…'); setNotes([]); setPreview(null);
     const started = performance.now();
     try {
-      const out = await runRecipe({ ...api, shotTags: (a, progress) => loadShotTags(projectId, a, progress) }, { recipe, values, assets, fps, replaceTimeline: false, onProgress: setBusy });
+      const out = await runRecipe({ ...api, shotTags: (a, progress) => loadShotTags(projectId, a, progress) }, { recipe, ratio, values, assets, fps, replaceTimeline: false, onProgress: setBusy });
       if (!out.action) { setNotes(out.messages); return; }
       setBusy('Rendering preview…');
       const p = await requestPreview(out, assets, fps);
@@ -253,6 +261,17 @@ export function SetupForm({ recipe, projectId, assets, itemCount, fps, initialBr
       <fieldset aria-label={`${recipe.name} setup`} disabled={!!busy} style={{ border: 0, padding: 0, margin: 0, minWidth: 0, display: 'grid', gap: 12 }}>
         <button type="button" onClick={onBack} style={{ ...input, cursor: 'pointer', justifySelf: 'start' }}>← All recipes</button>
         <div><b style={{ fontSize: 14 }}>{recipe.name}</b><div style={label}>{recipe.description}</div></div>
+        <label style={{ display: 'grid', gap: 4 }}>
+          <span style={{ fontSize: 12.5 }}>Aspect ratio</span>
+          <select aria-label="Recipe aspect ratio" style={input} value={ratio} onChange={(event) => {
+            const selected = event.target.value as RatioId;
+            if (!ratios.includes(selected)) return;
+            setRatio(selected); setPreview(null);
+            onApply({ type: 'batch', label: `Set canvas to ${selected}`, actions: [{ type: 'setCanvas', ...RATIO_SIZES[selected], fit: 'cover' }] });
+          }}>
+            {ratios.map((id) => <option key={id} value={id}>{id} · {RATIO_SIZES[id].width} × {RATIO_SIZES[id].height}</option>)}
+          </select>
+        </label>
 
         {brief && briefMapping && <section aria-label="Brief checklist" style={{ display: 'grid', gap: 6, padding: 9, border: `0.5px solid ${theme.border}`, borderRadius: 7 }}>
           <b style={{ fontSize: 12.5 }}>Brief checklist</b>
@@ -366,7 +385,7 @@ export function SetupForm({ recipe, projectId, assets, itemCount, fps, initialBr
       {busy && <p role="status" style={label}>{busy}</p>}
       {preview && (
         <div style={{ display: 'grid', gap: 4, justifyItems: 'center' }}>
-          <video src={preview.src} muted autoPlay loop playsInline style={{ width: 180, aspectRatio: '9 / 16', borderRadius: 8, background: '#000' }} />
+          <video src={preview.src} muted autoPlay loop playsInline style={{ width: 180, aspectRatio: ratio.replace(':', ' / '), borderRadius: 8, background: '#000' }} />
           <span style={label}>Preview ready in {(preview.ms / 1000).toFixed(1)} s. Nothing was added to the timeline.</span>
         </div>
       )}

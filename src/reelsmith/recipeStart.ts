@@ -1,9 +1,10 @@
 // A one-time, project-scoped handoff from the home gallery to recipe setup.
-import type { Recipe } from '../../shared/reelsmith/recipe';
+import { recipeForRatio, type Recipe } from '../../shared/reelsmith/recipe';
+import type { RatioId } from '../../shared/reelsmith/ratios';
 import type { ReelsBrief } from '../../shared/reelsmith/brief';
 import type { ProjectDoc } from '../editor/types';
 
-export interface RecipeStartHandoff { recipeId: string; brief?: ReelsBrief; prompt?: string }
+export interface RecipeStartHandoff { recipeId: string; ratio?: RatioId; brief?: ReelsBrief; prompt?: string }
 const pending = new Map<string, RecipeStartHandoff>();
 const key = (projectId: string) => `reelsmith:recipe-start:${projectId}`;
 
@@ -38,9 +39,11 @@ export function clearRecipeStart(projectId: string): void {
   try { sessionStorage.removeItem(key(projectId)); } catch { /* Optional storage. */ }
 }
 
-export function recipeProjectDoc(empty: ProjectDoc, recipe: Recipe): ProjectDoc {
+export function recipeProjectDoc(empty: ProjectDoc, recipe: Recipe, ratio?: RatioId): ProjectDoc {
+  const selected = ratio ? recipeForRatio(recipe, ratio) : recipe;
+  if (!selected) throw new Error(`${recipe.name} is not available in ${ratio}`);
   return { ...empty, timelines: empty.timelines.map((timeline) => ({ ...timeline,
-    width: recipe.canvas.width, height: recipe.canvas.height, fps: recipe.canvas.fps.num / recipe.canvas.fps.den,
+    width: selected.canvas.width, height: selected.canvas.height, fps: selected.canvas.fps.num / selected.canvas.fps.den,
   })) };
 }
 
@@ -49,6 +52,8 @@ export async function startRecipeProject(recipe: Recipe, deps: {
   refresh: () => Promise<void>;
   open: (id: string) => void;
 }, details: Omit<RecipeStartHandoff, 'recipeId'> = {}): Promise<void> {
+  const ratio = details.ratio ?? details.brief?.target.ratio;
+  if (ratio && !recipeForRatio(recipe, ratio)) throw new Error(`${recipe.name} is not available in ${ratio}`);
   const project = await deps.create(recipe.name, recipe);
   rememberRecipeStart(project.id, recipe.id, details);
   await deps.refresh();

@@ -14,6 +14,7 @@ export const ASPECT_PRESETS: AspectPreset[] = [
   { label: '1:1', width: 1080, height: 1080 },
   { label: '4:3', width: 1440, height: 1080 },
   { label: '3:4', width: 1080, height: 1440 },
+  { label: '4:5', width: 1080, height: 1350 },
 ];
 
 /** short ratio badge for a canvas size, e.g. 1920×1080 → "16:9". */

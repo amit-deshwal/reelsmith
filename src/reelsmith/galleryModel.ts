@@ -1,5 +1,6 @@
 // RS-102: view model for the recipe gallery (cards, categories, filters). Pure, so it is cheap to render and test.
-import type { Recipe, RecipeInput } from '../../shared/reelsmith/recipe';
+import { supportedRatios, type Recipe, type RecipeInput } from '../../shared/reelsmith/recipe';
+import { RATIO_IDS, type RatioId } from '../../shared/reelsmith/ratios';
 
 export interface RecipeCard {
   id: string;
@@ -7,6 +8,7 @@ export interface RecipeCard {
   category: Recipe['category'];
   description: string;
   aspect: string;
+  ratios: RatioId[];
   typicalLength: string;
   requires: string;
   poster?: string;
@@ -58,26 +60,35 @@ export function lengthText(recipe: Recipe): string {
 export function toCard(r: Recipe): RecipeCard {
   return {
     id: r.id, name: r.name, category: r.category, description: r.description ?? '',
-    aspect: aspectOf(r.canvas.width, r.canvas.height), typicalLength: lengthText(r), requires: requirementsText(r),
+    aspect: aspectOf(r.canvas.width, r.canvas.height), ratios: supportedRatios(r), typicalLength: lengthText(r), requires: requirementsText(r),
     poster: r.preview?.poster, loop: r.preview?.loop, tags: r.tags ?? [],
   };
 }
 
-export interface GalleryState { cards: RecipeCard[]; categories: Array<{ id: Recipe['category'] | 'all'; label: string; count: number }> }
+export interface GalleryState {
+  cards: RecipeCard[];
+  categories: Array<{ id: Recipe['category'] | 'all'; label: string; count: number }>;
+  ratios: Array<{ id: RatioId | 'all'; count: number }>;
+}
 
-export function buildGallery(recipes: Recipe[], filter: { category?: Recipe['category'] | 'all'; query?: string } = {}): GalleryState {
+export function buildGallery(recipes: Recipe[], filter: { category?: Recipe['category'] | 'all'; ratio?: RatioId | 'all'; query?: string } = {}): GalleryState {
   const all = recipes.map(toCard);
   const counts = new Map<string, number>();
   for (const c of all) counts.set(c.category, (counts.get(c.category) ?? 0) + 1);
   const q = filter.query?.trim().toLowerCase();
   const cards = all.filter((c) =>
     (!filter.category || filter.category === 'all' || c.category === filter.category)
+    && (!filter.ratio || filter.ratio === 'all' || c.ratios.includes(filter.ratio))
     && (!q || `${c.name} ${c.description} ${c.tags.join(' ')}`.toLowerCase().includes(q)));
   return {
     cards: cards.sort((a, b) => a.name.localeCompare(b.name)),
     categories: [
       { id: 'all', label: 'All', count: all.length },
       ...[...counts.entries()].map(([id, count]) => ({ id: id as Recipe['category'], label: categoryLabel(id as Recipe['category']), count })),
+    ],
+    ratios: [
+      { id: 'all', count: all.length },
+      ...RATIO_IDS.map((id) => ({ id, count: all.filter((card) => card.ratios.includes(id)).length })),
     ],
   };
 }
