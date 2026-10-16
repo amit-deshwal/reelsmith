@@ -1,24 +1,46 @@
-// RS-109: shot tags for the assets of a recipe run, from image vectors the user's visual search already built.
-// Nothing is downloaded or indexed here: with no vectors (visual search not set up) it returns no tags and the
-// assemblers use their score-only picks as before.
+// RS-109: shot tags for the assets of a recipe run, from the visual model's image vectors.
+// If the visual-semantics pack is already installed, clips that are not indexed yet are read here (nothing is
+// downloaded: with no pack and no vectors this returns no tags and the assemblers use their score-only picks).
 import { sourceRevisionOf } from '../editor/mediaSourceRevision';
 import type { MediaAsset } from '../editor/types';
+import { fetchModelPackCatalog } from '../../shared/model-packs/client';
 import { SemanticClient } from '../media/semantic-search/semanticClient';
+import { indexSemanticAssets } from '../media/semantic-search/semanticOperations';
+import { isSemanticMedia } from '../media/semantic-search/mediaFrames';
 import { readSemanticVectors } from '../media/semantic-search/vectorStore';
 import { embedTagPrompts, tagClips, type ClipShotTags, type TagPrompts } from './shotTags';
 
+/** More clips than this are not read automatically (index them from the Media pool instead). */
+const MAX_AUTO_INDEX = 60;
+const PACK_ID = 'visual-semantics-lite';
+
 let promptCache: TagPrompts | null = null;
 
-export async function loadShotTags(scopeId: string, assets: MediaAsset[]): Promise<Map<string, ClipShotTags>> {
+async function packInstalled(): Promise<boolean> {
+  try { return (await fetchModelPackCatalog()).find((p) => p.id === PACK_ID)?.status === 'installed'; } catch { return false; }
+}
+
+export async function loadShotTags(scopeId: string, assets: MediaAsset[], onProgress?: (text: string) => void): Promise<Map<string, ClipShotTags>> {
   const revisions = new Map(assets.map((a) => [a.id, sourceRevisionOf(a)]));
-  const records = (await readSemanticVectors(scopeId)).filter((r) => revisions.has(r.assetId) && r.sourceRevision === revisions.get(r.assetId));
-  if (!records.length) return new Map();
-  if (!promptCache) {
-    const client = new SemanticClient();
-    try {
+  const current = async () => (await readSemanticVectors(scopeId)).filter((r) => revisions.has(r.assetId) && r.sourceRevision === revisions.get(r.assetId));
+  let records = await current();
+  const indexed = new Set(records.map((r) => r.assetId));
+  const missing = assets.filter(isSemanticMedia).filter((a) => !indexed.has(a.id));
+  let client: SemanticClient | null = null;
+  try {
+    if ((missing.length || (records.length && !promptCache)) && missing.length <= MAX_AUTO_INDEX && await packInstalled()) {
+      client = new SemanticClient();
+      onProgress?.('Loading the visual model');
       await client.load(typeof navigator !== 'undefined' && 'gpu' in navigator ? 'webgpu' : 'wasm');
-      promptCache = await embedTagPrompts((t) => client.embedText(t));
-    } finally { client.dispose(); }
-  }
+      if (missing.length) {
+        await indexSemanticAssets(scopeId, client, missing, new AbortController().signal, (p) => onProgress?.(`Reading what the shots show ${p.completed + p.skipped}/${missing.length}`));
+        records = await current();
+      }
+      if (!promptCache && records.length) promptCache = await embedTagPrompts((t) => client!.embedText(t));
+    }
+  } catch {
+    // the model could not be used: fall back to whatever vectors exist, or to score-only picks
+  } finally { client?.dispose(); }
+  if (!records.length || !promptCache) return new Map();
   return tagClips(records, promptCache);
 }

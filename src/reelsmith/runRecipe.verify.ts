@@ -90,3 +90,23 @@ await assert.rejects(runRecipe(noAnalysis, { recipe: r.recipe, values, assets: a
   assert.equal('tzOffsetMin' in withLocalTimezone({ assembler: { strategy: 'beat-montage@1' } }, {}, ist), false);
   console.log('runRecipe timezone: ok');
 }
+
+// RS-109: tags from the api reach the assembler's clips, progress text is forwarded, a failing tag source is ignored
+{
+  const { prepareAssembly } = await import('./runRecipe');
+  const seen: string[] = [];
+  const top = (id: string) => (Number(id.slice(1)) % 2 ? 'people' : 'scenery') as 'people' | 'scenery';
+  const tagged: AnalyzeApi = {
+    ...api,
+    shotTags: async (as, progress) => {
+      progress?.('Reading what the shots show 1/12');
+      return new Map(as.map((a) => [a.id, { top: top(a.id), confidence: 0.9, samples: 3, scores: { scenery: 0, people: 0, portrait: 0, action: 0, food: 0, detail: 0, city: 0, water: 0, night: 0, [top(a.id)]: 0.9 } as never }]));
+    },
+  };
+  const prep = await prepareAssembly(tagged, { recipe: r.recipe, values, assets, fps: 30, replaceTimeline: true, seed: 3, onProgress: (t) => seen.push(t) });
+  assert.ok(prep.input.clips.every((c) => c.shot?.top === top(c.assetId)), 'every clip carries its tag');
+  assert.ok(seen.includes('Reading what the shots show 1/12'));
+  const broken = await prepareAssembly({ ...api, shotTags: async () => { throw new Error('model missing'); } }, { recipe: r.recipe, values, assets, fps: 30, replaceTimeline: true, seed: 3 });
+  assert.ok(broken.input.clips.length > 0 && broken.input.clips.every((c) => !c.shot), 'tag failure falls back to untagged clips');
+}
+console.log('runRecipe shot tags: ok');

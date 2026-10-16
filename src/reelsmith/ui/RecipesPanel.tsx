@@ -94,7 +94,7 @@ export function SetupForm({ recipe, projectId, assets, itemCount, fps, onBack, o
     working.current = true;
     setBusy('Starting…'); setNotes([]);
     try {
-      const out = await runRecipe({ ...api, shotTags: (a) => loadShotTags(projectId, a) }, { recipe, values, assets, fps, replaceTimeline: true, onProgress: setBusy });
+      const out = await runRecipe({ ...api, shotTags: (a, progress) => loadShotTags(projectId, a, progress) }, { recipe, values, assets, fps, replaceTimeline: true, onProgress: setBusy });
       setNotes(out.messages);
       if (out.action) {
         onApply(out.action);
@@ -116,7 +116,7 @@ export function SetupForm({ recipe, projectId, assets, itemCount, fps, onBack, o
     setBusy('Preparing preview…'); setNotes([]); setPreview(null);
     const started = performance.now();
     try {
-      const out = await runRecipe({ ...api, shotTags: (a) => loadShotTags(projectId, a) }, { recipe, values, assets, fps, replaceTimeline: false, onProgress: setBusy });
+      const out = await runRecipe({ ...api, shotTags: (a, progress) => loadShotTags(projectId, a, progress) }, { recipe, values, assets, fps, replaceTimeline: false, onProgress: setBusy });
       if (!out.action) { setNotes(out.messages); return; }
       setBusy('Rendering preview…');
       const p = await requestPreview(out, assets, fps);
