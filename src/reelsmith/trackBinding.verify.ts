@@ -6,6 +6,8 @@ import { historyReduce, type History } from '../editor/reduce';
 import { activeTimeline, timelineTrackIds, trackAlias, trackKind } from '../editor/types';
 import { assemble, type AssemblyClip, type AssemblyMusic } from './assembler';
 import { bindTracks } from './trackBinding';
+import { revisionOf } from '../agent/external-edit-session';
+import { runProjectMigrations } from '../persist/migrations';
 
 const load = (f: string) => { const r = parseRecipe(readFileSync(`recipes/${f}.recipe.json`, 'utf8')); assert.ok(r.ok); return r.recipe; };
 const music: AssemblyMusic = { assetId: 's', name: 's', src: '/s', durationSec: 60, beatTimesSec: Array.from({ length: 120 }, (_, i) => i * 0.5), beatsPerBar: 4, downbeatIndex: 0 };
@@ -49,4 +51,23 @@ assert.ok(tl.items.every((i) => timelineTrackIds(tl).includes(i.track)));
 const titleLane = tl.items.find((i) => i.kind === 'text')!.track;
 assert.equal(timelineTrackIds(tl)[0], titleLane, 'title lane is the topmost');
 assert.equal(trackAlias(tl, tl.items.find((i) => i.kind === 'solid')!.track), 'V1', 'background on V1');
+// each clip carries its asset's sourceRevision, so the document the server saves (after migrations) has the same
+// revision as the live one; otherwise every agent call after Assemble was refused as stale until a reload
+{
+  let p = fresh();
+  p = historyReduce(p, { type: 'batch', label: 'pool', actions: [
+    ...clips.map((c) => ({ type: 'addAsset' as const, asset: { id: c.assetId, name: c.name, kind: 'video' as const, src: c.src, durationInFrames: 300, width: 1080, height: 1920 } })),
+    { type: 'addAsset' as const, asset: { id: 's', name: 's', kind: 'audio' as const, src: '/s', durationInFrames: 1800 } },
+  ] } as never);
+  for (const [file, params, texts] of [
+    ['travel-beat-montage', { cutRule: 'every2Beats', accent: '#FFD23F', titleFont: 'Anton', transition: 'cut', clipAudio: false }, { place: 'X' }],
+    ['travel-diary', { clipAudio: false }, { line: 'a b / c' }],
+  ] as const) {
+    const res = assemble({ recipe: load(file), clips, music, texts: { ...texts }, params: { ...params }, seed: 1 });
+    const live = historyReduce(p, bindTracks(res.action!, { ...activeTimeline(p.present), assets: p.present.assets }, ids)).present;
+    assert.ok(activeTimeline(live).items.filter((i) => i.src).every((i) => i.sourceRevision), `${file}: clips carry sourceRevision`);
+    const saved = runProjectMigrations(JSON.parse(JSON.stringify(live)))!.doc;
+    assert.equal(revisionOf(saved), revisionOf(live), `${file}: saved revision matches the live one`);
+  }
+}
 console.log('trackBinding.verify: ok');

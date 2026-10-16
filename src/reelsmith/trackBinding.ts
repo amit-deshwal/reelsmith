@@ -1,7 +1,11 @@
 // Assemblers name lanes symbolically (V1 = main picture lane, V2/V3 = overlays, G1.. = collage tiles, T1 = titles, A1 = music).
 // Before dispatch, bind them to the timeline's real tracks: reuse a matching lane when there is one, otherwise create it.
 // Without this, an unknown lane id is treated by the editor as a brand-new ghost track.
+// Each placed clip also gets its asset's sourceRevision, as the editor's own add paths do: the project migration
+// fills it in on save otherwise, so the saved document never matched the live one and every agent call after
+// Assemble was refused as stale until the tab was reloaded.
 import type { AtomicAction, BatchAction } from '../editor/reducerActions';
+import { sourceRevisionOf } from '../editor/mediaSourceRevision';
 import type { TimelineState, TrackId, TrackKind } from '../editor/types';
 import { resolveTrackId, timelineTrackIds, trackKind } from '../editor/types';
 
@@ -33,8 +37,12 @@ export function bindTracks(action: BatchAction, tl: TimelineState, newId: () => 
     map.set(name, id);
     creates.push({ type: 'track.create', track: { id, kind } });
   }
-  const actions = action.actions.map((a): AtomicAction =>
-    a.type === 'add' ? { ...a, item: { ...a.item, track: map.get(a.item.track) ?? a.item.track } } : a);
+  const revisionBySrc = new Map((tl.assets ?? []).map((asset) => [asset.src, sourceRevisionOf(asset)]));
+  const actions = action.actions.map((a): AtomicAction => {
+    if (a.type !== 'add') return a;
+    const rev = !a.item.sourceRevision && a.item.src ? revisionBySrc.get(a.item.src) : undefined;
+    return { ...a, item: { ...a.item, track: map.get(a.item.track) ?? a.item.track, ...(rev ? { sourceRevision: rev } : {}) } };
+  });
   // creates go right after a leading clear/setCanvas so they are part of the same undo step
   const lead = actions.findIndex((a) => a.type !== 'clear' && a.type !== 'setCanvas');
   const at = lead < 0 ? actions.length : lead;
