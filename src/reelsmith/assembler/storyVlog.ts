@@ -1,6 +1,5 @@
 // story-vlog@1: clips in capture-time order, a moment label per time group, an occasional 2-up split,
 // cuts on bars (with a song) or at the typical shot length (without).
-import { renderTemplate } from '../../../shared/reelsmith/recipe';
 import type { AtomicAction } from '../../editor/reducerActions';
 import { placeInSlot } from '../../editor/layouts';
 import { clipItem, dbToGain, fpsOf, metronome, textItem } from './common';
@@ -13,6 +12,11 @@ export function formatMoment(ms: number, tzOffsetMin: number): string {
   const h = d.getUTCHours();
   const m = d.getUTCMinutes();
   return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`;
+}
+
+/** "Home, Cafe; Beach" -> ['Home', 'Cafe', 'Beach']. Template braces are dropped so typed text is never expanded. */
+export function parsePlaces(raw: string | undefined): string[] {
+  return (raw ?? '').split(/[,;\n]/).map((p) => p.replace(/[{}]/g, '').trim()).filter(Boolean);
 }
 
 export function assembleStoryVlog(input: AssembleInput): AssembleResult {
@@ -68,6 +72,8 @@ export function assembleStoryVlog(input: AssembleInput): AssembleResult {
   const actions: AtomicAction[] = [];
   let ci = 0;
   let lastHour = -1;
+  let momentIdx = 0;
+  const places = parsePlaces(texts.places);
   let total = 0;
   for (let s = 0; s < slotCount; s += 1) {
     const start = shotStart(s);
@@ -95,8 +101,9 @@ export function assembleStoryVlog(input: AssembleInput): AssembleResult {
       if (hour !== lastHour) {
         lastHour = hour;
         const when = formatMoment(a.captureTimeMs, tz);
-        const where = labelMode === 'timeAndPlace' ? (a.place ?? '') : '';
-        const text = renderTemplate(where ? `${when} · ${where}` : when, { inputs: texts, params });
+        const where = labelMode === 'timeAndPlace' ? (a.place ?? places[momentIdx] ?? '') : '';
+        momentIdx += 1;
+        const text = where ? `${when} · ${where}` : when;
         actions.push(textItem(stableId('rs-l', tag, seed, s), text, start, dur, recipe.canvas, style, -22, 'V3'));
       }
     }

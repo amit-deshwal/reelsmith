@@ -131,3 +131,4 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 
 ## Instagram SRT sidecar (RS-301)
 - `src/export/serverExportOperation.ts`: after a server video export is delivered, `writeSrtSidecar` (ours, `src/reelsmith/instagramSrt.ts`) saves `<video>.srt` to the same destination when the "Also save the captions as an .srt" option is on. It runs only after the target is committed and never fails the export; the outcome shows under the Instagram report.
+- `package.json`: `src/reelsmith/network-runtime.verify.ts` added to `test:reelsmith` (it skips without REELSMITH_AUDIT_URL).

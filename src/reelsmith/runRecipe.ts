@@ -91,11 +91,17 @@ export async function prepareAssembly(api: AnalyzeApi, o: RunOptions): Promise<P
     messages,
     input: {
       recipe, clips: primary, broll: secondary, music,
-      texts: o.values.texts, params: o.values.params, seed: o.seed ?? 1,
+      texts: o.values.texts, params: withLocalTimezone(recipe, o.values.params), seed: o.seed ?? 1,
       ...(o.preferredAssetIds?.length ? { preferredAssetIds: o.preferredAssetIds } : {}),
       ...(o.preferredBrollAssetIds?.length ? { preferredBrollAssetIds: o.preferredBrollAssetIds } : {}),
     },
   };
+}
+
+/** Time labels (story-vlog) are shown in the user's own timezone unless a run says otherwise; saved with the run so re-cuts match. */
+export function withLocalTimezone(recipe: { assembler: { strategy: string } }, params: Record<string, string | number | boolean>, now = new Date()): Record<string, string | number | boolean> {
+  if (!recipe.assembler.strategy.startsWith('story-vlog') || params.tzOffsetMin !== undefined) return params;
+  return { ...params, tzOffsetMin: -now.getTimezoneOffset() };
 }
 
 /** The saved run: the assembler's record plus which assets went into which input. */

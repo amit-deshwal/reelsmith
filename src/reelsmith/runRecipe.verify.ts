@@ -4,7 +4,7 @@ import { CURRENT_PROJECT_VERSION } from '../../shared/project-version';
 import { parseRecipe } from '../../shared/reelsmith/recipe';
 import { historyReduce } from '../editor/reduce';
 import type { MediaAsset, ProjectDoc } from '../editor/types';
-import { runRecipe, type AnalyzeApi } from './runRecipe';
+import { runRecipe, withLocalTimezone, type AnalyzeApi } from './runRecipe';
 import { defaultValues } from './setupForm';
 
 const r = parseRecipe(readFileSync('recipes/travel-beat-montage.recipe.json', 'utf8'));
@@ -81,3 +81,12 @@ const noAnalysis: AnalyzeApi = {
 };
 await assert.rejects(runRecipe(noAnalysis, { recipe: r.recipe, values: defaultValues(r.recipe), assets, fps: 30, replaceTimeline: true }), /Trip clips.*at least 6/);
 await assert.rejects(runRecipe(noAnalysis, { recipe: r.recipe, values, assets: assets.filter((a) => a.id !== 'song'), fps: 30, replaceTimeline: true }), /Song.*no longer in the project/);
+
+// story-vlog labels default to the user's own timezone; an explicit param wins; other recipes are untouched.
+{
+  const ist = { getTimezoneOffset: () => -330 } as Date;
+  assert.equal(withLocalTimezone({ assembler: { strategy: 'story-vlog@1' } }, { a: 1 }, ist).tzOffsetMin, 330);
+  assert.equal(withLocalTimezone({ assembler: { strategy: 'story-vlog@1' } }, { tzOffsetMin: 0 }, ist).tzOffsetMin, 0);
+  assert.equal('tzOffsetMin' in withLocalTimezone({ assembler: { strategy: 'beat-montage@1' } }, {}, ist), false);
+  console.log('runRecipe timezone: ok');
+}

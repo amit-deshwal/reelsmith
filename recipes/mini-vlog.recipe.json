@@ -2,7 +2,7 @@
   "$schema": "../../schemas/recipe.schema.json",
   "schemaVersion": 1,
   "id": "mini-vlog",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "name": "Mini Day Vlog",
   "category": "vlog",
   "description": "Calm day-in-the-life reel: small time-and-place labels per moment, occasional two-up split screens, gentle cuts on bars.",
@@ -12,7 +12,8 @@
   "inputs": [
     { "id": "clips", "kind": "media", "accept": ["video", "image"], "min": 5, "max": 60, "label": "Clips from your day", "hint": "Morning to night; vertical phone clips look best", "constraints": { "preferOrientation": "portrait" } },
     { "id": "music", "kind": "media", "accept": ["audio"], "min": 0, "max": 1, "label": "Song (optional)" },
-    { "id": "about", "kind": "text", "label": "What is the day about?", "optional": true, "maxLength": 120 }
+    { "id": "about", "kind": "text", "label": "What is the day about?", "optional": true, "maxLength": 120 },
+    { "id": "places", "kind": "text", "label": "Places, in order of the day", "optional": true, "maxLength": 200, "placeholder": "Home, Cafe, Beach" }
   ],
   "params": [
     { "id": "labels", "type": "enum", "label": "Labels", "default": "timeAndPlace", "options": ["none", "time", "timeAndPlace"] },

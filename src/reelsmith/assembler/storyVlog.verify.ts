@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { parseRecipe } from '../../../shared/reelsmith/recipe';
 import { assemble, type AssemblyClip, type AssemblyMusic } from './index';
-import { formatMoment } from './storyVlog';
+import { formatMoment, parsePlaces } from './storyVlog';
 
 const r = parseRecipe(readFileSync('recipes/mini-vlog.recipe.json', 'utf8'));
 assert.ok(r.ok);
@@ -48,4 +48,14 @@ assert.ok(mv.every((x) => x.startFrame % 60 === 0 && x.item.durationInFrames % 6
 assert.ok(mv.every((x) => x.item.volume < 0.2), 'clip audio is lowered under the music');
 const song = m.action!.actions.find((x: any) => x.item?.kind === 'audio') as any;
 assert.ok(song.item.fadeOutFrames > 0);
+
+// typed places are assigned to successive moments; clip metadata wins; labels:'time' ignores them
+assert.deepEqual(parsePlaces('Home, Cafe;\n {{inputs.x}}Beach ,'), ['Home', 'Cafe', 'inputs.xBeach']);
+const pl = assemble({ ...base, texts: { places: 'Home, Cafe, Beach' } });
+const pt = (pl.action!.actions.filter((x: any) => x.item?.kind === 'text') as any[]).map((x) => x.item.props.text as string);
+assert.ok(pt[0].includes('Pune'), 'clip place wins');
+assert.ok(pt[1].endsWith('· Cafe'), pt[1]);
+assert.ok(pt[2].endsWith('· Beach'), pt[2]);
+const pn = assemble({ ...base, texts: { places: 'Home' }, params: { ...params, labels: 'time' } });
+assert.ok((pn.action!.actions.filter((x: any) => x.item?.kind === 'text') as any[]).every((x) => !x.item.props.text.includes('·')));
 console.log('storyVlog.verify: ok');
