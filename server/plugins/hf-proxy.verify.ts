@@ -5,6 +5,7 @@ import { mkdtemp, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ASR_MODELS } from '../../shared/asr-models';
+import { MODEL_PACKS } from '../../shared/model-packs/catalog';
 import {
   downloadModelFile,
   handleHfProxyRequest,
@@ -54,6 +55,14 @@ assert.deepEqual(parseTarget(`/${asrModel.modelId}/resolve/main/${asrFile.path}`
   revision: asrModel.revision,
   filePath: asrFile.path,
 });
+
+// the visual-semantics pack (loaded by transformers.js) is probed the same way: small config files only
+const visualPack = MODEL_PACKS.find((pack) => pack.id === 'visual-semantics-lite')!;
+assert.deepEqual(parseTarget(`/${visualPack.modelId}/resolve/main/tokenizer_config.json`), {
+  modelId: visualPack.modelId, revision: visualPack.revision, filePath: 'tokenizer_config.json',
+});
+assert.equal(parseTarget(`/${visualPack.modelId}/resolve/main/onnx/model_q4.onnx`), null, 'weights are not served for "main"');
+assert.equal(parseTarget(`/${visualPack.modelId}/resolve/main/not-in-catalog.json`), null);
 
 const rejectedPaths = [
   `/musetric/beat-this-onnx/resolve/${RHYTHM_REVISION}/%`,

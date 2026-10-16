@@ -159,6 +159,13 @@ export function parseTarget(rawPath: string): ProxyTarget | null {
       const pinned: ProxyTarget = { modelId, revision: entry.revision, filePath: target.filePath };
       if (fixedModelFile(pinned)) return pinned;
     }
+    // Same for the config/tokenizer files of catalog model packs (the visual-semantics pack is loaded by
+    // transformers.js, whose tokenizer probe asks for "main"); weight files are never served for "main".
+    if (/\.(json|txt)$/.test(target.filePath)) {
+      const pack = MODEL_PACKS.find((candidate) => candidate.modelId === modelId);
+      const pinned: ProxyTarget | null = pack ? { modelId, revision: pack.revision, filePath: target.filePath } : null;
+      if (pinned && fixedModelFile(pinned)) return pinned;
+    }
   }
   return null;
 }

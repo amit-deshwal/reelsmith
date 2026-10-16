@@ -201,3 +201,6 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 - `server/plugins/export-media-plan.ts`: before rendering, `/media/uploads/*.heic|.heif` references are converted to a staged JPEG (`convertHeicReferences`, ours, `server/reelsmith/heicExport.ts`, sips with ffmpeg fallback) and the snapshot points at it; cleaned up with the other staged files.
 - `src/media/upload.ts`: `importMedia` converts a HEIC/HEIF photo to JPEG before upload (`heicAsJpeg`, ours, `src/reelsmith/heicImport.ts`, the same `heic-to` converter upstream uses for phone uploads); a failed conversion keeps the original and the export converts it.
 - `package.json`: `heicImport.verify.ts` and `heicExport.verify.ts` added to the test chain.
+
+## Visual-semantics pack could not load (RS-109)
+- `server/plugins/hf-proxy.ts`: `parseTarget` also resolves revision "main" to the catalog-pinned revision for the `.json`/`.txt` files of catalog model packs. transformers.js 4.2 probes `tokenizer_config.json` with "main" while loading the tokenizer; the proxy answered 400, so the tokenizer came back empty ("Cannot read properties of undefined (reading 'tokenizer_class')") and "Enable local model" always failed, although the pack was installed. Weight files are still never served for "main". Covered in `server/plugins/hf-proxy.verify.ts`.
