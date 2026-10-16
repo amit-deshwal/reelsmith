@@ -204,3 +204,11 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 
 ## Visual-semantics pack could not load (RS-109)
 - `server/plugins/hf-proxy.ts`: `parseTarget` also resolves revision "main" to the catalog-pinned revision for the `.json`/`.txt` files of catalog model packs. transformers.js 4.2 probes `tokenizer_config.json` with "main" while loading the tokenizer; the proxy answered 400, so the tokenizer came back empty ("Cannot read properties of undefined (reading 'tokenizer_class')") and "Enable local model" always failed, although the pack was installed. Weight files are still never served for "main". Covered in `server/plugins/hf-proxy.verify.ts`.
+
+## Caption edit timing and 1.2 s silence hide (RS-503)
+- `src/captions/captionPages.ts`: `withCueEdits` gives inserted words a real span (the cue's average word length at the head or tail, interpolation in gaps, never 1 ms); `activeCaptionPages` hides a caption at the earlier of the next page and 1.2 s after its last word.
+- `src/captions/types.ts`: `LINGER_MS` is 1200 (was 1500); `paginate` forces a page break at any silence longer than `LINGER_MS`; `activePage` and `activeTranslation` use the same earlier-of rule.
+- `src/captions/captionPreviewTarget.ts`: its private linger constant is 1200 and uses the same rule, so the preview target matches the rendering.
+- `src/geometry/caption-qa.ts`: caption QA uses `LINGER_MS` and the same rule, so collision checks match what is on screen.
+- `src/geometry/caption-collision.verify.ts`: expected source end moves from 6 to 5.4 s for the 1.2 s linger.
+- Tests: `src/captions/cueEditTiming.verify.ts` (ours, next to the code it covers); not added to the `package.json` chain, so `verify:affected` picks it up.

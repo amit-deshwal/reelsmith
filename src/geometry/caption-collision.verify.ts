@@ -234,7 +234,7 @@ async function main(): Promise<void> {
   const targets = captionGeometryTargets(captions, state, doc);
   assert.deepEqual(targets.map((target) => target.asset.id), ['head']);
   assert.equal(targets[0]?.visualItem.id, 'talking-head');
-  assert.deepEqual(targets[0]?.sourceRanges, [{ startSec: 2, endSec: 6 }], 'trim and playback rate map timeline overlap to source time');
+  assert.deepEqual(targets[0]?.sourceRanges, [{ startSec: 2, endSec: 5.4 }], 'trim and playback rate map timeline overlap to source time (caption linger 1.2 s after its last word)');
   const projected = visibleGeometryForCaptionTarget(
     geometryWith({ x: 0.3, y: 0.6, w: 0.4, h: 0.3 }),
     state,

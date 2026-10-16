@@ -183,7 +183,8 @@ export interface CaptionPage {
 }
 
 const MAX_PHRASE_WORDS = 6;
-export const LINGER_MS = 1500;
+/** Captions hide once this much silence follows the last word of a page (RS-503). */
+export const LINGER_MS = 1200;
 /** Shared preview/export contract: phrase pages fit at most two estimated visual lines. */
 export const CAPTION_MAX_VISUAL_LINES = 2;
 export const CAPTION_MAX_CHARS_PER_LINE = 24;
@@ -214,7 +215,9 @@ export function paginate(
 // segmentWords has a deterministic scoring fallback when it is absent.
 function paginateContentAware(words: TranscriptWord[], maxPhraseWords: number, breakBefore: Set<number> | undefined, maxCharsPerPage: number): CaptionPage[] {
   const pages: CaptionPage[] = [];
-  const cuts = [...(breakBefore ?? [])].filter((i) => i > 0 && i < words.length).sort((a, b) => a - b);
+  // Silence longer than LINGER_MS always ends a page, so a caption never stays up through a long pause (RS-503).
+  const silences = words.flatMap((word, i) => (i > 0 && word.start - words[i - 1]!.end > LINGER_MS ? [i] : []));
+  const cuts = [...new Set([...(breakBefore ?? []), ...silences])].filter((i) => i > 0 && i < words.length).sort((a, b) => a - b);
   let chunkStart = 0;
   for (const boundary of [...cuts, words.length]) {
     const chunk = words.slice(chunkStart, boundary);
@@ -229,11 +232,11 @@ function paginateContentAware(words: TranscriptWord[], maxPhraseWords: number, b
 }
 
 // The page to show at time `ms`: the latest page whose start has passed, held
-// until the next page starts (or LINGER_MS after the last page's end).
+// until the next page starts, but never longer than LINGER_MS of silence after its last word.
 export function activePage(pages: CaptionPage[], ms: number): CaptionPage | null {
   for (let i = pages.length - 1; i >= 0; i--) {
     if (ms >= pages[i].start) {
-      const until = pages[i + 1]?.start ?? pages[i].end + LINGER_MS;
+      const until = Math.min(pages[i + 1]?.start ?? Infinity, pages[i].end + LINGER_MS);
       return ms < until ? pages[i] : null;
     }
   }
@@ -251,7 +254,7 @@ export function currentWordIndex(page: CaptionPage, ms: number): number {
 export function activeTranslation(cues: TranslatedCue[], ms: number): TranslatedCue | null {
   for (let i = cues.length - 1; i >= 0; i--) {
     if (ms >= cues[i].start) {
-      const until = cues[i + 1]?.start ?? cues[i].end + LINGER_MS;
+      const until = Math.min(cues[i + 1]?.start ?? Infinity, cues[i].end + LINGER_MS);
       return ms < until ? cues[i] : null;
     }
   }

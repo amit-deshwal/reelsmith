@@ -6,7 +6,7 @@ import { isManualCaptionEntry, removeManualCue, updateManualCue } from './manual
 import { effectivePreset } from './renderStyles';
 import type { CaptionLayout, CaptionsData } from './types';
 
-const LINGER_MS = 1_500;
+const LINGER_MS = 1_200;
 
 interface PreviewCue {
   id?: string;
@@ -51,7 +51,7 @@ const roundedRatio = (value: number): number => Math.round(value * 10_000) / 10_
 function activeCueIndex(rows: CueRow[], ms: number): number {
   for (let index = rows.length - 1; index >= 0; index -= 1) {
     if (ms < rows[index]!.start) continue;
-    const until = rows[index + 1]?.start ?? rows[index]!.end + LINGER_MS;
+    const until = Math.min(rows[index + 1]?.start ?? Infinity, rows[index]!.end + LINGER_MS);
     return ms < until ? index : -1;
   }
   return -1;

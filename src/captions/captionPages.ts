@@ -34,10 +34,29 @@ function withCueEdits<T extends { words: import('../transcript/types.js').Transc
       const before = anchor(part.beforeRef);
       const after = anchor(part.afterRef);
       const count = Math.max(1, part.insertionCount ?? 1);
-      const fraction = ((part.insertionIndex ?? 0) + 1) / (count + 1);
-      const start = before && after ? before.end + (after.start - before.end) * (fraction - 0.0) : before ? before.end : after ? after.start : value.words[first]!.start;
-      const end = before && after ? before.end + (after.start - before.end) * Math.min(1, fraction + 0.18) : before ? before.end + Math.max(1, (value.words[sourcePositions[sourcePositions.length - 1]!]!.end - before.end) / (count + 1)) : after ? Math.max(0, after.start - Math.max(1, (after.start - value.words[first]!.start) / (count + 1))) : value.words[first]!.end;
-      return { word: { ...value.words[first]!, id: `${key}:insert:${partIndex}`, text: part.text, start, end: Math.max(start, end) }, ref: `${key}:insert:${partIndex}`, index: value.indices[first]! };
+      const slot = part.insertionIndex ?? 0;
+      const fraction = (slot + 1) / (count + 1);
+      // Gap-less neighbours (or none) fall back to the cue's own word length, so an inserted word never gets a 1 ms span.
+      const cueWords = sourcePositions.map((position) => value.words[position!]!);
+      const averageMs = cueWords.reduce((total, word) => total + Math.max(0, word.end - word.start), 0) / Math.max(1, cueWords.length);
+      const wordMs = averageMs > 0 ? averageMs : 400;
+      const gap = before && after ? after.start - before.end : 0;
+      let start: number;
+      let end: number;
+      if (before && after && gap > 0) {
+        start = before.end + gap * fraction;
+        end = before.end + gap * Math.min(1, fraction + 0.18);
+      } else if (before) {
+        start = before.end + slot * wordMs;
+        end = start + wordMs;
+      } else if (after) {
+        end = after.start - (count - slot - 1) * wordMs;
+        start = Math.max(0, end - wordMs);
+      } else {
+        start = value.words[first]!.start;
+        end = value.words[first]!.end;
+      }
+      return { word: { ...value.words[first]!, id: `${key}:insert:${partIndex}`, text: part.text, start, end: Math.max(start + 1, end) }, ref: `${key}:insert:${partIndex}`, index: value.indices[first]! };
     });
     replacements.set(first, { words: output.map((entry) => entry.word), refs: output.map((entry) => entry.ref), indices: output.map((entry) => entry.index), sourceRefs: edit.sourceRefs });
   }
@@ -190,7 +209,7 @@ export function activeCaptionPages(pages: readonly CaptionPageIdentity[], ms: nu
     const i = lastStartedIndex(lane, ms);
     if (i < 0) return [];
     const active = lane[i].page;
-    const until = lane[i + 1]?.page.start ?? active.end + LINGER_MS;
+    const until = Math.min(lane[i + 1]?.page.start ?? Infinity, active.end + LINGER_MS);
     return ms < until ? [lane[i]] : [];
   }).sort((left, right) => left.laneOrder - right.laneOrder || left.id.localeCompare(right.id));
 }
