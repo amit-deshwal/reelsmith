@@ -196,3 +196,8 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 - `src/components/chat/chatPanelController.ts`: the seed type takes `autoSend`; `useAutoSendSeed` sends such a seed as if Enter were pressed, only when the agent model is ready and no turn is running (otherwise it stays prefilled as before).
 - `src/library/LibraryPanel.tsx`, `src/editor/useEditorController.tsx`: `onAskAgent(text, { autoSend })` passes the flag through to the seed.
 - `assets/agent/openchatcut-tool-schemas.json`: regenerated (`propose_selection` takes `texts`).
+
+## HEIC photos in exports
+- `server/plugins/export-media-plan.ts`: before rendering, `/media/uploads/*.heic|.heif` references are converted to a staged JPEG (`convertHeicReferences`, ours, `server/reelsmith/heicExport.ts`, sips with ffmpeg fallback) and the snapshot points at it; cleaned up with the other staged files.
+- `src/media/upload.ts`: `importMedia` converts a HEIC/HEIF photo to JPEG before upload (`heicAsJpeg`, ours, `src/reelsmith/heicImport.ts`, the same `heic-to` converter upstream uses for phone uploads); a failed conversion keeps the original and the export converts it.
+- `package.json`: `heicImport.verify.ts` and `heicExport.verify.ts` added to the test chain.

@@ -24,6 +24,7 @@ import {
 import { resolveProductAsset } from '../product-assets.ts';
 import { safePublicFetch } from '../safe-public-fetch.ts';
 import { materializeExportReferences } from './export-reference-materialization.ts';
+import { convertHeicReferences } from '../reelsmith/heicExport.ts';
 
 const MAX_MATERIALIZED_MEDIA_BYTES = 10 * 1024 * 1024 * 1024;
 const MIME_EXTENSIONS: Readonly<Record<string, string>> = {
@@ -409,6 +410,11 @@ export async function materializeServerExportMedia<Value>(
     );
     for (const [source, publicPath] of referenced.replacements) replacements.set(source, publicPath);
     localPaths.push(...referenced.localPaths);
+    // Reelsmith: Chromium cannot draw HEIC; render a JPEG copy instead
+    const heic = await convertHeicReferences(localReferences.map((r) => r.source), resolved.uploadDirectory,
+      async (name) => resolved.resolveUpload(name) ?? (await resolved.hydrateUpload(name, resolved.signal))?.file ?? null);
+    for (const [source, publicPath] of heic.replacements) replacements.set(source, publicPath);
+    localPaths.push(...heic.localPaths);
 
     const remoteIssues: ExportMediaIssue[] = [];
     const attemptedRemoteSources = new Set<string>();

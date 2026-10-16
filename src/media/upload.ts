@@ -12,6 +12,7 @@ import {
   type UploadedMediaLocation,
 } from './uploadResponse';
 import { uploadFile, type UploadProgress } from './uploadTransport';
+import { heicAsJpeg } from '../reelsmith/heicImport';
 
 export { kindOf } from './mediaProbe';
 export type { MediaKind } from './mediaProbe';
@@ -396,6 +397,7 @@ export async function importMedia(
   onProgressOrHooks?: UploadProgress | ImportMediaHooks,
 ): Promise<MediaAsset> {
   const hooks = hooksOf(onProgressOrHooks);
+  file = await heicAsJpeg(file); // Reelsmith: Chromium cannot draw HEIC photos
   const prepared = await prepareMediaImport(file, fps);
   const blobUrl = URL.createObjectURL(file);
   try {
