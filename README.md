@@ -139,7 +139,7 @@ Every item has an acceptance check. "Spec §" refers to `reelsmith-docs/plan/car
 - [ ] **RS-801 VERIFY:** autosave, reopen and crash recovery. *Check:* `kill -9` at random times (20 trials) never corrupts a project and loses ≤ 2 s of edits.
 - [ ] **RS-802 VERIFY:** relinking moved media.
 - [ ] **RS-803 VERIFY:** performance on an Apple M5 with 24 GB. Preview of a 3-layer 1080×1920 timeline drops ≤ 1% of frames; scrub p95 ≤ 150 ms; a 60 s reel exports in ≤ 90 s. If Remotion export is too slow, investigate OpenChatCut's render-concurrency settings (`MACOS-RENDER-TUNING.md`).
-- [ ] **RS-804 NEW:** a 72-hour soak script (open/edit/export 30 projects) with no leaks (RSS growth < 10%).
+- [ ] **RS-804 NEW:** a 72-hour soak script (open/edit/export 30 projects) with no leaks (RSS growth < 10%). _(Progress: `node scripts/reelsmith-soak.mjs` runs repeated open/edit/render-export cycles over 30 projects in a disposable library and writes a JSON report; `--hours`, `--projects`, `--rounds` and `--report` configure a run. It currently measures the runner process RSS only, so the <10% result does not establish Electron/renderer leak behavior. The 72-hour application soak remains to be run and the RSS measurement needs expansion to cover app processes.)_
 
 ### M9. More aspect ratios (start after M3)
 Today every recipe, the safe-zone overlay, layout fill, `reels_lint` and the Instagram presets assume 1080×1920. Supported set: **9:16** (Reels/Stories, 1080×1920), **3:4** (profile-grid portrait, 1080×1440), **4:5** (feed portrait, 1080×1350), **1:1** (1080×1080), **16:9** (landscape/YouTube, 1920×1080), **4:3** (landscape, 1440×1080). Check trend notes before release; Reels themselves are still 9:16.
