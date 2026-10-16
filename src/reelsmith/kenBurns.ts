@@ -24,11 +24,25 @@ export const KEN_BURNS_ORDER = Object.keys(KEN_BURNS) as KenBurnsPreset[];
 /** Photos are the target, but a still-like gif or svg is fine too; video already has Reframe. */
 export const canKenBurns = (item: Pick<TimelineItem, 'kind'>): boolean => item.kind === 'image' || item.kind === 'gif' || item.kind === 'svg';
 
+/**
+ * How much a contain-fitted picture must be enlarged to cover the canvas (1 when the shapes match or a size is unknown).
+ * Ken Burns zooms are relative to the contain fit, so without this a photo of another shape shows bands at the start.
+ */
+export function coverScale(src?: { width?: number; height?: number }, canvas?: { width: number; height: number }): number {
+  if (!(src?.width && src.height && canvas && canvas.width > 0 && canvas.height > 0)) return 1;
+  const ratio = (src.width / src.height) / (canvas.width / canvas.height);
+  return ratio >= 1 ? ratio : 1 / ratio;
+}
+
 /** Replace the clip's reframe curve with the preset's two keyframes. Pure. */
-export function kenBurnsActions(item: Pick<TimelineItem, 'id' | 'zoom' | 'durationInFrames'>, preset: KenBurnsPreset): AtomicAction[] {
+export function kenBurnsActions(
+  item: Pick<TimelineItem, 'id' | 'zoom' | 'durationInFrames'>, preset: KenBurnsPreset,
+  fit?: { src?: { width?: number; height?: number }; canvas?: { width: number; height: number } },
+): AtomicAction[] {
   const { from, to } = KEN_BURNS[preset];
+  const cover = coverScale(fit?.src, fit?.canvas);
   const last = Math.max(1, item.durationInFrames - 1);
-  const key = (frame: number, p: Pose): AtomicAction => ({ type: 'reframeKeyframe', id: item.id, frame, focalPointX: p.x, focalPointY: p.y, magnification: p.m });
+  const key = (frame: number, p: Pose): AtomicAction => ({ type: 'reframeKeyframe', id: item.id, frame, focalPointX: p.x, focalPointY: p.y, magnification: p.m * cover });
   return [
     ...(item.zoom?.reframeCurve?.keyframes ?? []).map((k) => ({ type: 'removeReframeKeyframe' as const, id: item.id, frame: k.frame })),
     key(0, from),

@@ -134,7 +134,11 @@ export function withBeatGrid(actions: AtomicAction[], music: AssemblyMusic | und
 }
 
 /** Fill the canvas with each selected shot, panned to its face/subject in the source range it plays. */
-export function withCropFocus(actions: AtomicAction[], clips: AssemblyClip[], canvas: { width: number; height: number }): AtomicAction[] {
+export const MISMATCH_FIT_PARAM = 'mismatchFit';
+/** RS-903: how clips whose shape differs from the canvas are framed: cropped to fill, or fitted whole over a blurred copy. */
+export const mismatchFitOf = (params: Record<string, unknown>): 'fill' | 'blur' => params[MISMATCH_FIT_PARAM] === 'blur' ? 'blur' : 'fill';
+
+export function withCropFocus(actions: AtomicAction[], clips: AssemblyClip[], canvas: { width: number; height: number }, fit: 'fill' | 'blur' = 'fill'): AtomicAction[] {
   const byId = new Map(clips.map((clip) => [clip.assetId, clip]));
   return actions.map((action) => {
     if (action.type !== 'add' || (action.item.kind !== 'video' && action.item.kind !== 'image')) return action;
@@ -152,7 +156,8 @@ export function withCropFocus(actions: AtomicAction[], clips: AssemblyClip[], ca
     return { ...action, item: { ...action.item,
       width: action.item.width ?? clip.width, height: action.item.height ?? clip.height,
       // Slot-placed clips (collage cells, split-screen halves) already carry their own transform: leave them.
-      ...(fill && !action.item.transform ? { transform: { scale: fill.scale, scaleX: fill.scale, scaleY: fill.scale, x: fill.x, y: fill.y } } : {}),
+      ...(fill && !action.item.transform && fit === 'blur' ? { backgroundFill: true } : {}),
+      ...(fill && !action.item.transform && fit === 'fill' ? { transform: { scale: fill.scale, scaleX: fill.scale, scaleY: fill.scale, x: fill.x, y: fill.y } } : {}),
     } };
   });
 }
@@ -173,6 +178,6 @@ export async function runRecipe(api: AnalyzeApi, o: RunOptions): Promise<RunOutc
   ];
   return {
     result, messages, run,
-    action: { type: 'batch', label: result.action.label, actions: [...prefix, ...withCropFocus(withBeatGrid(result.action.actions, input.music), [...input.clips, ...(input.broll ?? [])], input.recipe.canvas)] },
+    action: { type: 'batch', label: result.action.label, actions: [...prefix, ...withCropFocus(withBeatGrid(result.action.actions, input.music), [...input.clips, ...(input.broll ?? [])], input.recipe.canvas, mismatchFitOf(o.values.params))] },
   };
 }

@@ -221,3 +221,6 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 - `src/captions/styles.ts`, `src/captions/styleMap.ts`, `src/captions/renderStyles.ts`: `textTransform` accepts `lowercase` (was none/uppercase) so the "Minimal lowercase" style really lowercases; one line each.
 - Tests: `src/reelsmith/captionStyles.verify.ts` (ours, in `test:reelsmith`).
 - RS-1005: `src/reelsmith/ui/RecipeHome.tsx` is ours; no upstream file changed. `package.json` `test:reelsmith` gains `shared/reelsmith/trendCache.verify.ts`.
+
+## Ken Burns covers the canvas (RS-903)
+- `src/components/timeline/ClipContextMenu.tsx`: `kenBurnsActions` is passed the clip's size and the timeline canvas so the zoom starts at the cover scale. Logic is ours (`src/reelsmith/kenBurns.ts`).

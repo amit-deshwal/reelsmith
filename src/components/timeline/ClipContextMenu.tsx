@@ -295,7 +295,7 @@ export function ClipContextMenu({ item, transitions, x, y, playhead, commands, t
       {canKenBurns(item) && showKenBurns && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '2px 9px 6px 35px' }}>
           {KEN_BURNS_ORDER.map((p) => (
-            <button key={p} onClick={run(() => commands.batch(kenBurnsActions(item, p), KEN_BURNS[p].label))}
+            <button key={p} onClick={run(() => commands.batch(kenBurnsActions(item, p, { src: item, canvas: timeline }), KEN_BURNS[p].label))}
               style={{ cursor: 'pointer', fontSize: 11, padding: '3px 8px', borderRadius: 5, border: `0.5px solid ${theme.border}`, background: 'none', color: theme.text }}>{KEN_BURNS[p].label}</button>
           ))}
           {(item.zoom?.reframeCurve?.keyframes.length ?? 0) > 0 && (

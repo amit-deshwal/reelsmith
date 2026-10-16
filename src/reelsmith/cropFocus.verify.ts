@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { cropPositionForFocus, fillTransformForFocus, focusRetention } from './cropFocus';
-import { withCropFocus } from './runRecipe';
+import { mismatchFitOf, withCropFocus } from './runRecipe';
 import type { AssemblyClip } from './assembler/types';
 
 const rightFace = { x: 0.78, y: 0.35, w: 0.12, h: 0.18 };
@@ -62,4 +62,13 @@ const slotted = withCropFocus([{ type: 'add', startFrame: 0, item: {
   srcInFrame: 105, durationInFrames: 50, transform: { x: 10, y: 0, scale: 0.5 },
 } }], [clip], { width: 1080, height: 1920 });
 assert.deepEqual(slotted[0]!.type === 'add' ? slotted[0]!.item.transform : null, { x: 10, y: 0, scale: 0.5 }, 'slot-placed clips keep their own transform');
+// RS-903: "fit whole over a blurred background" keeps the picture uncropped and turns on the editor's background fill
+const blurred = withCropFocus([{ type: 'add', startFrame: 0, item: {
+  id: 'shot', track: 'V1', kind: 'video', name: 'shot', src: '/clip.mp4', sourceAssetId: 'clip',
+  srcInFrame: 105, durationInFrames: 50,
+} }], [clip], { width: 1080, height: 1920 }, 'blur')[0]!;
+assert.ok(blurred.type === 'add' && blurred.item.backgroundFill === true && !blurred.item.transform, 'blur: background fill, no crop transform');
+assert.equal(mismatchFitOf({}), 'fill');
+assert.equal(mismatchFitOf({ mismatchFit: 'blur' }), 'blur');
+assert.equal(mismatchFitOf({ mismatchFit: 'nonsense' }), 'fill');
 console.log('cropFocus.verify: ok');

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { emptyProjectDoc } from '../app/appShell';
 import { historyReduce, type History } from '../editor/reduce';
 import { activeTimeline } from '../editor/types';
-import { KEN_BURNS, KEN_BURNS_ORDER, canKenBurns, clearKenBurnsActions, kenBurnsActions } from './kenBurns';
+import { coverScale, KEN_BURNS, KEN_BURNS_ORDER, canKenBurns, clearKenBurnsActions, kenBurnsActions } from './kenBurns';
 
 let h: History = { past: [], present: emptyProjectDoc(), future: [] };
 h = historyReduce(h, { type: 'add', startFrame: 0, item: { id: 'p', track: 'V1', kind: 'image', name: 'photo', src: '/p.jpg', durationInFrames: 90 } } as never);
@@ -26,3 +26,14 @@ assert.equal(item().zoom!.reframeCurve!.keyframes[0]!.focalPointY, KEN_BURNS['dr
 h = historyReduce(h, { type: 'batch', label: 'Clear', actions: clearKenBurnsActions(item()) });
 assert.equal(item().zoom?.reframeCurve, undefined, 'clear removes the motion');
 console.log('kenBurns.verify ok');
+
+// a landscape photo in a 9:16 canvas starts already covering it; a matching shape is unchanged
+assert.ok(Math.abs(coverScale({ width: 4000, height: 3000 }, { width: 1080, height: 1920 }) - (4 / 3) / (9 / 16)) < 1e-9);
+assert.ok(Math.abs(coverScale({ width: 3000, height: 4000 }, { width: 1920, height: 1080 }) - (16 / 9) / (3 / 4)) < 1e-9);
+assert.equal(coverScale({ width: 1080, height: 1920 }, { width: 1080, height: 1920 }), 1);
+assert.equal(coverScale({}, { width: 1080, height: 1920 }), 1, 'unknown size keeps the old behaviour');
+{
+  const ks = kenBurnsActions({ ...item(), id: 'i' }, 'push-in', { src: { width: 4000, height: 3000 }, canvas: { width: 1080, height: 1920 } }) as Array<{ type: string; magnification?: number }>;
+  const mags = ks.filter((k) => k.type === 'reframeKeyframe').map((k) => k.magnification!);
+  assert.ok(mags.every((m) => m >= coverScale({ width: 4000, height: 3000 }, { width: 1080, height: 1920 }) - 1e-9), 'every keyframe covers the canvas');
+}
