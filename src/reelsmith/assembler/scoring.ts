@@ -1,6 +1,7 @@
 // RS-105: clip scoring, near-duplicate grouping and best-window selection.
 // Pure functions over precomputed features. Feature extraction (ffmpeg / scene detection) feeds these.
 import type { AssemblyClip } from './types';
+import { focusRetention, type FocusRect } from '../cropFocus';
 
 /** Per-window measurements, each normalised to 0..1 by the extractor. */
 export interface WindowFeatures {
@@ -16,6 +17,8 @@ export interface WindowFeatures {
   speech: boolean;
   /** Locally detected face area, distinct from the model-free saliency proxy. */
   face?: number;
+  /** Detected face, or subject when no face is available, in source-frame coordinates. */
+  focusRect?: FocusRect;
 }
 
 export interface ClipFeatures {
@@ -32,19 +35,20 @@ export interface ClipFeatures {
 export interface ScoreWeights { sharpness: number; exposure: number; motion: number; subject: number; speech: number }
 export const DEFAULT_WEIGHTS: ScoreWeights = { sharpness: 0.3, exposure: 0.25, motion: 0.15, subject: 0.2, speech: 0.1 };
 
-export function scoreWindow(w: WindowFeatures, weights: ScoreWeights = DEFAULT_WEIGHTS): number {
+export function scoreWindow(w: WindowFeatures, weights: ScoreWeights = DEFAULT_WEIGHTS, shape?: { width: number; height: number; targetAspect: number }): number {
   const total = weights.sharpness + weights.exposure + weights.motion + weights.subject + weights.speech;
+  const retention = shape ? focusRetention(shape.width, shape.height, shape.targetAspect, w.focusRect) : 1;
   const sum = w.sharpness * weights.sharpness + w.exposure * weights.exposure + w.motion * weights.motion
-    + Math.min(1, Math.max(w.subject, w.face ?? 0) * 3) * weights.subject + (w.speech ? weights.speech : 0);
+    + Math.min(1, Math.max(w.subject, w.face ?? 0) * 3) * weights.subject * (0.5 + 0.5 * retention) + (w.speech ? weights.speech : 0);
   return Math.max(0, Math.min(1, sum / total));
 }
 
 /** Highest-scoring window whose length is at least `minFrames` (falls back to the longest). */
-export function bestWindow(features: ClipFeatures, minFrames: number, weights?: ScoreWeights): WindowFeatures | undefined {
+export function bestWindow(features: ClipFeatures, minFrames: number, weights?: ScoreWeights, shape?: { width: number; height: number; targetAspect: number }): WindowFeatures | undefined {
   const fits = features.windows.filter((w) => w.endFrame - w.startFrame >= minFrames);
   const pool = fits.length ? fits : [...features.windows].sort((a, b) => (b.endFrame - b.startFrame) - (a.endFrame - a.startFrame)).slice(0, 1);
   return pool.reduce<WindowFeatures | undefined>((best, w) =>
-    (!best || scoreWindow(w, weights) > scoreWindow(best, weights) ? w : best), undefined);
+    (!best || scoreWindow(w, weights, shape) > scoreWindow(best, weights, shape) ? w : best), undefined);
 }
 
 function popcount16hex(hex: string): number {
@@ -89,6 +93,7 @@ export function toAssemblyClips(
   features: ReadonlyArray<ClipFeatures>,
   minShotFrames: number,
   weights?: ScoreWeights,
+  targetAspect?: number,
 ): AssemblyClip[] {
   const byId = new Map(features.map((f) => [f.assetId, f]));
   const groups = groupNearDuplicates(features);
@@ -97,16 +102,17 @@ export function toAssemblyClips(
     if (!f) return { ...c, score: 0 };
     const cuts = [0, ...(f.shotBoundariesFrame ?? []), c.durationInFrames].sort((a, b) => a - b);
     if (c.kind === 'video' && !cuts.some((end, i) => i > 0 && end - cuts[i - 1]! >= minShotFrames)) return [];
-    const win = bestWindow(f, minShotFrames, weights);
+    const shape = c.width && c.height && targetAspect ? { width: c.width, height: c.height, targetAspect } : undefined;
+    const win = bestWindow(f, minShotFrames, weights, shape);
     return {
       ...c,
-      score: win ? scoreWindow(win, weights) : 0,
+      score: win ? scoreWindow(win, weights, shape) : 0,
       groupId: groups.get(c.assetId),
       captureTimeMs: f.captureTimeMs,
       bestStartFrame: win?.startFrame,
       sourceAnalysis: {
         minShotFrames,
-        windows: f.windows.map((w) => ({ startFrame: Math.max(0, w.startFrame), endFrame: Math.min(c.durationInFrames, w.endFrame), score: scoreWindow(w, weights) }))
+        windows: f.windows.map((w) => ({ startFrame: Math.max(0, w.startFrame), endFrame: Math.min(c.durationInFrames, w.endFrame), score: scoreWindow(w, weights, shape), focusRect: w.focusRect }))
           .filter((w) => w.endFrame > w.startFrame).sort((a, b) => a.startFrame - b.startFrame),
         shotBoundariesFrame: [...(f.shotBoundariesFrame ?? [])],
       },

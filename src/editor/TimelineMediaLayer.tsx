@@ -23,6 +23,7 @@ import { offthreadTrimBefore, offthreadVideoTransparent, useRuntimeVideoDecoder 
 import type { AspectFit, TimelineItem, TransitionItem } from './types';
 import { isAudioTransition } from './types';
 import { clampVisualBorderRadius, objectFitInsideVisualFrame, visibleVisualFrameRect } from './visualFrameGeometry';
+import { cropObjectPosition } from '../reelsmith/cropFocus';
 
 type RuntimeVideoProps = Pick<BrowserVideoProps, 'src' | 'trimBefore' | 'trimAfter' | 'playbackRate' | 'volume' | 'style' | 'muted'> & {
   browserRenderer: boolean;
@@ -221,6 +222,7 @@ export function SharedVideoVisualGroup({ group, fit, muted, canvasW, canvasH, pr
     width: '100%',
     height: '100%',
     objectFit: objectFitInsideVisualFrame(fit),
+    objectPosition: cropObjectPosition(item.props),
   };
   let visual = (
     <RuntimeVideo browserRenderer={browserRenderer} src={first.src} trimBefore={first.srcInFrame ?? 0}
@@ -340,7 +342,7 @@ function PlainMediaFill({ props, trimBefore, volume }: {
   volume: MediaVolume;
 }) {
   const { item, fit, canvasW, canvasH, borderRadius, groupedAudio, browserRenderer, muted } = props;
-  const style: CSSProperties = { width: '100%', height: '100%', objectFit: objectFitInsideVisualFrame(fit) };
+  const style: CSSProperties = { width: '100%', height: '100%', objectFit: objectFitInsideVisualFrame(fit), objectPosition: cropObjectPosition(item.props) };
   const still = item.kind === 'image' || item.kind === 'gif' || item.kind === 'svg';
   return (
     <VisualClipSurface item={item} fit={fit} canvasW={canvasW} canvasH={canvasH} borderRadius={borderRadius}>

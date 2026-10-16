@@ -11,6 +11,7 @@ import type { AspectFit, TimelineItem } from '../editor/types';
 import { sourceFrameAt } from '../editor/sourceLimit';
 import { offthreadTrimBefore, offthreadVideoTransparent, useRuntimeVideoDecoder } from '../editor/serverVideoDecoder';
 import { glEffects } from './clipEffects';
+import { cropPositionFromProps, type CropPosition } from '../reelsmith/cropFocus';
 
 // One video/image clip rendered through a builtin:fx-* single-input WebGL pass.
 // Mounts a hidden, frame-synced media
@@ -31,7 +32,7 @@ interface ClipFxProps {
 
 // contain/cover placement matching MediaFill's objectFit, so GL frames align
 // with the rest of the composition.
-function drawFit(ctx: CanvasRenderingContext2D, source: CanvasImageSource, fit: AspectFit): void {
+function drawFit(ctx: CanvasRenderingContext2D, source: CanvasImageSource, fit: AspectFit, position: CropPosition): void {
   const W = ctx.canvas.width;
   const H = ctx.canvas.height;
   const dimensions = source as CanvasImageSource & {
@@ -59,7 +60,7 @@ function drawFit(ctx: CanvasRenderingContext2D, source: CanvasImageSource, fit: 
   const scale = fit === 'cover' ? Math.max(W / nw, H / nh) : Math.min(W / nw, H / nh);
   const dw = nw * scale;
   const dh = nh * scale;
-  ctx.drawImage(source, (W - dw) / 2, (H - dh) / 2, dw, dh);
+  ctx.drawImage(source, (W - dw) * position.x, (H - dh) * position.y, dw, dh);
 }
 
 export function ClipFx({ item, fit, width, height, frameOffset = 0, onPreviewStatus }: ClipFxProps) {
@@ -88,38 +89,39 @@ export function ClipFx({ item, fit, width, height, frameOffset = 0, onPreviewSta
   }, [width, height]);
 
   const active = useMemo(() => glEffects(item), [item]);
+  const cropPosition = cropPositionFromProps(item.props);
   const definitionKey = useMemo(
     () => active.map(({ def }) => `${def.id}:${def.frag}`).join('\u0000'),
     [active],
   );
   const renderKey = useMemo(
-    () => JSON.stringify([frame, fit, width, height, active.map(({ fx }) => [fx.id, fx.overrides])]),
-    [frame, fit, width, height, active],
+    () => JSON.stringify([frame, fit, width, height, cropPosition.x, cropPosition.y, active.map(({ fx }) => [fx.id, fx.overrides])]),
+    [frame, fit, width, height, cropPosition.x, cropPosition.y, active],
   );
   const onVideoFrame = useCallback(
     (source: CanvasImageSource) => {
       const ctx = staging.getContext('2d');
       if (!ctx) return;
-      drawFit(ctx, source, fit);
+      drawFit(ctx, source, fit, cropPosition);
       stagedRenderKeyRef.current = renderKey;
     },
-    [fit, renderKey, staging],
+    [fit, cropPosition.x, cropPosition.y, renderKey, staging],
   );
   // <OffthreadVideo> reloads its image element whenever onVideoFrame changes
   // identity, just as it revokes that frame's blob URL for the next frame —
   // one failed-load warning per rendered frame. A stable callback stages under
   // the latest key instead: a server render mounts the next frame's image only
   // after this frame's key is committed.
-  const offthreadTargetRef = useRef({ fit, renderKey });
+  const offthreadTargetRef = useRef({ fit, cropPosition, renderKey });
   useLayoutEffect(() => {
-    offthreadTargetRef.current = { fit, renderKey };
-  }, [fit, renderKey]);
+    offthreadTargetRef.current = { fit, cropPosition, renderKey };
+  }, [fit, cropPosition.x, cropPosition.y, renderKey]);
   const onOffthreadVideoFrame = useCallback(
     (source: CanvasImageSource) => {
       const ctx = staging.getContext('2d');
       if (!ctx) return;
       const target = offthreadTargetRef.current;
-      drawFit(ctx, source, target.fit);
+      drawFit(ctx, source, target.fit, target.cropPosition);
       stagedRenderKeyRef.current = target.renderKey;
     },
     [staging],
@@ -187,7 +189,7 @@ export function ClipFx({ item, fit, width, height, frameOffset = 0, onPreviewSta
         const runtime = ensureRuntimeSlot(runtimeRef, () => createGlRuntime(canvas));
         const ctx = staging.getContext('2d');
         if (!ctx) throw new Error('2d context unavailable');
-        if (!decodedVideo && imageRef.current) drawFit(ctx, imageRef.current, fit);
+        if (!decodedVideo && imageRef.current) drawFit(ctx, imageRef.current, fit, cropPosition);
         const shaderFrame = buildEffectShaderFrame(
           active.map(({ fx, def }) => ({ def, overrides: fx.overrides })),
           frame,
@@ -214,7 +216,7 @@ export function ClipFx({ item, fit, width, height, frameOffset = 0, onPreviewSta
     };
     tick();
     return () => { cancelAnimationFrame(raf); finish(); };
-  }, [active, definitionKey, fit, staging, item.id, item.kind, frame, fps, isRendering, renderKey, onPreviewStatus]);
+  }, [active, definitionKey, fit, cropPosition.x, cropPosition.y, staging, item.id, item.kind, frame, fps, isRendering, renderKey, onPreviewStatus]);
 
   useEffect(() => () => {
     disposeRuntimeSlot(runtimeRef);

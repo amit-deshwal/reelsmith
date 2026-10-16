@@ -2,6 +2,7 @@ import type { Recipe } from '../../../shared/reelsmith/recipe';
 import type { ReelsBrief } from '../../../shared/reelsmith/brief';
 import type { BatchAction } from '../../editor/reducerActions';
 import type { ShotTag } from '../shotTags';
+import type { FocusRect } from '../cropFocus';
 
 /** A media item the assembler may place. All frame values are at the recipe's fps. */
 export interface AssemblyClip {
@@ -9,6 +10,8 @@ export interface AssemblyClip {
   name: string;
   src: string;
   kind: 'video' | 'image';
+  width?: number;
+  height?: number;
   /** source length in frames (images: ignored, any length works) */
   durationInFrames: number;
   /** higher = better; produced by the scorer (RS-105), 0..1 */
@@ -22,7 +25,7 @@ export interface AssemblyClip {
   /** Scored source windows and hard cuts, retained for duration-aware placement. */
   sourceAnalysis?: {
     minShotFrames: number;
-    windows: Array<{ startFrame: number; endFrame: number; score: number }>;
+    windows: Array<{ startFrame: number; endFrame: number; score: number; focusRect?: FocusRect }>;
     shotBoundariesFrame: number[];
   };
   /** RS-109: what the clip shows, from the local visual model (absent when the model is not installed) */

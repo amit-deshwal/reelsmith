@@ -3,6 +3,7 @@ import type { MediaAsset } from '../editor/types';
 import type { VisualGeometryAsset } from '../geometry/visual-geometry';
 import type { GeomRect } from '../geometry/geometry-math';
 import type { ClipFeatures } from './assembler/scoring';
+import type { FocusRect } from './cropFocus';
 
 function area(rect: GeomRect | null): number {
   if (!rect || ![rect.x, rect.y, rect.w, rect.h].every(Number.isFinite)) return 0;
@@ -16,14 +17,19 @@ export function mergeSubjectFeatures(features: ClipFeatures, geometry: VisualGeo
   return { ...features, windows: features.windows.map((window) => {
     const start = window.startFrame / fps; const end = window.endFrame / fps;
     let face = 0; let subject = 0;
+    let faceFocus: { rect: FocusRect; overlap: number } | null = null;
+    let subjectFocus: { rect: FocusRect; overlap: number } | null = null;
     for (const segment of geometry.segments) {
       const overlap = Math.max(0, Math.min(end, segment.endSec) - Math.max(start, segment.startSec));
       face += overlap * area(segment.zone.face);
       subject += overlap * area(segment.zone.subject);
+      if (overlap > 0 && segment.zone.face && (!faceFocus || overlap > faceFocus.overlap)) faceFocus = { rect: segment.zone.face, overlap };
+      if (overlap > 0 && segment.zone.subject && (!subjectFocus || overlap > subjectFocus.overlap)) subjectFocus = { rect: segment.zone.subject, overlap };
     }
     const length = end - start;
     return { ...window, face: length > 0 ? Math.min(1, face / length) : 0,
-      subject: Math.max(window.subject, length > 0 ? Math.min(1, subject / length) : 0) };
+      subject: Math.max(window.subject, length > 0 ? Math.min(1, subject / length) : 0),
+      focusRect: faceFocus?.rect ?? subjectFocus?.rect };
   }) };
 }
 

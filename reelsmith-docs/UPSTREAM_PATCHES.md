@@ -212,3 +212,7 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 - `src/geometry/caption-qa.ts`: caption QA uses `LINGER_MS` and the same rule, so collision checks match what is on screen.
 - `src/geometry/caption-collision.verify.ts`: expected source end moves from 6 to 5.4 s for the 1.2 s linger.
 - Tests: `src/captions/cueEditTiming.verify.ts` (ours, next to the code it covers); not added to the `package.json` chain, so `verify:affected` picks it up.
+
+## Crop focus per ratio (RS-903)
+- `src/editor/TimelineMediaLayer.tsx`, `src/gl/ClipFx.tsx`: `objectPosition` / `drawFit` read `rsCropX`/`rsCropY` from clip props (ours, `cropFocus.ts`). Recipes and layout cells no longer write these props; the fill now uses a transform. Remove or keep as a later option.
+- `src/reelsmith/layoutFill.ts` and `src/reelsmith/runRecipe.ts` are ours; `src/reelsmith/assembler/scoring.ts` and `subjectFeatures.ts` are ours too.

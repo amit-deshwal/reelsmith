@@ -5,6 +5,8 @@ import type { EditorCommands } from '../editor/storeCommands';
 import { timelineTrackIds, trackKind } from '../editor/timelineTypes';
 import type { TimelineState, TrackId } from '../editor/types';
 import { LAYOUT_SLOTS } from './assembler/collageGrid';
+import { analyzeSubjects } from './subjectFeatures';
+import { cropPositionForFocus } from './cropFocus';
 
 export type FillLayoutId = 'split2v' | 'split2h' | 'split3v' | 'grid2x2' | 'grid3x3';
 
@@ -40,10 +42,15 @@ export function freeVideoTrack(state: Pick<TimelineState, 'items' | 'tracks' | '
  */
 export async function dropAssetInCell(
   commands: Pick<EditorCommands, 'addMediaItem' | 'setItemTransform' | 'createTrack' | 'beginHistoryGesture' | 'endHistoryGesture'>,
-  state: Pick<TimelineState, 'assets' | 'items' | 'tracks' | 'trackOrder'>, frame: number, assetId: string, slot: SlotRect,
+  state: Pick<TimelineState, 'assets' | 'items' | 'tracks' | 'trackOrder' | 'width' | 'height'>, frame: number, assetId: string, slot: SlotRect,
 ): Promise<string | null> {
   const asset = state.assets?.find((a) => a.id === assetId);
   if (!asset) return null;
+  const geometry = await analyzeSubjects(asset).catch(() => null);
+  const focus = geometry?.segments.find((segment) => segment.zone.face)?.zone.face
+    ?? geometry?.segments.find((segment) => segment.zone.subject)?.zone.subject;
+  const position = cropPositionForFocus(asset.width ?? 0, asset.height ?? 0,
+    (state.width * slot.w) / (state.height * slot.h), focus);
   commands.beginHistoryGesture();
   try {
     let track = freeVideoTrack(state, frame, frame + asset.durationInFrames);
@@ -52,7 +59,7 @@ export async function dropAssetInCell(
       await new Promise((resolve) => setTimeout(resolve, 60));
     }
     const id = commands.addMediaItem(asset, { track, startFrame: frame });
-    commands.setItemTransform(id, placeInSlot(slot, 'cover'));
+    commands.setItemTransform(id, placeInSlot(slot, 'cover', position.x, position.y));
     return id;
   } finally {
     commands.endHistoryGesture();

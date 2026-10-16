@@ -8,6 +8,7 @@ import { assemble, type AssembleInput, type AssembleResult, type AssemblyClip, t
 import { toAssemblyClips, type ClipFeatures } from './assembler/scoring';
 import type { ClipShotTags } from './shotTags';
 import { validateSetup, type SetupValues } from './setupForm';
+import { fillTransformForFocus } from './cropFocus';
 
 export interface AnalyzeApi {
   clipFeatures(asset: MediaAsset, fps: number): Promise<ClipFeatures | null>;
@@ -67,7 +68,7 @@ export async function prepareAssembly(api: AnalyzeApi, o: RunOptions): Promise<P
   for (const input of clipInputs) {
     for (const a of pick(input.id)) {
       const kind = timelineKind(a);
-      if (kind) base.push({ assetId: a.id, name: a.name, src: a.src, kind, durationInFrames: a.durationInFrames, input: input.id, ...(a.transcript?.length ? { transcript: a.transcript } : {}) });
+      if (kind) base.push({ assetId: a.id, name: a.name, src: a.src, kind, width: a.width, height: a.height, durationInFrames: a.durationInFrames, input: input.id, ...(a.transcript?.length ? { transcript: a.transcript } : {}) });
     }
   }
   const features: ClipFeatures[] = [];
@@ -80,7 +81,7 @@ export async function prepareAssembly(api: AnalyzeApi, o: RunOptions): Promise<P
   }
   const minShot = Math.max(1, Math.round(o.fps * (clipInputs[0]?.kind === 'media' ? clipInputs[0].constraints?.minClipSec ?? 0.3 : 0.3)));
   const tags = await (api.shotTags?.(base.map((b) => byId.get(b.assetId)!), o.onProgress) ?? Promise.resolve(new Map<string, ClipShotTags>())).catch(() => new Map<string, ClipShotTags>());
-  const scored = toAssemblyClips(base.map(({ input: _i, ...rest }) => rest), features, minShot);
+  const scored = toAssemblyClips(base.map(({ input: _i, ...rest }) => rest), features, minShot, undefined, recipe.canvas.width / recipe.canvas.height);
   // clips without features keep a neutral score so they are still usable
   const clips = scored.map((c) => {
     const t = tags.get(c.assetId);
@@ -132,6 +133,30 @@ export function withBeatGrid(actions: AtomicAction[], music: AssemblyMusic | und
     : a));
 }
 
+/** Fill the canvas with each selected shot, panned to its face/subject in the source range it plays. */
+export function withCropFocus(actions: AtomicAction[], clips: AssemblyClip[], canvas: { width: number; height: number }): AtomicAction[] {
+  const byId = new Map(clips.map((clip) => [clip.assetId, clip]));
+  return actions.map((action) => {
+    if (action.type !== 'add' || (action.item.kind !== 'video' && action.item.kind !== 'image')) return action;
+    const clip = action.item.sourceAssetId ? byId.get(action.item.sourceAssetId) : undefined;
+    if (!clip) return action;
+    const start = action.item.srcInFrame ?? 0;
+    const end = start + action.item.durationInFrames * (action.item.playbackRate ?? 1);
+    const window = clip.sourceAnalysis?.windows.reduce<typeof clip.sourceAnalysis.windows[number] | undefined>((best, candidate) => {
+      const overlap = clip.kind === 'image' ? 1 : Math.max(0, Math.min(end, candidate.endFrame) - Math.max(start, candidate.startFrame));
+      const bestOverlap = best ? (clip.kind === 'image' ? 1 : Math.max(0, Math.min(end, best.endFrame) - Math.max(start, best.startFrame))) : -1;
+      return candidate.focusRect && overlap > bestOverlap ? candidate : best;
+    }, undefined);
+    const focus = window?.focusRect;
+    const fill = fillTransformForFocus(clip.width ?? 0, clip.height ?? 0, canvas.width, canvas.height, focus);
+    return { ...action, item: { ...action.item,
+      width: action.item.width ?? clip.width, height: action.item.height ?? clip.height,
+      // Slot-placed clips (collage cells, split-screen halves) already carry their own transform: leave them.
+      ...(fill && !action.item.transform ? { transform: { scale: fill.scale, scaleX: fill.scale, scaleY: fill.scale, x: fill.x, y: fill.y } } : {}),
+    } };
+  });
+}
+
 export async function runRecipe(api: AnalyzeApi, o: RunOptions): Promise<RunOutcome> {
   const errors = validateSetup(o.recipe, o.values, o.assets);
   if (errors.length) throw new Error(errors.map((e) => `${o.recipe.inputs.find((i) => i.id === e.field)?.label ?? o.recipe.params.find((p) => p.id === e.field)?.label ?? e.field}: ${e.message}`).join('; '));
@@ -148,6 +173,6 @@ export async function runRecipe(api: AnalyzeApi, o: RunOptions): Promise<RunOutc
   ];
   return {
     result, messages, run,
-    action: { type: 'batch', label: result.action.label, actions: [...prefix, ...withBeatGrid(result.action.actions, input.music)] },
+    action: { type: 'batch', label: result.action.label, actions: [...prefix, ...withCropFocus(withBeatGrid(result.action.actions, input.music), [...input.clips, ...(input.broll ?? [])], input.recipe.canvas)] },
   };
 }
