@@ -19,6 +19,7 @@ import { requestPreview } from '../previewClient';
 import { loadRun, saveRun } from '../runStore';
 import { kvGet, kvSet } from '../../persist/sharedKv';
 import { importSlotMedia } from '../slotImport';
+import { favoriteCount, favoritesSelection, isFavoritesSelected } from '../slotFavorites';
 import { canAssemble, defaultValues, mediaInputs, validateSetup, widgetFor, type SetupValues } from '../setupForm';
 
 const catalog = bundledCatalog;
@@ -280,6 +281,11 @@ export function SetupForm({ recipe, projectId, assets, itemCount, fps, initialRa
             <div key={inp.id} style={{ display: 'grid', gap: 4 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 12.5 }}>{inp.label} <span style={label}>({inp.min === inp.max ? inp.max : `${inp.min}–${inp.max}`}, {chosen.length} chosen)</span></span>
+                {inp.max > 1 && favoriteCount(pool) > 0 && (
+                  <button type="button" aria-label={`Use starred ${inp.label}`} title="Use only the items you starred in My Media" style={{ ...input, cursor: 'pointer' }} onClick={() => setValues((v) => ({
+                    ...v, media: { ...v.media, [inp.id]: isFavoritesSelected(pool, inp.max, chosen) ? [] : favoritesSelection(pool, inp.max) },
+                  }))}>{isFavoritesSelected(pool, inp.max, chosen) ? 'None' : `★ Starred (${favoriteCount(pool)})`}</button>
+                )}
                 {inp.max > 1 && pool.length > 0 && (
                   <button type="button" style={{ ...input, cursor: 'pointer' }} onClick={() => setValues((v) => ({
                     ...v, media: { ...v.media, [inp.id]: allSelected ? [] : candidates.map((a) => ({ assetId: a.id, kind: a.kind as never })) },
