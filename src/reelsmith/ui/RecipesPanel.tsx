@@ -8,6 +8,7 @@ import type { BatchAction } from '../../editor/reducerActions';
 import type { MediaAsset } from '../../editor/types';
 import { theme } from '../../theme';
 import { analyzeApi } from '../analyzeApi';
+import { briefChecklist } from '../briefChecklist';
 import { bundledCatalog } from '../bundledRecipes';
 import { deleteUserRecipe, listUserRecipes, saveUserRecipe } from '../userRecipesApi';
 import { RecipeGallery } from './RecipeGallery';
@@ -174,27 +175,7 @@ export function SetupForm({ recipe, projectId, assets, itemCount, fps, initialRa
     return () => { active = false; };
   }, [initialBrief, projectId, recipe.id]);
   const briefMapping = useMemo(() => brief ? mapBriefToRecipe(brief, { ...recipe, canvas: { ...recipe.canvas, ...RATIO_SIZES[ratio] } }) : null, [brief, recipe, ratio]);
-  const requiredClipsByInput = new Map<string, number>();
-  for (const { request, input } of briefMapping?.clips ?? []) requiredClipsByInput.set(input.id, (requiredClipsByInput.get(input.id) ?? 0) + request.count);
-  const requiredTextByInput = new Map<string, number>();
-  for (const { request, input } of briefMapping?.text ?? []) requiredTextByInput.set(input.id, (requiredTextByInput.get(input.id) ?? 0) + request.count);
-  const briefItems: Array<{ id: string; label: string; complete: boolean; kind: 'shot' | 'plain'; index?: number }> = briefMapping ? [
-    ...briefMapping.clips.map(({ request, input }, index) => {
-      const selected = (values.media[input.id] ?? []).map((choice) => assets.find((asset) => asset.id === choice.assetId)).filter((asset) => asset && (!request.minLengthSec || asset.durationInFrames / fps >= request.minLengthSec));
-      const required = requiredClipsByInput.get(input.id) ?? request.count;
-      return {
-        id: `clip-${index}`, label: `${selected.length}/${required} ${request.shotType} clips${request.minLengthSec ? `, at least ${request.minLengthSec}s` : ''}`,
-        complete: selected.length >= required && confirmedShotRequests.includes(index), kind: 'shot' as const, index,
-      };
-    }),
-    ...briefMapping.text.map(({ request, input }, index) => {
-      const pieces = (values.texts[input.id] ?? '').split('/').map((part) => part.trim()).filter(Boolean);
-      const wordsFit = request.maxWords === undefined || pieces.every((part) => part.split(/\s+/).filter(Boolean).length <= request.maxWords!);
-      return { id: `text-${index}`, label: `${pieces.length}/${requiredTextByInput.get(input.id) ?? request.count} text item${request.count === 1 ? '' : 's'}${request.maxWords ? `, up to ${request.maxWords} words` : ''}${request.tone ? ` · ${request.tone}` : ''}`, complete: pieces.length >= (requiredTextByInput.get(input.id) ?? request.count) && wordsFit, kind: 'plain' as const };
-    }),
-    ...(brief?.music ? [{ id: 'music', label: brief.music.mode === 'instagram' ? 'Add music in Instagram' : brief.music.mode === 'named' ? `Music · ${brief.music.name}` : `Music · ${brief.music.description}`, complete: brief.music.mode === 'instagram' || !!briefMapping.music && (values.media[briefMapping.music.id]?.length ?? 0) > 0, kind: 'plain' as const }]: []),
-  ] : [];
-  const briefComplete = !brief || (!!briefMapping && briefItems.every((item) => item.complete) && briefMapping.warnings.length === 0);
+  const { items: briefItems, complete: briefComplete } = briefChecklist(brief, briefMapping, values, assets, fps, confirmedShotRequests);
   const errors = validateSetup(recipe, values, assets);
   const canStartAssembly = canAssemble(recipe, values, assets) && (briefComplete || assembleAnyway) && !busy;
   const errorFor = (field: string) => errors.find((e) => e.field === field)?.message;

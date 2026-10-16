@@ -19,10 +19,38 @@ export function formatNotesDate(notes: Pick<TrendNotes, 'savedAt'>): string {
   return Number.isNaN(d.getTime()) ? 'unknown date' : d.toISOString().slice(0, 10);
 }
 
+/** Agents often wrap JSON in a ```json fence or a sentence; take the fenced block, else the outermost array/object. */
+function extractJson(text: string): string {
+  const trimmed = text.trim();
+  if (/^[[{]/.test(trimmed)) return trimmed;
+  const fenced = /```(?:json)?\s*([\s\S]*?)```/i.exec(trimmed);
+  if (fenced) return fenced[1]!.trim();
+  const start = trimmed.search(/[[{]/);
+  const end = Math.max(trimmed.lastIndexOf(']'), trimmed.lastIndexOf('}'));
+  return start >= 0 && end > start ? trimmed.slice(start, end + 1) : trimmed;
+}
+
+export const SOURCE_FRESH_DAYS = 30;
+
+/** Plain-words warnings for researched briefs whose sources are undated, in the future or older than 30 days (never blocks saving). */
+export function sourceWarnings(briefs: ReelsBrief[], now: Date = new Date()): string[] {
+  const out: string[] = [];
+  briefs.forEach((brief, i) => {
+    if (!brief.sources?.length) { out.push(`brief ${i + 1}: no source links`); return; }
+    for (const source of brief.sources) {
+      const t = source.publishedAt ? Date.parse(source.publishedAt) : NaN;
+      if (!Number.isFinite(t)) out.push(`brief ${i + 1}: "${source.title}" has no publication date`);
+      else if (t > now.getTime() + DAY_MS) out.push(`brief ${i + 1}: "${source.title}" is dated in the future`);
+      else if (now.getTime() - t > SOURCE_FRESH_DAYS * DAY_MS) out.push(`brief ${i + 1}: "${source.title}" is older than ${SOURCE_FRESH_DAYS} days`);
+    }
+  });
+  return out;
+}
+
 /** Parse pasted agent output (a JSON array of briefs, or one brief). Invalid briefs are reported, never saved. */
 export function parseTrendResults(text: string): { briefs: ReelsBrief[]; errors: string[] } {
   let raw: unknown;
-  try { raw = JSON.parse(text); } catch (e) { return { briefs: [], errors: [`invalid JSON: ${(e as Error).message}`] }; }
+  try { raw = JSON.parse(extractJson(text)); } catch (e) { return { briefs: [], errors: [`invalid JSON: ${(e as Error).message}`] }; }
   const list = Array.isArray(raw) ? raw : [raw];
   const briefs: ReelsBrief[] = [], errors: string[] = [];
   list.slice(0, MAX_NOTES).forEach((item, i) => {

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { formatNotesDate, isStale, loadTrendNotes, parseTrendResults, saveTrendNotes, TREND_CACHE_KEY, type KeyValueStore } from './trendCache';
+import { formatNotesDate, isStale, loadTrendNotes, parseTrendResults, saveTrendNotes, sourceWarnings, TREND_CACHE_KEY, type KeyValueStore } from './trendCache';
 
 const mem = (): KeyValueStore & { m: Map<string, string> } => { const m = new Map<string, string>(); return { m, getItem: (k) => m.get(k) ?? null, setItem: (k, v) => { m.set(k, v); } }; };
 const good = { version: 1, target: { recipeId: 'mini-vlog', ratio: '9:16' }, clips: [{ count: 5, shotType: 'any' }], whyTrending: 'x', sources: [{ title: 't', url: 'https://example.com', publishedAt: '2026-10-10' }] };
@@ -31,4 +31,16 @@ assert.equal(loadTrendNotes(store)!.briefs.length, 1, 'tampered briefs dropped o
 const throwing: KeyValueStore = { getItem: () => { throw new Error('blocked'); }, setItem: () => { throw new Error('quota'); } };
 assert.equal(loadTrendNotes(throwing), null);
 assert.equal(saveTrendNotes(throwing, 't', parsed.briefs), null);
+// RS-1003: pasted agent replies with prose or a code fence still import; freshness is reported, not enforced
+const one = JSON.stringify(good);
+assert.equal(parseTrendResults('Here you go:\n```json\n[' + one + ']\n```\nEnjoy!').briefs.length, 1, 'fenced block');
+assert.equal(parseTrendResults('Idea: ' + one + ' done').briefs.length, 1, 'object inside prose');
+assert.equal(parseTrendResults('no json here').briefs.length, 0);
+const now = new Date('2026-10-16T00:00:00Z');
+const src = (publishedAt?: string) => ({ ...good, sources: [{ title: 'S', url: 'https://example.com/s', ...(publishedAt ? { publishedAt } : {}) }] });
+assert.deepEqual(sourceWarnings([src('2026-10-10')] as never, now), []);
+assert.match(sourceWarnings([src('2026-09-01')] as never, now)[0]!, /older than 30 days/);
+assert.match(sourceWarnings([src()] as never, now)[0]!, /no publication date/);
+assert.match(sourceWarnings([src('2026-12-01')] as never, now)[0]!, /future/);
+assert.match(sourceWarnings([{ ...good, sources: undefined }] as never, now)[0]!, /no source links/);
 console.log('trendCache verify ok');

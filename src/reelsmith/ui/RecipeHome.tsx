@@ -5,7 +5,7 @@ import type { RatioId } from '../../../shared/reelsmith/ratios';
 import { theme } from '../../theme';
 import { bundledCatalog } from '../bundledRecipes';
 import { localIdeaBrief, rankLocalIdeas, trendResearchPrompt } from '../../../shared/reelsmith/trendScout';
-import { formatNotesDate, isStale, loadTrendNotes, parseTrendResults, saveTrendNotes, type TrendNotes } from '../../../shared/reelsmith/trendCache';
+import { formatNotesDate, isStale, loadTrendNotes, parseTrendResults, saveTrendNotes, sourceWarnings, type TrendNotes } from '../../../shared/reelsmith/trendCache';
 import { RecipeGallery } from './RecipeGallery';
 import { listUserRecipes } from '../userRecipesApi';
 
@@ -29,7 +29,7 @@ export function RecipeHome({ onStartRecipe }: { onStartRecipe: (recipeId: string
     let saved: TrendNotes | null = null;
     try { saved = saveTrendNotes(window.localStorage, topic, briefs); } catch { /* storage blocked */ }
     if (!saved) { setNotesError('Could not save notes in this browser.'); return; }
-    setNotes(saved); setPasted(''); setNotesError(errors.join('; '));
+    setNotes(saved); setPasted(''); setNotesError([...errors, ...sourceWarnings(briefs)].join('; '));
   };
   const ideas = useMemo(() => rankLocalIdeas(bundledCatalog.recipes, topic), [topic]);
   useEffect(() => { void listUserRecipes().then((result) => setUserRecipes(result.recipes)).catch(() => {}); }, []);
