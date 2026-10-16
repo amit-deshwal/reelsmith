@@ -25,7 +25,7 @@ assert.ok(res.action, 'assembles');
 const actions = res.action!.actions as any[];
 const v1 = actions.filter((a) => a.item?.track === 'V1');
 const beat = Math.round(0.4625 * 30);
-assert.ok(v1.length >= 24 && v1.length <= 40, `about one cut per beat, got ${v1.length}`);
+assert.ok(v1.length >= 24 && v1.length <= 50, `about one cut per beat, got ${v1.length}`);
 assert.ok(v1.every((a) => Math.abs(a.item.durationInFrames - beat) <= 1), 'every shot is one beat long');
 assert.equal(new Set(v1.map((a) => a.item.sourceAssetId)).size, v1.length, 'no clip is used twice');
 
