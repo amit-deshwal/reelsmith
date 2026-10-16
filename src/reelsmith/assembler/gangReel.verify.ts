@@ -46,7 +46,7 @@ const blank = assemble({ recipe, clips, music, texts: { caption: '', endCard: ''
 assert.equal((blank.action!.actions as any[]).filter((a) => a.item?.kind === 'text').length, 0);
 // tagged footage: character moments win over prettier scenery
 const tagged: AssemblyClip[] = clips.map((c, i) => {
-  const top = i % 2 === 0 ? 'scenery' : 'laughing';
+  const top = i % 4 === 0 ? 'scenery' : 'laughing';
   return { ...c, score: top === 'scenery' ? 0.9 : 0.5, shot: { top, confidence: 0.8, scores: { scenery: top === 'scenery' ? 0.8 : 0.02, laughing: top === 'laughing' ? 0.8 : 0.02 } as never } };
 });
 const cast = assemble({ recipe, clips: tagged, music, texts: defaults.texts, params: defaults.params, seed: 5 });
