@@ -125,3 +125,6 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 
 ## Reels caption style picker (RS-502)
 - `src/captions/CaptionsControls.tsx`, `src/captions/CaptionStyleMenu.tsx`: render the shared `src/reelsmith/ui/ReelsCaptionStyles.tsx` picker. Each preset applies template, style overrides, pacing, motion and safe placement through the existing caption commands; source-entry appearance overrides are cleared so the selected look is visible. Caption content, timing and translations are preserved. Manual testing is delegated to the user.
+
+## Export destination label (RS-006)
+- `src/export/exportDestinationModel.ts`: the default "downloads" destination label is now English ("Browser downloads"); it was a Chinese literal that leaked into export error details.

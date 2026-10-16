@@ -68,7 +68,7 @@ export function exportDestinationErrorMessage(
 
 export const DEFAULT_EXPORT_DESTINATION: ExportDestination = Object.freeze({
   type: 'downloads',
-  label: '浏览器下载目录',
+  label: 'Browser downloads',
 });
 
 export function exportDestinationTargetPath(destination: ExportDestination, filename: string): string {
