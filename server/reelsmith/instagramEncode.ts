@@ -23,7 +23,9 @@ export function encodeArgs(input: string, output: string, p: ReelPreset, hasAudi
   else {
     // two-pass loudness is done by the caller via measureLoudnorm; single-pass here is a safe default
     // Linear second pass hits the target; the 0.5 dB true-peak margin absorbs AAC encoding overshoot.
-    const norm = `loudnorm=I=${p.lufs}:TP=${p.truePeakDb - 0.5}:LRA=11` + (measured
+    // A silent track measures -inf LUFS, which loudnorm rejects; there is nothing to normalise, so just resample it.
+    const silent = measured !== undefined && !Number.isFinite(Number(measured.input_i));
+    const norm = silent ? 'anull' : `loudnorm=I=${p.lufs}:TP=${p.truePeakDb - 0.5}:LRA=11` + (measured
       ? `:measured_I=${measured.input_i}:measured_TP=${measured.input_tp}:measured_LRA=${measured.input_lra}:measured_thresh=${measured.input_thresh}:offset=${measured.target_offset}:linear=true`
       : '');
     // atrim keeps audio no longer than the picture (loudnorm/AAC padding otherwise adds tens of ms, failing V4).

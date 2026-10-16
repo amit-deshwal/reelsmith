@@ -37,6 +37,15 @@ try {
   assert.equal(s.ok, true, JSON.stringify(s.checks));
   assert.equal(s.checks.find((c) => c.id === 'V3')!.detail, 'no audio, as requested');
 
+  // a silent audio track (e.g. a collage with no song) and a full-range source still pass the loudness/range checks
+  const quiet = join(dir, 'quiet.mp4');
+  ff('-f', 'lavfi', '-i', 'testsrc2=size=640x360:rate=25', '-f', 'lavfi', '-i', 'anullsrc=r=48000:cl=stereo',
+    '-t', '3', '-c:v', 'libx264', '-pix_fmt', 'yuvj420p', '-c:a', 'aac', quiet);
+  const quietOut = join(dir, 'quiet-reel.mp4');
+  await encodeForInstagram(quiet, quietOut, REEL_PRESETS['instagram-reel']!);
+  const q = await validateReel(quietOut, { preset: REEL_PRESETS['instagram-reel']!, intendedBlack: [] });
+  assert.deepEqual(q.checks.filter((c) => c.status === 'FAIL'), [], JSON.stringify(q.checks));
+
   // truncated file => V5 or V1 failure, never a crash
   const cut = join(dir, 'cut.mp4');
   execFileSync('sh', ['-c', `head -c 20000 "${out}" > "${cut}"`]);

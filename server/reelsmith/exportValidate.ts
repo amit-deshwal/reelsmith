@@ -131,6 +131,7 @@ export async function validateReel(file: string, opts: ValidateOptions): Promise
       const I = Number(/I:\s+(-?[\d.]+) LUFS/.exec(sum)?.[1]);
       const tp = Number(/Peak:\s+(-?[\d.]+) dBFS/.exec(sum)?.[1]);
       if (!Number.isFinite(I)) add('V6', 'WARN', 'could not measure loudness');
+      else if (I < -60) add('V6', 'PASS', 'silent audio track (nothing to normalise)');
       else {
         const bad = Math.abs(I - p.lufs) > 1 || (Number.isFinite(tp) && tp > p.truePeakDb + 0.05);
         add('V6', bad ? 'FAIL' : 'PASS', `${I.toFixed(1)} LUFS, true peak ${Number.isFinite(tp) ? tp.toFixed(1) : '?'} dBTP`);
