@@ -73,6 +73,7 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 ## Bundled fonts (RS-003, RS-404)
 - `src/fonts/localFonts.ts`: `findLocalFont` and `registerLocalFonts` also cover `REELSMITH_LOCAL_FONTS` (`src/reelsmith/fonts.ts`; files in `assets/fonts/rs/`, built by `server/reelsmith/sync-fonts.mts`).
 - `src/fonts/googleFontCatalog.ts`: `FONT_CATALOG` also lists bundled families that are not in the Google list (Noto Sans Devanagari, Poppins).
+- `src/fonts/googleFontCatalog.ts`, `src/fonts/googleFonts.ts`: remove four remote-only CJK font choices/loaders, so selecting a catalog font cannot fetch from Google at runtime.
 
 ## Recipe previews (RS-102, RS-107)
 - No upstream changes. Posters/loops live in `assets/recipe-previews/` (served at `/recipe-previews/` by the upstream product-assets plugin), built by `server/reelsmith/build-previews.mts`.

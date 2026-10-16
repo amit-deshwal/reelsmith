@@ -27,8 +27,10 @@ Text using a catalog font (Anton, Inter, Playfair Display, …) was loaded throu
 fonts.googleapis.com / fonts.gstatic.com, in the preview and during export. The static scan missed it because the URLs
 live inside the npm package. Fix: the Latin families plus Noto Sans Devanagari and Poppins are bundled under
 `assets/fonts/rs/` (`server/reelsmith/sync-fonts.mts`) and registered as local fonts, so `ensureFont` never reaches the
-Google loader for them. Still online: the four large CJK display families from the Google list (LXGW WenKai TC, Noto Serif
-SC/TC, ZCOOL QingKe HuangYou), and only when a user picks one.
+Google loader for them. The four CJK families without local assets (LXGW WenKai TC, Noto Serif SC/TC,
+ZCOOL QingKe HuangYou) are no longer selectable. Existing projects naming them use the browser's
+fallback font unless that family is installed on the machine. The audit guard checks that every
+remaining catalog family has a bundled face.
 
 ## Not found
 No analytics/telemetry SDKs, no Google Fonts or CDN `<link>`/`<script>` in `index.html`, no remote fonts in `src/index.css`.

@@ -37,13 +37,10 @@ async function loadGoogleFace(family: string): Promise<FontLoadResult> {
     case 'Fredoka': return (await import('@remotion/google-fonts/Fredoka')).loadFont();
     case 'Inter': return (await import('@remotion/google-fonts/Inter')).loadFont();
     case 'Inter Tight': return (await import('@remotion/google-fonts/InterTight')).loadFont();
-    case 'LXGW WenKai TC': return (await import('@remotion/google-fonts/LXGWWenKaiTC')).loadFont();
     case 'Libre Baskerville': return (await import('@remotion/google-fonts/LibreBaskerville')).loadFont();
     case 'Montserrat': return (await import('@remotion/google-fonts/Montserrat')).loadFont();
     case 'Mulish': return (await import('@remotion/google-fonts/Mulish')).loadFont();
     case 'Newsreader': return (await import('@remotion/google-fonts/Newsreader')).loadFont();
-    case 'Noto Serif SC': return (await import('@remotion/google-fonts/NotoSerifSC')).loadFont();
-    case 'Noto Serif TC': return (await import('@remotion/google-fonts/NotoSerifTC')).loadFont();
     case 'Nunito': return (await import('@remotion/google-fonts/Nunito')).loadFont();
     case 'Oswald': return (await import('@remotion/google-fonts/Oswald')).loadFont();
     case 'Pinyon Script': return (await import('@remotion/google-fonts/PinyonScript')).loadFont();
@@ -54,7 +51,6 @@ async function loadGoogleFace(family: string): Promise<FontLoadResult> {
     case 'Special Elite': return (await import('@remotion/google-fonts/SpecialElite')).loadFont();
     case 'Unbounded': return (await import('@remotion/google-fonts/Unbounded')).loadFont();
     case 'VT323': return (await import('@remotion/google-fonts/VT323')).loadFont();
-    case 'ZCOOL QingKe HuangYou': return (await import('@remotion/google-fonts/ZCOOLQingKeHuangYou')).loadFont();
     default:
       throw new Error(`font loader unavailable: ${family}`);
   }
