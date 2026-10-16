@@ -48,6 +48,8 @@ export interface Recipe {
   structure: RecipeSection[];
   styles: Record<string, Record<string, unknown>>;
   look?: { colorLook?: string; grain?: number; vignette?: number };
+  /** RS-109: tags wanted for the opening and closing shot (scenery, people, portrait, action, food, detail, city, water, night) */
+  casting?: { opener?: string[]; closer?: string[] };
   agentHints?: string;
   constraints?: { noRepeatClips?: boolean; insufficientMediaPolicy?: 'lengthenShots' | 'askUser' | 'allowRepeat'; keepChronological?: boolean; textSafeZone?: boolean };
 }

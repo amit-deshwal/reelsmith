@@ -7,6 +7,7 @@ import type { AtomicAction } from '../../editor/reducerActions';
 import { REVEAL_FRAG, REVEAL_LABELS, revealUniforms, type RevealKind } from '../travelDiaryReveal';
 import { musicFadeFrames } from '../musicPolicy';
 import { dbToGain, fpsOf, textItem } from './common';
+import { castSlots, planToOrder } from './casting';
 import { musicStartSec } from './beatMontage';
 import { stableId } from './rng';
 import type { AssembleInput, AssembleResult, AssemblyClip } from './types';
@@ -160,7 +161,15 @@ export function assembleTravelDiary(input: AssembleInput): AssembleResult {
   // never the clip of the slot before
   const pref = input.preferredAssetIds ?? [];
   const rank = (c: AssemblyClip) => (pref.includes(c.assetId) ? pref.indexOf(c.assetId) : pref.length);
-  const ranked = [...clips].sort((x, y) => rank(x) - rank(y) || y.score - x.score || x.assetId.localeCompare(y.assetId));
+  // RS-109: with shot tags (and no agent picks) the clips are cast by what they show: the opener on shot 1,
+  // the closer on the last slot, neighbours of different kinds
+  const cast = !pref.length && (recipe.casting || clips.some((c) => c.shot))
+    ? castSlots(clips, DIARY_SLOTS.length, recipe.casting ?? {}, { openerSlot: 3, closerSlot: DIARY_SLOTS.length - 1, chronological: false, fixedSlots: true }) : null;
+  if (cast) warnings.push(cast.note);
+  const castOrder = cast ? planToOrder(cast) : [];
+  const ranked = cast
+    ? [...castOrder, ...clips.filter((c) => !castOrder.includes(c))]
+    : [...clips].sort((x, y) => rank(x) - rank(y) || y.score - x.score || x.assetId.localeCompare(y.assetId));
   const uses = new Map<string, Range[]>();
   const placed: Placed[] = [];
   for (let i = 0; i < DIARY_SLOTS.length; i += 1) {
@@ -168,6 +177,9 @@ export function assembleTravelDiary(input: AssembleInput): AssembleResult {
     const prev = placed[i - 1]?.clip.assetId;
     const order = [...ranked].sort((x, y) => (uses.get(x.assetId)?.length ?? 0) - (uses.get(y.assetId)?.length ?? 0));
     const tryOrder = order.filter((c) => c.assetId !== prev);
+    const d = cast?.designated.get(i);
+    const at = d ? tryOrder.indexOf(d) : -1;
+    if (at > 0) tryOrder.unshift(...tryOrder.splice(at, 1));
     let got: Placed | null = null;
     for (const c of tryOrder) {
       const s = pickMoment(c, len, uses.get(c.assetId) ?? [], Math.round(fps * 0.5));

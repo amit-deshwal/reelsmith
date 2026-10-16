@@ -191,6 +191,15 @@ export const RECIPE_SCHEMA = {
         "vignette": { "type": "number", "minimum": 0, "maximum": 1 }
       }
     },
+    "casting": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Cast shots by what they show (RS-109): tags wanted for the opening and closing shot.",
+      "properties": {
+        "opener": { "type": "array", "items": { "enum": ["scenery", "people", "portrait", "action", "food", "detail", "city", "water", "night"] } },
+        "closer": { "type": "array", "items": { "enum": ["scenery", "people", "portrait", "action", "food", "detail", "city", "water", "night"] } }
+      }
+    },
     "agentHints": { "type": "string", "maxLength": 1500, "description": "Natural-language guidance passed to the agent when AI selection or chat edits run. Treated as instructions from the recipe author (built-in recipes only)." },
     "constraints": {
       "type": "object",

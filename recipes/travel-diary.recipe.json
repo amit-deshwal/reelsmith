@@ -29,5 +29,6 @@
     "words": { "fontFamily": "Libre Baskerville", "fontWeight": 400, "sizePx": 132, "color": "#FFFFFF", "textTransform": "uppercase", "align": "center" }
   },
   "agentHints": "Twelve slots: 3 half-beat flash cuts, shots of 8, 8, 4, 4, 3.5 and 2.5 beats, 3 closing flash cuts. Each of shots 2-5 breaks in through bars or a window over the shot before it, so put contrasting clips next to each other: bright against dark, wide against close, calm against motion. Open on the trip's best action moment; give the window (shot 5) the widest, calmest view. Your picks are the order clips are cast in (slots reuse clips when there are fewer than 12): put the opening action shot first. Write the line with '/' between its five phrases.",
+  "casting": { "opener": ["scenery"], "closer": ["people"] },
   "constraints": { "noRepeatClips": false, "insufficientMediaPolicy": "allowRepeat", "keepChronological": false, "textSafeZone": true }
 }

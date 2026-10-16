@@ -5,10 +5,13 @@ import type { AtomicAction, BatchAction } from '../editor/reducerActions';
 import type { MediaAsset } from '../editor/types';
 import { assemble, type AssembleInput, type AssembleResult, type AssemblyClip, type AssemblyMusic, type RecipeRunRecord } from './assembler';
 import { toAssemblyClips, type ClipFeatures } from './assembler/scoring';
+import type { ClipShotTags } from './shotTags';
 import { validateSetup, type SetupValues } from './setupForm';
 
 export interface AnalyzeApi {
   clipFeatures(asset: MediaAsset, fps: number): Promise<ClipFeatures | null>;
+  /** RS-109: what each clip shows, when the visual model has indexed them (empty otherwise) */
+  shotTags?(assets: MediaAsset[]): Promise<Map<string, ClipShotTags>>;
   musicGrid(asset: MediaAsset): Promise<Omit<AssemblyMusic, 'assetId' | 'name' | 'src'> | null>;
 }
 
@@ -71,9 +74,15 @@ export async function prepareAssembly(api: AnalyzeApi, o: RunOptions): Promise<P
     else messages.push(`${b.name}: could not be analysed, using a neutral score`);
   }
   const minShot = Math.max(1, Math.round(o.fps * (clipInputs[0]?.kind === 'media' ? clipInputs[0].constraints?.minClipSec ?? 0.3 : 0.3)));
+  const tags = await (api.shotTags?.(base.map((b) => byId.get(b.assetId)!)) ?? Promise.resolve(new Map<string, ClipShotTags>())).catch(() => new Map<string, ClipShotTags>());
+  if (tags.size) o.onProgress?.('Reading what the shots show');
   const scored = toAssemblyClips(base.map(({ input: _i, ...rest }) => rest), features, minShot);
   // clips without features keep a neutral score so they are still usable
-  const clips = scored.map((c) => (features.some((f) => f.assetId === c.assetId) ? c : { ...c, score: 0.5 }));
+  const clips = scored.map((c) => {
+    const t = tags.get(c.assetId);
+    const withTag = t ? { ...c, shot: { top: t.top, confidence: t.confidence, scores: t.scores } } : c;
+    return features.some((f) => f.assetId === c.assetId) ? withTag : { ...withTag, score: 0.5 };
+  });
   const primary = clips.filter((c) => base.find((b) => b.assetId === c.assetId)?.input === clipInputs[0]?.id);
   const secondary = clips.filter((c) => base.find((b) => b.assetId === c.assetId)?.input !== clipInputs[0]?.id);
 

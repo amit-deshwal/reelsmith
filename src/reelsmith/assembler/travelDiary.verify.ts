@@ -124,3 +124,22 @@ assert.equal(assemble({ recipe, clips: four, texts: {}, params, seed: 1 }).actio
 const short = assemble({ recipe, clips: four, music: { ...music, durationSec: 8 }, texts: {}, params, seed: 1 });
 assert.ok(short.report.warnings.some((w) => /song ends/.test(w)));
 console.log('travelDiary.verify: ok');
+
+// RS-109: tagged clips are cast by what they show (opener on shot 1, closer on the last slot, no agent picks)
+{
+  const tagged = (id: string, sec: number, score: number, top: string): AssemblyClip => ({
+    ...clip(id, sec, score),
+    shot: { top: top as never, confidence: 0.8, scores: { scenery: 0, people: 0, portrait: 0, action: 0, food: 0, detail: 0, city: 0, water: 0, night: 0, [top]: 0.8 } as never },
+  });
+  const pool = [tagged('v1', 30, 0.95, 'scenery'), tagged('v2', 30, 0.9, 'scenery'), tagged('v3', 30, 0.5, 'people'), tagged('v4', 30, 0.6, 'action')];
+  const cast = assemble({ recipe: { ...recipe, casting: { opener: ['scenery'], closer: ['people'] } }, clips: pool, music, texts: { line }, params, seed: 1 });
+  assert.ok(cast.action, cast.report.warnings.join('; '));
+  const placed = (cast.action!.actions as any[]).filter((a) => a.type === 'add' && a.item.track === 'V1');
+  assert.equal(placed[11].item.sourceAssetId, 'v3', 'closes on the group shot although it scores lower');
+  assert.ok(cast.report.warnings.some((w) => w.startsWith('Shots chosen by what they show')));
+  for (let i = 1; i < 12; i += 1) assert.notEqual(placed[i].item.sourceAssetId, placed[i - 1].item.sourceAssetId);
+  // untagged clips: same behaviour as before, no casting note
+  const plain = assemble({ recipe, clips: four, music, texts: { line }, params, seed: 1 });
+  assert.ok(!plain.report.warnings.some((w) => w.includes('by what they show')));
+}
+console.log('travelDiary casting: ok');

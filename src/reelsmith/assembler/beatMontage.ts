@@ -5,6 +5,7 @@ import { renderTemplate } from '../../../shared/reelsmith/recipe';
 import { sourcePlacement } from './sourcePlacement';
 import { fitFontSize } from './common';
 import { makeRng, stableId } from './rng';
+import { castSlots, planToOrder } from './casting';
 import { pickTransitions, transitionActions } from './transitions';
 import { fitToBars, musicStart } from '../beatGrid';
 import { MUSIC_PARAM, musicFadeFrames } from '../musicPolicy';
@@ -281,9 +282,14 @@ export function assembleBeatMontage(input: AssembleInput): AssembleResult {
   const pool = onlySection ? clips.filter((c) => !onlySection.excludeAssetIds.includes(c.assetId)) : clips;
   const allowRepeat = policy === 'allowRepeat';
   const chronological = recipe.constraints?.keepChronological ?? true;
+  // RS-109: cast by what the shots show, when the recipe asks for it, tags exist and the agent did not choose
+  const cast = !input.preferredAssetIds?.length && !onlySection && (recipe.casting || pool.some((c) => c.shot))
+    ? castSlots(pool, shots.length, recipe.casting ?? {}, { openerSlot: 0, closerSlot: shots.length - 1, chronological }) : null;
   let picked = input.preferredAssetIds?.length
     ? pickWithPreferred(pool, input.preferredAssetIds, shots.length, chronological, seed)
+    : cast ? planToOrder(cast)
     : pickClips(pool, shots.length, chronological, seed, input.variety ?? 0);
+  if (cast) warnings.push(cast.note);
   if (picked.length < shots.length) {
     if (!allowRepeat) {
       shots.length = picked.length; // out of footage: drop trailing shots

@@ -1,5 +1,6 @@
 import type { Recipe } from '../../../shared/reelsmith/recipe';
 import type { BatchAction } from '../../editor/reducerActions';
+import type { ShotTag } from '../shotTags';
 
 /** A media item the assembler may place. All frame values are at the recipe's fps. */
 export interface AssemblyClip {
@@ -23,6 +24,8 @@ export interface AssemblyClip {
     windows: Array<{ startFrame: number; endFrame: number; score: number }>;
     shotBoundariesFrame: number[];
   };
+  /** RS-109: what the clip shows, from the local visual model (absent when the model is not installed) */
+  shot?: { top: ShotTag; confidence: number; scores: Record<ShotTag, number> };
   /** optional place name for labels */
   place?: string;
   /** word-timed transcript in source ms (talking clips) */
@@ -81,6 +84,8 @@ export interface AssembleReport {
   warnings: string[];
   /** set when the recipe's policy is askUser and footage is short */
   needsMoreMedia?: { have: number; need: number };
+  /** RS-109: how shots were cast by content, when they were */
+  castingNote?: string;
 }
 
 /** Stored with the project (RS-108) so the run can be repeated. */
