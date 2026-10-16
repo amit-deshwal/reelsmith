@@ -4,6 +4,7 @@ import type { VisualGeometryAsset } from '../geometry/visual-geometry';
 import type { GeomRect } from '../geometry/geometry-math';
 import type { ClipFeatures } from './assembler/scoring';
 import type { FocusRect } from './cropFocus';
+import { groupFocusRect } from './groupFocus';
 
 function area(rect: GeomRect | null): number {
   if (!rect || ![rect.x, rect.y, rect.w, rect.h].every(Number.isFinite)) return 0;
@@ -44,6 +45,7 @@ async function computeSubjects(asset: MediaAsset): Promise<VisualGeometryAsset |
     }
     if (asset.kind !== 'image') return null;
     const { getMediaPipeRuntime, inferFrameFromPixels, INFERENCE_EDGE } = await import('../geometry/mediapipe');
+    const { GEOM_GRID_W, GEOM_GRID_H } = await import('../geometry/geometry-math');
     const runtime = await getMediaPipeRuntime(signal);
     if (!runtime) return null;
     const response = await fetch(asset.src, { signal });
@@ -60,9 +62,11 @@ async function computeSubjects(asset: MediaAsset): Promise<VisualGeometryAsset |
       context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
       const image = context.getImageData(0, 0, canvas.width, canvas.height);
       const frame = inferFrameFromPixels(runtime, image);
+      // keep a whole group in frame, not just the biggest face
+      const focus = groupFocusRect(frame.face, frame.occ, GEOM_GRID_W, GEOM_GRID_H);
       // A still has the same detected face at every source time.
       return { assetId: asset.id, sourceRevision: '', algorithmVersion: 'reels-still-v1', durationSec: 1,
-        segments: [{ startSec: 0, endSec: Number.MAX_SAFE_INTEGER, person: 'none', zone: { rects: [], face: frame.face, subject: null } }] };
+        segments: [{ startSec: 0, endSec: Number.MAX_SAFE_INTEGER, person: 'none', zone: { rects: [], face: focus, subject: null } }] };
     } finally { bitmap.close(); }
   } catch { return null; }
 }
