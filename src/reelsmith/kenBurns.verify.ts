@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { emptyProjectDoc } from '../app/appShell';
 import { historyReduce, type History } from '../editor/reduce';
 import { activeTimeline } from '../editor/types';
-import { KEN_BURNS, pictureExtent, KEN_BURNS_ORDER, canKenBurns, clearKenBurnsActions, kenBurnsActions } from './kenBurns';
+import { KEN_BURNS, pictureExtent, KEN_BURNS_ORDER, canKenBurns, clearKenBurnsActions, coverPose, kenBurnsActions, presetForFit } from './kenBurns';
 
 let h: History = { past: [], present: emptyProjectDoc(), future: [] };
 h = historyReduce(h, { type: 'add', startFrame: 0, item: { id: 'p', track: 'V1', kind: 'image', name: 'photo', src: '/p.jpg', durationInFrames: 90 } } as never);
@@ -56,4 +56,15 @@ assert.equal(pictureExtent({}, canvas), null, 'unknown size keeps the old behavi
 assert.equal(pictureExtent({ width: 4000, height: 3000, transform: { scale: (4 / 3) / (9 / 16) } }, canvas), null, 'a fill transform already covers it');
 const unchanged = kenBurnsActions({ id: 'x', durationInFrames: 90 } as never, 'push-in', { src: { width: 4000, height: 3000, transform: { scale: 3 } }, canvas }) as Array<{ magnification?: number }>;
 assert.equal(unchanged.at(-1)!.magnification, KEN_BURNS['push-in'].to.m, 'no extra zoom on a clip that already fills the canvas');
+// a landscape photo on a vertical canvas never drifts up or down (that needs ~5.6x zoom); a tall one never pans sideways
+{
+  const wide = pictureExtent({ width: 1600, height: 1200 }, { width: 1080, height: 1920 });
+  assert.equal(presetForFit('drift-up', wide), 'pan-right');
+  assert.equal(presetForFit('drift-down', wide), 'pan-left');
+  assert.equal(presetForFit('push-in', wide), 'push-in');
+  for (const preset of KEN_BURNS_ORDER) assert.ok(coverPose(KEN_BURNS[presetForFit(preset, wide)].from, wide).m < 3.1, `${preset} stays under 3.1x on a landscape photo`);
+  const tall = pictureExtent({ width: 1000, height: 3000 }, { width: 1080, height: 1920 });
+  assert.equal(presetForFit('pan-right', tall), 'drift-up');
+  assert.equal(presetForFit('drift-up', null), 'drift-up');
+}
 console.log('kenBurns.verify ok');

@@ -1,7 +1,7 @@
 // photo-dump@1: a photo-only reel. It reuses the beat-montage cutter (so the cuts land on beats, or on a steady pulse when
 // there is no song, because audio is often added later in Instagram) and gives every photo its own slow Ken Burns move,
 // so a run of stills never looks like a slideshow. No AI involved; same inputs + seed => same actions.
-import { kenBurnsActions, type KenBurnsPreset } from '../kenBurns';
+import { kenBurnsActions, pictureExtent, presetForFit, type KenBurnsPreset } from '../kenBurns';
 import { assembleBeatMontage } from './beatMontage';
 import { metronome } from './common';
 import type { AssembleInput, AssembleResult, AssemblyMusic } from './types';
@@ -55,13 +55,10 @@ export function assemblePhotoDump(input: AssembleInput): AssembleResult {
     out.push(action);
     if (moves && action.type === 'add' && action.item.kind === 'image') {
       const clip = clips.get(String(action.item.sourceAssetId));
-      const preset = ROTATION[(start + photos) % ROTATION.length]!;
+      const fit = { src: { width: clip?.width, height: clip?.height }, canvas: input.recipe.canvas };
+      const preset = presetForFit(ROTATION[(start + photos) % ROTATION.length]!, pictureExtent(fit.src, fit.canvas));
       photos += 1;
-      out.push(...kenBurnsActions(
-        { id: action.item.id, durationInFrames: action.item.durationInFrames },
-        preset,
-        { src: { width: clip?.width, height: clip?.height }, canvas: input.recipe.canvas },
-      ));
+      out.push(...kenBurnsActions({ id: action.item.id, durationInFrames: action.item.durationInFrames }, preset, fit));
     }
   }
   const warnings = [...base.report.warnings];

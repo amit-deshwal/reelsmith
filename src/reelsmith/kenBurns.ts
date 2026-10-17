@@ -52,6 +52,19 @@ export function coverPose(p: Pose, fit: { axis: 'x' | 'y'; extent: number } | nu
   return fit.axis === 'x' ? { x: anchor, y: p.y, m } : { x: p.x, y: anchor, m };
 }
 
+/**
+ * A pan along the axis that has bands needs a huge zoom to stay inside the picture (a landscape photo on a vertical
+ * canvas drifting up or down reaches about 5.6x and turns to pixels), so swap it for the pan along the other axis.
+ */
+export function presetForFit(preset: KenBurnsPreset, fit: { axis: 'x' | 'y'; extent: number } | null): KenBurnsPreset {
+  if (!fit) return preset;
+  const vertical = preset === 'drift-up' || preset === 'drift-down';
+  const horizontal = preset === 'pan-right' || preset === 'pan-left';
+  if (fit.axis === 'y' && vertical) return preset === 'drift-up' ? 'pan-right' : 'pan-left';
+  if (fit.axis === 'x' && horizontal) return preset === 'pan-right' ? 'drift-up' : 'drift-down';
+  return preset;
+}
+
 /** Replace the clip's reframe curve with the preset's two keyframes. Pure. */
 export function kenBurnsActions(
   item: Pick<TimelineItem, 'id' | 'zoom' | 'durationInFrames'>, preset: KenBurnsPreset,
