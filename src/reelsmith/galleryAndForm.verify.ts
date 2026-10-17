@@ -16,9 +16,9 @@ const travel = recipes.find((r) => r.id === 'travel-beat-montage')!;
 assert.equal(requirementsText(travel), '6–80 clips + 1 song');
 assert.equal(toCard(travel).aspect, '9:16');
 const g = buildGallery(recipes);
-assert.equal(g.cards.length, 8);
-assert.equal(g.categories[0]!.count, 8);
-assert.equal(buildGallery(recipes, { category: 'collage' }).cards.map((c) => c.id).join(), 'collage-grid');
+assert.equal(g.cards.length, 9);
+assert.equal(g.categories[0]!.count, 9);
+assert.deepEqual(buildGallery(recipes, { category: 'collage' }).cards.map((c) => c.id).sort(), ['collage-grid', 'photo-dump']);
 assert.equal(buildGallery(recipes, { query: 'caption' }).cards.length >= 1, true);
 // 20 recipes render quickly
 const twenty = Array.from({ length: 20 }, (_, i) => ({ ...travel, id: `r${i}-${travel.id}` }));
