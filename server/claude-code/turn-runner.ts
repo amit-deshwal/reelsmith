@@ -1,3 +1,4 @@
+import { resolveClaudeEffort } from '../reelsmith/claudeEffort.ts';
 import { friendlyAgentError } from '../../shared/reelsmith/usageLimit.ts';
 import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
@@ -303,6 +304,8 @@ export async function runClaudeCodeTurn(
       '--append-system-prompt-file', systemPromptPath,
     ];
     if (request.model) args.push('--model', request.model);
+    const effort = resolveClaudeEffort(); // Reelsmith: cap hidden reasoning (RS speed)
+    if (effort) args.push('--effort', effort);
     if (request.sessionId) args.push('--resume', request.sessionId);
     const command = claudeCodeCommand(claudePath, args);
     const child = spawn(command.executable, command.args, {
