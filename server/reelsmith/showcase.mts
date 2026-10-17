@@ -21,7 +21,7 @@ import { bindTracks } from '../../src/reelsmith/trackBinding.ts';
 
 const FPS = 30;
 const [folderArg, outArg, ...which] = process.argv.slice(2);
-if (!folderArg || !outArg) throw new Error('usage: showcase.mts <clips folder> <output folder> [effects-1] [effects-2] [looks] [transitions]');
+if (!folderArg || !outArg) throw new Error('usage: showcase.mts <clips folder> <output folder> [effects-1] [effects-2] [effects-3] [looks] [transitions]');
 const folder = resolve(folderArg);
 const outDir = resolve(outArg);
 mkdirSync(outDir, { recursive: true });
@@ -126,6 +126,15 @@ const TAGLINE: Record<string, { sub: string; clip?: string }> = {
   'builtin:fx-water-ripple': { sub: 'Heat haze wobble' },
   'builtin:fx-cinema-bars': { sub: 'Widescreen letterbox' },
   'builtin:fx-swirl': { sub: 'A twist around a point' },
+  'builtin:fx-crayon': { sub: 'Wax crayon on cream paper' },
+  'builtin:fx-scrapbook-paper': { sub: 'Taped photo on patterned paper' },
+  'builtin:fx-crayon-doodles': { sub: 'Hand-drawn crayon doodles' },
+  'builtin:fx-cut-paper': { sub: 'Cut-paper collage' },
+  'builtin:fx-pencil-sketch': { sub: 'Graphite pencil drawing' },
+  'builtin:fx-watercolor': { sub: 'Soft pigment washes' },
+  'builtin:fx-riso': { sub: 'Two-ink zine print' },
+  'builtin:fx-thermal': { sub: 'Heat camera' },
+  'builtin:fx-frame-division': { sub: 'Frame cut into slabs' },
 };
 const effectSeg = (id: string): Segment => ({
   label: REEL_FX_EFFECTS[id]!.name, sub: TAGLINE[id]?.sub, ...(TAGLINE[id]?.clip ? { clip: TAGLINE[id]!.clip } : {}),
@@ -133,6 +142,7 @@ const effectSeg = (id: string): Segment => ({
 });
 const EFFECT_GROUPS: Record<string, string[]> = {
   'effects-1': ['builtin:fx-halation', 'builtin:fx-pro-mist', 'builtin:fx-anamorphic-flare', 'builtin:fx-light-rays', 'builtin:fx-zoom-blur', 'builtin:fx-lens-distortion', 'builtin:fx-soft-vignette'],
+  'effects-3': ['builtin:fx-crayon', 'builtin:fx-scrapbook-paper', 'builtin:fx-crayon-doodles', 'builtin:fx-cut-paper', 'builtin:fx-pencil-sketch', 'builtin:fx-watercolor', 'builtin:fx-riso', 'builtin:fx-thermal', 'builtin:fx-frame-division'],
   'effects-2': ['builtin:fx-fine-grain', 'builtin:fx-film-damage', 'builtin:fx-vhs', 'builtin:fx-cartoon', 'builtin:fx-water-ripple', 'builtin:fx-cinema-bars', 'builtin:fx-swirl'],
 };
 for (const group of Object.values(EFFECT_GROUPS)) for (const id of group) if (!(REEL_FX_ORDER as readonly string[]).includes(id)) throw new Error(`${id} missing from REEL_FX_ORDER`);
@@ -140,10 +150,11 @@ for (const group of Object.values(EFFECT_GROUPS)) for (const id of group) if (!(
 const jobs: Record<string, () => Segment[]> = {
   'effects-1': () => EFFECT_GROUPS['effects-1']!.map(effectSeg),
   'effects-2': () => EFFECT_GROUPS['effects-2']!.map(effectSeg),
+  'effects-3': () => EFFECT_GROUPS['effects-3']!.map(effectSeg),
   looks: () => REEL_LOOKS.map((look) => ({ label: look.name, sub: look.mood, frames: 84, effects: lookEffects(look) })),
   transitions: () => (Object.keys(REEL_TRANSITION_SECONDS) as TransitionType[]).reduce<Segment[]>((acc, type) => [...acc, { label: TRANSITION_LABELS[type], sub: 'transition into this shot', frames: 66, transition: type }], [{ label: 'Transitions', sub: '10 new Reels transitions', frames: 60 }]),
 };
-const names: Record<string, string> = { 'effects-1': 'reelsmith_effects_1_glow_and_lens', 'effects-2': 'reelsmith_effects_2_texture_and_style', looks: 'reelsmith_looks', transitions: 'reelsmith_transitions' };
+const names: Record<string, string> = { 'effects-1': 'reelsmith_effects_1_glow_and_lens', 'effects-2': 'reelsmith_effects_2_texture_and_style', 'effects-3': 'reelsmith_effects_3_mixed_media', looks: 'reelsmith_looks', transitions: 'reelsmith_transitions' };
 const todo = which.length ? which : Object.keys(jobs);
 const done: string[] = [];
 for (const key of todo) {

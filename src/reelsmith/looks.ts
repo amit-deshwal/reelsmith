@@ -88,6 +88,40 @@ export const REEL_LOOKS: ReelLook[] = [
       { assetId: 'builtin:fx-cartoon', overrides: { levels: 7, edge: 1 } },
     ],
   },
+  {
+    id: 'mixmedia-crayon', name: 'MixMedia crayon', mood: 'scrapbook, playful, creative, kids, diary',
+    description: 'Your clip as a taped photo on patterned paper with wax-crayon doodles scribbled around it, and a little paper grain.',
+    steps: [
+      { assetId: 'builtin:fx-scrapbook-paper' },
+      { assetId: 'builtin:fx-crayon-doodles', overrides: { density: 0.55, clearCentre: 0.9 } },
+      { assetId: 'builtin:fx-fine-grain', overrides: { strength: 0.04 } },
+    ],
+  },
+  {
+    id: 'sketchbook', name: 'Sketchbook', mood: 'artsy, calm, creative, story',
+    description: 'A graphite pencil drawing on cream paper: outlines, cross-hatched shading and lines that shiver like a drawing in progress.',
+    steps: [
+      { assetId: 'builtin:fx-pencil-sketch' },
+      { assetId: 'builtin:fx-fine-grain', overrides: { strength: 0.04 } },
+    ],
+  },
+  {
+    id: 'riso-zine', name: 'Riso zine', mood: 'indie, music, fashion, bold',
+    description: 'A two-ink risograph print: pink and blue halftone dots slightly out of register on off-white paper.',
+    steps: [
+      { assetId: 'builtin:fx-riso' },
+      { assetId: 'builtin:fx-fine-grain', overrides: { strength: 0.03 } },
+    ],
+  },
+  {
+    id: 'watercolor-dream', name: 'Watercolor dream', mood: 'dreamy, nature, soft, romantic',
+    description: 'Soft pigment washes with pooled edges and paper grain, a gentle mist glow and a light vignette.',
+    steps: [
+      { assetId: 'builtin:fx-watercolor' },
+      { assetId: 'builtin:fx-pro-mist', overrides: { intensity: 0.3 } },
+      { assetId: 'builtin:fx-soft-vignette', overrides: { strength: 0.2 } },
+    ],
+  },
 ];
 
 export const lookById = (id: string) => REEL_LOOKS.find((look) => look.id === id);

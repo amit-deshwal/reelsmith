@@ -11,8 +11,8 @@ import { execReelsTool, type ReelsDeps } from './agent/reelsTools';
 import { REELS_TOOL_NAMES } from './agent/reelsToolSchemas';
 import { isLookEffect, lookById, lookEffects, planLook, REEL_LOOKS } from './looks';
 
-assert.equal(REEL_LOOKS.length, 8);
-assert.equal(new Set(REEL_LOOKS.map((l) => l.id)).size, 8, 'unique ids');
+assert.equal(REEL_LOOKS.length, 12);
+assert.equal(new Set(REEL_LOOKS.map((l) => l.id)).size, 12, 'unique ids');
 for (const look of REEL_LOOKS) {
   assert.ok(look.name && look.mood && look.description.length > 30 && !/[一-鿿]/.test(look.name + look.description), `${look.id}: described in English`);
   assert.ok(look.steps.length >= 2 && look.steps.length <= 6, `${look.id}: 2 to 6 effects`);

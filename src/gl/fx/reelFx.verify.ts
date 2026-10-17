@@ -12,7 +12,7 @@ const SAMPLERS = new Set(['u_glow']);
 const declared = (frag: string) => [...frag.matchAll(/^uniform\s+\w+\s+(u_\w+)/gm)].map((m) => m[1]!);
 const source = (frag: string) => frag;
 
-assert.equal(REEL_FX_ORDER.length, 14);
+assert.equal(REEL_FX_ORDER.length, 23);
 for (const id of REEL_FX_ORDER) {
   const def = REEL_FX_EFFECTS[id]!;
   assert.ok(def, `${id} defined`);

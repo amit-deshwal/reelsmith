@@ -16,6 +16,7 @@ import cartoonFrag from './reel-cartoon.frag.ts';
 import waterRippleFrag from './reel-water-ripple.frag.ts';
 import cinemaBarsFrag from './reel-cinema-bars.frag.ts';
 import swirlFrag from './reel-swirl.frag.ts';
+import { MIXED_MEDIA_EFFECTS, MIXED_MEDIA_ORDER } from './mixedMediaFx';
 import softVignetteFrag from './reel-soft-vignette.frag.ts';
 import fineGrainFrag from './reel-fine-grain.frag.ts';
 
@@ -34,6 +35,7 @@ function glowPipeline(u: U, tint: number[], tintAmount: number, blurs: Array<[nu
 }
 
 export const REEL_FX_EFFECTS: Record<string, FxDef> = {
+  ...MIXED_MEDIA_EFFECTS,
   'builtin:fx-halation': {
     id: 'builtin:fx-halation',
     name: 'Halation',
@@ -235,4 +237,5 @@ export const REEL_FX_ORDER = [
   'builtin:fx-soft-vignette',
   'builtin:fx-fine-grain',
   'builtin:fx-swirl',
+  ...MIXED_MEDIA_ORDER,
 ] as const;
