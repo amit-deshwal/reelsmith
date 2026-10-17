@@ -57,4 +57,7 @@ assert.equal(planSignature(activeTimeline(h2.present), sig, false).cuts, 0);
 const minimal = planSignature(activeTimeline(h2.present), signatureById('clean-minimal')!);
 assert.equal(minimal.cuts, 0);
 assert.ok(minimal.actions.every((a) => a.type !== 'addTransition'));
+// daylight footage must never be steered to the neon grade by words like thrilling or unique
+assert.ok(!/thrilling|unique|bold/.test(signatureById('neon-pulse')!.mood));
+assert.match(signatureById('cinematic-drift')!.mood, /thrilling/);
 console.log('signatures verify ok');

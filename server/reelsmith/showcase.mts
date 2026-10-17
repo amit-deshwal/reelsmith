@@ -7,7 +7,8 @@ import { copyFileSync, existsSync, linkSync, mkdirSync, mkdtempSync, readdirSync
 import { tmpdir } from 'node:os';
 import { extname, join, resolve } from 'node:path';
 import { REEL_FX_ORDER, REEL_FX_EFFECTS } from '../../src/gl/fx/reelFx.ts';
-import { REEL_LOOKS, lookEffects } from '../../src/reelsmith/looks.ts';
+import { REEL_LOOKS, lookById, lookEffects } from '../../src/reelsmith/looks.ts';
+import { SIGNATURES } from '../../src/reelsmith/signatures.ts';
 import { REEL_PRESETS, presetForCanvas } from '../../shared/reelsmith/instagramPreset.ts';
 import { emptyProjectDoc } from '../../src/app/appShell.ts';
 import { historyReduce, type History } from '../../src/editor/reduce.ts';
@@ -169,9 +170,15 @@ const jobs: Record<string, () => Segment[]> = {
   looks: () => REEL_LOOKS.map((look) => ({ label: look.name, sub: look.mood.replace(/ \(needs a person\)/, ''), frames: 84, effects: lookEffects(look), ...(/needs a person/.test(look.mood) ? { clip: 'IMG_7877.MOV' } : {}) })),
   // the title is the effect itself, so no caption on top of it
   titles: () => [['IMG_0622.MOV', 0], ['IMG_7877.MOV', 2], ['IMG_7878.MOV', 5], ['IMG_0574.MOV', 10]].map(([clip, word]) => ({ bare: true, label: 'Movie title reveal', clip: clip as string, frames: 120, effects: [{ id: 'fx_title', assetId: 'builtin:fx-title-reveal', overrides: { word: word as number } }] })),
+  // each signature on three shots: the look on all, the accent on the first only, its own transition on the cuts into the next two
+  signatures: () => SIGNATURES.flatMap((sig) => [0, 1, 2].map((j): Segment => ({
+    label: sig.name, sub: j === 0 ? sig.mood.split(',').slice(0, 3).join(',') : undefined, bare: j !== 0, frames: 54,
+    effects: [...lookEffects(lookById(sig.look)!), ...(j === 0 && sig.hook ? [{ id: `look_${sig.id}_hook`, assetId: sig.hook.assetId, overrides: { ...(sig.hook.overrides ?? {}) } }] : [])],
+    ...(j > 0 && sig.transition ? { transition: sig.transition } : {}),
+  }))),
   transitions: () => (Object.keys(REEL_TRANSITION_SECONDS) as TransitionType[]).reduce<Segment[]>((acc, type) => [...acc, { label: TRANSITION_LABELS[type], sub: 'transition into this shot', frames: 66, transition: type }], [{ label: 'Transitions', sub: '10 new Reels transitions', frames: 60 }]),
 };
-const names: Record<string, string> = { 'effects-1': 'reelsmith_effects_1_glow_and_lens', 'effects-2': 'reelsmith_effects_2_texture_and_style', 'effects-3': 'reelsmith_effects_3_mixed_media', 'effects-4': 'reelsmith_effects_4_person_cutout', looks: 'reelsmith_looks', titles: 'reelsmith_movie_title_reveal', transitions: 'reelsmith_transitions' };
+const names: Record<string, string> = { signatures: 'reelsmith_signature_styles', 'effects-1': 'reelsmith_effects_1_glow_and_lens', 'effects-2': 'reelsmith_effects_2_texture_and_style', 'effects-3': 'reelsmith_effects_3_mixed_media', 'effects-4': 'reelsmith_effects_4_person_cutout', looks: 'reelsmith_looks', titles: 'reelsmith_movie_title_reveal', transitions: 'reelsmith_transitions' };
 const todo = which.length ? which : Object.keys(jobs);
 const done: string[] = [];
 for (const key of todo) {

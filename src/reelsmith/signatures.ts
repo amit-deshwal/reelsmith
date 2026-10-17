@@ -19,13 +19,13 @@ export interface ReelSignature {
 
 export const SIGNATURES: ReelSignature[] = [
   {
-    id: 'cinematic-drift', name: 'Cinematic drift', mood: 'travel, landscapes, calm, premium, trek',
+    id: 'cinematic-drift', name: 'Cinematic drift', mood: 'daytime trips, landscapes, friends, outdoors, trek, calm, bold, thrilling, unique, premium, default for bright footage',
     description: 'Teal and orange grade with soft halation, an anamorphic flare on the opening shot and whip-blur cuts.',
     recipes: ['travel-diary', 'travel-beat-montage', 'mini-vlog'], look: 'cinematic-travel',
     hook: { assetId: 'builtin:fx-anamorphic-flare', overrides: { intensity: 0.5 } }, transition: 'whip-blur',
   },
   {
-    id: 'neon-pulse', name: 'Neon pulse', mood: 'nightlife, parties, city, energetic, thrilling, unique',
+    id: 'neon-pulse', name: 'Neon pulse', mood: 'dark or night footage only: nightlife, parties, city lights, concerts, neon (never daylight or bright beach footage)',
     description: 'Cyber grade with bloom, a zoom-blur punch on the opening shot and chroma-glitch cuts.',
     recipes: ['beat-cut', 'gang-reel', 'travel-beat-montage'], look: 'neon-night',
     hook: { assetId: 'builtin:fx-zoom-blur', overrides: {} }, transition: 'chroma-glitch',
