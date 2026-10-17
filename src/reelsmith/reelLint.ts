@@ -3,6 +3,7 @@ import { ratioOf } from '../../shared/reelsmith/ratios';
 import type { TimelineState } from '../editor/types';
 import { resolveTrackId } from '../editor/types';
 import { findMusicItem, readBeatGrid, timelineBeatFrames } from './beatSnap';
+import { lintPictureQuality } from './qualityLint';
 import { lintSafeZone } from './safeZone';
 
 export interface LintIssue { level: 'error' | 'warning'; frame?: number; itemId?: string; message: string }
@@ -18,6 +19,7 @@ export function lintReel(state: TimelineState): { errors: number; warnings: numb
       ? { level: 'warning', message: `canvas is ${shape} (${state.width}x${state.height}), not 9:16 (a Reel); fine for a feed post or landscape video` }
       : { level: 'error', message: `canvas is ${state.width}x${state.height}, which is not one of the supported shapes (9:16, 3:4, 4:5, 1:1, 16:9, 4:3)` });
   }
+  issues.push(...lintPictureQuality(state));
   for (const z of lintSafeZone(state.items, canvas)) issues.push({ level: 'warning', frame: z.startFrame, itemId: z.itemId, message: z.message });
 
   const main = resolveTrackId(state, 'V1', 'video');

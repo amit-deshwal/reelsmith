@@ -1,6 +1,7 @@
 // photo-dump@1: a photo-only reel. It reuses the beat-montage cutter (so the cuts land on beats, or on a steady pulse when
 // there is no song, because audio is often added later in Instagram) and gives every photo its own slow Ken Burns move,
 // so a run of stills never looks like a slideshow. No AI involved; same inputs + seed => same actions.
+import { fillTransformForFocus } from '../cropFocus';
 import { kenBurnsActions, pictureExtent, presetForFit, type KenBurnsPreset } from '../kenBurns';
 import { assembleBeatMontage } from './beatMontage';
 import { metronome } from './common';
@@ -55,7 +56,10 @@ export function assemblePhotoDump(input: AssembleInput): AssembleResult {
     out.push(action);
     if (moves && action.type === 'add' && action.item.kind === 'image') {
       const clip = clips.get(String(action.item.sourceAssetId));
-      const fit = { src: { width: clip?.width, height: clip?.height }, canvas: input.recipe.canvas };
+      // runRecipe fills the canvas with each photo after this step (withCropFocus), so the cover zoom must start from that scale or the two stack
+      const fill = !action.item.transform && clip?.width && clip.height && input.recipe.canvas
+        ? fillTransformForFocus(clip.width, clip.height, input.recipe.canvas.width, input.recipe.canvas.height) : null;
+      const fit = { src: { width: clip?.width, height: clip?.height, transform: action.item.transform ?? (fill ? { scale: fill.scale } : undefined) }, canvas: input.recipe.canvas };
       const preset = presetForFit(ROTATION[(start + photos) % ROTATION.length]!, pictureExtent(fit.src, fit.canvas));
       photos += 1;
       out.push(...kenBurnsActions({ id: action.item.id, durationInFrames: action.item.durationInFrames }, preset, fit));
