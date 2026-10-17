@@ -1,0 +1,37 @@
+{
+  "$schema": "../../schemas/recipe.schema.json",
+  "schemaVersion": 1,
+  "id": "camcorder-throwback",
+  "version": "1.0.0",
+  "name": "Camcorder Throwback",
+  "category": "other",
+  "description": "Your trip as a 2005 home video: VHS wobble and colour bleed on everything, a REC label with the date, flash cuts every two beats and a typewriter end line.",
+  "tags": ["vhs", "retro", "throwback", "friends", "funny"],
+  "preview": { "poster": "previews/camcorder-throwback.jpg", "loop": "previews/camcorder-throwback.mp4", "generatedFrom": "synthetic-sample" },
+  "canvas": { "width": 1080, "height": 1920, "fps": { "num": 30, "den": 1 } },
+  "duration": { "mode": "fitMusic", "minSec": 8, "targetSec": 18, "maxSec": 40 },
+  "inputs": [
+    { "id": "clips", "kind": "media", "accept": ["video", "image"], "min": 8, "max": 80, "label": "Clips and photos", "hint": "Candid, shaky, funny. Perfect footage is not the point.", "constraints": { "minClipSec": 0.5 } },
+    { "id": "music", "kind": "media", "accept": ["audio"], "min": 1, "max": 1, "label": "Song (an old one works best)" },
+    { "id": "date", "kind": "text", "label": "Date on the REC label", "default": "JUL 14 2005", "optional": true, "maxLength": 20 },
+    { "id": "endLine", "kind": "text", "label": "Last line", "placeholder": "found this on an old tape", "optional": true, "maxLength": 50 }
+  ],
+  "params": [
+    { "id": "cutRule", "type": "enum", "label": "Cut on", "default": "every2Beats", "options": ["everyBeat", "every2Beats", "everyBar"] }
+  ],
+  "music": { "inputId": "music", "required": true, "startPolicy": "firstDownbeat", "endPolicy": "fadeOut", "fadeOutSec": 1, "gainDb": -4, "clipAudioGainDb": -18, "duckUnderSpeech": false },
+  "assembler": { "strategy": "beat-montage@1", "options": {}, "aiSelection": "optional" },
+  "structure": [
+    { "section": "tape", "fill": "clips", "cutRule": "every2Beats", "transition": "flash", "overlays": [ { "kind": "label", "text": "● REC  {{inputs.date}}", "styleId": "rec", "animationIn": "none", "position": "upperThird" } ] },
+    { "section": "outro", "lengthBeats": 4, "fill": "clips", "cutRule": "everyBar", "transition": "dipToBlack", "overlays": [ { "kind": "title", "text": "{{inputs.endLine}}", "styleId": "typed", "animationIn": "typewriter", "position": "lowerThird" } ] }
+  ],
+  "styles": {
+    "rec": { "fontFamily": "Space Mono", "fontWeight": 700, "sizePx": 48, "color": "#FFFFFF", "align": "center", "shadow": { "color": "#000000CC", "blurPx": 4, "dx": 2, "dy": 2 } },
+    "typed": { "fontFamily": "Special Elite", "fontWeight": 400, "sizePx": 60, "color": "#F2F2E9", "align": "center", "shadow": { "color": "#000000AA", "blurPx": 8, "dx": 0, "dy": 2 } }
+  },
+  "look": { "colorLook": "none", "reelLook": "retro-vhs", "grain": 0.2, "vignette": 0.15 },
+  "casting": { "opener": ["laughing", "people"], "closer": ["people", "scenery"], "boost": ["laughing", "people", "action", "dancing"] },
+  "agentHints": "Keep a little of the original sound under the song: it should feel like a home video. Open on someone laughing or waving at the camera. Keep the order of the day. Never repeat a clip.",
+  "ratios": { "4:5": {}, "4:3": { "styles": { "rec": { "sizePx": 40 } } } },
+  "constraints": { "noRepeatClips": true, "insufficientMediaPolicy": "lengthenShots", "keepChronological": true, "textSafeZone": true }
+}

@@ -117,7 +117,7 @@ for (const recipe of recipes) {
   const values = defaultValues(recipe);
   for (const [k, v] of Object.entries(PARAM_OVERRIDES)) if (k in values.params) values.params[k] = typeof values.params[k] === 'number' ? Number(v) : v;
   for (const input of recipe.inputs) {
-    if (input.kind === 'text') { values.texts[input.id] = SAMPLE_TEXT[input.id] ?? input.placeholder ?? input.label; continue; }
+    if (input.kind === 'text') { values.texts[input.id] = SAMPLE_TEXT[input.id] ?? input.default ?? input.placeholder ?? input.label.slice(0, input.maxLength); continue; }
     const pool = input.accept.includes('audio') ? [music] : input.id === 'talking' ? talk : input.accept.length === 1 && input.accept[0] === 'image' ? photoPool : clips.filter((c) => input.accept.includes(c.kind as never));
     const want = Math.max(input.min, Math.min(input.max, input.accept.includes('audio') ? 1 : 20));
     values.media[input.id] = pool.slice(0, want).map((a) => ({ assetId: a.id, kind: a.kind as 'video' | 'image' | 'audio' }));

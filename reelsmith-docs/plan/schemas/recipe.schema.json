@@ -156,6 +156,7 @@
           "layout": { "enum": ["split2v", "split2h", "split3v", "grid2x2", "grid3x3"] },
           "transition": { "enum": ["cut", "crossfade", "dipToBlack", "dipToWhite", "slideLeft", "slideUp", "pushLeft", "zoomIn", "flash", "bars", "wide-bars", "window", "zoom-through", "whip-blur", "spin-zoom", "light-leak", "chroma-glitch", "fluted-glass", "ripple-dissolve", "tile-pop", "cube-turn", "slide-over", "auto"], "description": "Transition into each shot of the section. \"auto\" rotates through assembler.options.autoTransitions (default bars, wide-bars, window, flash)." },
           "strobe": { "type": "boolean", "description": "Flash-cut hook: the section length and cut step come from the params hookSec (default 1.5) and flashSec (0.3-0.6, default 0.5), in whole beats." },
+          "effects": { "type": "array", "maxItems": 4, "items": { "$ref": "#/$defs/effect" }, "description": "Built-in clip effects put on every shot of this section, under the recipe look (a thermal drop, a kaleidoscope hook)." },
           "overlays": {
             "type": "array",
             "maxItems": 6,
@@ -187,6 +188,8 @@
       "additionalProperties": false,
       "properties": {
         "colorLook": { "enum": ["none", "warmFilm", "coolClean", "vivid", "mutedMatte", "bw"] },
+        "effects": { "type": "array", "maxItems": 6, "items": { "$ref": "#/$defs/effect" }, "description": "Built-in clip effects put on every shot after reelLook, as part of the recipe look." },
+        "reelLook": { "enum": ["cinematic-travel", "golden-hour", "neon-night", "retro-vhs", "old-film", "soft-pastel", "moody-bleach", "comic-pop", "mixmedia-crayon", "sketchbook", "riso-zine", "watercolor-dream"], "description": "A built-in look (src/reelsmith/looks.ts) put on every picture clip when the recipe runs. The user can swap or clear it later like any look." },
         "grain": { "type": "number", "minimum": 0, "maximum": 1 },
         "vignette": { "type": "number", "minimum": 0, "maximum": 1 }
       }
@@ -231,6 +234,15 @@
         "styles": { "type": "object", "additionalProperties": { "type": "object" } }
       }
     },
-    "key": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9_]{0,31}$" }
+    "key": { "type": "string", "pattern": "^[a-z][a-zA-Z0-9_]{0,31}$" },
+    "effect": {
+      "type": "object",
+      "required": ["assetId"],
+      "additionalProperties": false,
+      "properties": {
+        "assetId": { "type": "string", "pattern": "^builtin:[a-z0-9-]{1,48}$" },
+        "overrides": { "type": "object", "maxProperties": 12, "additionalProperties": { "anyOf": [{ "type": "number" }, { "type": "array", "maxItems": 4, "items": { "type": "number" } }] } }
+      }
+    }
   }
 }

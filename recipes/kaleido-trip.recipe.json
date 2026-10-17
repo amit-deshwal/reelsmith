@@ -1,0 +1,37 @@
+{
+  "$schema": "../../schemas/recipe.schema.json",
+  "schemaVersion": 1,
+  "id": "kaleido-trip",
+  "version": "1.0.0",
+  "name": "Kaleido Trip",
+  "category": "other",
+  "description": "A psychedelic trip: it opens on a strobing kaleidoscope, settles into the real footage cut every two beats, then the last stretch spins into a twelve-way kaleidoscope with bloom.",
+  "tags": ["festival", "psychedelic", "kaleidoscope", "party", "colour"],
+  "preview": { "poster": "previews/kaleido-trip.jpg", "loop": "previews/kaleido-trip.mp4", "generatedFrom": "synthetic-sample" },
+  "canvas": { "width": 1080, "height": 1920, "fps": { "num": 30, "den": 1 } },
+  "duration": { "mode": "fitMusic", "minSec": 8, "targetSec": 16, "maxSec": 30 },
+  "inputs": [
+    { "id": "clips", "kind": "media", "accept": ["video", "image"], "min": 10, "max": 80, "label": "Clips and photos", "hint": "Colourful: lights, flowers, crowds, sky", "constraints": { "minClipSec": 0.4 } },
+    { "id": "music", "kind": "media", "accept": ["audio"], "min": 1, "max": 1, "label": "Song" },
+    { "id": "caption", "kind": "text", "label": "Caption", "placeholder": "where am i", "optional": true, "maxLength": 40 }
+  ],
+  "params": [
+    { "id": "hookSec", "type": "seconds", "label": "Kaleidoscope opening length", "default": 2, "min": 0.6, "max": 3, "step": 0.1 },
+    { "id": "flashSec", "type": "seconds", "label": "Length of one flash", "default": 0.5, "min": 0.3, "max": 0.6, "step": 0.05 }
+  ],
+  "music": { "inputId": "music", "required": true, "startPolicy": "firstDownbeat", "endPolicy": "endOnBar", "fadeOutSec": 0.6, "gainDb": -2, "clipAudioGainDb": -96, "duckUnderSpeech": false },
+  "assembler": { "strategy": "beat-montage@1", "options": { "autoTransitions": ["spin-zoom", "ripple-dissolve"] }, "aiSelection": "optional" },
+  "structure": [
+    { "section": "portal", "strobe": true, "fill": "clips", "transition": "flash", "effects": [ { "assetId": "builtin:fx-kaleidoscope", "overrides": { "segments": 8, "zoom": 1.2 } } ] },
+    { "section": "trip", "fill": "clips", "cutRule": "every2Beats", "transition": "auto", "overlays": [ { "kind": "title", "text": "{{inputs.caption}}", "styleId": "caption", "animationIn": "wordByWord", "position": "center", "atBeat": 0, "durationBeats": 8 } ] },
+    { "section": "spiral", "lengthBeats": 8, "fill": "clips", "cutRule": "everyBeat", "transition": "spin-zoom", "effects": [ { "assetId": "builtin:fx-kaleidoscope", "overrides": { "segments": 12, "zoom": 0.9 } }, { "assetId": "builtin:fx-bloom", "overrides": { "intensity": 0.7 } } ] }
+  ],
+  "styles": {
+    "caption": { "fontFamily": "Unbounded", "fontWeight": 800, "sizePx": 88, "color": "#FFFFFF", "align": "center", "shadow": { "color": "#7A00FFAA", "blurPx": 20, "dx": 0, "dy": 0 } }
+  },
+  "look": { "colorLook": "vivid", "effects": [ { "assetId": "builtin:look-fuji-velvia", "overrides": { "intensity": 0.6 } } ], "grain": 0, "vignette": 0 },
+  "casting": { "opener": ["night", "people"], "closer": ["dancing", "celebrating"], "boost": ["night", "dancing", "celebrating", "scenery", "water"] },
+  "agentHints": "The kaleidoscope sections want bright, colourful shots with lots of detail; flat or dark shots turn to mush. Keep faces for the middle section, where the footage is untouched. Never repeat a clip.",
+  "ratios": { "4:5": {}, "1:1": {} },
+  "constraints": { "noRepeatClips": true, "insufficientMediaPolicy": "mergeShots", "keepChronological": false, "textSafeZone": true }
+}

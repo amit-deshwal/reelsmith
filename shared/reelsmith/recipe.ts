@@ -26,11 +26,15 @@ export interface RecipeOverlay {
   text?: string; styleId?: string; animationIn?: string; position?: string; atBeat?: number; durationBeats?: number;
 }
 
+/** A built-in clip effect a recipe puts on its shots (builtin:fx-* / builtin:look-*). */
+export interface RecipeEffect { assetId: string; overrides?: Record<string, number | number[]> }
+
 export interface RecipeSection {
   section: string; lengthBeats?: number; lengthSec?: number;
   fill?: 'none' | 'clips' | 'photos' | 'speech' | 'layout';
   cutRule?: 'everyBeat' | 'every2Beats' | 'everyBar' | 'onSpeechPhrases' | 'fixedSec';
   shotSec?: [number, number]; layout?: string; transition?: string; strobe?: boolean; overlays?: RecipeOverlay[];
+  effects?: RecipeEffect[];
 }
 
 export interface Recipe {
@@ -48,7 +52,7 @@ export interface Recipe {
   assembler: { strategy: 'beat-montage@1' | 'story-vlog@1' | 'captioned-story@1' | 'collage-grid@1' | 'travel-diary@1' | 'photo-dump@1'; options?: Record<string, unknown>; aiSelection?: 'off' | 'optional' | 'recommended' };
   structure: RecipeSection[];
   styles: Record<string, Record<string, unknown>>;
-  look?: { colorLook?: string; grain?: number; vignette?: number };
+  look?: { colorLook?: string; reelLook?: string; effects?: RecipeEffect[]; grain?: number; vignette?: number };
   /** RS-901: other shapes this recipe supports; each may replace keys of named styles (text size, position) */
   ratios?: Partial<Record<RatioId, { styles?: Record<string, Record<string, unknown>> }>>;
   /** RS-109: tags wanted for the opening and closing shot (scenery, people, portrait, action, food, detail, city, water, night) */

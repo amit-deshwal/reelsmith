@@ -1,0 +1,35 @@
+{
+  "$schema": "../../schemas/recipe.schema.json",
+  "schemaVersion": 1,
+  "id": "paper-cut",
+  "version": "1.0.0",
+  "name": "Paper Cut",
+  "category": "other",
+  "description": "Handmade chaos: every shot rebuilt from torn coloured paper, popping in tile by tile, then the drop shatters the frame into shifting slabs, each its own crop of the shot.",
+  "tags": ["paper", "craft", "kids", "playful", "collage"],
+  "preview": { "poster": "previews/paper-cut.jpg", "loop": "previews/paper-cut.mp4", "generatedFrom": "synthetic-sample" },
+  "canvas": { "width": 1080, "height": 1920, "fps": { "num": 30, "den": 1 } },
+  "duration": { "mode": "fitMusic", "minSec": 8, "targetSec": 16, "maxSec": 30 },
+  "inputs": [
+    { "id": "clips", "kind": "media", "accept": ["video", "image"], "min": 10, "max": 80, "label": "Clips and photos", "hint": "Bright, simple shots: big shapes and colours read best in paper", "constraints": { "minClipSec": 0.4 } },
+    { "id": "music", "kind": "media", "accept": ["audio"], "min": 1, "max": 1, "label": "Upbeat song" },
+    { "id": "title", "kind": "text", "label": "Title", "placeholder": "made by hand", "optional": true, "maxLength": 40 }
+  ],
+  "params": [
+    { "id": "dropAtS", "type": "seconds", "label": "Drop time in the song (0 = auto)", "default": 0, "min": 0, "max": 600, "step": 0.01 }
+  ],
+  "music": { "inputId": "music", "required": true, "startPolicy": "loudestSection", "endPolicy": "endOnBar", "fadeOutSec": 0.5, "gainDb": -2, "clipAudioGainDb": -96, "duckUnderSpeech": false },
+  "assembler": { "strategy": "beat-montage@1", "options": { "dropDetection": "energyJump", "autoTransitions": ["tile-pop", "slide-over"] }, "aiSelection": "optional" },
+  "structure": [
+    { "section": "build", "lengthBeats": 8, "fill": "clips", "cutRule": "every2Beats", "transition": "tile-pop", "effects": [ { "assetId": "builtin:fx-cut-paper", "overrides": { "cells": 9, "shadow": 1 } } ], "overlays": [ { "kind": "title", "text": "{{inputs.title}}", "styleId": "hand", "animationIn": "pop", "position": "upperThird" } ] },
+    { "section": "drop", "fill": "clips", "cutRule": "everyBeat", "transition": "auto", "effects": [ { "assetId": "builtin:fx-frame-division", "overrides": { "depth": 4, "gap": 10, "interval": 0.5 } } ] }
+  ],
+  "styles": {
+    "hand": { "fontFamily": "Caveat", "fontWeight": 700, "sizePx": 120, "color": "#FFFFFF", "align": "center", "shadow": { "color": "#000000AA", "blurPx": 0, "dx": 4, "dy": 4 } }
+  },
+  "look": { "colorLook": "vivid", "effects": [ { "assetId": "builtin:fx-fine-grain", "overrides": { "strength": 0.04 } } ], "grain": 0, "vignette": 0 },
+  "casting": { "opener": ["people", "food"], "boost": ["people", "food", "action", "celebrating"] },
+  "agentHints": "Simple, colourful shots with one clear subject survive the paper effect; busy wides turn to confetti. Save the most energetic shots for the shattered drop. Never repeat a clip.",
+  "ratios": { "4:5": {}, "1:1": {} },
+  "constraints": { "noRepeatClips": true, "insufficientMediaPolicy": "mergeShots", "keepChronological": false, "textSafeZone": true }
+}

@@ -1,0 +1,35 @@
+{
+  "$schema": "../../schemas/recipe.schema.json",
+  "schemaVersion": 1,
+  "id": "fisheye-skate",
+  "version": "1.0.0",
+  "name": "Fisheye Skate",
+  "category": "beat-cut",
+  "description": "A 2003 skate-video tape: everything through a fisheye lens with handheld shake and disposable-camera colour, hard flash cuts on every beat and a fat sticker-style crew name.",
+  "tags": ["skate", "fisheye", "friends", "2000s", "street"],
+  "preview": { "poster": "previews/fisheye-skate.jpg", "loop": "previews/fisheye-skate.mp4", "generatedFrom": "synthetic-sample" },
+  "canvas": { "width": 1080, "height": 1920, "fps": { "num": 30, "den": 1 } },
+  "duration": { "mode": "fitMusic", "minSec": 8, "targetSec": 15, "maxSec": 30 },
+  "inputs": [
+    { "id": "clips", "kind": "media", "accept": ["video", "image"], "min": 10, "max": 100, "label": "Clips and photos", "hint": "Close, low and fast: tricks, jumps, faces in the lens", "constraints": { "minClipSec": 0.3 } },
+    { "id": "music", "kind": "media", "accept": ["audio"], "min": 1, "max": 1, "label": "Punk or hip-hop song" },
+    { "id": "crew", "kind": "text", "label": "Crew name", "default": "the crew", "optional": true, "maxLength": 30 }
+  ],
+  "params": [
+    { "id": "cutRule", "type": "enum", "label": "Cut on", "default": "everyBeat", "options": ["everyBeat", "every2Beats"] }
+  ],
+  "music": { "inputId": "music", "required": true, "startPolicy": "firstDownbeat", "endPolicy": "hardCut", "fadeOutSec": 0, "gainDb": -2, "clipAudioGainDb": -96, "duckUnderSpeech": false },
+  "assembler": { "strategy": "beat-montage@1", "options": { "startOnFirstBeat": true }, "aiSelection": "optional" },
+  "structure": [
+    { "section": "intro", "lengthBeats": 4, "fill": "clips", "cutRule": "every2Beats", "transition": "flash", "overlays": [ { "kind": "title", "text": "{{inputs.crew}}", "styleId": "crew", "animationIn": "pop", "position": "center" } ] },
+    { "section": "lines", "fill": "clips", "cutRule": "everyBeat", "transition": "flash" }
+  ],
+  "styles": {
+    "crew": { "fontFamily": "Bangers", "fontWeight": 400, "sizePx": 170, "color": "#FFFFFF", "textTransform": "uppercase", "align": "center", "shadow": { "color": "#000000", "blurPx": 0, "dx": 7, "dy": 7 } }
+  },
+  "look": { "colorLook": "none", "effects": [ { "assetId": "builtin:fx-fisheye", "overrides": { "strength": 0.9, "zoom": 1.15 } }, { "assetId": "builtin:look-disposable", "overrides": { "intensity": 0.8 } }, { "assetId": "builtin:fx-shake", "overrides": { "strength": 0.8, "speed": 2.5 } } ], "grain": 0.1, "vignette": 0.2 },
+  "casting": { "opener": ["action", "people"], "closer": ["celebrating", "people"], "boost": ["action", "falling", "laughing", "people", "city"], "avoid": ["scenery", "food"] },
+  "agentHints": "Every shot should be action or a face up close. Falls and fails are welcome. Open on the best trick. Never repeat a clip.",
+  "ratios": { "4:5": {}, "4:3": {} },
+  "constraints": { "noRepeatClips": true, "insufficientMediaPolicy": "mergeShots", "keepChronological": false, "textSafeZone": true }
+}

@@ -1,0 +1,36 @@
+{
+  "$schema": "../../schemas/recipe.schema.json",
+  "schemaVersion": 1,
+  "id": "spin-cycle",
+  "version": "1.0.0",
+  "name": "Spin Cycle",
+  "category": "beat-cut",
+  "description": "Every cut spins and zooms into the next shot: one bar to wind up, then a spin on every two beats, tightening to every beat for the last stretch.",
+  "tags": ["friends", "spin", "chaos", "hype"],
+  "preview": { "poster": "previews/spin-cycle.jpg", "loop": "previews/spin-cycle.mp4", "generatedFrom": "synthetic-sample" },
+  "canvas": { "width": 1080, "height": 1920, "fps": { "num": 30, "den": 1 } },
+  "duration": { "mode": "fitMusic", "minSec": 8, "targetSec": 15, "maxSec": 30 },
+  "inputs": [
+    { "id": "clips", "kind": "media", "accept": ["video", "image"], "min": 10, "max": 80, "label": "Clips and photos", "hint": "Movement, jumps, people turning to camera", "constraints": { "minClipSec": 0.4 } },
+    { "id": "music", "kind": "media", "accept": ["audio"], "min": 1, "max": 1, "label": "Fast song" },
+    { "id": "caption", "kind": "text", "label": "Caption", "placeholder": "dizzy since friday", "optional": true, "maxLength": 50 }
+  ],
+  "params": [
+    { "id": "spin", "type": "enum", "label": "Transition", "default": "spin-zoom", "options": ["spin-zoom", "zoom-through", "cube-turn"] }
+  ],
+  "music": { "inputId": "music", "required": true, "startPolicy": "firstDownbeat", "endPolicy": "endOnBar", "fadeOutSec": 0.4, "gainDb": -2, "clipAudioGainDb": -96, "duckUnderSpeech": false },
+  "assembler": { "strategy": "beat-montage@1", "options": { "transitionParam": "spin", "autoTransitions": ["spin-zoom"] }, "aiSelection": "optional" },
+  "structure": [
+    { "section": "windup", "lengthBeats": 4, "fill": "clips", "cutRule": "everyBar", "transition": "cut", "overlays": [ { "kind": "title", "text": "{{inputs.caption}}", "styleId": "caption", "animationIn": "pop", "position": "center" } ] },
+    { "section": "spin", "fill": "clips", "cutRule": "every2Beats", "transition": "auto" },
+    { "section": "finale", "lengthBeats": 8, "fill": "clips", "cutRule": "everyBeat", "transition": "auto" }
+  ],
+  "styles": {
+    "caption": { "fontFamily": "Archivo Black", "fontWeight": 400, "sizePx": 96, "color": "#FFFFFF", "textTransform": "uppercase", "align": "center", "shadow": { "color": "#000000AA", "blurPx": 14, "dx": 0, "dy": 5 } }
+  },
+  "look": { "colorLook": "vivid", "grain": 0, "vignette": 0 },
+  "casting": { "opener": ["action", "dancing", "people"], "closer": ["celebrating", "people"], "boost": ["action", "dancing", "laughing", "falling"] },
+  "agentHints": "Shots with motion or a person moving toward the camera sell the spin best. Keep the windup shot calm so the first spin hits. Never repeat a clip.",
+  "ratios": { "4:5": {}, "1:1": {} },
+  "constraints": { "noRepeatClips": true, "insufficientMediaPolicy": "mergeShots", "keepChronological": false, "textSafeZone": true }
+}

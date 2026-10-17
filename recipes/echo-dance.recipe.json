@@ -1,0 +1,33 @@
+{
+  "$schema": "../../schemas/recipe.schema.json",
+  "schemaVersion": 1,
+  "id": "echo-dance",
+  "version": "1.0.0",
+  "name": "Echo Dance",
+  "category": "beat-cut",
+  "description": "A dance reel where every move leaves tinted afterimages: clean shots for the first bars, then echo trails and a handheld shake on every two beats, with a caption that types itself on.",
+  "tags": ["dance", "solo", "echo", "creator", "trails"],
+  "preview": { "poster": "previews/echo-dance.jpg", "loop": "previews/echo-dance.mp4", "generatedFrom": "synthetic-sample" },
+  "canvas": { "width": 1080, "height": 1920, "fps": { "num": 30, "den": 1 } },
+  "duration": { "mode": "fitMusic", "minSec": 8, "targetSec": 15, "maxSec": 30 },
+  "inputs": [
+    { "id": "clips", "kind": "media", "accept": ["video"], "min": 6, "max": 40, "label": "Dance or movement clips", "hint": "One person moving, filmed steady; at least 2 s each so the trails can build", "constraints": { "minClipSec": 1 } },
+    { "id": "music", "kind": "media", "accept": ["audio"], "min": 1, "max": 1, "label": "Song" },
+    { "id": "caption", "kind": "text", "label": "Caption", "placeholder": "practice made it weird", "optional": true, "maxLength": 40 }
+  ],
+  "params": [],
+  "music": { "inputId": "music", "required": true, "startPolicy": "firstDownbeat", "endPolicy": "endOnBar", "fadeOutSec": 0.5, "gainDb": -2, "clipAudioGainDb": -96, "duckUnderSpeech": false },
+  "assembler": { "strategy": "beat-montage@1", "options": {}, "aiSelection": "optional" },
+  "structure": [
+    { "section": "clean", "lengthBeats": 8, "fill": "clips", "cutRule": "everyBar", "transition": "whip-blur", "overlays": [ { "kind": "title", "text": "{{inputs.caption}}", "styleId": "caption", "animationIn": "typewriter", "position": "upperThird" } ] },
+    { "section": "echo", "fill": "clips", "cutRule": "every2Beats", "transition": "whip-blur", "effects": [ { "assetId": "builtin:fx-echo-trails", "overrides": { "trail": 4, "tint": 0.8 } }, { "assetId": "builtin:fx-shake", "overrides": { "strength": 0.6, "rotation": 0.4 } } ] }
+  ],
+  "styles": {
+    "caption": { "fontFamily": "Sora", "fontWeight": 700, "sizePx": 64, "color": "#FFFFFF", "align": "center", "shadow": { "color": "#00000099", "blurPx": 12, "dx": 0, "dy": 3 } }
+  },
+  "look": { "colorLook": "vivid", "reelLook": "soft-pastel", "grain": 0, "vignette": 0 },
+  "casting": { "opener": ["dancing", "portrait"], "boost": ["dancing", "action", "people"], "avoid": ["scenery", "food", "detail"] },
+  "agentHints": "Use the parts of each clip with the biggest moves for the echo section; standing still leaves no trail. One person per shot works best. Never repeat a clip.",
+  "ratios": { "4:5": {} },
+  "constraints": { "noRepeatClips": true, "insufficientMediaPolicy": "lengthenShots", "keepChronological": false, "textSafeZone": true }
+}

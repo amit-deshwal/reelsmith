@@ -1,0 +1,34 @@
+{
+  "$schema": "../../schemas/recipe.schema.json",
+  "schemaVersion": 1,
+  "id": "tiny-world",
+  "version": "1.0.0",
+  "name": "Tiny World",
+  "category": "travel",
+  "description": "Your trip as a toy model town: tilt-shift blur and punchy colour make every wide shot look miniature, with slide cuts on every bar and a round, cute place title.",
+  "tags": ["travel", "miniature", "tilt-shift", "city", "cute"],
+  "preview": { "poster": "previews/tiny-world.jpg", "loop": "previews/tiny-world.mp4", "generatedFrom": "synthetic-sample" },
+  "canvas": { "width": 1080, "height": 1920, "fps": { "num": 30, "den": 1 } },
+  "duration": { "mode": "fitMusic", "minSec": 8, "targetSec": 16, "maxSec": 40 },
+  "inputs": [
+    { "id": "clips", "kind": "media", "accept": ["video", "image"], "min": 6, "max": 50, "label": "Wide clips and photos from up high", "hint": "Rooftops, viewpoints, drone shots, roads and crowds seen from above", "constraints": { "minClipSec": 0.8 } },
+    { "id": "music", "kind": "media", "accept": ["audio"], "min": 1, "max": 1, "label": "Playful song" },
+    { "id": "place", "kind": "text", "label": "Place name", "placeholder": "tiny mumbai", "optional": true, "maxLength": 30 }
+  ],
+  "params": [
+    { "id": "cutRule", "type": "enum", "label": "Cut on", "default": "everyBar", "options": ["every2Beats", "everyBar"] }
+  ],
+  "music": { "inputId": "music", "required": true, "startPolicy": "firstDownbeat", "endPolicy": "endOnBar", "fadeOutSec": 0.8, "gainDb": -3, "clipAudioGainDb": -96, "duckUnderSpeech": false },
+  "assembler": { "strategy": "beat-montage@1", "options": {}, "aiSelection": "optional" },
+  "structure": [
+    { "section": "town", "fill": "clips", "cutRule": "everyBar", "transition": "slide-over", "overlays": [ { "kind": "placeName", "text": "{{inputs.place}}", "styleId": "cute", "animationIn": "pop", "position": "upperThird", "atBeat": 0, "durationBeats": 8 } ] }
+  ],
+  "styles": {
+    "cute": { "fontFamily": "Fredoka", "fontWeight": 700, "sizePx": 130, "color": "#FFFFFF", "align": "center", "shadow": { "color": "#00000080", "blurPx": 16, "dx": 0, "dy": 5 } }
+  },
+  "look": { "colorLook": "vivid", "effects": [ { "assetId": "builtin:fx-tilt-shift", "overrides": { "focusY": 0.55, "focusWidth": 0.16, "blurStrength": 16, "saturation": 1.6 } }, { "assetId": "builtin:look-fuji-velvia", "overrides": { "intensity": 0.5 } } ], "grain": 0, "vignette": 0.1 },
+  "casting": { "opener": ["city", "scenery"], "closer": ["scenery", "city"], "boost": ["city", "scenery", "water"], "avoid": ["portrait", "detail", "food"] },
+  "agentHints": "Miniature only works on shots taken from above and far away: viewpoints, rooftops, drone shots. Close-ups and selfies break the illusion, so leave them out and tell the user. Never repeat a clip.",
+  "ratios": { "4:5": {}, "16:9": {} },
+  "constraints": { "noRepeatClips": true, "insufficientMediaPolicy": "lengthenShots", "keepChronological": false, "textSafeZone": true }
+}

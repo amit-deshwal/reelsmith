@@ -12,6 +12,7 @@ import { fillTransformForFocus } from './cropFocus';
 import { UPSCALE_SOFT } from './qualityLint';
 import { focusForRange, withTitleClear } from './titleClear';
 import { matchEffect, planShotMatch, type ColorStats } from './shotMatch';
+import { withRecipeLook } from './recipeLook';
 
 export interface AnalyzeApi {
   clipFeatures(asset: MediaAsset, fps: number): Promise<ClipFeatures | null>;
@@ -238,6 +239,6 @@ export async function runRecipe(api: AnalyzeApi, o: RunOptions): Promise<RunOutc
   ];
   return {
     result, messages, run,
-    action: { type: 'batch', label: result.action.label, actions: [...prefix, ...withTitleClear(withCropFocus(withBeatGrid(result.action.actions, input.music), [...input.clips, ...(input.broll ?? [])], input.recipe.canvas, mismatchFitOf(o.values.params)), [...input.clips, ...(input.broll ?? [])], input.recipe.canvas)] },
+    action: { type: 'batch', label: result.action.label, actions: [...prefix, ...withRecipeLook(withTitleClear(withCropFocus(withBeatGrid(result.action.actions, input.music), [...input.clips, ...(input.broll ?? [])], input.recipe.canvas, mismatchFitOf(o.values.params)), [...input.clips, ...(input.broll ?? [])], input.recipe.canvas), input.recipe)] },
   };
 }
