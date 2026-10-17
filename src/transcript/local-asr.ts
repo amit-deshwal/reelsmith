@@ -2,6 +2,7 @@
 // Reuses the shared audio-extract pipeline (/api/extract-audio → 16 kHz mono);
 // the worker picks backend + model tier per device profile (WebGPU on
 // Metal/D3D12/Vulkan, wasm fallback). No uploads, no API key, offline-capable.
+import { DEFAULT_TRANSCRIPTION_LANGUAGE } from '../reelsmith/transcriptionLanguage';
 import type { TranscriptResult } from './types';
 import type { AsrConfig, AsrResult, AsrDevice, LocalAsrWorkerResponse } from './local-asr-types';
 import { chooseAsrConfig, detectDeviceProfile, markAsrWebgpuBroken } from './deviceProfile';
@@ -288,7 +289,7 @@ async function tryNativeEngine(
   const native = await tryDesktopNativeAsr({
     sourcePath: await transcriptionSourceForPath(path, opts),
     config,
-    language: opts.languageCode ?? 'zh',
+    language: opts.languageCode ?? DEFAULT_TRANSCRIPTION_LANGUAGE,
     onProgress: (progress, file) => reportModelProgress(onWait, progress, file),
     onFallback: (reason) => {
       failure = reason;
@@ -334,7 +335,7 @@ export async function localTranscribePathResumable(
   client.attachProgress((progress, file) => reportModelProgress(onWait, progress, file));
   await runTranscriptionStage(t('模型加载'), () => client.ensureLoaded(config));
   await onCheckpoint({ ...checkpoint, providerStatus: 'processing' });
-  const result = await runTranscriptionStage(t('模型推理'), () => client.transcribe(samples, opts.languageCode ?? 'zh'));
+  const result = await runTranscriptionStage(t('模型推理'), () => client.transcribe(samples, opts.languageCode ?? DEFAULT_TRANSCRIPTION_LANGUAGE));
   await onCheckpoint({ ...checkpoint, providerStatus: 'completed' });
   return toTranscriptResult(result);
 }

@@ -1,5 +1,6 @@
 // Transcription provider routing. Credentials remain server-side; local and
 // AssemblyAI keep their specialized execution paths.
+import { DEFAULT_TRANSCRIPTION_LANGUAGE } from '../reelsmith/transcriptionLanguage';
 import {
   isTranscriptionProviderId,
   type TranscriptResult,
@@ -69,7 +70,7 @@ export function preferredTranscriptionLanguage(): string {
   } catch {
     // SSR / private browsing: fall through to the default.
   }
-  return 'zh';
+  return DEFAULT_TRANSCRIPTION_LANGUAGE;
 }
 
 export function preferredTranscriptionDiarization(): boolean {

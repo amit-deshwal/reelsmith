@@ -1,3 +1,4 @@
+import { DEFAULT_TRANSCRIPTION_LANGUAGE } from '../reelsmith/transcriptionLanguage';
 import { loadTranscriptionSource, transcriptionSourceForPath, TranscriptionError } from './assemblyai';
 import type {
   AssemblyAiCheckpointWriter,
@@ -141,7 +142,7 @@ export async function genericCloudTranscribePath(
   const result = await postTranscription(
     provider,
     blob,
-    opts.languageCode ?? 'zh',
+    opts.languageCode ?? DEFAULT_TRANSCRIPTION_LANGUAGE,
     opts.diarize ?? true,
   );
   await onCheckpoint({ providerStatus: 'completed' });

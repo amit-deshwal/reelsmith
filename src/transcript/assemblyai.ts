@@ -6,6 +6,7 @@
 // extract a 64kbps mono ASR track (POST /api/extract-audio) so a 1GB clip does
 // not get re-fetched + re-uploaded whole. Cloud callers may fall back to the
 // original path; browser-local ASR requires the compact extract.
+import { DEFAULT_TRANSCRIPTION_LANGUAGE } from '../reelsmith/transcriptionLanguage';
 import type { TranscriptResult } from './types';
 import { getMediaBlob } from '../persist/mediaBlobStore';
 
@@ -116,7 +117,7 @@ async function createTranscript(audioUrl: string, opts: TranscribeOptions = {}):
     punctuate: true,
     format_text: true,
   };
-  const lang = opts.languageCode ?? 'zh';
+  const lang = opts.languageCode ?? DEFAULT_TRANSCRIPTION_LANGUAGE;
   if (lang === 'auto') {
     body.language_detection = true;
   } else {
