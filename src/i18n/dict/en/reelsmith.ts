@@ -1,5 +1,8 @@
 // Reelsmith additions to the EN dictionary (key = Chinese original). Kept out of the upstream field files to avoid merge conflicts.
 export default {
+  // Transcription language choices added for Hindi/Marathi speech (RS-501)
+  '印地语（hi）': 'Hindi (hi)',
+  '马拉地语（mr）': 'Marathi (mr)',
   '已到达编辑词流边界': 'Reached the edge of the edited word stream',
   '编辑词流区间': 'Edited word-stream range',
   '源区间': 'Source range',
