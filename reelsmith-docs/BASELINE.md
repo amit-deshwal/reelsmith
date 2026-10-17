@@ -36,3 +36,30 @@ All three reels pass V1-V9, including V8 (SSIM ≥ 0.975 against the editor's ow
 - Preview smoothness and a hand-edited 30 s reel in the GUI.
 - A real HDR (HLG) clip and a real variable-frame-rate clip (RS-304 used synthetic fixtures; the 20-clip set has neither).
 - Export time on a 3-layer timeline at 60 s (RS-803).
+
+## Export speed vs render workers (RS-803, 2026-10-17)
+
+Same machine class (Apple Silicon, 10 cores, 24 GB). `baseline.mts travel-beat-montage` on 12 clips of 6 s cut from real
+4K 60 fps HEVC (40 Mbps), an 18.0 s reel, 1080x1920 out, software x264. `OPENCHATCUT_RENDER_CONCURRENCY` sets the worker
+count; each value was run at least twice and repeated within 0.5 s.
+
+| Render workers | Export time (18.0 s reel) | Speed |
+|---|---|---|
+| 8 (the automatic default) | 32.5 s | 1.80x real time |
+| 6 | 28.9 s | 1.60x |
+| 4 | 20.8 s, 20.9 s | 1.15x |
+| 3 | 19.5 s, 19.8 s | 1.09x |
+| **2** | **18.0 s, 18.2 s** | **1.01x** |
+| 1 | 20.2 s, 20.2 s | 1.12x |
+
+With light sources the result reverses (collage-grid, 8 clips at 540x960, 8.0 s reel): 8 workers 5.1 s, 2 workers 6.4 s.
+So the cap depends on the footage: `resolveSourceAwareConcurrency` (`remotion/performance.mjs`) uses 2 workers when the largest
+video or photo on the timeline is 4 MP or more (4K), and the automatic count otherwise. An explicit override always wins.
+With that default and no override: 4K60 18.4 s and 18.8 s (was 32.5 s), 540p 5.2 s and 5.0 s (unchanged).
+
+Encoder: the same 4K60 job took 33.3 s with the hardware encoder and 32.2 s with software x264 (both at 8 workers), so
+exports use x264 for quality at no speed cost; decode dominates, not encode.
+
+**Not measured:** an actual 60 s reel (the recipes cap this fixture at 18 s; the render time per frame was flat across the
+two 18 s runs, so ~62 s is an extrapolation), preview dropped frames, and scrub latency (need the live app).
+

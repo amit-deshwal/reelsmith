@@ -22,6 +22,8 @@ Every OpenChatCut file we change goes in this table, so `git merge upstream/main
 | `src/transcript/provider.ts`, `src/transcript/local-asr.ts`, `src/transcript/assemblyai.ts`, `src/transcript/generic-cloud-asr.ts`, `src/components/settings/SettingsDialog.tsx` | Fallback transcription language `'zh'` → `DEFAULT_TRANSCRIPTION_LANGUAGE` (`'en'`, `src/reelsmith/transcriptionLanguage.ts`) | RS-501: Chinese default garbled English/Hindi speech | 2026-10-17 |
 | `src/components/chat/chatPanelController.ts` | One call: `useTrendCapture(agent.messages, agent.running)` (`src/reelsmith/useTrendCapture.ts`) | RS-1005: save the agent's Trend Scout reply as notes without pasting | 2026-10-17 |
 | `src/export/serverExportOperation.ts` | `.srt` sidecar block moved into `deliverSrtSidecar()` and also called from the recovered/retried export path; recovered context reads its caption track from the saved timeline state instead of `null` | RS-301: Retry-from-failed-job wrote no `.srt` | 2026-10-17 |
+| `remotion/performance.mjs` | Added `maxSourcePixels`, `resolveSourceAwareConcurrency` and two constants (existing functions untouched) | RS-803: 4K sources export fastest with 2 render workers; light sources keep the automatic count | 2026-10-17 |
+| `remotion/render.mjs` | `concurrency: resolveSourceAwareConcurrency(renderOptions.inputProps?.state)` instead of `currentRenderConcurrency()` (plus the import) | RS-803 | 2026-10-17 |
 
 ## package.json (RS-003, RS-101)
 Added script `test:reelsmith` (our verifies) and appended `&& npm run test:reelsmith` to `test:serial`. Add each new Reelsmith `*.verify.ts` to `test:reelsmith`, not to the upstream chain.

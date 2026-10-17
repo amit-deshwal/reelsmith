@@ -11,6 +11,7 @@ import {
   resolveH264VideoBitrate,
   resolveOffthreadVideoThreads,
   resolveRenderConcurrency,
+  resolveSourceAwareConcurrency,
   withEncoderProfileFallback,
   h264HardwareSupportsDimensions,
   SOFTWARE_H264_PROFILE,
@@ -150,7 +151,7 @@ async function renderMediaOptimized(options) {
     : null;
   const hardwareOptions = {
     ...renderOptions,
-    concurrency: currentRenderConcurrency(),
+    concurrency: resolveSourceAwareConcurrency(renderOptions.inputProps?.state), // Reelsmith RS-803
     offthreadVideoThreads: offthreadVideoThreads(),
     hardwareAcceleration,
     ...(customOverride ? { ffmpegOverride: customOverride } : {}),

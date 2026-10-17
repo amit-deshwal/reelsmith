@@ -41,6 +41,37 @@ export function resolveRenderConcurrency({
   return Math.max(1, Math.min(MAX_RENDER_CONCURRENCY, cpuTarget, memoryTarget));
 }
 
+/**
+ * Reelsmith RS-803: with 4K sources, decoding dominates and extra render tabs only fight over it. Measured on an
+ * M-series Mac (10 cores, 24 GB), 18 s of 4K60 HEVC: 8 workers 32.5 s, 6 28.9 s, 4 20.8 s, 3 19.6 s, 2 18.0 s, 1 20.2 s
+ * (reelsmith-docs/BASELINE.md). With 540p sources the opposite held (8 workers 5.1 s, 2 workers 6.4 s), so the cap only
+ * applies to heavy sources. An explicit OPENCHATCUT_RENDER_CONCURRENCY always wins.
+ */
+export const HEAVY_SOURCE_PIXELS = 4_000_000;
+export const HEAVY_SOURCE_CONCURRENCY = 2;
+
+/** Pixels of the largest video/image source on the timeline (0 when unknown). */
+export function maxSourcePixels(state) {
+  const assets = new Map((state?.assets ?? []).map((asset) => [asset.id, asset]));
+  let max = 0;
+  for (const item of state?.items ?? []) {
+    if (item.kind !== 'video' && item.kind !== 'image') continue;
+    const asset = assets.get(item.sourceAssetId);
+    const w = Number(item.width ?? asset?.width);
+    const h = Number(item.height ?? asset?.height);
+    if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) max = Math.max(max, w * h);
+  }
+  return max;
+}
+
+export function resolveSourceAwareConcurrency(state, {
+  base = resolveRenderConcurrency(),
+  override = process.env.OPENCHATCUT_RENDER_CONCURRENCY,
+} = {}) {
+  if (typeof override === 'string' && override.trim()) return base;
+  return maxSourcePixels(state) >= HEAVY_SOURCE_PIXELS ? Math.min(base, HEAVY_SOURCE_CONCURRENCY) : base;
+}
+
 /** OffthreadVideo is memory-heavy; scale it more conservatively than pages. */
 export function resolveOffthreadVideoThreads({ cores = availableParallelism() } = {}) {
   const count = cpuCount(cores);
