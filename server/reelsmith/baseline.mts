@@ -17,6 +17,7 @@ import { withExportPermit } from '../plugins/export-runtime.ts';
 import { seedKeystore } from '../keystore.ts';
 import { analyzeBeatsFile } from './beatDetect.ts';
 import { extractClipFeatures } from './clipFeatures.ts';
+import { upscalePhoto } from './upscale.ts';
 import { finalizeForInstagram } from './instagramFinalize.ts';
 import { exportParity } from './exportParity.ts';
 import { renderTimelineStills } from '../../remotion/render.mjs';
@@ -74,6 +75,12 @@ const api: AnalyzeApi = {
   // RS-109: shot tags computed beforehand (scripts/tag-clips.mts), keyed by file name
   ...(tagsArg ? { shotTags: async (as: MediaAsset[]) => { const j = JSON.parse(readFileSync(tagsArg, 'utf8')); return new Map(as.filter((a) => j[a.name!]).map((a) => [a.id, j[a.name!]] as const)); } } : {}),
   clipFeatures: async (a, fps) => { const s = Date.now(); const r = await extractClipFeatures(byFile(a), a.id, fps, { maxSec: 90, stillImage: a.kind === 'image' }); feat[a.name ?? a.id] = Date.now() - s; return r; },
+  // `--param enhanceSmallPhotos=true` (RS-1109): 2x copies written next to the copied media
+  upscale: async (a) => {
+    if (!a.width || !a.height) return null;
+    const r = await upscalePhoto(byFile(a), { width: a.width, height: a.height });
+    return { src: `/media/uploads/${r.name}`, width: r.width, height: r.height };
+  },
   musicGrid: async (a) => {
     const g = await analyzeBeatsFile(byFile(a));
     if (!g) return null;
