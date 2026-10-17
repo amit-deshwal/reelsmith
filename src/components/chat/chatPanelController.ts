@@ -1,3 +1,4 @@
+import { useTrendCapture } from '../../reelsmith/useTrendCapture';
 import {
   useCallback,
   useEffect,
@@ -424,6 +425,7 @@ export function useChatPanelController(props: ChatPanelProps): ChatPanelControll
   const actions = useChatActions(props, t, agent, composer);
   const references = chatReferences(props.ctx);
   const run = useRunPresentation(agent.messages, agent.running);
+  useTrendCapture(agent.messages, agent.running); // Reelsmith RS-1005
   const changeLogSlot = useChangeLogSlot();
   const visibleFrom = Math.max(0, agent.messages.length - composer.visibleMessageCount);
   return {

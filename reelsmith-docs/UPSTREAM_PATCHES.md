@@ -20,6 +20,7 @@ Every OpenChatCut file we change goes in this table, so `git merge upstream/main
 | `server/plugins/export-rendering.ts` | `h264RenderOptions(codec, {preferSpeed})` forces software x264 for exports (env `REELSMITH_EXPORT_ENCODER=hardware` opts out); our preview/baseline callers pass `preferSpeed` | Export quality: x264 beats VideoToolbox at equal bitrate (SSIM .951 vs .945 at 15 Mbps) and costs seconds on a reel | 2026-10-17 |
 | `src/export/bitrate.ts`, `server/plugins/export-params.verify.ts` | "High" bitrate multiplier 1.5 → 2.5 (15 → 25 Mbps at 1080p30) | Export quality: SSIM .945 → .969 on detailed phone footage | 2026-10-17 |
 | `src/transcript/provider.ts`, `src/transcript/local-asr.ts`, `src/transcript/assemblyai.ts`, `src/transcript/generic-cloud-asr.ts`, `src/components/settings/SettingsDialog.tsx` | Fallback transcription language `'zh'` → `DEFAULT_TRANSCRIPTION_LANGUAGE` (`'en'`, `src/reelsmith/transcriptionLanguage.ts`) | RS-501: Chinese default garbled English/Hindi speech | 2026-10-17 |
+| `src/components/chat/chatPanelController.ts` | One call: `useTrendCapture(agent.messages, agent.running)` (`src/reelsmith/useTrendCapture.ts`) | RS-1005: save the agent's Trend Scout reply as notes without pasting | 2026-10-17 |
 
 ## package.json (RS-003, RS-101)
 Added script `test:reelsmith` (our verifies) and appended `&& npm run test:reelsmith` to `test:serial`. Add each new Reelsmith `*.verify.ts` to `test:reelsmith`, not to the upstream chain.

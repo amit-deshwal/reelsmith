@@ -44,13 +44,16 @@ export function rankLocalIdeas(recipes: Recipe[], topic: string): Recipe[] {
 }
 
 /** Prompt used only after the user opts into research; all returned ideas must be valid brief JSON. */
+/** First words of the research prompt; the chat reply capture (trendCapture.ts) finds the turn by it. */
+export const TREND_PROMPT_MARKER = 'Load the reels-trends skill and research';
+
 export function trendResearchPrompt(options: TrendIdeaOptions, recipes: Recipe[]): string {
   const catalog = recipes.map((recipe) => {
     const divisor = gcd(recipe.canvas.width, recipe.canvas.height);
     return `${recipe.id}: ${recipe.name} (${recipe.category}, ${recipe.canvas.width / divisor}:${recipe.canvas.height / divisor})`;
   }).join('\n');
   return [
-    'Load the reels-trends skill and research current Instagram Reels formats/audio trends from roughly the last 14 days using web search.',
+    `${TREND_PROMPT_MARKER} current Instagram Reels formats/audio trends from roughly the last 14 days using web search.`,
     'Return 3–5 distinct, source-backed idea briefs as JSON, each matching the Reelsmith brief v1 shape: {version:1,target:{recipeId,ratio},clips:[{count,shotType,minLengthSec}],text:[{count,maxWords,tone}],whyTrending,sources:[{title,url,publishedAt}]}. Music is optional and uses one of {mode:"named",name}, {mode:"vibe",description}, or {mode:"instagram"}, each optionally with bpm:[min,max] and dropAtSec.',
     'Use recipeId "new" only if no listed recipe fits. Include direct source URLs and publication dates; omit claims you cannot verify. Do not download audio, log in to Instagram, or invent trends or links.',
     `User topic: ${JSON.stringify(options.topic.trim() || 'general Reels ideas')}. Approximate available clips: ${Math.max(0, Math.floor(options.availableClips))}.`,
