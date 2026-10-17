@@ -51,6 +51,16 @@ Reels cut hard by default. When the user asks for a transition ("add a bars tran
 - **Hard cut for fast flashes.** Shots under about 0.6 s (strobe hooks, beat-by-beat drops) stay hard cuts or use the plain `flash` transition; do not put a bars or window break-in on them.
 - A transition needs two adjacent clips on the same track; if there is a gap, say so instead of moving clips.
 
+## Film and lens effects (Resolve-style looks)
+
+Apply with `manage_effects` (see `browse_library category=fx`). All have sliders; leave the defaults unless the user asks for more or less. One or two per reel, never a stack of looks.
+
+- **Cinematic glow:** `halation` (warm red-orange glow round highlights; the film-stock look), `pro-mist` (soft diffusion glow, lifted blacks; skin and light), `anamorphic-flare` (long blue streaks from lights; night and city), `light-rays` (rays from a point; sun, windows; move `lightX`/`lightY` to the light).
+- **Lens:** `zoom-blur` (radial punch-in blur; pair with a beat drop), `lens-distortion` (barrel warp with a colour fringe; vlog and street), `swirl` (a twist around a point; a playful moment, short).
+- **Texture and era:** `film-damage` (dust, scratches, flicker; throwback and memories), `vhs` (tape wobble, tracking band; retro and 2000s), `cartoon` (flat colour with ink outlines), `water-ripple` (heat haze or underwater; dream sequences).
+- **Frame:** `cinema-bars` (letterbox; on 9:16 keep the bars thin, size 0.06 to 0.1, and keep captions inside the safe zone).
+- Effects go on the clip, not the timeline. Time-based ones (`film-damage`, `vhs`, `water-ripple`) animate by themselves.
+
 ## Recipe-built reels
 
 A reel made from the Recipes tab remembers its recipe run.

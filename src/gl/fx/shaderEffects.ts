@@ -44,11 +44,13 @@ import invertFrag from './invert.frag.ts';
 import halftoneFrag from './halftone.frag.ts';
 import motionBlurFrag from './motion-blur.frag.ts';
 import type { FxDef } from './uniforms';
+import { REEL_FX_EFFECTS, REEL_FX_ORDER } from './reelFx';
 import type { FxPass } from '../runtime';
 
 const INVERT = { key: 'invert', label: '反转', default: 0, min: 0, max: 1, step: 1 };
 
 export const FX_EFFECTS: Record<string, FxDef> = {
+  ...REEL_FX_EFFECTS,
   'builtin:fx-luma-key': {
     id: 'builtin:fx-luma-key',
     name: '黑底叠加',
@@ -480,6 +482,7 @@ export const FX_ORDER = [
   'builtin:fx-invert',
   'builtin:fx-halftone',
   'builtin:fx-motion-blur',
+  ...REEL_FX_ORDER,
 ] as const;
 
 export const FX_IDS = [

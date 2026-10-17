@@ -267,3 +267,6 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 - `src/gl/transitions.ts`: imports, `GLSL_TRANSITIONS` entries and a `motionDir()` helper; new shaders `src/gl/shaders/*.frag` (+ generated `.frag.ts` twins from `scripts/sync-shader-sources.mjs`).
 - `shared/reelsmith/recipe-schema.ts` is regenerated from `reelsmith-docs/plan/schemas/recipe.schema.json` (more allowed `transition` names).
 
+## Reels effects (RS-1103)
+- `src/gl/fx/shaderEffects.ts`: imports `REEL_FX_EFFECTS` / `REEL_FX_ORDER` from our `src/gl/fx/reelFx.ts`, spreads the effects into `FX_EFFECTS` and appends the order to `FX_ORDER` (3 lines). The twelve effects and their shaders (`src/gl/fx/reel-*.frag` + generated `.frag.ts` twins) are ours.
+
