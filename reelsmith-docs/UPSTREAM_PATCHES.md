@@ -291,3 +291,6 @@ Effects that need the person cut out of every frame. The matte is MediaPipe's se
 - `src/agent/external-tool-policy.ts`: `reels_apply_signature` is a draft edit tool.
 - `assets/agent/openchatcut-tool-schemas.json`: regenerated (`server/agent-runs/generate-tool-catalog.mts`) for the new tool.
 - Our own: `src/reelsmith/signatures.ts`, `src/reelsmith/agent/signatureTools.ts`, `src/reelsmith/qualityLint.ts` (called from our `reelLint.ts`).
+
+## Shot matching label
+- `src/i18n/dict/en/fx.ts`: EN name for the colour-wheels effect (`三路色轮` -> Color Wheels), which shot matching adds to clips (`src/reelsmith/shotMatch.ts`).

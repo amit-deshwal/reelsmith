@@ -151,6 +151,7 @@ export default {
   '偏移': 'Offset',
   '切片密度': 'Slice Density',
   '色阶': 'Levels',
+  '三路色轮': 'Color Wheels',
   '阴影色': 'Shadow Color',
   '高光色': 'Highlight Color',
   '轴线': 'Axis',
