@@ -135,4 +135,18 @@ const ten = await execReelsTool('reels_plan_assemble', { recipeId: 'photo-dump',
 assert.ok(ten.ok, ten.error);
 assert.ok(Math.abs(ten.seconds! - 10) <= 1.5, `asked 10 s, got ${ten.seconds}`);
 assert.ok(ten.trimmedToPhotos && ten.trimmedToPhotos < 20, 'a subset was shown');
+
+// two library songs: the one nearest a reel-friendly tempo is the automatic choice, and options show each tempo
+const tempo = (bpm: number) => Array.from({ length: 40 }, (_, i) => i * (60 / bpm));
+const bpmApi: AnalyzeApi = { ...api, musicGrid: async (a) => ({ durationSec: 20, beatTimesSec: tempo(a.id === 'aud_slow' ? 72 : 118), beatsPerBar: 4, downbeatIndex: 0 }) };
+const twoSongs = [{ id: 'aud_slow', name: 'Slow', category: 'music' as const, src: '/audio/s.mp3', durationInFrames: 600 }, { id: 'aud_mid', name: 'Mid', category: 'music' as const, src: '/audio/m.mp3', durationInFrames: 600 }];
+let h4: History = { past: [], present: emptyProjectDoc(), future: [] };
+h4 = historyReduce(h4, { type: 'batch', label: 'pool', actions: clips.map((a) => ({ type: 'addAsset', asset: a } as AtomicAction)) });
+const ctx4: AgentContext = { ...ctx, audio: twoSongs, commands: { batch: (actions: AtomicAction[], label?: string) => { h4 = historyReduce(h4, { type: 'batch', label, actions }); } } as never, getState: () => activeTimeline(h4.present), getDoc: () => h4.present };
+const deps4: ReelsDeps = { ...deps, api: bpmApi };
+const o4 = await execReelsTool('reels_plan_options', {}, ctx4, deps4) as { libraryMusic: Array<{ id: string; bpm?: number }> };
+assert.deepEqual(o4.libraryMusic.map((m) => [m.id, m.bpm]), [['aud_slow', 72], ['aud_mid', 118]]);
+const tempoPick = await execReelsTool('reels_plan_assemble', { recipeId: 'travel-diary' }, ctx4, deps4) as { ok?: boolean; error?: string; music?: string };
+assert.ok(tempoPick.ok, tempoPick.error);
+assert.equal(tempoPick.music, 'Mid', 'the 118 bpm song, not the 72 bpm one');
 console.log('planTools verify ok');

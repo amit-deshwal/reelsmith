@@ -19,13 +19,18 @@ const MAX_BEAT_CHECKS = 3;
 const BEAT_STRATEGIES = new Set(['beat-montage@1', 'travel-diary@1']);
 const needsBeat = (r: Recipe) => BEAT_STRATEGIES.has(r.assembler.strategy);
 
-/** Whether a song has a steady beat; 'unknown' when the check fails, so a flaky analysis never blocks a plan. */
-async function beatOf(asset: MediaAsset, deps: ReelsDeps): Promise<'steady' | 'none' | 'unknown'> {
+/** Beat status and tempo of a song; 'unknown' when the check fails, so a flaky analysis never blocks a plan. */
+async function gridInfo(asset: MediaAsset, deps: ReelsDeps): Promise<{ beat: 'steady' | 'none' | 'unknown'; bpm?: number }> {
   try {
     const grid = await deps.api.musicGrid(asset);
-    return grid && grid.beatTimesSec.length >= 2 ? 'steady' : 'none';
-  } catch { return 'unknown'; }
+    if (!grid || grid.beatTimesSec.length < 2) return { beat: 'none' };
+    const gaps = grid.beatTimesSec.slice(1).map((t, i) => t - grid.beatTimesSec[i]!).filter((g) => g > 0.15 && g < 2).sort((x, y) => x - y);
+    return { beat: 'steady', ...(gaps.length ? { bpm: Math.round(60 / gaps[Math.floor(gaps.length / 2)]!) } : {}) };
+  } catch { return { beat: 'unknown' }; }
 }
+const beatOf = async (asset: MediaAsset, deps: ReelsDeps) => (await gridInfo(asset, deps)).beat;
+/** Reels cut best around this tempo: slow songs give two or three shots in ten seconds. */
+const IDEAL_BPM = 115;
 
 /** The bundled songs, as media assets a recipe can use. They are added to the project only when a plan picks one. */
 function libraryMusic(ctx: AgentContext): MediaAsset[] {
@@ -43,8 +48,9 @@ async function chooseSong(recipe: Recipe, wanted: unknown, assets: MediaAsset[],
   }
   const needsSong = recipe.music?.required === true || needsBeat(recipe);
   if (!needsSong || assets.some((a) => a.kind === 'audio')) return {};
-  for (const track of library) if (await beatOf(track, deps) === 'steady') return { song: track, add: track };
-  return {};
+  const graded = await Promise.all(library.map(async (track) => ({ track, ...(await gridInfo(track, deps)) })));
+  const best = graded.filter((g) => g.beat === 'steady').sort((x, y) => Math.abs((x.bpm ?? IDEAL_BPM) - IDEAL_BPM) - Math.abs((y.bpm ?? IDEAL_BPM) - IDEAL_BPM))[0];
+  return best ? { song: best.track, add: best.track } : {};
 }
 
 export async function planOptions(ctx: AgentContext, deps: ReelsDeps): Promise<unknown> {
@@ -53,15 +59,15 @@ export async function planOptions(ctx: AgentContext, deps: ReelsDeps): Promise<u
   const shown = all.slice(0, MAX_ASSETS);
   const songs = shown.filter((a) => a.kind === 'audio').slice(0, MAX_BEAT_CHECKS);
   const library = libraryMusic(ctx);
-  const beats = new Map(await Promise.all([...songs, ...library].map(async (a) => [a.id, await beatOf(a, deps)] as const)));
+  const beats = new Map(await Promise.all([...songs, ...library].map(async (a) => [a.id, await gridInfo(a, deps)] as const)));
   return {
     assets: shown.map((a) => ({
       assetId: a.id, name: a.name, kind: a.kind, seconds: secs(a, fps),
-      ...(beats.has(a.id) ? { beat: beats.get(a.id) } : {}),
+      ...(beats.has(a.id) ? { beat: beats.get(a.id)!.beat, ...(beats.get(a.id)!.bpm ? { bpm: beats.get(a.id)!.bpm } : {}) } : {}),
       ...(a.width && a.height ? { size: `${a.width}x${a.height}`, orientation: a.height > a.width ? 'portrait' : a.height < a.width ? 'landscape' : 'square' } : {}),
     })),
     ...(all.length > MAX_ASSETS ? { assetsTruncated: all.length - MAX_ASSETS } : {}),
-    libraryMusic: library.map((a) => ({ id: a.id, name: a.name, seconds: secs(a, ctx.getState().fps), beat: beats.get(a.id) })),
+    libraryMusic: library.map((a) => ({ id: a.id, name: a.name, seconds: secs(a, ctx.getState().fps), beat: beats.get(a.id)!.beat, ...(beats.get(a.id)!.bpm ? { bpm: beats.get(a.id)!.bpm } : {}) })),
     timelineIsEmpty: ctx.getState().items.length === 0,
     signatures: SIGNATURES.map((g) => ({ id: g.id, name: g.name, mood: g.mood, bestRecipes: g.recipes })),
     recipes: deps.recipes.map((r) => ({
@@ -176,12 +182,13 @@ async function assembleOne(args: Record<string, unknown>, ctx: AgentContext, dep
   const seconds = Math.round((out.result.report.totalFrames / state.fps) * 10) / 10;
   const shots = out.result.report.shots;
   const fixed = base?.assembler.strategy === 'travel-diary@1';
+  const clipsMin = Math.max(3, ...mediaInputs(recipe).filter((i) => !i.accept.includes('audio')).map((i) => i.min ?? 0));
   commit(ctx, [...(picked.add ? [{ type: 'addAsset', asset: picked.add } as AtomicAction] : []), ...out.action.actions], out.action.label ?? `Plan: ${recipe.name}`);
   let saved = true;
   try { await saveRun(deps.kv, projectId(ctx), out.run); } catch { saved = false; }
   return {
     ok: true, recipe: recipe.name, ratio: ratio ?? supportedRatios(recipe)[0], shots: out.result.report.shots,
-    seconds, ...(wantSec !== undefined && Math.abs(seconds - wantSec) > 1.5 ? { lengthNote: `The reel is ${seconds} s, not the ${wantSec} s asked for${fixed ? ': this recipe has a fixed slot plan whose length follows the song tempo' : ''}. Use a recipe without lengthFixed, or tell the user.${shots > 0 && seconds > 0 && !fixed ? ` Shots here run about ${Math.round((seconds / shots) * 10) / 10} s, so name about ${Math.max(3, Math.round(wantSec / (seconds / shots)))} of the best clips or photos in media (or change the cut rule) to land on ${wantSec} s.` : ''}` } : {}),
+    seconds, ...(wantSec !== undefined && Math.abs(seconds - wantSec) > 1.5 ? { lengthNote: `The reel is ${seconds} s, not the ${wantSec} s asked for${fixed ? ': this recipe has a fixed slot plan whose length follows the song tempo' : ''}. Use a recipe without lengthFixed, or tell the user.${shots > 0 && seconds > 0 && !fixed ? ` Shots here run about ${Math.round((seconds / shots) * 10) / 10} s, so ${(() => { const need = Math.round(wantSec / (seconds / shots)); const min = clipsMin; return need >= min ? `name about ${need} of the best clips or photos in media (or change the cut rule) to land on ${wantSec} s.` : `landing on ${wantSec} s would need fewer than the ${min} shots this recipe requires: use a faster cut rule or a faster song, or another recipe.`; })()}` : ''}` } : {}),
     ...(picked.song ? { music: picked.song.name, ...(picked.add ? { musicAdded: true } : {}) } : {}), ...(trimmedTo ? { trimmedToPhotos: trimmedTo } : {}),
     usedAssetIds: out.result.report.usedAssetIds, texts: values.texts, notes: out.messages, ...(rejected.length ? { rejected } : {}),
     ...(saved ? {} : { warning: 'The reel was built, but the recipe run could not be saved; re-cut from chat will not work.' }),
