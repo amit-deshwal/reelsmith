@@ -97,4 +97,12 @@ assert.ok(fell.ok, fell.error);
 assert.equal(fell.fellBackFrom, 'travel-diary');
 const badFallback = await execReelsTool('reels_plan_assemble', { recipeId: 'travel-diary', fallbackRecipeId: 'travel-diary', replaceTimeline: true }, ctx2, deafDeps) as { error?: string };
 assert.match(badFallback.error ?? '', /photo-dump/, 'a beat recipe is not accepted as the fallback');
+
+// length: targetSec is honoured by flexible recipes and reported by fixed ones
+const dumpShort = await execReelsTool('reels_plan_assemble', { recipeId: 'photo-dump', targetSec: 8, replaceTimeline: true }, ctx2, deafDeps) as { ok?: boolean; error?: string; seconds?: number; lengthNote?: string };
+assert.ok(dumpShort.ok, dumpShort.error);
+assert.ok(dumpShort.seconds! > 0, 'photo-dump built');
+if (dumpShort.lengthNote) assert.match(dumpShort.lengthNote, /name about \d+/, 'a missed length says how many photos would fit');
+const fixedLen = await execReelsTool('reels_plan_options', {}, ctx2, deps) as { recipes: Array<{ id: string; lengthFixed: boolean }> };
+assert.deepEqual(fixedLen.recipes.map((r) => r.lengthFixed), [true, false]);
 console.log('planTools verify ok');

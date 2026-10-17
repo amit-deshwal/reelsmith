@@ -41,7 +41,7 @@ export async function planOptions(ctx: AgentContext, deps: ReelsDeps): Promise<u
     timelineIsEmpty: ctx.getState().items.length === 0,
     recipes: deps.recipes.map((r) => ({
       id: r.id, name: r.name, category: r.category, description: r.description,
-      ratios: supportedRatios(r), targetSec: r.duration?.targetSec, music: r.music?.required ? 'required' : 'optional', needsBeat: needsBeat(r),
+      ratios: supportedRatios(r), targetSec: r.duration?.targetSec, music: r.music?.required ? 'required' : 'optional', needsBeat: needsBeat(r), lengthFixed: r.assembler.strategy === 'travel-diary@1',
       inputs: r.inputs.map((i) => i.kind === 'media'
         ? { id: i.id, kind: 'media', accept: i.accept, min: i.min, max: i.max, label: i.label, ...(i.hint ? { hint: i.hint } : {}), ...(i.constraints?.requiresSpeech ? { needsSpeech: true } : {}) }
         : { id: i.id, kind: 'text', label: i.label, optional: !!i.optional, ...(i.maxLength ? { maxLength: i.maxLength } : {}), ...(i.placeholder ? { example: i.placeholder } : {}) }),
@@ -92,7 +92,11 @@ export async function planAssemble(args: Record<string, unknown>, ctx: AgentCont
 }
 
 async function assembleOne(args: Record<string, unknown>, ctx: AgentContext, deps: ReelsDeps): Promise<unknown> {
-  const recipe = deps.recipes.find((r) => r.id === args.recipeId);
+  const base = deps.recipes.find((r) => r.id === args.recipeId);
+  const wantSec = typeof args.targetSec === 'number' && Number.isFinite(args.targetSec) && args.targetSec > 0 ? args.targetSec : undefined;
+  const d = base?.duration;
+  // the user's length, kept inside the recipe's own limits; recipes with a fixed slot plan ignore it and report their real length
+  const recipe = base && d && wantSec !== undefined ? { ...base, duration: { ...d, targetSec: Math.min(d.maxSec ?? wantSec, Math.max(d.minSec ?? 0, wantSec)) } } : base;
   if (!recipe) return { error: `unknown recipeId ${JSON.stringify(args.recipeId)}; use one of: ${deps.recipes.map((r) => r.id).join(', ')}` };
   const ratio = typeof args.ratio === 'string' ? args.ratio : undefined;
   if (ratio !== undefined && (!isRatioId(ratio) || !supportedRatios(recipe).includes(ratio))) return { error: `${recipe.name} supports ${supportedRatios(recipe).join(', ')}, not ${ratio}` };
@@ -124,11 +128,15 @@ async function assembleOne(args: Record<string, unknown>, ctx: AgentContext, dep
     });
   } catch (error) { return { error: error instanceof Error ? error.message : String(error), media: Object.fromEntries(Object.entries(media).map(([k, v]) => [k, v.length])) }; }
   if (!out.action) return { error: `could not assemble: ${out.messages.join('; ') || 'not enough usable footage'}` };
+  const seconds = Math.round((out.result.report.totalFrames / state.fps) * 10) / 10;
+  const shots = out.result.report.shots;
+  const fixed = base?.assembler.strategy === 'travel-diary@1';
   commit(ctx, out.action.actions, out.action.label ?? `Plan: ${recipe.name}`);
   let saved = true;
   try { await saveRun(deps.kv, projectId(ctx), out.run); } catch { saved = false; }
   return {
     ok: true, recipe: recipe.name, ratio: ratio ?? supportedRatios(recipe)[0], shots: out.result.report.shots,
+    seconds, ...(wantSec !== undefined && Math.abs(seconds - wantSec) > 1.5 ? { lengthNote: `The reel is ${seconds} s, not the ${wantSec} s asked for${fixed ? ': this recipe has a fixed slot plan whose length follows the song tempo' : ''}. Use a recipe without lengthFixed, or tell the user.${shots > 0 && seconds > 0 && !fixed ? ` Shots here run about ${Math.round((seconds / shots) * 10) / 10} s, so name about ${Math.max(3, Math.round(wantSec / (seconds / shots)))} of the best clips or photos in media (or change the cut rule) to land on ${wantSec} s.` : ''}` } : {}),
     usedAssetIds: out.result.report.usedAssetIds, texts: values.texts, notes: out.messages, ...(rejected.length ? { rejected } : {}),
     ...(saved ? {} : { warning: 'The reel was built, but the recipe run could not be saved; re-cut from chat will not work.' }),
     next: 'Run reels_lint, then tell the user what you built in two or three plain lines.',
