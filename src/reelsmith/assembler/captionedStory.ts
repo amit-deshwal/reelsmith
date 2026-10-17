@@ -1,5 +1,6 @@
 // captioned-story@1: talking clips with pauses tightened (never mid-word), word-timed captions,
 // B-roll over sentences, and an opening hook title.
+import { matchBroll } from './brollMeaning';
 import { renderTemplate } from '../../../shared/reelsmith/recipe';
 import type { AtomicAction } from '../../editor/reducerActions';
 import { editedFrames, projectRetimedWords, type EditOpts } from '../../transcript/edit';
@@ -8,7 +9,7 @@ import { musicStartSec, pickClips, pickWithPreferred } from './beatMontage';
 import { musicEndFrame, musicFadeFrames } from '../musicPolicy';
 import { captionsFor } from '../captionStyles';
 import { stableId } from './rng';
-import type { AssembleInput, AssembleResult } from './types';
+import type { AssembleInput, AssembleResult, AssemblyClip } from './types';
 
 const DEFAULT_THRESHOLDS: Record<string, number> = { light: 900, balanced: 600, tight: 350 };
 
@@ -43,7 +44,7 @@ export function assembleCaptionedStory(input: AssembleInput): AssembleResult {
   const tag = `${recipe.id}@${recipe.version}`;
   const actions: AtomicAction[] = [];
   const none = new Set<number>();
-  const sentenceStarts: Array<{ frame: number; end: number }> = [];
+  const sentenceStarts: Array<{ frame: number; end: number; text: string }> = [];
   let cursor = 0;
 
   talking.forEach((clip, i) => {
@@ -66,7 +67,7 @@ export function assembleCaptionedStory(input: AssembleInput): AssembleResult {
       const next = proj.words[k + 1];
       const endsSentence = /[.?!।]$/.test(w.text) || !next || next.start - w.end > 500;
       if (endsSentence) {
-        sentenceStarts.push({ frame: cursor + Math.round((proj.words[sStart]!.start / 1000) * fps), end: cursor + Math.round((w.end / 1000) * fps) });
+        sentenceStarts.push({ frame: cursor + Math.round((proj.words[sStart]!.start / 1000) * fps), end: cursor + Math.round((w.end / 1000) * fps), text: proj.words.slice(sStart, k + 1).map((x) => x.text).join(' ') });
         sStart = k + 1;
       }
     });
@@ -88,21 +89,27 @@ export function assembleCaptionedStory(input: AssembleInput): AssembleResult {
   if (pool.length) {
     const gap = Math.round(Number(params.brollEvery ?? 6) * fps);
     const hookEnd = Math.round((recipe.structure.find((s) => s.section === 'hook')?.lengthSec ?? 3) * fps);
-    const slots: Array<{ frame: number; dur: number }> = [];
+    const slots: Array<{ frame: number; dur: number; text: string }> = [];
     let last = -Infinity;
     for (const s of sentenceStarts) {
       if (s.frame < hookEnd || s.frame - last < gap) continue;
       const dur = Math.min(Math.round(2.5 * fps), s.end - s.frame);
       if (dur < fps) continue;
-      slots.push({ frame: s.frame, dur });
+      slots.push({ frame: s.frame, dur, text: s.text });
       last = s.frame;
     }
     const usedGroups = new Set(talking.map((c) => c.groupId).filter(Boolean));
     const usedIds = new Set(talking.map((c) => c.assetId));
     const eligible = pool.filter((c) => !usedIds.has(c.assetId) && !(c.groupId && usedGroups.has(c.groupId)));
-    const picks = input.preferredBrollAssetIds?.length
-      ? pickWithPreferred(eligible, input.preferredBrollAssetIds, slots.length, false, seed)
-      : pickClips(eligible, slots.length, false, seed);
+    let picks: AssemblyClip[];
+    if (input.preferredBrollAssetIds?.length) {
+      picks = pickWithPreferred(eligible, input.preferredBrollAssetIds, slots.length, false, seed);
+    } else {
+      // RS-204: with shot tags, each cutaway is the spare clip that fits what the sentence is about; else score order
+      const byMeaning = matchBroll(slots.map((slot) => slot.text), pickClips(eligible, eligible.length, false, seed));
+      picks = byMeaning.picks.slice(0, slots.length);
+      if (byMeaning.note) warnings.push(byMeaning.note);
+    }
     usedBroll.push(...picks.map((c) => c.assetId));
     if (picks.length < slots.length) warnings.push('fewer B-roll clips than slots');
     picks.forEach((clip, i) => {
