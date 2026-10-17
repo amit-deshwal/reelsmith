@@ -35,12 +35,15 @@ const ctx: AgentContext = {
 const tl = () => activeTimeline(h.present);
 
 // options: media and recipes in one call
-const opts = await execReelsTool('reels_plan_options', {}, ctx, deps) as { assets: Array<{ assetId: string; kind: string; orientation?: string }>; recipes: Array<{ id: string; inputs: Array<{ id: string; maxLength?: number }>; ratios: string[] }>; timelineIsEmpty: boolean };
+const opts = await execReelsTool('reels_plan_options', {}, ctx, deps) as { assets: Array<{ assetId: string; kind: string; orientation?: string }>; recipes: Array<{ id: string; needsBeat: boolean; inputs: Array<{ id: string; maxLength?: number }>; ratios: string[] }>; timelineIsEmpty: boolean };
 assert.equal(opts.assets.length, 21);
 assert.equal(opts.assets.find((a) => a.assetId === 'c0')!.orientation, 'portrait');
 assert.deepEqual(opts.recipes.map((r) => r.id), ['travel-diary', 'photo-dump']);
 assert.ok(opts.recipes[0]!.inputs.some((i) => i.id === 'line' && i.maxLength));
 assert.equal(opts.timelineIsEmpty, true);
+assert.deepEqual(opts.recipes.map((r) => r.needsBeat), [true, false], 'travel-diary needs a beat, photo-dump does not');
+assert.equal((opts.assets.find((a) => a.assetId === 'song') as { beat?: string }).beat, 'steady');
+assert.equal((opts.assets.find((a) => a.assetId === 'c0') as { beat?: string }).beat, undefined, 'only songs get a beat check');
 
 // bad plans change nothing
 const pastBefore = h.past.length;
@@ -79,4 +82,19 @@ h2 = historyReduce(h2, { type: 'batch', label: 'pool', actions: photos.slice(0, 
 const ctx2: AgentContext = { ...ctx, getState: () => activeTimeline(h2.present), getDoc: () => h2.present };
 const short = await execReelsTool('reels_plan_assemble', { recipeId: 'photo-dump' }, ctx2, deps) as { error?: string };
 assert.match(short.error ?? '', /at least/);
+
+// a song without a beat: a beat recipe is refused with the beat-free choices, or falls back in the same call
+const deafDeps: ReelsDeps = { ...deps, api: { ...api, musicGrid: async () => null } };
+const deafOpts = await execReelsTool('reels_plan_options', {}, ctx2, deafDeps) as { assets: Array<{ assetId: string; beat?: string }> };
+assert.equal(deafOpts.assets.find((a) => a.assetId === 'song'), undefined, 'ctx2 has no song');
+h2 = historyReduce(h2, { type: 'batch', label: 'song', actions: [{ type: 'addAsset', asset: song } as AtomicAction, ...clips.slice(0, 8).map((a) => ({ type: 'addAsset', asset: a } as AtomicAction)), ...photos.slice(2).map((a) => ({ type: 'addAsset', asset: a } as AtomicAction))] });
+assert.equal(((await execReelsTool('reels_plan_options', {}, ctx2, deafDeps)) as typeof deafOpts).assets.find((a) => a.assetId === 'song')!.beat, 'none');
+const noBeat = await execReelsTool('reels_plan_assemble', { recipeId: 'travel-diary' }, ctx2, deafDeps) as { error?: string };
+assert.match(noBeat.error ?? '', /photo-dump/);
+assert.match(noBeat.error ?? '', /fallbackRecipeId/);
+const fell = await execReelsTool('reels_plan_assemble', { recipeId: 'travel-diary', fallbackRecipeId: 'photo-dump' }, ctx2, deafDeps) as { ok?: boolean; error?: string; recipe?: string; fellBackFrom?: string };
+assert.ok(fell.ok, fell.error);
+assert.equal(fell.fellBackFrom, 'travel-diary');
+const badFallback = await execReelsTool('reels_plan_assemble', { recipeId: 'travel-diary', fallbackRecipeId: 'travel-diary', replaceTimeline: true }, ctx2, deafDeps) as { error?: string };
+assert.match(badFallback.error ?? '', /photo-dump/, 'a beat recipe is not accepted as the fallback');
 console.log('planTools verify ok');

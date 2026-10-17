@@ -13,19 +13,35 @@ const PLANNABLE = new Set(['video', 'image', 'audio']);
 
 const secs = (asset: MediaAsset, fps: number) => Math.round((asset.durationInFrames / fps) * 10) / 10;
 
-export function planOptions(ctx: AgentContext, deps: ReelsDeps): unknown {
+const MAX_BEAT_CHECKS = 3;
+const BEAT_STRATEGIES = new Set(['beat-montage@1', 'travel-diary@1']);
+const needsBeat = (r: Recipe) => BEAT_STRATEGIES.has(r.assembler.strategy);
+
+/** Whether a song has a steady beat; 'unknown' when the check fails, so a flaky analysis never blocks a plan. */
+async function beatOf(asset: MediaAsset, deps: ReelsDeps): Promise<'steady' | 'none' | 'unknown'> {
+  try {
+    const grid = await deps.api.musicGrid(asset);
+    return grid && grid.beatTimesSec.length >= 2 ? 'steady' : 'none';
+  } catch { return 'unknown'; }
+}
+
+export async function planOptions(ctx: AgentContext, deps: ReelsDeps): Promise<unknown> {
   const fps = ctx.getState().fps;
   const all = (ctx.getDoc().assets ?? []).filter((a) => PLANNABLE.has(a.kind));
+  const shown = all.slice(0, MAX_ASSETS);
+  const songs = shown.filter((a) => a.kind === 'audio').slice(0, MAX_BEAT_CHECKS);
+  const beats = new Map(await Promise.all(songs.map(async (a) => [a.id, await beatOf(a, deps)] as const)));
   return {
-    assets: all.slice(0, MAX_ASSETS).map((a) => ({
+    assets: shown.map((a) => ({
       assetId: a.id, name: a.name, kind: a.kind, seconds: secs(a, fps),
+      ...(beats.has(a.id) ? { beat: beats.get(a.id) } : {}),
       ...(a.width && a.height ? { size: `${a.width}x${a.height}`, orientation: a.height > a.width ? 'portrait' : a.height < a.width ? 'landscape' : 'square' } : {}),
     })),
     ...(all.length > MAX_ASSETS ? { assetsTruncated: all.length - MAX_ASSETS } : {}),
     timelineIsEmpty: ctx.getState().items.length === 0,
     recipes: deps.recipes.map((r) => ({
       id: r.id, name: r.name, category: r.category, description: r.description,
-      ratios: supportedRatios(r), targetSec: r.duration?.targetSec, music: r.music?.required ? 'required' : 'optional',
+      ratios: supportedRatios(r), targetSec: r.duration?.targetSec, music: r.music?.required ? 'required' : 'optional', needsBeat: needsBeat(r),
       inputs: r.inputs.map((i) => i.kind === 'media'
         ? { id: i.id, kind: 'media', accept: i.accept, min: i.min, max: i.max, label: i.label, ...(i.hint ? { hint: i.hint } : {}), ...(i.constraints?.requiresSpeech ? { needsSpeech: true } : {}) }
         : { id: i.id, kind: 'text', label: i.label, optional: !!i.optional, ...(i.maxLength ? { maxLength: i.maxLength } : {}), ...(i.placeholder ? { example: i.placeholder } : {}) }),
@@ -62,7 +78,20 @@ function pickMedia(recipe: Recipe, raw: unknown, assets: readonly MediaAsset[]):
   return { media, problems };
 }
 
+/** Builds with `recipeId`; when that fails only because the song has no steady beat, builds `fallbackRecipeId` instead in the same call. */
 export async function planAssemble(args: Record<string, unknown>, ctx: AgentContext, deps: ReelsDeps): Promise<unknown> {
+  const first = await assembleOne(args, ctx, deps) as { error?: string };
+  if (!first.error || !/steady beat/.test(first.error)) return first;
+  const fallback = typeof args.fallbackRecipeId === 'string' ? deps.recipes.find((r) => r.id === args.fallbackRecipeId) : undefined;
+  if (fallback && !needsBeat(fallback)) {
+    const second = await assembleOne({ ...args, recipeId: fallback.id }, ctx, deps) as Record<string, unknown>;
+    return second.ok ? { ...second, fellBackFrom: args.recipeId, why: 'the song has no steady beat' } : second;
+  }
+  const free = deps.recipes.filter((r) => !needsBeat(r)).map((r) => r.id);
+  return { error: `${first.error}. Pick a recipe that needs no beat (${free.join(', ')}), or import a song with a clear beat; pass fallbackRecipeId to do this in one call.` };
+}
+
+async function assembleOne(args: Record<string, unknown>, ctx: AgentContext, deps: ReelsDeps): Promise<unknown> {
   const recipe = deps.recipes.find((r) => r.id === args.recipeId);
   if (!recipe) return { error: `unknown recipeId ${JSON.stringify(args.recipeId)}; use one of: ${deps.recipes.map((r) => r.id).join(', ')}` };
   const ratio = typeof args.ratio === 'string' ? args.ratio : undefined;

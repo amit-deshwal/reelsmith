@@ -15,7 +15,7 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
     name: 'reels_plan_options',
     description: [
       'Plan a reel step 1: one call returns every imported asset (assetId, name, kind, seconds, orientation) and every bundled recipe with its',
-      'ratios, target length, media inputs (accept, min, max), text inputs (maxLength) and params. Use it to pick the recipe that fits what the user',
+      'ratios, target length, media inputs (accept, min, max), text inputs (maxLength) and params. Songs say beat steady/none/unknown and recipes say needsBeat: never pair a needsBeat recipe with a song whose beat is none. Use it to pick the recipe that fits what the user',
       'wants and what they imported, and to check there is enough footage, before calling reels_plan_assemble.',
     ].join(' '),
     input_schema: { type: 'object', properties: {} },
@@ -36,6 +36,7 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
         media: { type: 'object', additionalProperties: { type: 'array', items: { type: 'string' } }, description: 'Optional: input id to assetIds in the order you want. Omit an input to fill it automatically.' },
         texts: { type: 'object', additionalProperties: { type: 'string' }, description: "Recipe text inputs by id (e.g. the Travel Diary line). Use the user's own words; within maxLength." },
         params: { type: 'object', additionalProperties: {}, description: 'Optional recipe params by id (see params in reels_plan_options).' },
+        fallbackRecipeId: { type: 'string', description: 'Optional recipe that needs no beat (needsBeat false); built instead, in the same call, if the song turns out to have no steady beat.' },
         seed: { type: 'number', description: 'Optional seed; same plan and seed give the same reel.' },
         replaceTimeline: { type: 'boolean', description: 'Pass true only after the user agreed to replace what is on the timeline.' },
       },
