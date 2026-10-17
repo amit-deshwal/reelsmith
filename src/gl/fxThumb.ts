@@ -198,13 +198,14 @@ function shifted(source: TexImageSource, dx: number): HTMLCanvasElement {
 function renderFx(def: FxDef, time: number, overrides?: Record<string, UniformValue>): boolean {
   const sample = getSampleFrame('fx');
   if (!sample || !ensureRuntime() || !rt || !glCanvas) return false;
-  const u = { ...fxUniforms(def, overrides), u_time: time };
+  // a title reveal is shown after it has landed, so the library thumbnail reads as the finished title
+  const u = { ...fxUniforms(def, overrides), u_time: def.textKind === 'title' ? time + 4 : time };
   const lut3d = def.cube ? activeOrPreviewLut(def.cube) ?? undefined : undefined;
   if (def.cube && !lut3d) return false;
   if (def.needsMask) {
     // effects that cut out the person get a head-and-shoulders stand-in on the sample photo
     const stand = syntheticMaskFrame();
-    const text = def.needsText ? textCellFor(Number(u.u_word ?? 0)) : null;
+    const text = def.needsText ? textCellFor(Number(u.u_word ?? 0), def.textKind) : null;
     const uu = { ...u, ...subjectUniforms(stand.subject), ...(text ? { u_textAspect: text.aspect } : {}) };
     const passes = def.pipeline ? def.pipeline(uu) : def.passes?.length ? def.passes.map((frag) => ({ frag, uniforms: uu })) : [{ frag: def.frag, uniforms: uu }];
     const extras: Record<string, TexImageSource> = { u_mask: stand.mask };
@@ -217,6 +218,12 @@ function renderFx(def: FxDef, time: number, overrides?: Record<string, UniformVa
       }
     }
     rt.renderFxChain(passes, sample, extras);
+    return true;
+  }
+  if (def.needsText) {
+    // text effects that need no person: the word's cell goes in beside the photo
+    const text = textCellFor(Number(u.u_word ?? 0), def.textKind);
+    rt.renderFxChain([{ frag: def.frag, uniforms: { ...u, u_textAspect: text.aspect } }], sample, { u_text: text.canvas });
     return true;
   }
   if (def.pipeline) rt.renderFxChain(def.pipeline(u), sample);

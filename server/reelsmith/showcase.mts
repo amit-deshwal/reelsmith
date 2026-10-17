@@ -21,7 +21,7 @@ import { bindTracks } from '../../src/reelsmith/trackBinding.ts';
 
 const FPS = 30;
 const [folderArg, outArg, ...which] = process.argv.slice(2);
-if (!folderArg || !outArg) throw new Error('usage: showcase.mts <clips folder> <output folder> [effects-1] [effects-2] [effects-3] [looks] [transitions]');
+if (!folderArg || !outArg) throw new Error('usage: showcase.mts <clips folder> <output folder> [effects-1] [effects-2] [effects-3] [titles] [looks] [transitions]');
 const folder = resolve(folderArg);
 const outDir = resolve(outArg);
 mkdirSync(outDir, { recursive: true });
@@ -57,7 +57,7 @@ if (usable.length < 6) throw new Error(`need at least 6 portrait clips, found ${
 const pick = (i: number, prefer?: string) => (prefer ? assets.find((a) => a.name === prefer) : undefined) ?? usable[(i * 7) % usable.length]!;
 
 // ---- timeline builder ------------------------------------------------------------------------------
-interface Segment { clip?: string; label: string; sub?: string; frames: number; effects?: Array<{ id: string; assetId: string; overrides?: Record<string, number | number[]> }>; transition?: TransitionType }
+interface Segment { clip?: string; bare?: boolean; label: string; sub?: string; frames: number; effects?: Array<{ id: string; assetId: string; overrides?: Record<string, number | number[]> }>; transition?: TransitionType }
 
 function build(segments: Segment[]): History {
   let h: History = { past: [], present: emptyProjectDoc(), future: [] };
@@ -78,8 +78,8 @@ function build(segments: Segment[]): History {
       type: 'add', startFrame: textStart,
       item: { id: itemId, track: lane, kind: 'text', name: text.slice(0, 24), durationInFrames: textFrames, width: 1080, height: 1920, props: { text, fontSize: size, color, fontWeight: weight, align: 'center' }, transform: { y } },
     });
-    label(`l${i}`, 'V2', seg.label, 80, '#ffffff', 800, 22);
-    if (seg.sub) label(`m${i}`, 'V3', seg.sub, 38, '#ffe9c2', 600, 29);
+    if (!seg.bare) label(`l${i}`, 'V2', seg.label, 80, '#ffffff', 800, 22);
+    if (seg.sub && !seg.bare) label(`m${i}`, 'V3', seg.sub, 38, '#ffe9c2', 600, 29);
     start += seg.frames;
   });
   const batch = { type: 'batch', label: 'showcase', actions: [...adds, ...later] } as never;
@@ -167,9 +167,11 @@ const jobs: Record<string, () => Segment[]> = {
   'effects-3': () => EFFECT_GROUPS['effects-3']!.map(effectSeg),
   'effects-4': () => EFFECT_GROUPS['effects-4']!.map((id) => ({ ...effectSeg(id), frames: 90 })),
   looks: () => REEL_LOOKS.map((look) => ({ label: look.name, sub: look.mood.replace(/ \(needs a person\)/, ''), frames: 84, effects: lookEffects(look), ...(/needs a person/.test(look.mood) ? { clip: 'IMG_7877.MOV' } : {}) })),
+  // the title is the effect itself, so no caption on top of it
+  titles: () => [['IMG_0622.MOV', 0], ['IMG_7877.MOV', 2], ['IMG_7878.MOV', 5], ['IMG_0574.MOV', 10]].map(([clip, word]) => ({ bare: true, label: 'Movie title reveal', clip: clip as string, frames: 120, effects: [{ id: 'fx_title', assetId: 'builtin:fx-title-reveal', overrides: { word: word as number } }] })),
   transitions: () => (Object.keys(REEL_TRANSITION_SECONDS) as TransitionType[]).reduce<Segment[]>((acc, type) => [...acc, { label: TRANSITION_LABELS[type], sub: 'transition into this shot', frames: 66, transition: type }], [{ label: 'Transitions', sub: '10 new Reels transitions', frames: 60 }]),
 };
-const names: Record<string, string> = { 'effects-1': 'reelsmith_effects_1_glow_and_lens', 'effects-2': 'reelsmith_effects_2_texture_and_style', 'effects-3': 'reelsmith_effects_3_mixed_media', 'effects-4': 'reelsmith_effects_4_person_cutout', looks: 'reelsmith_looks', transitions: 'reelsmith_transitions' };
+const names: Record<string, string> = { 'effects-1': 'reelsmith_effects_1_glow_and_lens', 'effects-2': 'reelsmith_effects_2_texture_and_style', 'effects-3': 'reelsmith_effects_3_mixed_media', 'effects-4': 'reelsmith_effects_4_person_cutout', looks: 'reelsmith_looks', titles: 'reelsmith_movie_title_reveal', transitions: 'reelsmith_transitions' };
 const todo = which.length ? which : Object.keys(jobs);
 const done: string[] = [];
 for (const key of todo) {

@@ -248,7 +248,7 @@ export function ClipFx({ item, fit, width, height, frameOffset = 0, onPreviewSta
         };
         const maskFrame = wantsMask ? matteAt(staging, sourceFrameAt(item, frame)) : null;
         const textCell = active.some(({ def }) => def.needsText)
-          ? textCellFor(Number(active.find(({ def }) => def.needsText)!.fx.overrides?.word ?? 0))
+          ? (({ def, fx }) => textCellFor(Number(fx.overrides?.word ?? def.props.find((p) => p.key === 'word')?.default ?? 0), def.textKind))(active.find(({ def }) => def.needsText)!)
           : null;
         const extras: Record<string, TexImageSource> = {};
         if (maskFrame) extras.u_mask = maskFrame.mask;
@@ -261,7 +261,9 @@ export function ClipFx({ item, fit, width, height, frameOffset = 0, onPreviewSta
           active.map(({ fx, def }) => ({
             def,
             overrides: fx.overrides,
-            ...(def.needsMask && maskFrame ? { extraUniforms: { ...subjectUniforms(maskFrame.subject), ...(def.needsText && textCell ? { u_textAspect: textCell.aspect } : {}) } } : {}),
+            ...((def.needsMask && maskFrame) || (def.needsText && textCell)
+              ? { extraUniforms: { ...(def.needsMask && maskFrame ? subjectUniforms(maskFrame.subject) : {}), ...(def.needsText && textCell ? { u_textAspect: textCell.aspect } : {}) } }
+              : {}),
           })),
           frame,
           fps,
