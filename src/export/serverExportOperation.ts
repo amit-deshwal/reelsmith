@@ -1,3 +1,4 @@
+import { captionTrackEntries } from '../editor/types';
 import { finalizeExportForInstagram, instagramReportStore, loadInstagramPreference, isSupportedShape } from '../reelsmith/instagramExport';
 import { writeSrtSidecar } from '../reelsmith/instagramSrt';
 import type { BackgroundExportJobSetters, ExportJobStore } from './backgroundExportStore';
@@ -162,6 +163,34 @@ function recordServerPerformance(context: ServerExportContext, completed: Export
   });
 }
 
+/**
+ * Reelsmith (RS-301): optional .srt next to the delivered video (also for plain browser downloads, which never report a
+ * committed target); a failure here never fails the export. Shared by the normal and the recovered/retried path.
+ */
+async function deliverSrtSidecar(
+  context: ServerExportContext,
+  format: ExportFormat,
+  completed: ExportJobResult,
+  codec: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  if (format !== 'video' || !isSupportedShape(context.options.state)) return;
+  const pref = loadInstagramPreference();
+  const sidecar = await writeSrtSidecar({
+    enabled: pref.enabled && pref.srt, captions: context.options.subtitleCaptions, items: context.options.state.items,
+    fps: context.options.state.fps, videoName: completed.name ?? `${context.options.base}.${exportMediaExtension(format, codec as ExportCodec)}`,
+    write: (filename, blob) => writeBlobToDestination(context.destination, filename, blob, signal),
+  });
+  const last = instagramReportStore.get();
+  if (sidecar.status !== 'skipped' || pref.srt) {
+    instagramReportStore.set({
+      ...(last ?? { status: 'skipped' as const }),
+      srt: sidecar.status === 'written' ? `Captions saved as ${sidecar.name}.`
+        : sidecar.status === 'failed' ? `Could not save the .srt: ${sidecar.message}` : `No .srt saved: ${sidecar.reason}.`,
+    });
+  }
+}
+
 async function exportMedia(
   context: ServerExportContext,
   format: ExportFormat,
@@ -186,23 +215,7 @@ async function exportMedia(
     if (!claim) throw new ExportDestinationError('此导出正在由另一个窗口恢复，请稍后重试');
     targetCommitted = await saveCompleted(context, format, codec, completed, renderId, claim, signal);
     if (format === 'video') recordServerPerformance(context, completed, startedAt);
-    // Reelsmith (RS-301): optional .srt next to the delivered video (also for plain browser downloads, which never report a committed target); a failure here never fails the export
-    if (format === 'video' && isSupportedShape(context.options.state)) {
-      const pref = loadInstagramPreference();
-      const sidecar = await writeSrtSidecar({
-        enabled: pref.enabled && pref.srt, captions: context.options.subtitleCaptions, items: context.options.state.items,
-        fps: context.options.state.fps, videoName: completed.name ?? `${context.options.base}.${exportMediaExtension(format, codec)}`,
-        write: (filename, blob) => writeBlobToDestination(context.destination, filename, blob, signal),
-      });
-      const last = instagramReportStore.get();
-      if (sidecar.status !== 'skipped' || pref.srt) {
-        instagramReportStore.set({
-          ...(last ?? { status: 'skipped' as const }),
-          srt: sidecar.status === 'written' ? `Captions saved as ${sidecar.name}.`
-            : sidecar.status === 'failed' ? `Could not save the .srt: ${sidecar.message}` : `No .srt saved: ${sidecar.reason}.`,
-        });
-      }
-    }
+    await deliverSrtSidecar(context, format, completed, codec, signal);
     return completed;
   } finally {
     if (claim) await releaseServerExportDelivery(renderId, claim).catch(() => undefined);
@@ -240,7 +253,7 @@ function recoveredContext(
     resolution: '1080p',
     fps: record.fps,
     subtitleFormat: 'srt',
-    subtitleCaptions: null,
+    subtitleCaptions: captionTrackEntries(record.state).find((entry) => entry.captions)?.captions ?? null,
     nleFormat: 'fcp_xml',
     includeMg: false,
     mgItems: [],
@@ -314,6 +327,7 @@ async function runRecoveredServerExport(
         signal,
       );
       if (record.format === 'video') recordServerPerformance(context, completed, startedAt);
+      await deliverSrtSidecar(context, record.format, completed, record.codec, signal); // RS-301: a retried export keeps its .srt too
     }
     const finishedAt = Date.now();
     setters.setClock(finishedAt);
