@@ -41,7 +41,7 @@ const t0 = Date.now();
 const lap = (label: string, since: number) => { console.log(`${label}: ${((Date.now() - since) / 1000).toFixed(1)} s`); return Date.now(); };
 
 // --- import: link files, probe each one ---------------------------------------------------------
-const files = readdirSync(folder).filter((f) => /\.(mov|mp4|m4v|mp3|wav|m4a)$/i.test(f)).sort();
+const files = readdirSync(folder).filter((f) => /\.(mov|mp4|m4v|mp3|wav|m4a|jpe?g|png)$/i.test(f)).sort();
 const assets: MediaAsset[] = [];
 const notes: string[] = [];
 let t = Date.now();
@@ -53,6 +53,7 @@ files.forEach((f, i) => {
   const dur = Number(p.format.duration);
   const base = { id: `a${i}`, name: f, src: `/media/uploads/${safe}`, durationInFrames: Math.max(1, Math.floor(dur * FPS)) };
   if (!v) { assets.push({ ...base, kind: 'audio' } as MediaAsset); return; }
+  if (/\.(jpe?g|png)$/i.test(f)) { assets.push({ ...base, kind: 'image', durationInFrames: 150, width: v.width, height: v.height } as MediaAsset); notes.push(`${f}: photo ${v.width}x${v.height}`); return; }
   const rot = Math.abs(Number(v.side_data_list?.find((d: { rotation?: number }) => d.rotation !== undefined)?.rotation ?? 0));
   const [w, h] = rot === 90 || rot === 270 ? [v.height, v.width] : [v.width, v.height];
   const avg = v.avg_frame_rate.split('/').map(Number); const r = v.r_frame_rate.split('/').map(Number);
@@ -63,7 +64,7 @@ files.forEach((f, i) => {
 t = lap(`probe ${files.length} files`, t);
 const videos = assets.filter((a) => a.kind === 'video');
 const song = assets.find((a) => a.kind === 'audio');
-if (!song) throw new Error('no song in folder');
+if (!song && !process.argv.includes('--no-song')) console.log('no song in folder: recipes that need one will refuse; the rest run silent');
 const byFile = (a: MediaAsset) => join(media, a.src.replace('/media/uploads/', ''));
 
 // --- analysis (what Assemble does) --------------------------------------------------------------
@@ -72,7 +73,7 @@ const tagsArg = argv.find((x) => x.startsWith('--tags='))?.slice(7);
 const api: AnalyzeApi = {
   // RS-109: shot tags computed beforehand (scripts/tag-clips.mts), keyed by file name
   ...(tagsArg ? { shotTags: async (as: MediaAsset[]) => { const j = JSON.parse(readFileSync(tagsArg, 'utf8')); return new Map(as.filter((a) => j[a.name!]).map((a) => [a.id, j[a.name!]] as const)); } } : {}),
-  clipFeatures: async (a, fps) => { const s = Date.now(); const r = await extractClipFeatures(byFile(a), a.id, fps, { maxSec: 90 }); feat[a.name ?? a.id] = Date.now() - s; return r; },
+  clipFeatures: async (a, fps) => { const s = Date.now(); const r = await extractClipFeatures(byFile(a), a.id, fps, { maxSec: 90, stillImage: a.kind === 'image' }); feat[a.name ?? a.id] = Date.now() - s; return r; },
   musicGrid: async (a) => {
     const g = await analyzeBeatsFile(byFile(a));
     if (!g) return null;
@@ -87,8 +88,8 @@ const recipe = parsed.recipe;
 const values = defaultValues(recipe);
 for (const input of recipe.inputs) {
   if (input.kind === 'text') { values.texts[input.id] = input.placeholder ?? input.label; continue; }
-  const pool = input.accept.includes('audio') ? [song] : videos;
-  values.media[input.id] = pool.slice(0, input.accept.includes('audio') ? 1 : input.max).map((a) => ({ assetId: a.id, kind: a.kind as 'video' | 'audio' }));
+  const pool = input.accept.includes('audio') ? (song ? [song] : []) : assets.filter((a) => (input.accept as string[]).includes(a.kind));
+  values.media[input.id] = pool.slice(0, input.accept.includes('audio') ? 1 : input.max).map((a) => ({ assetId: a.id, kind: a.kind as 'video' | 'audio' | 'image' }));
 }
 // --param key=value overrides a setup value (e.g. --param musicStart=fromStart); --text id=value sets a text input
 argv.forEach((x, i) => {

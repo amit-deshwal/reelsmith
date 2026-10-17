@@ -48,7 +48,7 @@ assert.ok(!withBad({ '16:9': { canvas: { width: 5, height: 5 } } }).ok, 'canvas 
 
 // every bundled recipe, in every shape it is allowed, assembles to that canvas with text inside it
 const asset = (id: string, kind: MediaAsset['kind'], frames = 300): MediaAsset => ({ id, name: id, kind, src: `/media/uploads/${id}`, durationInFrames: frames, ...(kind === 'video' ? { transcript: Array.from({ length: 24 }, (_, i) => ({ text: `w${i}${i % 4 === 3 ? '.' : ''}`, start: 500 + i * 380 + Math.floor(i / 4) * 1420, end: 800 + i * 380 + Math.floor(i / 4) * 1420 })) } : {}) } as MediaAsset);
-const assets = [...Array.from({ length: 48 }, (_, i) => asset(`c${i}`, 'video', 400)), asset('song', 'audio', 3600)];
+const assets = [...Array.from({ length: 48 }, (_, i) => asset(`c${i}`, 'video', 400)), asset('song', 'audio', 3600), ...Array.from({ length: 30 }, (_, i) => ({ ...asset(`p${i}`, 'image', 1), width: 3000, height: 4000 }))];
 const api: AnalyzeApi = {
   clipFeatures: async (a) => ({ assetId: a.id, dHash: createHash('md5').update(a.id).digest('hex').slice(0, 16), windows: [{ startFrame: 0, endFrame: 400, sharpness: 0.6, exposure: 0.7, motion: 0.4, subject: 0, speech: false }] }),
   musicGrid: async () => ({ durationSec: 60, beatTimesSec: Array.from({ length: 120 }, (_, i) => 0.3 + i * 0.5), beatsPerBar: 4, downbeatIndex: 0 }),
@@ -62,8 +62,9 @@ for (const file of files) {
     const values = defaultValues(all);
     for (const input of all.inputs) {
       if (input.kind === 'text') { values.texts[input.id] = input.placeholder ?? 'Kalsubai'; continue; }
-      const pool = input.accept.includes('audio') ? [assets[48]!] : assets.slice(0, 48);
-      values.media[input.id] = pool.slice(0, input.max).map((a) => ({ assetId: a.id, kind: a.kind as 'video' | 'audio' }));
+      // photo-only recipes (Photo Dump) get photos; every other recipe keeps getting video clips
+      const pool = input.accept.includes('audio') ? [assets[48]!] : input.accept.length === 1 && input.accept[0] === 'image' ? assets.slice(49) : assets.slice(0, 48);
+      values.media[input.id] = pool.slice(0, input.max).map((a) => ({ assetId: a.id, kind: a.kind as 'video' | 'audio' | 'image' }));
     }
     const out = await runRecipe(api, { recipe: all, ratio, values, assets, fps: 30, replaceTimeline: true, seed: 5 });
     const where = `${file} @ ${ratio}`;

@@ -6,6 +6,7 @@ import { assembleStoryVlog } from './storyVlog';
 import { assembleCollageGrid } from './collageGrid';
 import { assembleCaptionedStory } from './captionedStory';
 import { assembleTravelDiary } from './travelDiary';
+import { assemblePhotoDump } from './photoDump';
 import { ratioOf } from '../../../shared/reelsmith/ratios';
 import { withMusicOverrides } from '../musicPolicy';
 
@@ -26,6 +27,8 @@ export function assemble(raw: AssembleInput): AssembleResult {
       result = assembleCaptionedStory(input); break;
     case 'travel-diary@1':
       result = assembleTravelDiary(input); break;
+    case 'photo-dump@1':
+      result = assemblePhotoDump(input); break;
     default:
       result = {
         action: null,

@@ -1,0 +1,35 @@
+{
+  "$schema": "../../schemas/recipe.schema.json",
+  "schemaVersion": 1,
+  "id": "photo-dump",
+  "version": "1.0.0",
+  "name": "Photo Dump",
+  "category": "collage",
+  "description": "A photo-only reel: quick cuts on the beat (or a steady pulse if you add the song in Instagram later), each photo with its own slow push, pull or pan.",
+  "tags": ["photos", "dump", "slideshow"],
+  "preview": { "poster": "previews/photo-dump.jpg", "loop": "previews/photo-dump.mp4", "generatedFrom": "synthetic-sample" },
+  "canvas": { "width": 1080, "height": 1920, "fps": { "num": 30, "den": 1 } },
+  "duration": { "mode": "fitMusic", "minSec": 6, "targetSec": 15, "maxSec": 40 },
+  "inputs": [
+    { "id": "clips", "kind": "media", "accept": ["image"], "min": 5, "max": 60, "label": "Photos", "hint": "8–25 photos; mix wide shots, people and details" },
+    { "id": "music", "kind": "media", "accept": ["audio"], "min": 0, "max": 1, "label": "Song (optional: you can add audio in Instagram instead)" },
+    { "id": "caption", "kind": "text", "label": "Caption shown the whole reel", "placeholder": "weekend, unedited", "optional": true, "maxLength": 60 }
+  ],
+  "params": [
+    { "id": "cutRule", "type": "enum", "label": "Cut on", "default": "every2Beats", "options": ["everyBeat", "every2Beats", "everyBar"] },
+    { "id": "motion", "type": "boolean", "label": "Slow push / pull / pan on every photo", "default": true },
+    { "id": "captionFont", "type": "font", "label": "Caption font", "default": "Inter Tight" }
+  ],
+  "music": { "inputId": "music", "required": false, "startPolicy": "fromStart", "endPolicy": "fadeOut", "fadeOutSec": 1, "gainDb": -3, "clipAudioGainDb": -96, "duckUnderSpeech": false },
+  "assembler": { "strategy": "photo-dump@1", "options": { "introBeats": 0, "outroHoldBeats": 0, "startOnFirstBeat": true }, "aiSelection": "optional" },
+  "structure": [
+    { "section": "body", "fill": "clips", "cutRule": "every2Beats", "transition": "cut", "overlays": [ { "kind": "title", "text": "{{inputs.caption}}", "styleId": "caption", "animationIn": "none", "position": "lowerThird" } ] }
+  ],
+  "styles": {
+    "caption": { "fontFamily": "Inter Tight", "fontWeight": 800, "sizePx": 64, "color": "#FFFFFF", "align": "center", "shadow": { "color": "#00000099", "blurPx": 10, "dx": 0, "dy": 3 } }
+  },
+  "look": { "colorLook": "none", "grain": 0, "vignette": 0 },
+  "agentHints": "Open on the strongest photo. Never repeat a photo; keep similar frames apart. Keep chronological order unless asked otherwise.",
+  "ratios": { "4:5": {}, "1:1": {}, "16:9": {} },
+  "constraints": { "noRepeatClips": true, "insufficientMediaPolicy": "lengthenShots", "keepChronological": false, "textSafeZone": true }
+}

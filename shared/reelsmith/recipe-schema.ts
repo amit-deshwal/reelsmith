@@ -134,7 +134,7 @@ export const RECIPE_SCHEMA = {
       "required": ["strategy"],
       "additionalProperties": false,
       "properties": {
-        "strategy": { "enum": ["beat-montage@1", "story-vlog@1", "captioned-story@1", "collage-grid@1", "travel-diary@1"] },
+        "strategy": { "enum": ["beat-montage@1", "story-vlog@1", "captioned-story@1", "collage-grid@1", "travel-diary@1", "photo-dump@1"] },
         "options": { "type": "object", "description": "Validated by the strategy's own schema (see cardboardrebuild.txt §8.4)." },
         "aiSelection": { "enum": ["off", "optional", "recommended"], "default": "optional", "description": "Whether the user's agent may rank/select clips. The deterministic heuristic always works without AI." }
       }

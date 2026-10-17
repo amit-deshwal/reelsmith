@@ -5,7 +5,7 @@ import { loadRecipesFromDir } from './recipes.ts';
 
 const loaded = await loadRecipesFromDir('recipes');
 assert.deepEqual(loaded.rejected, [], 'shipped recipes must all validate');
-assert.equal(loaded.recipes.length, 8, 'five release-1 recipes plus the place-and-stats reel, travel diary and gang reel');
+assert.equal(loaded.recipes.length, 9, 'five release-1 recipes plus the place-and-stats reel, travel diary, gang reel and photo dump');
 
 const base = JSON.parse(readFileSync('recipes/beat-cut.recipe.json', 'utf8'));
 const clone = () => structuredClone(base);

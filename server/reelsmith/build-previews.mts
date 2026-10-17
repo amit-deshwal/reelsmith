@@ -88,7 +88,9 @@ function talking(i: number): MediaAsset {
 const clips = Array.from({ length: 24 }, (_, i) => clip(i, i % 5 === 4 ? 'image' : 'video'));
 const music = song();
 const talk = [talking(0), talking(1)];
-const assets = [...clips, music, ...talk];
+// photo-only recipes (Photo Dump) need their own stills; the shared pool above has too few images and stays unchanged
+const photoPool = Array.from({ length: 12 }, (_, i) => clip(200 + i, 'image'));
+const assets = [...clips, music, ...talk, ...photoPool];
 const byFile = (a: MediaAsset) => join(media, a.src.replace('/media/uploads/', ''));
 
 const api: AnalyzeApi = {
@@ -116,7 +118,7 @@ for (const recipe of recipes) {
   for (const [k, v] of Object.entries(PARAM_OVERRIDES)) if (k in values.params) values.params[k] = typeof values.params[k] === 'number' ? Number(v) : v;
   for (const input of recipe.inputs) {
     if (input.kind === 'text') { values.texts[input.id] = SAMPLE_TEXT[input.id] ?? input.placeholder ?? input.label; continue; }
-    const pool = input.accept.includes('audio') ? [music] : input.id === 'talking' ? talk : clips.filter((c) => input.accept.includes(c.kind as never));
+    const pool = input.accept.includes('audio') ? [music] : input.id === 'talking' ? talk : input.accept.length === 1 && input.accept[0] === 'image' ? photoPool : clips.filter((c) => input.accept.includes(c.kind as never));
     const want = Math.max(input.min, Math.min(input.max, input.accept.includes('audio') ? 1 : 20));
     values.media[input.id] = pool.slice(0, want).map((a) => ({ assetId: a.id, kind: a.kind as 'video' | 'image' | 'audio' }));
   }
