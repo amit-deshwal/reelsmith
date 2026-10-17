@@ -53,6 +53,9 @@ export const AGENT_PICK_PROMPT = [
   'Tell me in one or two lines why.',
 ].join(' ');
 
+/** Starter text for "Plan a reel": the user finishes the sentence, the reels-editor skill does the rest. */
+export const PLAN_REEL_STARTER = 'Plan a reel for me with the clips I imported. It is about: ';
+
 const AI_RECIPE_PROMPT = [
   'Draft one new Reelsmith recipe manifest as JSON only. Use schemaVersion 1, an id beginning with "ai-", a supported category, 9:16 canvas, declared inputs and params, existing assembler strategy only (beat-montage@1, story-vlog@1, captioned-story@1, collage-grid@1, or travel-diary@1), valid structure/styles, and no executable code or external file paths.',
   'Keep it practical for ordinary imported clips. Use only existing layout, transition, overlay and animation values from the bundled recipes. Include a concise name, description, required media and optional text inputs. I will validate the JSON before saving it.',
@@ -119,6 +122,11 @@ export function RecipesPanel({ projectId, assets, itemCount, fps, onApply, onAsk
   if (!recipe) {
     return (
       <div style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'grid', gap: 10, alignContent: 'start' }}>
+        {onAskAgent && <section aria-label="Plan a reel" style={{ display: 'grid', gap: 6, padding: 10, border: `0.5px solid ${theme.border}`, borderRadius: 8 }}>
+          <b style={{ fontSize: 13 }}>Plan a reel</b>
+          <span style={label}>Tell your agent what the reel is about. It looks at your imported media, picks a recipe, writes the text and builds it. Nothing to copy or paste.</span>
+          <button type="button" onClick={() => onAskAgent(PLAN_REEL_STARTER)} style={{ ...input, cursor: 'pointer', justifySelf: 'start' }}>Plan a reel with my agent</button>
+        </section>}
         <RecipeGallery recipes={[...catalog.recipes, ...userRecipes]} onSelect={(selected, ratio) => {
           setRecipe(selected);
           setChosenRatio(ratio ?? (initialRatio && supportedRatios(selected).includes(initialRatio) ? initialRatio : undefined));

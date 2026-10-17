@@ -5535,6 +5535,64 @@
       }
     },
     {
+      "name": "reels_plan_options",
+      "description": "Plan a reel step 1: one call returns every imported asset (assetId, name, kind, seconds, orientation) and every bundled recipe with its ratios, target length, media inputs (accept, min, max), text inputs (maxLength) and params. Use it to pick the recipe that fits what the user wants and what they imported, and to check there is enough footage, before calling reels_plan_assemble.",
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "reels_plan_assemble",
+      "description": "Plan a reel step 2: build the reel from your plan with a bundled recipe, as one undo step, and remember the run so reels_recut_section and propose_selection work afterwards. Media you do not name is filled automatically (unused clips for clip inputs, the only song for a song input). Refuses with a clear error when footage is too short or a value is invalid; nothing is changed then. When the timeline already has items, ask the user first and pass replaceTimeline true.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "recipeId": {
+            "type": "string",
+            "description": "Recipe id from reels_plan_options."
+          },
+          "ratio": {
+            "type": "string",
+            "description": "One of the recipe ratios, e.g. 9:16 (default: the recipe default)."
+          },
+          "media": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "description": "Optional: input id to assetIds in the order you want. Omit an input to fill it automatically."
+          },
+          "texts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Recipe text inputs by id (e.g. the Travel Diary line). Use the user's own words; within maxLength."
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "Optional recipe params by id (see params in reels_plan_options)."
+          },
+          "seed": {
+            "type": "number",
+            "description": "Optional seed; same plan and seed give the same reel."
+          },
+          "replaceTimeline": {
+            "type": "boolean",
+            "description": "Pass true only after the user agreed to replace what is on the timeline."
+          }
+        },
+        "required": [
+          "recipeId"
+        ]
+      }
+    },
+    {
       "name": "reels_run_info",
       "description": "Read which Reelsmith recipe built this timeline: recipe id/version, assembler, seed, params, texts, the chosen media per input, and the recipe sections present on the timeline with their clip counts. Returns run:null when the timeline was not built by a recipe. Call this before reels_recut_section or reels_selection_candidates.",
       "input_schema": {
@@ -5555,6 +5613,10 @@
           "seed": {
             "type": "number",
             "description": "Optional seed; omit for a new random variation."
+          },
+          "useNewClips": {
+            "type": "boolean",
+            "description": "Default true: clips imported after the reel was built can be picked too. Pass false to use only the clips the reel was built from."
           }
         },
         "required": [
@@ -6436,6 +6498,14 @@
     {
       "name": "reels_lint",
       "description": "Timeline lint for an Instagram Reel. Reports errors and warnings: canvas not 9:16, text that overlaps the Instagram UI (safe zone: top ≈250 px, bottom ≈360 px, right 10% on 1080x1920), gaps or black holes on the main video track, clips shorter than 0.3 s, cuts that miss the beat grid by more than 2 frames, and a reel longer than 90 s. Run it before you finish an edit.",
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "reels_plan_options",
+      "description": "Plan a reel step 1: one call returns every imported asset (assetId, name, kind, seconds, orientation) and every bundled recipe with its ratios, target length, media inputs (accept, min, max), text inputs (maxLength) and params. Use it to pick the recipe that fits what the user wants and what they imported, and to check there is enough footage, before calling reels_plan_assemble.",
       "input_schema": {
         "type": "object",
         "properties": {}

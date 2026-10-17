@@ -250,3 +250,9 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 - `src/agent/external-tool-policy.ts`: `reels_selection_sheet` (ours) added to the read-only tool names.
 - `src/agent/skills/reels-editor/SKILL.md` (ours), `assets/agent/openchatcut-tool-schemas.json` (regenerated).
 - `src/reelsmith/ui/RecipesPanel.tsx` is ours (no upstream edit): a "★ Starred" button per media slot uses the Media Pool favourites as selects (`src/reelsmith/slotFavorites.ts`).
+
+## Plan a reel (RS-1101)
+- `src/agent/external-tool-policy.ts`: `reels_plan_options` is a read tool, `reels_plan_assemble` a draft edit tool (same pattern as the other `reels_*` tools).
+- `assets/agent/openchatcut-tool-schemas.json`: regenerated (`npm run generate:server-tool-catalog`) for the two new tools.
+- `package.json`: `planTools.verify.ts` added to `test:reelsmith`.
+

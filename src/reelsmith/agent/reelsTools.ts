@@ -18,6 +18,7 @@ import { prepareAssembly, runRecord, withBeatGrid, type AnalyzeApi, type Prepare
 import { loadRun, recutSection, saveRun, type Kv } from '../runStore';
 import type { SetupValues } from '../setupForm';
 import { bindTracks } from '../trackBinding';
+import { planAssemble, planOptions } from './planTools';
 export { REELS_TOOL_NAMES, REELS_TOOL_SCHEMAS } from './reelsToolSchemas';
 
 type Args = Record<string, unknown>;
@@ -26,6 +27,8 @@ export interface ReelsDeps {
   api: AnalyzeApi;
   kv: Kv;
   recipes: Recipe[];
+  /** shot tags for a project (the app reads them from the visual-search model); tests leave it out */
+  shotTags?: (projectId: string) => AnalyzeApi['shotTags'];
 }
 
 /** Items a recipe made carry ids starting with "rs-" (stableId in assembler/rng.ts). */
@@ -34,7 +37,7 @@ const SHEET_CANDIDATES = 40;
 
 export const isRecipeItem = (id: string) => /^rs-/.test(id);
 
-function projectId(ctx: AgentContext): string {
+export function projectId(ctx: AgentContext): string {
   return ctx.getProjectId?.() ?? 'current';
 }
 
@@ -74,7 +77,7 @@ function sections(state: TimelineState): Record<string, number> {
   return out;
 }
 
-function commit(ctx: AgentContext, actions: AtomicAction[], label: string) {
+export function commit(ctx: AgentContext, actions: AtomicAction[], label: string) {
   const bound = bindTracks({ type: 'batch', label, actions }, ctx.getState());
   ctx.commands.batch(bound.actions, bound.label);
 }
@@ -84,6 +87,12 @@ export async function execReelsTool(name: string, args: Args, ctx: AgentContext,
   switch (name) {
     case 'reels_lint':
       return lintReel(state);
+
+    case 'reels_plan_options':
+      return planOptions(ctx, deps);
+
+    case 'reels_plan_assemble':
+      return planAssemble(args, ctx, deps);
 
     case 'reels_run_info': {
       const run = await loadRun(deps.kv, projectId(ctx));

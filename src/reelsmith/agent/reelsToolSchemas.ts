@@ -12,6 +12,37 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
     input_schema: { type: 'object', properties: {} },
   },
   {
+    name: 'reels_plan_options',
+    description: [
+      'Plan a reel step 1: one call returns every imported asset (assetId, name, kind, seconds, orientation) and every bundled recipe with its',
+      'ratios, target length, media inputs (accept, min, max), text inputs (maxLength) and params. Use it to pick the recipe that fits what the user',
+      'wants and what they imported, and to check there is enough footage, before calling reels_plan_assemble.',
+    ].join(' '),
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'reels_plan_assemble',
+    description: [
+      'Plan a reel step 2: build the reel from your plan with a bundled recipe, as one undo step, and remember the run so reels_recut_section and',
+      'propose_selection work afterwards. Media you do not name is filled automatically (unused clips for clip inputs, the only song for a song input).',
+      'Refuses with a clear error when footage is too short or a value is invalid; nothing is changed then. When the timeline already has items, ask the',
+      'user first and pass replaceTimeline true.',
+    ].join(' '),
+    input_schema: {
+      type: 'object',
+      properties: {
+        recipeId: { type: 'string', description: 'Recipe id from reels_plan_options.' },
+        ratio: { type: 'string', description: 'One of the recipe ratios, e.g. 9:16 (default: the recipe default).' },
+        media: { type: 'object', additionalProperties: { type: 'array', items: { type: 'string' } }, description: 'Optional: input id to assetIds in the order you want. Omit an input to fill it automatically.' },
+        texts: { type: 'object', additionalProperties: { type: 'string' }, description: "Recipe text inputs by id (e.g. the Travel Diary line). Use the user's own words; within maxLength." },
+        params: { type: 'object', additionalProperties: {}, description: 'Optional recipe params by id (see params in reels_plan_options).' },
+        seed: { type: 'number', description: 'Optional seed; same plan and seed give the same reel.' },
+        replaceTimeline: { type: 'boolean', description: 'Pass true only after the user agreed to replace what is on the timeline.' },
+      },
+      required: ['recipeId'],
+    },
+  },
+  {
     name: 'reels_run_info',
     description: [
       'Read which Reelsmith recipe built this timeline: recipe id/version, assembler, seed, params, texts, the chosen media per input,',
@@ -112,5 +143,5 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
 ];
 
 export const REELS_TOOL_NAMES = new Set(REELS_TOOL_SCHEMAS.map((t) => t.name));
-export const REELS_READ_TOOL_NAMES = ['reels_lint', 'reels_run_info', 'reels_selection_candidates', 'reels_selection_sheet'] as const;
-export const REELS_EDIT_TOOL_NAMES = ['reels_recut_section', 'reels_snap_cuts_to_beats', 'reels_strobe', 'propose_selection'] as const;
+export const REELS_READ_TOOL_NAMES = ['reels_lint', 'reels_plan_options', 'reels_run_info', 'reels_selection_candidates', 'reels_selection_sheet'] as const;
+export const REELS_EDIT_TOOL_NAMES = ['reels_plan_assemble', 'reels_recut_section', 'reels_snap_cuts_to_beats', 'reels_strobe', 'propose_selection'] as const;

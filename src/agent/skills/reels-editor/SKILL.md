@@ -1,7 +1,7 @@
 ---
 name: reels-editor
 description: |
-  Edit Instagram Reels (9:16, 1080x1920) in Reelsmith: beat-aware cuts, the Instagram safe zone, recipe-built reels (re-cut a section, re-pick shots), and a lint pass before finishing. Use for any reel, Instagram, 9:16, vertical short, "re-cut the body", "snap to the beat", or "choose the shots" request.
+  Edit Instagram Reels (9:16, 1080x1920) in Reelsmith: beat-aware cuts, the Instagram safe zone, recipe-built reels (re-cut a section, re-pick shots), and a lint pass before finishing. Use for any reel, Instagram, 9:16, vertical short, "plan a reel", "make me a reel about…", "re-cut the body", "snap to the beat", or "choose the shots" request.
 ---
 
 # Reels editor
@@ -17,6 +17,17 @@ You are editing a short vertical video for Instagram Reels. The user cares about
 5. **Lint before finishing.** Run `reels_lint` after your last edit. Fix every error; fix warnings unless the user wanted them. Mention any warning you leave.
 6. **Say what changed, in plain words.** Two or three short lines: what you cut, moved or added, and where (seconds, not frames).
 7. **Say when something is impossible.** If the footage is too short, a clip is missing, or a request conflicts with the safe zone or the beat, say so plainly and offer the closest option. Never pad with repeated clips without asking.
+
+## Plan a reel (the user describes an idea; you build it)
+
+The user should not have to write a prompt for you. When they describe a reel ("trip to Goa, 12 clips, chill, under 20 s") or say "plan a reel":
+
+1. **One look.** Call `reels_plan_options` once: it lists the imported media and every recipe with its inputs, text limits and params. If nothing is imported yet, say what to import (and how many clips) and stop.
+2. **Ask only what is missing**, in one short message, never more than three questions: what the reel is about / the line they want on screen, the vibe or pace, and the song if none is imported and the recipe needs one. Skip every question the user already answered.
+3. **Pick one recipe** by fit: footage count and type (photos only → Photo Dump / Collage; talking clips → Captioned Story; trip clips + a song → Travel Diary / Travel Beat Montage; a day in order → Mini Day Vlog; a group → Gang Reel). Check min/max against what was imported; if the footage is too short, say so and offer the closest recipe.
+4. **Write the text inputs** in the user's own words and tone; describe only what the clips show; stay inside `maxLength`. Set params only when the user's vibe asks for it.
+5. **Build once** with `reels_plan_assemble` (name the media only when order matters). If the timeline is not empty, ask before passing `replaceTimeline: true`.
+6. **Finish**: `reels_lint`, then two or three plain lines: the recipe and why, length in seconds, and what they can ask next ("re-cut the body", "different opener", "snap to the beat"). Offer `propose_selection` only if they want you to choose the shots.
 
 ## Work fast (every model turn costs seconds)
 
