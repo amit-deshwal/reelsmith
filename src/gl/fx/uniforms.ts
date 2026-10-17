@@ -43,6 +43,11 @@ export interface FxDef {
   cube?: string;
   /** Reelsmith: the shader reads u_mask (the person matte) and u_subjectCenter / u_subjectSize / u_subjectArea */
   needsMask?: boolean;
+  /** Reelsmith: the shader also reads u_text (a word drawn by the renderer, see ../textLayer.ts) and u_textAspect */
+  needsText?: boolean;
+  /** Reelsmith: the shader reads the clip as it looked 1..taps steps ago (u_hist0.., each with its matte u_histMask0..); the
+   * step length in seconds is the `stepKey` setting, read by ClipFx rather than the shader */
+  history?: { taps: number; stepKey: string; countKey: string };
 }
 
 /** Serializable subset of FxDef (without pipeline function field): persisted with TimelineState.fxDefs,

@@ -12,7 +12,14 @@ import { sourceFrameAt } from '../editor/sourceLimit';
 import { offthreadTrimBefore, offthreadVideoTransparent, useRuntimeVideoDecoder } from '../editor/serverVideoDecoder';
 import { glEffects } from './clipEffects';
 import { cropPositionFromProps, type CropPosition } from '../reelsmith/cropFocus';
-import { fullFrameMask, loadPersonMask, subjectUniforms, type PersonMaskProvider, type PersonModel } from './personMask';
+import { cloneMaskFrame, fullFrameMask, loadPersonMask, subjectUniforms, type PersonMaskFrame, type PersonMaskProvider, type PersonModel } from './personMask';
+import { HistoryTap } from './HistoryTap';
+import { LruCache } from './frameCache';
+import { textCellFor } from './textLayer';
+import { fxUniform } from './fx/uniforms';
+
+// mattes of recent source frames, so echo trails segment each frame once while the playhead moves on
+const historyMasks = new LruCache<PersonMaskFrame>(24);
 
 // One video/image clip rendered through a builtin:fx-* single-input WebGL pass.
 // Mounts a hidden, frame-synced media
@@ -103,6 +110,29 @@ export function ClipFx({ item, fit, width, height, frameOffset = 0, onPreviewSta
     return () => { alive = false; };
   }, [wantsMask, maskModel]);
   const cropPosition = cropPositionFromProps(item.props);
+  // effects that look at earlier frames (echo trails): how many afterimages, and how many frames apart
+  const historyFx = active.find(({ def }) => def.history);
+  const historyDef = historyFx?.def.history;
+  const tapCount = historyFx && historyDef
+    ? Math.round(Number(fxUniform(historyFx.def.props.find((p) => p.key === historyDef.countKey)!, historyFx.fx.overrides)))
+    : 0;
+  const tapLag = historyFx && historyDef
+    ? Math.max(1, Math.round(Number(fxUniform(historyFx.def.props.find((p) => p.key === historyDef.stepKey)!, historyFx.fx.overrides)) * fps))
+    : 1;
+  const tapStaging = useMemo(() => Array.from({ length: tapCount }, () => {
+    const c = document.createElement('canvas');
+    c.width = width;
+    c.height = height;
+    return c;
+  }), [tapCount, width, height]);
+  const tapKeysRef = useRef<Array<string | null>>([]);
+  const stageTap = useCallback((index: number, source: CanvasImageSource, renderKey: string) => {
+    const canvas = tapStaging[index];
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return;
+    drawFit(ctx, source, fit, cropPosition);
+    tapKeysRef.current[index] = renderKey;
+  }, [tapStaging, fit, cropPosition.x, cropPosition.y]);
   const definitionKey = useMemo(
     () => active.map(({ def }) => `${def.id}:${def.frag}`).join('\u0000'),
     [active],
@@ -199,18 +229,44 @@ export function ClipFx({ item, fit, width, height, frameOffset = 0, onPreviewSta
       if (!mediaReady) { reportWaiting(); raf = requestAnimationFrame(tick); return; }
       if (active.some(({ def }) => def.cube && !cubeSettled(def.cube))) { reportWaiting(); raf = requestAnimationFrame(tick); return; }
       if (wantsMask && maskProvider === undefined) { reportWaiting(); raf = requestAnimationFrame(tick); return; }
+      if (decodedVideo && tapStaging.some((_, i) => tapKeysRef.current[i] !== renderKey)) { reportWaiting(); raf = requestAnimationFrame(tick); return; }
       try {
         const runtime = ensureRuntimeSlot(runtimeRef, () => createGlRuntime(canvas));
         const ctx = staging.getContext('2d');
         if (!ctx) throw new Error('2d context unavailable');
         if (!decodedVideo && imageRef.current) drawFit(ctx, imageRef.current, fit, cropPosition);
-        const maskFrame = wantsMask ? (maskProvider ? maskProvider.frameFor(staging) : fullFrameMask()) : null;
+        // a matte per source frame; with echo trails it is remembered so each frame is segmented once, not once per afterimage
+        const matteAt = (canvas: HTMLCanvasElement, sourceFrame: number): PersonMaskFrame => {
+          if (!maskProvider) return fullFrameMask();
+          if (!historyDef) return maskProvider.frameFor(canvas);
+          const key = [item.src, Math.round(sourceFrame), maskModel, width, height, fit, cropPosition.x, cropPosition.y].join('|');
+          const cached = historyMasks.get(key);
+          if (cached) return cached;
+          const fresh = cloneMaskFrame(maskProvider.frameFor(canvas));
+          historyMasks.set(key, fresh);
+          return fresh;
+        };
+        const maskFrame = wantsMask ? matteAt(staging, sourceFrameAt(item, frame)) : null;
+        const textCell = active.some(({ def }) => def.needsText)
+          ? textCellFor(Number(active.find(({ def }) => def.needsText)!.fx.overrides?.word ?? 0))
+          : null;
+        const extras: Record<string, TexImageSource> = {};
+        if (maskFrame) extras.u_mask = maskFrame.mask;
+        if (textCell) extras.u_text = textCell.canvas;
+        tapStaging.forEach((canvas, i) => {
+          extras[`u_hist${i}`] = canvas;
+          extras[`u_histMask${i}`] = matteAt(canvas, sourceFrameAt(item, frameOffset + Math.max(0, frame - frameOffset - (i + 1) * tapLag))).mask;
+        });
         const shaderFrame = buildEffectShaderFrame(
-          active.map(({ fx, def }) => ({ def, overrides: fx.overrides, ...(def.needsMask && maskFrame ? { extraUniforms: subjectUniforms(maskFrame.subject) } : {}) })),
+          active.map(({ fx, def }) => ({
+            def,
+            overrides: fx.overrides,
+            ...(def.needsMask && maskFrame ? { extraUniforms: { ...subjectUniforms(maskFrame.subject), ...(def.needsText && textCell ? { u_textAspect: textCell.aspect } : {}) } } : {}),
+          })),
           frame,
           fps,
         );
-        runtime.renderFxChain(shaderFrame.passes, staging, maskFrame ? { u_mask: maskFrame.mask } : undefined);
+        runtime.renderFxChain(shaderFrame.passes, staging, Object.keys(extras).length ? extras : undefined);
         // Make the freshly drawn canvas authoritative before unblocking export;
         // React state then preserves the same choice for subsequent renders.
         canvas.style.opacity = '1';
@@ -231,7 +287,7 @@ export function ClipFx({ item, fit, width, height, frameOffset = 0, onPreviewSta
     };
     tick();
     return () => { cancelAnimationFrame(raf); finish(); };
-  }, [active, definitionKey, fit, cropPosition.x, cropPosition.y, staging, item.id, item.kind, frame, fps, isRendering, renderKey, onPreviewStatus, wantsMask, maskProvider]);
+  }, [active, definitionKey, fit, cropPosition.x, cropPosition.y, staging, item.id, item.kind, frame, fps, isRendering, renderKey, onPreviewStatus, wantsMask, maskProvider, maskModel, tapStaging, tapLag, historyDef, frameOffset, width, height]);
 
   useEffect(() => () => {
     disposeRuntimeSlot(runtimeRef);
@@ -258,6 +314,10 @@ export function ClipFx({ item, fit, width, height, frameOffset = 0, onPreviewSta
             : <MediaVideo src={item.src!} trimBefore={trimBefore} playbackRate={item.playbackRate ?? 1} muted
                 headless={isRendering} onVideoFrame={onVideoFrame} style={{ width: '100%', height: '100%' }} objectFit={fit} />}
       </AbsoluteFill>
+      {item.kind !== 'image' && tapStaging.map((_, i) => (
+        <HistoryTap key={i} item={item} src={item.src!} fps={fps} fit={fit} offthread={videoDecoder === 'offthread'} isRendering={isRendering}
+          trimBefore={trimBefore} delay={(i + 1) * tapLag} onFrame={(source, key) => stageTap(i, source, key)} renderKey={renderKey} />
+      ))}
       <canvas ref={canvasRef} width={width} height={height} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: showingShaderFrame ? 1 : 0 }} />
     </AbsoluteFill>
   );

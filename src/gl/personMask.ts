@@ -30,6 +30,13 @@ function paint(canvas: HTMLCanvasElement, rgba: Uint8ClampedArray, w: number, h:
   canvas.getContext('2d')?.putImageData(new ImageData(new Uint8ClampedArray(rgba), w, h), 0, 0);
 }
 
+/** An independent copy, for mattes that must outlive the next call to frameFor (which reuses one canvas). */
+export function cloneMaskFrame(frame: PersonMaskFrame): PersonMaskFrame {
+  const mask = makeCanvas(frame.mask.width, frame.mask.height);
+  mask.getContext('2d')?.drawImage(frame.mask, 0, 0);
+  return { mask, subject: frame.subject };
+}
+
 /** Everything is "subject": what effects get when segmentation is unavailable, so they degrade instead of breaking. */
 export function fullFrameMask(): PersonMaskFrame {
   const mask = makeCanvas(2, 2);

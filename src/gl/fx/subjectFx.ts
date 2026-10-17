@@ -12,6 +12,10 @@ import glassFrag from './pm-glass-person.frag.ts';
 import predatorFrag from './pm-predator.frag.ts';
 import orbitalFrag from './pm-orbital-screens.frag.ts';
 import cardFrag from './pm-card-breakout.frag.ts';
+import echoTrailsFrag from './pm-echo-trails.frag.ts';
+import textBehindFrag from './pm-text-behind.frag.ts';
+import lightTrailsFrag from './pm-light-trails.frag.ts';
+import { BEHIND_WORDS } from '../behindText';
 
 
 /** Every person-matte effect offers this: which cut-out model finds the people (read by ClipFx, not by the shaders). */
@@ -144,6 +148,58 @@ const RAW_SUBJECT_FX: Record<string, FxDef> = {
       { key: 'backColor', label: 'Background', kind: 'color', default: [0.04, 0.04, 0.06], uniform: 'u_backColor' },
     ],
   },
+  'builtin:fx-echo-trails': {
+    id: 'builtin:fx-echo-trails',
+    name: 'Echo trails',
+    desc: 'Echo Print: the person leaves tinted afterimages of where they were a moment ago, so every move smears into a trail of colour prints (cyan, magenta, yellow, orange). Needs the person cut-out; costs more to preview because it looks at earlier frames.',
+    needsMask: true,
+    history: { taps: 4, stepKey: 'step', countKey: 'trail' },
+    frag: echoTrailsFrag,
+    props: [
+      { key: 'trail', label: 'Afterimages', default: 4, min: 1, max: 4, step: 1 },
+      { key: 'step', label: 'Seconds between prints', default: 0.12, min: 0.04, max: 0.4, step: 0.01 },
+      { key: 'tint', label: 'Colour tint', default: 0.7, min: 0, max: 1, step: 0.01 },
+      { key: 'fade', label: 'Fade with age', default: 1, min: 0, max: 1, step: 0.01 },
+      { key: 'grow', label: 'Older prints swell', default: 0.6, min: 0, max: 3, step: 0.05 },
+      { key: 'dim', label: 'Darken the scene', default: 0.25, min: 0, max: 0.8, step: 0.01 },
+    ],
+  },
+  'builtin:fx-text-behind': {
+    id: 'builtin:fx-text-behind',
+    name: 'Text behind you',
+    desc: `A huge word in scrolling rows passes behind the person and never covers them (words: ${BEHIND_WORDS.map((w, i) => `${i} ${w.toLowerCase()}`).join(', ')}). Needs the person cut-out.`,
+    needsMask: true,
+    needsText: true,
+    frag: textBehindFrag,
+    props: [
+      { key: 'word', label: `Word (0 ${BEHIND_WORDS[0].toLowerCase()} … ${BEHIND_WORDS.length - 1} ${BEHIND_WORDS[BEHIND_WORDS.length - 1]!.toLowerCase()})`, default: 0, min: 0, max: BEHIND_WORDS.length - 1, step: 1 },
+      { key: 'rows', label: 'Rows', default: 3, min: 1, max: 6, step: 1 },
+      { key: 'speed', label: 'Scroll speed', default: 1, min: 0, max: 4, step: 0.05 },
+      { key: 'opacity', label: 'Opacity', default: 0.95, min: 0, max: 1, step: 0.01 },
+      { key: 'outline', label: 'Outline only', default: 0, min: 0, max: 1, step: 1 },
+      { key: 'dim', label: 'Darken the scene', default: 0.2, min: 0, max: 0.8, step: 0.01 },
+      { key: 'shadow', label: 'Shadow', default: 0.5, min: 0, max: 1, step: 0.01 },
+      { key: 'textColor', label: 'Text colour', kind: 'color', default: [1, 1, 1], uniform: 'u_textColor' },
+    ],
+  },
+  'builtin:fx-light-trails': {
+    id: 'builtin:fx-light-trails',
+    name: 'Light trails',
+    desc: 'Streaks of the person\'s own light stretch off them, in one direction or in a burst outwards, like a long exposure. Raise the threshold so only bright parts throw light. Needs the person cut-out.',
+    needsMask: true,
+    frag: lightTrailsFrag,
+    props: [
+      { key: 'length', label: 'Streak length', default: 0.5, min: 0.05, max: 0.8, step: 0.01 },
+      { key: 'angle', label: 'Direction (degrees, 0 right, 90 up)', default: 180, min: 0, max: 360, step: 1 },
+      { key: 'mode', label: 'Style (0 one direction, 1 burst)', default: 0, min: 0, max: 1, step: 1 },
+      { key: 'lines', label: 'Streaks', default: 60, min: 12, max: 160, step: 1 },
+      { key: 'glow', label: 'Brightness', default: 1.5, min: 0, max: 3, step: 0.05 },
+      { key: 'threshold', label: 'Only light brighter than', default: 0.1, min: 0, max: 0.9, step: 0.01 },
+      { key: 'tint', label: 'Colour tint', default: 0.35, min: 0, max: 1, step: 0.01 },
+      { key: 'dim', label: 'Darken the scene', default: 0.3, min: 0, max: 0.8, step: 0.01 },
+      { key: 'trailColor', label: 'Trail colour', kind: 'color', default: [1, 0.62, 0.3], uniform: 'u_trailColor' },
+    ],
+  },
   'builtin:fx-silhouette': {
     id: 'builtin:fx-silhouette',
     name: 'Silhouette',
@@ -176,4 +232,7 @@ export const SUBJECT_FX_ORDER = [
   'builtin:fx-orbital-screens',
   'builtin:fx-card-breakout',
   'builtin:fx-silhouette',
+  'builtin:fx-echo-trails',
+  'builtin:fx-text-behind',
+  'builtin:fx-light-trails',
 ] as const;

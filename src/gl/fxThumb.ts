@@ -1,4 +1,5 @@
 import { subjectUniforms, syntheticMaskFrame } from './personMask';
+import { textCellFor } from './textLayer';
 import { createGlRuntime, type GlRuntime, type UniformValue } from './runtime';
 import { cubeSettled, getCubeSync, parseCube, type CubeLut } from './fx/cube';
 import { fxUniforms, type FxDef } from './fx/effects';
@@ -183,6 +184,17 @@ export function fxHoverOverrides(def: FxDef, phase: number): FxOverrides {
   return spatialHoverOverrides(def.id, p) ?? animatedHoverOverrides(def.id, p);
 }
 
+/** a copy of a picture slid sideways by a share of its width (edge pixels stretch), for the stand-in history frames */
+function shifted(source: TexImageSource, dx: number): HTMLCanvasElement {
+  const w = (source as { width: number }).width, h = (source as { height: number }).height;
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext('2d');
+  ctx?.drawImage(source as CanvasImageSource, dx * w, 0);
+  return c;
+}
+
 function renderFx(def: FxDef, time: number, overrides?: Record<string, UniformValue>): boolean {
   const sample = getSampleFrame('fx');
   if (!sample || !ensureRuntime() || !rt || !glCanvas) return false;
@@ -192,9 +204,19 @@ function renderFx(def: FxDef, time: number, overrides?: Record<string, UniformVa
   if (def.needsMask) {
     // effects that cut out the person get a head-and-shoulders stand-in on the sample photo
     const stand = syntheticMaskFrame();
-    const uu = { ...u, ...subjectUniforms(stand.subject) };
+    const text = def.needsText ? textCellFor(Number(u.u_word ?? 0)) : null;
+    const uu = { ...u, ...subjectUniforms(stand.subject), ...(text ? { u_textAspect: text.aspect } : {}) };
     const passes = def.pipeline ? def.pipeline(uu) : def.passes?.length ? def.passes.map((frag) => ({ frag, uniforms: uu })) : [{ frag: def.frag, uniforms: uu }];
-    rt.renderFxChain(passes, sample, { u_mask: stand.mask });
+    const extras: Record<string, TexImageSource> = { u_mask: stand.mask };
+    if (text) extras.u_text = text.canvas;
+    if (def.history) {
+      // stand-in afterimages: the photo and its matte slid sideways, as if the person were walking left to right
+      for (let i = 0; i < def.history.taps; i++) {
+        extras[`u_hist${i}`] = shifted(sample, -(i + 1) * 0.045);
+        extras[`u_histMask${i}`] = shifted(stand.mask, -(i + 1) * 0.045);
+      }
+    }
+    rt.renderFxChain(passes, sample, extras);
     return true;
   }
   if (def.pipeline) rt.renderFxChain(def.pipeline(u), sample);

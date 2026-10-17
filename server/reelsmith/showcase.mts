@@ -145,6 +145,9 @@ const TAGLINE: Record<string, { sub: string; clip?: string }> = {
   'builtin:fx-orbital-screens': { sub: 'Screens orbit you', clip: 'IMG_0622.MOV' },
   'builtin:fx-card-breakout': { sub: 'Step out of the frame', clip: 'IMG_7877.MOV' },
   'builtin:fx-silhouette': { sub: 'Poster silhouette', clip: 'IMG_0622.MOV' },
+  'builtin:fx-echo-trails': { sub: 'Echo Print: moves leave colour prints', clip: 'IMG_7878.MOV' },
+  'builtin:fx-text-behind': { sub: 'The word passes behind you', clip: 'IMG_7877.MOV' },
+  'builtin:fx-light-trails': { sub: 'Light streams off you', clip: 'IMG_0622.MOV' },
 };
 const effectSeg = (id: string): Segment => ({
   label: REEL_FX_EFFECTS[id]!.name, sub: TAGLINE[id]?.sub, ...(TAGLINE[id]?.clip ? { clip: TAGLINE[id]!.clip } : {}),
@@ -153,7 +156,7 @@ const effectSeg = (id: string): Segment => ({
 const EFFECT_GROUPS: Record<string, string[]> = {
   'effects-1': ['builtin:fx-halation', 'builtin:fx-pro-mist', 'builtin:fx-anamorphic-flare', 'builtin:fx-light-rays', 'builtin:fx-zoom-blur', 'builtin:fx-lens-distortion', 'builtin:fx-soft-vignette'],
   'effects-3': ['builtin:fx-crayon', 'builtin:fx-scrapbook-paper', 'builtin:fx-crayon-doodles', 'builtin:fx-cut-paper', 'builtin:fx-pencil-sketch', 'builtin:fx-watercolor', 'builtin:fx-riso', 'builtin:fx-thermal', 'builtin:fx-frame-division'],
-  'effects-4': ['builtin:fx-mixmedia-cutout', 'builtin:fx-subject-pop', 'builtin:fx-sticker', 'builtin:fx-double-exposure', 'builtin:fx-echo-copies', 'builtin:fx-glass-person', 'builtin:fx-predator', 'builtin:fx-orbital-screens', 'builtin:fx-card-breakout', 'builtin:fx-silhouette'],
+  'effects-4': ['builtin:fx-mixmedia-cutout', 'builtin:fx-subject-pop', 'builtin:fx-sticker', 'builtin:fx-double-exposure', 'builtin:fx-echo-copies', 'builtin:fx-glass-person', 'builtin:fx-predator', 'builtin:fx-orbital-screens', 'builtin:fx-card-breakout', 'builtin:fx-silhouette', 'builtin:fx-echo-trails', 'builtin:fx-text-behind', 'builtin:fx-light-trails'],
   'effects-2': ['builtin:fx-fine-grain', 'builtin:fx-film-damage', 'builtin:fx-vhs', 'builtin:fx-cartoon', 'builtin:fx-water-ripple', 'builtin:fx-cinema-bars', 'builtin:fx-swirl'],
 };
 for (const group of Object.values(EFFECT_GROUPS)) for (const id of group) if (!(REEL_FX_ORDER as readonly string[]).includes(id)) throw new Error(`${id} missing from REEL_FX_ORDER`);

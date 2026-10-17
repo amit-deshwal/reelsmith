@@ -284,4 +284,4 @@ Effects that need the person cut out of every frame. The matte is MediaPipe's se
 - `src/gl/fxThumb.ts`: library thumbnails of matte effects use a head-and-shoulders stand-in matte.
 - `remotion/serve-bundle.mjs`: the export bundle now includes `public/mediapipe` (the render page loads the model from the serve root).
 - `scripts/sync-mediapipe.mjs`: also provisions `deeplab_v3.tflite` (2.8 MB, sha256 pinned).
-
+- Later additions: `src/gl/fx/uniforms.ts` `FxDef.needsText` (the shader reads `u_text`, a word cell drawn by `src/gl/textLayer.ts`) and `FxDef.history` (the shader reads `u_hist0..3` / `u_histMask0..3`, the clip a few steps earlier). `src/gl/ClipFx.tsx` mounts hidden `HistoryTap` video copies (own file `src/gl/HistoryTap.tsx`, each held on the first frame until its delay, then playing delayed so frames are deterministic in the export too), waits for them, and caches mattes per source frame (`src/gl/frameCache.ts`). `src/gl/fxThumb.ts`: stand-in text and history frames for library thumbnails.

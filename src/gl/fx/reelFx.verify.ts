@@ -11,10 +11,14 @@ const RUNTIME = new Set(['u_input', 'u_time', 'u_resolution', 'u_width', 'u_heig
 const SAMPLERS = new Set(['u_glow']);
 // the person matte and where the subject is: supplied by the renderer to effects with needsMask
 const MASK = new Set(['u_mask', 'u_subjectCenter', 'u_subjectSize', 'u_subjectArea']);
+// effects with needsText also get the word's cell; effects with history get earlier frames of the clip and their mattes
+const TEXT = new Set(['u_text', 'u_textAspect']);
+const HISTORY = new Set(['u_hist0', 'u_hist1', 'u_hist2', 'u_hist3', 'u_histMask0', 'u_histMask1', 'u_histMask2', 'u_histMask3']);
+const supplied = (def: { needsMask?: boolean; needsText?: boolean; history?: unknown }, n: string) => (def.needsMask && MASK.has(n)) || (def.needsText && TEXT.has(n)) || (!!def.history && HISTORY.has(n));
 const declared = (frag: string) => [...frag.matchAll(/^uniform\s+\w+\s+(u_\w+)/gm)].map((m) => m[1]!);
 const source = (frag: string) => frag;
 
-assert.equal(REEL_FX_ORDER.length, 33);
+assert.equal(REEL_FX_ORDER.length, 36);
 for (const id of REEL_FX_ORDER) {
   const def = REEL_FX_EFFECTS[id]!;
   assert.ok(def, `${id} defined`);
@@ -37,7 +41,7 @@ for (const id of REEL_FX_ORDER) {
     assert.match(frag, /^#version 300 es/, `${id}/pass ${i}: GLSL ES 3.0`);
     const given = new Set([...Object.keys(pass.uniforms ?? {}), ...Object.keys(pass.samplers ?? {})]);
     for (const name of declared(frag)) {
-      if (RUNTIME.has(name) || SAMPLERS.has(name) || (def.needsMask && MASK.has(name))) continue;
+      if (RUNTIME.has(name) || SAMPLERS.has(name) || supplied(def, name)) continue;
       assert.ok(given.has(name), `${id}/pass ${i}: uniform ${name} is not supplied`);
     }
     assert.ok(!/pow\(\s*sin\(/.test(frag), `${id}/pass ${i}: no pow(sin(..)) on a value that can dip below 0`);
@@ -49,8 +53,8 @@ for (const id of REEL_FX_ORDER) {
   assert.equal(!!def.needsMask, readsMask, `${id}: needsMask must match whether the shader reads u_mask`);
   // single-pass effects: props and shader uniforms line up exactly (no dead sliders)
   if (!def.pipeline) {
-    const fed = Object.keys(fxUniforms(def)).filter((n) => !(def.needsMask && n === 'u_detect'));   // read by ClipFx, not the shader
-    const need = declared(def.frag).filter((n) => !RUNTIME.has(n) && !(def.needsMask && MASK.has(n)));
+    const fed = Object.keys(fxUniforms(def)).filter((n) => !(def.needsMask && n === 'u_detect') && !(def.history && n === `u_${def.history.stepKey}`) && !(def.needsText && n === 'u_word'));   // read by ClipFx, not the shader
+    const need = declared(def.frag).filter((n) => !RUNTIME.has(n) && !supplied(def, n));
     assert.deepEqual([...fed].sort(), [...need].sort(), `${id}: sliders and uniforms match`);
   } else {
     // pipeline effects: moving any slider to its far end changes some pass
