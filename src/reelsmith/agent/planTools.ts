@@ -4,7 +4,7 @@ import { isRatioId } from '../../../shared/reelsmith/ratios';
 import type { AgentContext } from '../../agent/context';
 import type { AtomicAction } from '../../editor/reducerActions';
 import type { MediaAsset } from '../../editor/types';
-import { runRecipe } from '../runRecipe';
+import { ENHANCE_PHOTOS_PARAM, runRecipe } from '../runRecipe';
 import { SIGNATURES } from '../signatures';
 import { saveRun } from '../runStore';
 import { defaultValues, mediaInputs, type SetupValues } from '../setupForm';
@@ -153,6 +153,7 @@ async function assembleOne(args: Record<string, unknown>, ctx: AgentContext, dep
       else rejected.push({ value: id, reason: 'param must be a string, number or boolean' });
     }
   }
+  if (args.enhanceSmallPhotos === true) values.params[ENHANCE_PHOTOS_PARAM] = true;
   if (problems.length) return { error: problems.join('; ') };
 
   const run = (v: typeof values) => runRecipe({ ...deps.api, ...(deps.shotTags ? { shotTags: deps.shotTags(projectId(ctx)) } : {}) }, {

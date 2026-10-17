@@ -16,7 +16,7 @@ const diary = load('travel-diary');
 const dump = load('photo-dump');
 const asset = (id: string, kind: MediaAsset['kind'], frames = 300): MediaAsset => ({ id, name: `${id}.x`, kind, src: `/media/uploads/${id}`, durationInFrames: frames, ...(kind === 'audio' ? {} : { width: 1080, height: 1920 }) });
 const clips = Array.from({ length: 14 }, (_, i) => asset(`c${i}`, 'video'));
-const photos = Array.from({ length: 6 }, (_, i) => asset(`p${i}`, 'image', 150));
+const photos = Array.from({ length: 6 }, (_, i) => (i < 2 ? { ...asset(`p${i}`, 'image', 150), width: 600, height: 800 } : asset(`p${i}`, 'image', 150))); // p0 and p1 are small
 const song = asset('song', 'audio', 3600);
 const hash = (id: string) => { const n = Number(id.slice(1)) || 0; return (((n + 1) * 0x9e3779b1) >>> 0).toString(16).padStart(8, '0') + (((n + 7) * 0x85ebca6b) >>> 0).toString(16).padStart(8, '0'); };
 const api: AnalyzeApi = {
@@ -74,6 +74,15 @@ assert.match(refused.error ?? '', /replaceTimeline/);
 const photosPlan = await execReelsTool('reels_plan_assemble', { recipeId: 'photo-dump', replaceTimeline: true, media: { clips: photos.map((p) => p.id) } }, ctx, deps) as { ok?: boolean; error?: string };
 assert.ok(photosPlan.ok, photosPlan.error);
 assert.ok(!tl().items.some((i) => i.id === 'mine'), 'replaced');
+
+// enhanceSmallPhotos reaches the setup as the enhancement param: the photos that need it go through api.upscale, the rest do not
+const upscaled: string[] = [];
+const enhDeps: ReelsDeps = { ...deps, api: { ...api, upscale: async (a) => { upscaled.push(a.id); return { src: `${a.src}.x2.jpg`, width: (a.width ?? 0) * 2, height: (a.height ?? 0) * 2 }; } } };
+await execReelsTool('reels_plan_assemble', { recipeId: 'photo-dump', replaceTimeline: true, media: { clips: photos.map((p) => p.id) } }, ctx, enhDeps);
+assert.equal(upscaled.length, 0, 'not asked: nothing is enhanced');
+const enhanced = await execReelsTool('reels_plan_assemble', { recipeId: 'photo-dump', replaceTimeline: true, enhanceSmallPhotos: true, media: { clips: photos.map((p) => p.id) } }, ctx, enhDeps) as { ok?: boolean; error?: string };
+assert.ok(enhanced.ok, enhanced.error);
+assert.deepEqual([...upscaled].sort(), ['p0', 'p1'], 'only the two small photos are sent');
 
 // too little footage is explained, not built
 const few = emptyProjectDoc();

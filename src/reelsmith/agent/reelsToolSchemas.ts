@@ -39,6 +39,7 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
         targetSec: { type: 'number', description: 'Length the user asked for, in seconds (kept inside the recipe limits). Recipes marked lengthFixed ignore it; the result says the real length (seconds) and a lengthNote when it misses by more than 1.5 s.' },
         music: { type: 'string', description: 'Optional song: a name or id from libraryMusic or an imported song. Omit it and a recipe that needs a song uses the first library song with a steady beat, added for you. Never add songs with add_audio for a plan.' },
         fallbackRecipeId: { type: 'string', description: 'Optional recipe that needs no beat (needsBeat false); built instead, in the same call, if the song turns out to have no steady beat.' },
+        enhanceSmallPhotos: { type: 'boolean', description: 'Optional: true upscales photos that would be enlarged a lot (small or messaged photos) 2x with a local model before building, so they stay sharp and full-frame. Slower (seconds per photo); use it only when the user asks for best quality or the photos are small (see size in reels_plan_options). Does nothing if the enhancer is not installed; the result messages say how many were enhanced.' },
         seed: { type: 'number', description: 'Optional seed; same plan and seed give the same reel.' },
         replaceTimeline: { type: 'boolean', description: 'Pass true only after the user agreed to replace what is on the timeline.' },
       },
