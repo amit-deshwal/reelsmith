@@ -1,4 +1,4 @@
-import { DEFAULT_TRANSCRIPTION_LANGUAGE } from '../reelsmith/transcriptionLanguage';
+import { DEFAULT_TRANSCRIPTION_LANGUAGE } from '../../reelsmith/transcriptionLanguage';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { theme } from '../../theme';
 import { t, useT } from '../../i18n/locale';
