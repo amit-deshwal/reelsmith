@@ -2,7 +2,10 @@
 // the matte while the playhead moves on, instead of once per trail step per frame.
 export class LruCache<V> {
   private readonly entries = new Map<string, V>();
-  constructor(private readonly capacity: number) {}
+  private readonly capacity: number;
+  constructor(capacity: number) {
+    this.capacity = capacity;
+  }
   get(key: string): V | undefined {
     const value = this.entries.get(key);
     if (value === undefined) return undefined;

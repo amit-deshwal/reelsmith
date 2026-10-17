@@ -47,7 +47,7 @@ assert.equal(first.clips, 2, 'only video and photo clips');
 assert.deepEqual(first.actions.map((a) => (a as { id: string }).id), ['a', 'b']);
 const bEffects = (first.actions[1] as unknown as { effects: Array<{ id: string }> }).effects;
 assert.equal(bEffects[0]!.id, 'fx_mine', 'hand-added effect stays, in front');
-assert.ok(bEffects.slice(1).every(isLookEffect) && !bEffects.some((e) => e.id === 'look_old-film_0'), 'the earlier look is replaced');
+assert.ok(bEffects.slice(1).every((e) => isLookEffect(e as never)) && !bEffects.some((e) => e.id === 'look_old-film_0'), 'the earlier look is replaced');
 const cleared = planLook(items, null);
 assert.deepEqual((cleared.actions[1] as unknown as { effects: Array<{ id: string }> }).effects.map((e) => e.id), ['fx_mine'], 'none keeps hand-added effects only');
 assert.equal(planLook(items, lookById('retro-vhs')!, ['b']).clips, 1, 'scope: one clip');

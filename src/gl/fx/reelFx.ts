@@ -95,7 +95,7 @@ export const REEL_FX_EFFECTS: Record<string, FxDef> = {
     name: 'Light rays',
     desc: 'God rays: bright areas stream light outward from a point, like sun through haze or windows.',
     frag: extractFrag,
-    pipeline: (u) => [
+    pipeline: (u): FxPass[] => [
       { frag: copyFrag },
       { frag: extractFrag, uniforms: { u_threshold: num(u, 'u_threshold', 0.62), u_knee: 0.2, u_tint: [1, 0.9, 0.7], u_tintAmount: num(u, 'u_warmth', 0.5) } },
       { frag: raysFrag, uniforms: { u_lightX: num(u, 'u_lightX', 0.5), u_lightY: num(u, 'u_lightY', 0.85), u_length: num(u, 'u_length', 0.85) } },

@@ -47,7 +47,7 @@ for (const recipe of recipes) {
     const song: MediaAsset = { id: 'song', name: 'song', kind: 'audio', src: '/media/uploads/song', durationInFrames: 3600 };
     const assets = [...media, song];
     const values = defaultValues(recipe);
-    values.media = Object.fromEntries(mediaInputs(recipe).map((i) => [i.id, (i.accept.includes('audio') && !i.accept.includes('video') ? [song] : media.filter((m) => i.accept.includes(m.kind)).slice(0, i.max)).map((a) => ({ assetId: a.id, kind: a.kind as 'video' | 'image' | 'audio' }))]));
+    values.media = Object.fromEntries(mediaInputs(recipe).map((i) => [i.id, (i.accept.includes('audio') && !i.accept.includes('video') ? [song] : media.filter((m) => i.accept.includes(m.kind as 'image' | 'video' | 'audio')).slice(0, i.max)).map((a) => ({ assetId: a.id, kind: a.kind as 'video' | 'image' | 'audio' }))]));
     let out;
     try { out = await runRecipe(api, { recipe, values, assets, fps: 30, replaceTimeline: true, seed: 3 }); } catch (e) { if (/add at least/.test(String(e))) continue; report.push(`${recipe.id} / ${shape.name}: threw ${String(e)}`); continue; }
     if (!out.action) continue; // refused (not enough footage etc.) is not a quality problem

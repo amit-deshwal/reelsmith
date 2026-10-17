@@ -10,7 +10,7 @@ export function applyLookTool(args: Record<string, unknown>, ctx: AgentContext):
   const state = ctx.getState();
   const selected = args.scope === 'selected';
   if (selected && !state.selectedId) return { error: 'No clip is selected. Select a clip, or use scope "all".' };
-  const plan = planLook(state.items, look, selected ? [state.selectedId!] : undefined);
+  const plan = planLook(state.items, look ?? null, selected ? [state.selectedId!] : undefined);
   if (!plan.clips) return { error: selected ? 'The selected item is not a video or photo clip.' : 'There are no video or photo clips on the timeline.' };
   commit(ctx, plan.actions, plan.label);
   return {

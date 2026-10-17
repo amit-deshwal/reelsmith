@@ -205,7 +205,7 @@ function renderFx(def: FxDef, time: number, overrides?: Record<string, UniformVa
   if (def.needsMask) {
     // effects that cut out the person get a head-and-shoulders stand-in on the sample photo
     const stand = syntheticMaskFrame();
-    const text = def.needsText ? textCellFor(Number(u.u_word ?? 0), def.textKind) : null;
+    const text = def.needsText ? textCellFor(Number((u as Record<string, unknown>).u_word ?? 0), def.textKind) : null;
     const uu = { ...u, ...subjectUniforms(stand.subject), ...(text ? { u_textAspect: text.aspect } : {}) };
     const passes = def.pipeline ? def.pipeline(uu) : def.passes?.length ? def.passes.map((frag) => ({ frag, uniforms: uu })) : [{ frag: def.frag, uniforms: uu }];
     const extras: Record<string, TexImageSource> = { u_mask: stand.mask };
@@ -222,7 +222,7 @@ function renderFx(def: FxDef, time: number, overrides?: Record<string, UniformVa
   }
   if (def.needsText) {
     // text effects that need no person: the word's cell goes in beside the photo
-    const text = textCellFor(Number(u.u_word ?? 0), def.textKind);
+    const text = textCellFor(Number((u as Record<string, unknown>).u_word ?? 0), def.textKind);
     rt.renderFxChain([{ frag: def.frag, uniforms: { ...u, u_textAspect: text.aspect } }], sample, { u_text: text.canvas });
     return true;
   }

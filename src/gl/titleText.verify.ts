@@ -12,6 +12,6 @@ assert.equal(titleLabel('THE LAST\nSUMMER'), 'the last summer');
 const def = REEL_FX_EFFECTS['builtin:fx-title-reveal']!;
 assert.ok(def.needsText && def.textKind === 'title' && !def.needsMask, 'title reveal needs a title, not a person');
 const word = def.props.find((p) => p.key === 'word')!;
-assert.equal(word.max, TITLE_WORDS.length - 1, 'the word slider covers every title');
+assert.equal((word as { max?: number }).max, TITLE_WORDS.length - 1, 'the word slider covers every title');
 for (const t of TITLE_WORDS) assert.ok(def.desc.includes(titleLabel(t)), `description lists "${titleLabel(t)}"`);
 console.log('titleText.verify ok');

@@ -19,17 +19,19 @@ const DIRECTIONS = ['left', 'right', 'up', 'down'] as const;
 const declared = (src: string) => [...src.matchAll(/^uniform\s+\w+\s+(u_\w+)/gm)].map((m) => m[1]!);
 const file = (name: string) => readFileSync(new URL(`../gl/shaders/${name}.frag`, import.meta.url), 'utf8');
 
+const GLSL = GLSL_TRANSITIONS as unknown as Record<string, { frag: string; uniforms: (o: { time: number; aspect: number; direction: string }) => Record<string, unknown> }>;
+
 for (const type of TYPES) {
   assert.ok(GLSL_TRANSITION_TYPES.has(type) && TRANSITION_ORDER.includes(type as never), `${type} registered`);
   assert.ok(TRANSITION_LABELS[type as never] && !/[一-鿿]/.test(TRANSITION_LABELS[type as never]), `${type} has an English label`);
   assert.ok(previewTransitionType(type as never), `${type} has a playback preview`);
   const src = file(type);
-  assert.equal(GLSL_TRANSITIONS[type as never].frag, src.replace(/\r\n?/g, '\n'), 'the generated .frag.ts twin is current');
+  assert.equal(GLSL[type]!.frag, src.replace(/\r\n?/g, '\n'), 'the generated .frag.ts twin is current');
   assert.match(src, /^#version 300 es/, `${type}: GLSL ES 3.0`);
   assert.match(src, /uniform float u_progress;/, `${type} reads u_progress`);
   const names = declared(src).filter((n) => !['u_outgoing', 'u_incoming', 'u_progress'].includes(n));
   for (const dir of DIRECTIONS) {
-    const set = Object.keys(GLSL_TRANSITIONS[type as never].uniforms({ time: 0, aspect: 9 / 16, direction: dir })).sort();
+    const set = Object.keys(GLSL[type]!.uniforms({ time: 0, aspect: 9 / 16, direction: dir })).sort();
     assert.deepEqual(set, [...names].sort(), `${type}/${dir}: every declared uniform is set, none extra`);
   }
   // the ends are exact: nothing may pow() a value that can dip below 0 at progress 1 (sin(pi) is -8.7e-8)
@@ -37,11 +39,11 @@ for (const type of TYPES) {
   assert.ok(BREAK_IN_INFO[type] && BREAK_IN_INFO[type]!.length > 60, `${type}: the agent is told what it does`);
   assert.ok(RECIPE_TRANSITIONS[type], `${type}: a recipe can name it`);
   assert.equal(RECIPE_TRANSITIONS[type]!.type, type);
-  assert.ok((RECIPE_SCHEMA as { properties: { structure: { items: { properties: { transition: { enum: string[] } } } } } }).properties.structure.items.properties.transition.enum.includes(type), `${type} is allowed by the recipe schema`);
+  assert.ok((RECIPE_SCHEMA as unknown as { properties: { structure: { items: { properties: { transition: { enum: string[] } } } } } }).properties.structure.items.properties.transition.enum.includes(type), `${type} is allowed by the recipe schema`);
 }
 
 // directional ones really change with the direction
-const dirOf = (type: string, d: 'left' | 'right' | 'up' | 'down') => JSON.stringify(GLSL_TRANSITIONS[type as never].uniforms({ time: 0, aspect: 1, direction: d }));
+const dirOf = (type: string, d: 'left' | 'right' | 'up' | 'down') => JSON.stringify(GLSL[type]!.uniforms({ time: 0, aspect: 1, direction: d }));
 for (const type of ['whip-blur', 'light-leak', 'slide-over', 'cube-turn']) assert.notEqual(dirOf(type, 'left'), dirOf(type, 'right'), `${type}: left and right differ`);
 assert.notEqual(dirOf('cube-turn', 'left'), dirOf('cube-turn', 'up'), 'cube-turn: vertical differs from horizontal');
 

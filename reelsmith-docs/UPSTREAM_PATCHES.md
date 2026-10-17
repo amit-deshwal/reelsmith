@@ -327,3 +327,10 @@ Effects that need the person cut out of every frame. The matte is MediaPipe's se
 
 ## Assemble does not wait forever on shot tags
 - Our own: `src/reelsmith/shotTagApi.ts` (the shot-tag step gets a 2-minute limit and logs a warning; Assemble continues without shot tags).
+
+## Type errors that blocked the build
+- `src/gl/frameCache.ts`: constructor parameter property replaced with an explicit field (the build forbids parameter properties).
+- `src/gl/fx/reelFx.ts`: the light-rays pipeline is typed `FxPass[]`.
+- `src/gl/fxThumb.ts`: `u_word` read through a loose record.
+- `src/gl/titleText.verify.ts`: reads `max` through an optional-typed view.
+- Our own: `src/reelsmith/agent/lookTools.ts`, `planTools.ts` (removed an unused helper), `looks.verify.ts`, `recipeQuality.verify.ts`, `reelTransitions.verify.ts`.

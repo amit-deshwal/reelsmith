@@ -28,7 +28,6 @@ async function gridInfo(asset: MediaAsset, deps: ReelsDeps): Promise<{ beat: 'st
     return { beat: 'steady', ...(gaps.length ? { bpm: Math.round(60 / gaps[Math.floor(gaps.length / 2)]!) } : {}) };
   } catch { return { beat: 'unknown' }; }
 }
-const beatOf = async (asset: MediaAsset, deps: ReelsDeps) => (await gridInfo(asset, deps)).beat;
 /** Reels cut best around this tempo: slow songs give two or three shots in ten seconds. */
 const IDEAL_BPM = 115;
 
