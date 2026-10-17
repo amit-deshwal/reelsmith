@@ -5536,7 +5536,7 @@
     },
     {
       "name": "reels_plan_options",
-      "description": "Plan a reel step 1: one call returns every imported asset (assetId, name, kind, seconds, orientation) and every bundled recipe with its ratios, target length, media inputs (accept, min, max), text inputs (maxLength) and params. Use it to pick the recipe that fits what the user wants and what they imported, and to check there is enough footage, before calling reels_plan_assemble.",
+      "description": "Plan a reel step 1: one call returns every imported asset (assetId, name, kind, seconds, orientation) and every bundled recipe with its ratios, target length, media inputs (accept, min, max), text inputs (maxLength) and params. Songs say beat steady/none/unknown and recipes say needsBeat: never pair a needsBeat recipe with a song whose beat is none. Use it to pick the recipe that fits what the user wants and what they imported, and to check there is enough footage, before calling reels_plan_assemble.",
       "input_schema": {
         "type": "object",
         "properties": {}
@@ -5577,6 +5577,14 @@
             "type": "object",
             "additionalProperties": {},
             "description": "Optional recipe params by id (see params in reels_plan_options)."
+          },
+          "targetSec": {
+            "type": "number",
+            "description": "Length the user asked for, in seconds (kept inside the recipe limits). Recipes marked lengthFixed ignore it; the result says the real length (seconds) and a lengthNote when it misses by more than 1.5 s."
+          },
+          "fallbackRecipeId": {
+            "type": "string",
+            "description": "Optional recipe that needs no beat (needsBeat false); built instead, in the same call, if the song turns out to have no steady beat."
           },
           "seed": {
             "type": "number",
@@ -5629,6 +5637,32 @@
         },
         "required": [
           "look"
+        ]
+      }
+    },
+    {
+      "name": "reels_apply_signature",
+      "description": "Give the reel one considered, restrained style in one undo step: a look on every clip, one accent effect on the opening shot only, and one transition type on the cuts. Use this when the user wants it unique, thrilling, cinematic, bold or \"the best effects\": one signature beats a stack of effects. Do not add more effects on top. cinematic-drift (travel, landscapes, calm: teal/orange, flare on the opening, whip-blur cuts), neon-pulse (nightlife, parties, energetic: bloom, zoom-blur punch, chroma-glitch cuts), golden-memory (couples, sunsets, friends, nostalgic: warm grade, light-leak cuts), retro-tape (throwback, funny: VHS, flash cuts), clean-minimal (lifestyle, portraits, fashion: soft colour, hard cuts, nothing else). Transitions are only added when the reel has none yet (Travel Diary already places its own); pass transitions false to keep hard cuts. Replaces a previous signature or look.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "signature": {
+            "type": "string",
+            "enum": [
+              "cinematic-drift",
+              "neon-pulse",
+              "golden-memory",
+              "retro-tape",
+              "clean-minimal"
+            ]
+          },
+          "transitions": {
+            "type": "boolean",
+            "description": "false: look and accent only, keep hard cuts. Default true."
+          }
+        },
+        "required": [
+          "signature"
         ]
       }
     },
@@ -6545,7 +6579,7 @@
     },
     {
       "name": "reels_plan_options",
-      "description": "Plan a reel step 1: one call returns every imported asset (assetId, name, kind, seconds, orientation) and every bundled recipe with its ratios, target length, media inputs (accept, min, max), text inputs (maxLength) and params. Use it to pick the recipe that fits what the user wants and what they imported, and to check there is enough footage, before calling reels_plan_assemble.",
+      "description": "Plan a reel step 1: one call returns every imported asset (assetId, name, kind, seconds, orientation) and every bundled recipe with its ratios, target length, media inputs (accept, min, max), text inputs (maxLength) and params. Songs say beat steady/none/unknown and recipes say needsBeat: never pair a needsBeat recipe with a song whose beat is none. Use it to pick the recipe that fits what the user wants and what they imported, and to check there is enough footage, before calling reels_plan_assemble.",
       "input_schema": {
         "type": "object",
         "properties": {}

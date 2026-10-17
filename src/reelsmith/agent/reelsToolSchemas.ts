@@ -66,6 +66,24 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
     },
   },
   {
+    name: 'reels_apply_signature',
+    description: [
+      'Give the reel one considered, restrained style in one undo step: a look on every clip, one accent effect on the opening shot only, and one transition type on the cuts.',
+      'Use this when the user wants it unique, thrilling, cinematic, bold or "the best effects": one signature beats a stack of effects. Do not add more effects on top.',
+      'cinematic-drift (travel, landscapes, calm: teal/orange, flare on the opening, whip-blur cuts), neon-pulse (nightlife, parties, energetic: bloom, zoom-blur punch, chroma-glitch cuts),',
+      'golden-memory (couples, sunsets, friends, nostalgic: warm grade, light-leak cuts), retro-tape (throwback, funny: VHS, flash cuts), clean-minimal (lifestyle, portraits, fashion: soft colour, hard cuts, nothing else).',
+      'Transitions are only added when the reel has none yet (Travel Diary already places its own); pass transitions false to keep hard cuts. Replaces a previous signature or look.',
+    ].join(' '),
+    input_schema: {
+      type: 'object',
+      properties: {
+        signature: { type: 'string', enum: ['cinematic-drift', 'neon-pulse', 'golden-memory', 'retro-tape', 'clean-minimal'] },
+        transitions: { type: 'boolean', description: 'false: look and accent only, keep hard cuts. Default true.' },
+      },
+      required: ['signature'],
+    },
+  },
+  {
     name: 'reels_run_info',
     description: [
       'Read which Reelsmith recipe built this timeline: recipe id/version, assembler, seed, params, texts, the chosen media per input,',
@@ -167,4 +185,4 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
 
 export const REELS_TOOL_NAMES = new Set(REELS_TOOL_SCHEMAS.map((t) => t.name));
 export const REELS_READ_TOOL_NAMES = ['reels_lint', 'reels_plan_options', 'reels_run_info', 'reels_selection_candidates', 'reels_selection_sheet'] as const;
-export const REELS_EDIT_TOOL_NAMES = ['reels_plan_assemble', 'reels_apply_look', 'reels_recut_section', 'reels_snap_cuts_to_beats', 'reels_strobe', 'propose_selection'] as const;
+export const REELS_EDIT_TOOL_NAMES = ['reels_plan_assemble', 'reels_apply_look', 'reels_apply_signature', 'reels_recut_section', 'reels_snap_cuts_to_beats', 'reels_strobe', 'propose_selection'] as const;

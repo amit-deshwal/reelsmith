@@ -4,6 +4,7 @@ import { isRatioId } from '../../../shared/reelsmith/ratios';
 import type { AgentContext } from '../../agent/context';
 import type { MediaAsset } from '../../editor/types';
 import { runRecipe } from '../runRecipe';
+import { SIGNATURES } from '../signatures';
 import { saveRun } from '../runStore';
 import { defaultValues, mediaInputs, type SetupValues } from '../setupForm';
 import { checkTexts, commit, projectId, type ReelsDeps } from './reelsTools';
@@ -39,6 +40,7 @@ export async function planOptions(ctx: AgentContext, deps: ReelsDeps): Promise<u
     })),
     ...(all.length > MAX_ASSETS ? { assetsTruncated: all.length - MAX_ASSETS } : {}),
     timelineIsEmpty: ctx.getState().items.length === 0,
+    signatures: SIGNATURES.map((g) => ({ id: g.id, name: g.name, mood: g.mood, bestRecipes: g.recipes })),
     recipes: deps.recipes.map((r) => ({
       id: r.id, name: r.name, category: r.category, description: r.description,
       ratios: supportedRatios(r), targetSec: r.duration?.targetSec, music: r.music?.required ? 'required' : 'optional', needsBeat: needsBeat(r), lengthFixed: r.assembler.strategy === 'travel-diary@1',

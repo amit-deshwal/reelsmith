@@ -19,6 +19,7 @@ import { loadRun, recutSection, saveRun, type Kv } from '../runStore';
 import type { SetupValues } from '../setupForm';
 import { bindTracks } from '../trackBinding';
 import { planAssemble, planOptions } from './planTools';
+import { applySignatureTool } from './signatureTools';
 import { applyLookTool } from './lookTools';
 export { REELS_TOOL_NAMES, REELS_TOOL_SCHEMAS } from './reelsToolSchemas';
 
@@ -91,6 +92,9 @@ export async function execReelsTool(name: string, args: Args, ctx: AgentContext,
 
     case 'reels_apply_look':
       return applyLookTool(args, ctx);
+
+    case 'reels_apply_signature':
+      return applySignatureTool(args, ctx);
 
     case 'reels_plan_options':
       return planOptions(ctx, deps);

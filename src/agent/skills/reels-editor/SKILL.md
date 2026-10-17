@@ -57,6 +57,12 @@ Reels cut hard by default. When the user asks for a transition ("add a bars tran
 
 When the user asks for a mood, a vibe or "make it look cinematic/retro/…", call `reels_apply_look` instead of stacking effects by hand: one undo step puts a grade + glow + texture stack on every clip (`scope:"selected"` for one clip; `look:"none"` removes it). Pick one look per reel by mood: `cinematic-travel` (trips, landscapes), `golden-hour` (warm, calm, couples), `neon-night` (city nights, parties, gaming), `retro-vhs` (throwback, funny), `old-film` (memories, family), `mixmedia-cutout` (person as a paper sticker on crayon paper) and `spotlight` (vivid person, dark soft background), both only on shots with a person, `soft-pastel` (lifestyle, food, selfies), `moody-bleach` (dramatic, treks), `comic-pop` (playful, friends), `mixmedia-crayon` (scrapbook, kids, diary: taped photo on patterned paper with crayon doodles), `sketchbook` (pencil drawing, calm and artsy), `riso-zine` (two-ink print; indie, fashion, music), `watercolor-dream` (soft washes; dreamy, nature). A later look replaces the earlier one; effects added by hand stay. Tune afterwards with `manage_effects` only if asked. On vertical video use `fine-grain` and `soft-vignette`, not the older Film grain and Vignette (which streak or cut to black).
 
+## Signature styles (one considered treatment)
+
+`reels_apply_signature` is the answer to "unique", "thrilling", "cinematic", "bold" or "use the best effects": one look on every clip, one accent effect on the opening shot only, and one transition type on the cuts, in one undo step. Pick by mood: `cinematic-drift` (travel, landscapes, calm), `neon-pulse` (nightlife, parties, energetic), `golden-memory` (couples, sunsets, friends, nostalgic), `retro-tape` (throwback, funny), `clean-minimal` (portraits, lifestyle, fashion: soft colour, hard cuts). `reels_plan_options` lists them with the recipes that suit each. Call it once after the build and add nothing on top: restraint is what makes a reel look expensive, and more effects only make it look busy. Never stack a signature, a look and hand-added effects.
+
+Picture quality: `reels_lint` reports shots enlarged more than 2x (soft) or 3x (blocky). Replace that shot, zoom it less or say the source is too small; never ship a blocky shot.
+
 ## Film and lens effects (Resolve-style looks)
 
 Apply with `manage_effects` (see `browse_library category=fx`). All have sliders; leave the defaults unless the user asks for more or less. One or two per reel, never a stack of looks.

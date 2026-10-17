@@ -286,3 +286,8 @@ Effects that need the person cut out of every frame. The matte is MediaPipe's se
 - `scripts/sync-mediapipe.mjs`: also provisions `deeplab_v3.tflite` (2.8 MB, sha256 pinned).
 - Later additions: `src/gl/fx/uniforms.ts` `FxDef.needsText` (the shader reads `u_text`, a word cell drawn by `src/gl/textLayer.ts`) and `FxDef.history` (the shader reads `u_hist0..3` / `u_histMask0..3`, the clip a few steps earlier). `src/gl/ClipFx.tsx` mounts hidden `HistoryTap` video copies (own file `src/gl/HistoryTap.tsx`, each held on the first frame until its delay, then playing delayed so frames are deterministic in the export too), waits for them, and caches mattes per source frame (`src/gl/frameCache.ts`). `src/gl/fxThumb.ts`: stand-in text and history frames for library thumbnails.
 - Title effects: `src/gl/fx/uniforms.ts` `FxDef.textKind` (`'title'` makes the renderer draw the movie-title cell from `src/gl/titleText.ts` instead of a behind-you word). `src/gl/ClipFx.tsx` and `src/gl/fxThumb.ts`: text effects no longer have to need the person matte (`u_textAspect` is supplied on its own; the library thumbnail of a title effect shows the finished title). `src/gl/fx/reelFx.ts` registers `titleFx.ts`.
+
+## Signature styles and picture-quality lint
+- `src/agent/external-tool-policy.ts`: `reels_apply_signature` is a draft edit tool.
+- `assets/agent/openchatcut-tool-schemas.json`: regenerated (`server/agent-runs/generate-tool-catalog.mts`) for the new tool.
+- Our own: `src/reelsmith/signatures.ts`, `src/reelsmith/agent/signatureTools.ts`, `src/reelsmith/qualityLint.ts` (called from our `reelLint.ts`).
