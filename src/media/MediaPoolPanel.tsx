@@ -446,7 +446,7 @@ export function MediaPoolPanel({
           close: closeAssetMenu, setError, onSetFavorite, onSetAssetsFavorite,
           rename: renameAssets, rememberFocus: modalFocus.remember, startRelink,
           requestRemove: requestRemoveAssets, setConfirmDeleteId, remove: removeAssets,
-          transcribe: (targets) => targets.filter((asset) => (asset.kind === 'audio' || asset.kind === 'video') && asset.transcribeStatus !== 'running' && asset.transcribeStatus !== 'done').forEach((asset) => onTranscribe(asset)),
+          transcribe: (targets) => targets.filter((asset) => (asset.kind === 'audio' || asset.kind === 'video') && asset.transcribeStatus !== 'running').forEach((asset) => onTranscribe(asset)),
           viewTranscript: (asset) => openTranscriptViewer(asset.id),
           move: onMoveAssets, addToTimeline: onAddAssetsToTimeline, addAsset: onAddAsset,
           addToChat: onAddAssetsToChat,

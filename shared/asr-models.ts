@@ -30,10 +30,12 @@ export interface GgmlAsrModelFile {
   readonly sizeBytes: number;
   readonly sha256: string;
   readonly revision: string;
+  /** Hugging Face repo that hosts the file (defaults to the shared whisper.cpp repo). */
+  readonly repo?: string;
 }
 
 export interface AsrModelEntry {
-  readonly id: 'tiny' | 'base' | 'small' | 'medium' | 'large-v3-turbo';
+  readonly id: 'tiny' | 'base' | 'small' | 'medium' | 'large-v3-turbo' | 'hinglish-apex';
   readonly modelId: string;
   readonly revision: string;
   readonly files: readonly AsrModelFile[];
@@ -42,6 +44,8 @@ export interface AsrModelEntry {
   readonly sizeLabel: string;
   readonly language: string;
   readonly note: string;
+  /** Desktop (whisper.cpp) only: no browser ONNX export exists, so the browser never loads it. */
+  readonly desktopOnly?: boolean;
 }
 
 export const ASR_MODELS: readonly AsrModelEntry[] = [
@@ -155,6 +159,22 @@ export const ASR_MODELS: readonly AsrModelEntry[] = [
     },
     label: 'Whisper Large v3 Turbo', sizeLabel: '~1.5GB', language: 'Multilingual (incl. English, Hindi, Marathi)',
     note: '多语言精度最强；浏览器端较慢，桌面端本地推理体验最佳。',
+  },
+  {
+    // Hindi/Hinglish fine-tune of Whisper large-v3-turbo (Oriserve, Apache 2.0). Desktop whisper.cpp only:
+    // the ONNX export on Hugging Face has no cross-attention outputs, so the browser cannot get word timestamps from it.
+    id: 'hinglish-apex',
+    modelId: 'Marquestra/Whisper-Hindi2Hinglish-Apex-GGML', revision: 'd1de3ff618856e5675c47d3158ca820506fb4d9e',
+    files: [],
+    ggmlFile: {
+      fileName: 'ggml-apex-hinglish-fp16.bin', sizeBytes: 1624555275,
+      sha256: '84457be08fe5101f3691edbbe5bee977844b2bfdd56a76eec350e9b69bf2ffa2',
+      revision: 'd1de3ff618856e5675c47d3158ca820506fb4d9e',
+      repo: 'Marquestra/Whisper-Hindi2Hinglish-Apex-GGML',
+    },
+    label: 'Hindi/Hinglish Apex', sizeLabel: '~1.6GB', language: 'Multilingual (Hindi, Hinglish, English)',
+    note: 'Hindi 与 Hinglish 混合语音的精度优先选择；仅桌面端可用。',
+    desktopOnly: true,
   },
 ];
 

@@ -152,7 +152,8 @@ async function transcribe(
     return_timestamps: 'word',
     chunk_length_s: ASR_INFERENCE_CONTRACT.chunkSeconds,
     stride_length_s: ASR_INFERENCE_CONTRACT.strideSeconds,
-    language: request.language,
+    // 'auto' (mixed or unknown language) lets Whisper detect the language per clip.
+    language: request.language === 'auto' ? undefined : request.language,
   }).catch((error: unknown) => {
     // A failed run leaves the ORT session in an unusable state; drop it so the
     // next request reloads instead of compounding the exhausted heap.

@@ -19,6 +19,7 @@ const COMMON_TRANSCRIPTION_FIELDS: readonly SettingsField[] = [
     defaultLabel: '英语（en）',
     options: [
       { value: 'en', label: '英语（en）' },
+      { value: 'auto', label: '自动识别（混合语言）' },
       { value: 'hi', label: '印地语（hi）' },
       { value: 'mr', label: '马拉地语（mr）' },
       { value: 'zh', label: '中文（zh）' },
@@ -82,6 +83,7 @@ const localTranscriptionPage = transcriptionPage('local', 'localasr', '本地模
       { value: 'small', label: 'Whisper Small（约 250MB · 推荐）' },
       { value: 'medium', label: 'Whisper Medium（约 1.1GB · 精度最高）' },
       { value: 'large-v3-turbo', label: 'Whisper Large v3 Turbo（约 1.1GB · 多语言最强）' },
+      { value: 'hinglish-apex', label: 'Hindi/Hinglish Apex（约 1.6GB · 仅桌面端）' },
     ],
   },
 ], '转写在本机完成：免费、离线、素材不出本机。模型需先下载，下载与删除在 本地模型 → 本地转写 页（点下方按钮前往）。自动选择设备优势后端：WebGPU 不可用时回退 CPU。本地转写不含说话人分离（全部归为同一位说话人）。');

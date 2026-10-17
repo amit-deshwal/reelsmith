@@ -190,7 +190,7 @@ export async function inspectAsrModel(
   if (entry.ggmlFile) resolveGgmlPath(cacheDir, entry.ggmlFile.fileName);
   const files = asrModelDownloads(entry, cacheDir);
   const onnx = files.filter((file) => file.target.modelId === entry.modelId);
-  const ggml = files.filter((file) => file.target.modelId === GGML_SOURCE_MODEL_ID);
+  const ggml = files.filter((file) => file.target.modelId === (entry.ggmlFile?.repo ?? GGML_SOURCE_MODEL_ID));
   // Each engine is judged on its own files only: a missing companion must not
   // hide a complete ONNX export from the browser engine, nor the reverse (#168).
   const [onnxDownloaded, ggmlDownloaded] = await Promise.all([
@@ -267,7 +267,7 @@ export function asrModelDownloads(entry: AsrModelEntry, cacheDir: string): AsrMo
   const ggml = entry.ggmlFile;
   if (!ggml) return downloads;
   return [...downloads, {
-    target: { modelId: GGML_SOURCE_MODEL_ID, revision: ggml.revision, filePath: ggml.fileName },
+    target: { modelId: ggml.repo ?? GGML_SOURCE_MODEL_ID, revision: ggml.revision, filePath: ggml.fileName },
     destination: ggmlCachePath(cacheDir, ggml.fileName),
     sizeBytes: ggml.sizeBytes,
     sha256: ggml.sha256,

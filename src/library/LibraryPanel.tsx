@@ -178,6 +178,8 @@ export function LibraryPanel({ semanticScopeId, canvasRatio, templates, onAddTem
   const sequenceOptions = useMemo(() => isSequences ? getSequenceOptions() : [], [isSequences, getSequenceOptions]);
   const isSkills = mainTab === '技能';
   const isRecipes = mainTab === 'Recipes';
+  const [recipesOpened, setRecipesOpened] = useState(mainTab === 'Recipes');
+  useEffect(() => { if (isRecipes) setRecipesOpened(true); }, [isRecipes]);
   const openCaptionStyles = (sourceItemIds: string[]) => {
     const target = captionTracks[0];
     if (!target?.captions && sourceItemIds.length) {
@@ -208,6 +210,11 @@ export function LibraryPanel({ semanticScopeId, canvasRatio, templates, onAddTem
             className={`cc-main-tab${mainTab === tab ? ' selected' : ''}`}>{t(tab)}</button>
         ))}
       </div>
+      {recipesOpened && (
+        <div style={{ flex: 1, display: isRecipes && !extensionOpen ? 'flex' : 'none', flexDirection: 'column', minHeight: 0, borderTop: `0.5px solid ${theme.border}` }}>
+          <RecipesPanel onImportMedia={onImportMedia} initialRecipeId={initialRecipeId} initialRatio={recipeHandoff?.ratio ?? canvasRatio} initialBrief={recipeHandoff?.brief} initialPrompt={recipeHandoff?.prompt} projectId={semanticScopeId} assets={assets} itemCount={items.length} items={items} selectedItem={selectedItem} fps={fps} onApply={onApplyRecipe} onAskAgent={onAskAgent} />
+        </div>
+      )}
       {extensionOpen ? (
         <ExtensionCenter onClose={() => setExtensionOpen(false)} />
       ) : isCaptions ? (
@@ -244,11 +251,7 @@ export function LibraryPanel({ semanticScopeId, canvasRatio, templates, onAddTem
             onMoveAssets={onMoveMediaAssets} onRenameAsset={onRenameMediaAsset} onTranscribe={onTranscribeAsset} onRenameAssets={onRenameMediaAssets} onSetFavorite={onSetMediaAssetFavorite} onSetAssetsFavorite={onSetMediaAssetsFavorite} onRemoveAsset={onRemoveMediaAsset} onRemoveAssets={onRemoveMediaAssets} onPasteAssets={onPasteMediaAssets}
             onRelinkAsset={onRelinkMediaAsset} onAddSolid={onAddSolid} />
         </div>
-      ) : isRecipes ? (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, borderTop: `0.5px solid ${theme.border}` }}>
-          <RecipesPanel onImportMedia={onImportMedia} initialRecipeId={initialRecipeId} initialRatio={recipeHandoff?.ratio ?? canvasRatio} initialBrief={recipeHandoff?.brief} initialPrompt={recipeHandoff?.prompt} projectId={semanticScopeId} assets={assets} itemCount={items.length} items={items} selectedItem={selectedItem} fps={fps} onApply={onApplyRecipe} onAskAgent={onAskAgent} />
-        </div>
-      ) : isSkills ? (
+      ) : isRecipes ? null : isSkills ? (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, borderTop: `0.5px solid ${theme.border}` }}>
           <SkillsTabPanel
             creativeMode={creativeMode}

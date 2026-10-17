@@ -280,6 +280,8 @@ function useAssetTranscription(options: EditorMediaIngestOptions): StartAssetTra
   const { assets, commands, projectId, stateRef, docRef } = options;
   const start = useCallback<StartAssetTranscription>((asset, asrPath, markRunning = true, replaceExisting = false) => {
     if (!shouldTranscribe(asset.kind)) return;
+    // A finished transcript is replaced when the user asks again (for example after changing the model or language).
+    const replace = replaceExisting || docRef.current.assets.find((candidate) => candidate.id === asset.id)?.transcribeStatus === 'done';
     if (markRunning) {
       commands.setAssetTranscription(asset.id, {
         transcribeStatus: 'running',
@@ -288,8 +290,9 @@ function useAssetTranscription(options: EditorMediaIngestOptions): StartAssetTra
     }
     enqueueTranscription(projectId, asset, {
       asrPath,
+      force: replace,
       getCurrentAsset: () => docRef.current.assets.find((candidate) => candidate.id === asset.id),
-      onComplete: (job) => finishTranscription(job, projectId, commands, stateRef, docRef, replaceExisting),
+      onComplete: (job) => finishTranscription(job, projectId, commands, stateRef, docRef, replace),
     });
   }, [commands, docRef, projectId, stateRef]);
   useEffect(() => {

@@ -11,7 +11,7 @@ import { assetIdsFromFolderDrop } from './folderDrop';
 import { durationLabel, mediaRatioLabel } from './mediaPoolFormat';
 import { MgThumb } from './MgThumb';
 import { usePreviewMediaSource } from './previewMedia';
-import { assetCanTranscribe } from '../transcript/transcribe-jobs';
+import { assetCanTranscribe, canRetranscribe } from '../transcript/transcribe-jobs';
 
 interface MediaAssetCardProps {
   asset: MediaAsset;
@@ -270,10 +270,10 @@ function AssetBadges(props: MediaAssetCardProps) {
         event.stopPropagation();
         props.onOpenMenu(asset.id, event.currentTarget);
       }}><Icon name="more" size={17} /></button>
-      {props.onTranscribe && assetCanTranscribe(asset.kind, asset.transcribeStatus) && <button
+      {props.onTranscribe && (assetCanTranscribe(asset.kind, asset.transcribeStatus) || canRetranscribe(asset)) && <button
         className="cc-asset-transcribe"
-        aria-label={asset.transcribeStatus === 'failed' ? t('重新转写：{name}', { name: asset.name }) : t('转写：{name}', { name: asset.name })}
-        title={asset.transcribeStatus === 'failed' ? t('重新转写') : t('转写')}
+        aria-label={asset.transcribeStatus === 'failed' || asset.transcribeStatus === 'done' ? t('重新转写：{name}', { name: asset.name }) : t('转写：{name}', { name: asset.name })}
+        title={asset.transcribeStatus === 'failed' || asset.transcribeStatus === 'done' ? t('重新转写') : t('转写')}
         onClick={(event) => {
           event.stopPropagation();
           props.onTranscribe?.(asset.id);

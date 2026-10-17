@@ -294,3 +294,36 @@ Effects that need the person cut out of every frame. The matte is MediaPipe's se
 
 ## Shot matching label
 - `src/i18n/dict/en/fx.ts`: EN name for the colour-wheels effect (`三路色轮` -> Color Wheels), which shot matching adds to clips (`src/reelsmith/shotMatch.ts`).
+
+## Recipes tab keeps its place
+- `src/library/LibraryPanel.tsx`: the Recipes panel stays mounted once opened and is hidden (not unmounted) when another tab is shown, so the chosen recipe and its form values survive a trip to My Media. The tab chain renders `null` for Recipes; the panel is rendered in its own block above it.
+
+## Re-transcribe finished clips
+- `src/transcript/transcribe-jobs.ts`: `force` option on enqueue (skips the "already done for this source" check only when set); new `canRetranscribe` (finished audio/video).
+- `src/media/useEditorMediaIngest.ts`: a finished asset is re-transcribed with `force`, and its timeline items get the new transcript.
+- `src/media/MediaPoolCard.tsx`, `MediaPoolMenus.tsx`, `MediaPoolOverlays.tsx`, `MediaPoolPanel.tsx`: the mic button, the "..." menu and the bulk action offer 重新转写 on finished clips.
+
+## Auto-detect transcription language
+- `src/components/settings/settingsMediaProviders.ts`: new "自动识别（混合语言）" option (`auto`) in 转写语言.
+- `src/transcript/local-asr.worker.ts`: `auto` is passed to the pipeline as "no language", so Whisper detects it per clip. The desktop whisper.cpp path already accepts `-l auto` unchanged.
+
+## Hindi/Hinglish Apex model (desktop only)
+- `shared/asr-models.ts`: new tier `hinglish-apex` (`desktopOnly`, empty browser file list, whisper.cpp file from `Marquestra/Whisper-Hindi2Hinglish-Apex-GGML`); `GgmlAsrModelFile.repo` optional.
+- `server/plugins/asr-models.ts`: the whisper.cpp file is fetched and checked from its own repo when one is set (default unchanged).
+- `src/transcript/local-asr-types.ts`: tier union includes `hinglish-apex`.
+- `src/transcript/deviceProfile.ts`: a desktop-only tier falls back to Base when the desktop engine is off.
+- `src/transcript/local-asr.ts`: a desktop-only tier that the desktop engine cannot run fails with a clear message instead of the browser engine.
+- `src/components/settings/settingsMediaProviders.ts`, `src/i18n/dict/en/settings.ts`: option and English label for the new tier; auto-detect language option.
+- Verify updates: `server/plugins/asr-models.verify.ts`, `server/plugins/asr-model-downloads.verify.ts`, `src/components/settings/asr-model-tier-selection.verify.ts`.
+- Open: `desktop/native-inference-residency.verify.ts` fails for this tier (fp16 estimate 4.79 GiB exceeds the 4 GiB resident cap).
+
+## Desktop dev always builds the UI fresh
+- `package.json`: `desktop:dev:shared` runs `vite build` before launching Electron (the desktop window loads `dist/`, so it used to start the last build). `npm run build` still runs the full type-check gate for releases; it currently fails on 16 type errors that were already in the last commit (`src/gl/*`, `src/reelsmith/agent/lookTools.ts`, `planTools.ts`, and some `*.verify.ts`).
+- `assets/agent/openchatcut-tool-schemas.json`: regenerated with `npm run generate:server-tool-catalog` (the build's pre-check said it was stale).
+
+## Resident memory cap raised for the Hindi/Hinglish model
+- `desktop/native-inference-residency.ts`: maximum resident limit 4 GiB -> 6 GiB (still 25% of RAM, so a 24 GB Mac gets 6 GiB; machines with 16 GB or less stay at 4 GiB and refuse the fp16 build).
+- `desktop/native-inference-residency.verify.ts`: cap expectation updated; the Hindi/Hinglish model is checked for a 24 GB machine instead of 8 GB.
+
+## Assemble does not wait forever on shot tags
+- Our own: `src/reelsmith/shotTagApi.ts` (the shot-tag step gets a 2-minute limit and logs a warning; Assemble continues without shot tags).

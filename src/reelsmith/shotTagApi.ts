@@ -12,6 +12,7 @@ import { embedTagPrompts, tagClips, type ClipShotTags, type TagPrompts } from '.
 
 /** More clips than this are not read automatically (index them from the Media pool instead). */
 const MAX_AUTO_INDEX = 60;
+const SHOT_TAG_LIMIT_MS = 120_000;
 const PACK_ID = 'visual-semantics-lite';
 
 let promptCache: TagPrompts | null = null;
@@ -27,6 +28,8 @@ export async function loadShotTags(scopeId: string, assets: MediaAsset[], onProg
   const indexed = new Set(records.map((r) => r.assetId));
   const missing = assets.filter(isSemanticMedia).filter((a) => !indexed.has(a.id));
   let client: SemanticClient | null = null;
+  // A stalled visual model (load or indexing) must not block Assemble: after the limit the recipe continues without shot tags.
+  const work = async () => {
   try {
     if ((missing.length || (records.length && !promptCache)) && missing.length <= MAX_AUTO_INDEX && await packInstalled()) {
       client = new SemanticClient();
@@ -41,6 +44,16 @@ export async function loadShotTags(scopeId: string, assets: MediaAsset[], onProg
   } catch {
     // the model could not be used: fall back to whatever vectors exist, or to score-only picks
   } finally { client?.dispose(); }
+  };
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const limit = new Promise<void>((resolve) => {
+    timer = setTimeout(() => {
+      console.warn(`[shot tags] the visual model did not finish within ${SHOT_TAG_LIMIT_MS / 1000}s; continuing without shot tags`);
+      client?.dispose();
+      resolve();
+    }, SHOT_TAG_LIMIT_MS);
+  });
+  try { await Promise.race([work(), limit]); } finally { clearTimeout(timer); }
   if (!records.length || !promptCache) return new Map();
   return tagClips(records, promptCache);
 }

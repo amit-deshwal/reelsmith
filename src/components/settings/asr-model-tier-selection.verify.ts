@@ -8,7 +8,7 @@
 // both ends "worked" — only the hand-written list in between disagreed.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { ASR_MODELS, ASR_MODEL_TIERS, isAsrModelTier } from '../../../shared/asr-models';
+import { ASR_MODELS, ASR_MODEL_TIERS, asrModelEntry, isAsrModelTier } from '../../../shared/asr-models';
 import { chooseAsrConfig } from '../../transcript/deviceProfile';
 import type { DeviceProfile } from '../../transcript/local-asr-types';
 
@@ -68,9 +68,11 @@ for (const entry of ASR_MODELS) {
     `selecting ${entry.id} must overwrite the previous tier, not be discarded`,
   );
   const config = chooseAsrConfig(profile);
-  assert.equal(config.modelTier, entry.id, `${entry.id} must resolve to itself at runtime`);
-  assert.equal(config.modelId, entry.modelId, `${entry.id} must resolve to its catalog model`);
-  assert.equal(config.revision, entry.revision, `${entry.id} must resolve to its pinned revision`);
+  // A desktop-only tier falls back to Base in the browser engine (no browser export); everything else keeps its tier.
+  const expected = entry.desktopOnly ? 'base' : entry.id;
+  assert.equal(config.modelTier, expected, `${entry.id} must resolve to ${expected} in the browser engine`);
+  assert.equal(config.modelId, asrModelEntry(expected)!.modelId, `${entry.id} must resolve to its catalog model`);
+  assert.equal(config.revision, asrModelEntry(expected)!.revision, `${entry.id} must resolve to its pinned revision`);
 }
 
 // Auto ('') and unknown values both fall back to the default tier.

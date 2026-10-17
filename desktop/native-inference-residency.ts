@@ -20,7 +20,7 @@ const WHISPER_CPP_FIXED_BYTES = 256 * MIB;
 const MIN_ASR_RESIDENT_BYTES = 512 * MIB;
 const UNKNOWN_ASR_RESIDENT_BYTES = 2 * GIB;
 const MIN_RESIDENT_LIMIT = 1 * GIB;
-const MAX_RESIDENT_LIMIT = 4 * GIB;
+const MAX_RESIDENT_LIMIT = 6 * GIB;
 const RESIDENT_MEMORY_FRACTION = 0.25;
 
 export type NativeInferenceKind = 'asr' | 'semantic' | 'clap' | 'rhythm';

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { shouldTranscribe, transcriptionReport, type TranscribeJob } from './transcribe-jobs';
+import { assetCanTranscribe, canRetranscribe, shouldTranscribe, transcriptionReport, type TranscribeJob } from './transcribe-jobs';
 
 assert.equal(shouldTranscribe('audio'), true);
 assert.equal(shouldTranscribe('audio', false), true);
@@ -45,5 +45,13 @@ assert.deepEqual(transcriptionReport('a5', undefined, 0), {
 const doneEmpty = transcriptionReport('a6', job({ assetId: 'a6', status: 'done', words: [] }), 3);
 assert.equal(doneEmpty.status, 'succeeded');
 assert.equal(doneEmpty.wordCount, 0);
+
+// finished clips can be transcribed again (new model or language); other states follow the old rules
+assert.equal(canRetranscribe({ kind: 'video', transcribeStatus: 'done' }), true);
+assert.equal(canRetranscribe({ kind: 'audio', transcribeStatus: 'done' }), true);
+assert.equal(canRetranscribe({ kind: 'video', transcribeStatus: undefined }), false);
+assert.equal(canRetranscribe({ kind: 'video', transcribeStatus: 'running' }), false);
+assert.equal(canRetranscribe({ kind: 'image', transcribeStatus: 'done' } as never), false);
+assert.equal(assetCanTranscribe('video', 'done'), false, 'assetCanTranscribe keeps its old rule');
 
 console.log('transcribe-jobs.verify: ok');

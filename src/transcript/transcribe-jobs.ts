@@ -63,6 +63,8 @@ const POLL_MS = 1000;
 
 interface EnqueueOptions {
   languageCode?: string;
+  /** Re-run even when a finished job exists for the same source (re-transcribe with the current model or language). */
+  force?: boolean;
   /** Fired once on the terminal state so a real-store writer can persist the result
    *  onto the asset (MediaAsset.transcript / transcribeStatus). The agent path omits
    *  this and reads the terminal state via track_progress instead. */
@@ -132,7 +134,7 @@ export function enqueueTranscription(
   const sourceRevision = sourceRevisionOf(asset);
   const logicalJobKey = jobKey(projectId, asset.id);
   const prior = jobs.get(logicalJobKey);
-  if (prior && prior.sourceRevision === sourceRevision && prior.status !== 'failed') return;
+  if (!opts.force && prior && prior.sourceRevision === sourceRevision && prior.status !== 'failed') return;
 
   const provider = preferredTranscriptionProvider();
   const languageCode = preferredTranscriptionLanguage();
@@ -351,6 +353,11 @@ export function untranscribedTimelineItemIdsForRevision(
 
 /** Whether the pool UI can start/retry ASR for this asset: transcript-able
  *  kinds that are neither running nor already transcribed. */
+/** A finished audio or video transcript can be run again (new model or language). */
+export function canRetranscribe(asset: { kind: MediaAsset['kind']; transcribeStatus?: MediaAsset['transcribeStatus'] }): boolean {
+  return (asset.kind === 'audio' || asset.kind === 'video') && asset.transcribeStatus === 'done';
+}
+
 export function assetCanTranscribe(
   kind: MediaAsset['kind'],
   transcribeStatus: MediaAsset['transcribeStatus'],

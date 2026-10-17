@@ -9,7 +9,7 @@ import {
 } from './native-inference-residency.ts';
 
 assert.equal(defaultNativeResidencyLimit(2 * 1024 ** 3), 1024 ** 3);
-assert.equal(defaultNativeResidencyLimit(64 * 1024 ** 3), 4 * 1024 ** 3);
+assert.equal(defaultNativeResidencyLimit(64 * 1024 ** 3), 6 * 1024 ** 3);
 assert.equal(modelPackResidentBytes('rhythm-lite'), 1024 ** 3);
 assert.equal(modelPackResidentBytes('visual-semantics-lite'), 2 * 1024 ** 3);
 
@@ -35,7 +35,7 @@ for (const model of ASR_MODELS) {
   assert.equal(estimate, Math.max(512 * 1024 ** 2, ggml.sizeBytes * 3 + 256 * 1024 ** 2),
     `${model.id}: whisper.cpp residency is estimated from the GGML companion`);
   assert.ok(estimate >= ggml.sizeBytes * 2, `${model.id}: buffers are budgeted beyond the weights`);
-  assert.ok(fitsMachine(estimate, 8), `${model.id}: the desktop engine must be admitted on an 8 GB machine`);
+  assert.ok(fitsMachine(estimate, 24), `${model.id}: the desktop engine must be admitted on a 24 GB machine`);
 }
 for (const id of ['tiny', 'base']) {
   const model = ASR_MODELS.find((entry) => entry.id === id)!;

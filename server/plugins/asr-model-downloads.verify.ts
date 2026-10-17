@@ -43,7 +43,7 @@ function sha256(content: Buffer): string {
     if (!ggml) continue;
     const companion = downloads.at(-1)!;
     assert.deepEqual(companion.target, {
-      modelId: GGML_SOURCE_MODEL_ID, revision: ggml.revision, filePath: ggml.fileName,
+      modelId: ggml.repo ?? GGML_SOURCE_MODEL_ID, revision: ggml.revision, filePath: ggml.fileName,
     });
     assert.equal(companion.destination, ggmlCachePath(cacheDir, ggml.fileName),
       `${entry.id}: the companion must land where the readers look`);

@@ -12,7 +12,7 @@ import {
 } from './assemblyai';
 import { downsampleMono, hasTranscribableSignal } from './client-asr-extract';
 import { ASR_INFERENCE_CONTRACT } from '../../shared/asr-inference-contract';
-import { ASR_MODELS } from '../../shared/asr-models';
+import { ASR_MODELS, asrModelEntry } from '../../shared/asr-models';
 import { t } from '../i18n/locale';
 import { tryDesktopNativeAsr, warmUpDesktopNativeAsr } from './desktop-native-asr';
 import { desktopNativeInferenceEnabled } from './desktop-inference-preference';
@@ -323,6 +323,10 @@ export async function localTranscribePathResumable(
   if (native.result) {
     await onCheckpoint({ ...checkpoint, providerStatus: 'completed' });
     return toTranscriptResult(native.result);
+  }
+  // A desktop-only model has no browser fallback: say so instead of loading an empty browser model.
+  if (asrModelEntry(config.modelTier)?.desktopOnly) {
+    throw new Error(native.failure?.message ?? t('这个模型只能在桌面应用中运行，请打开桌面应用后重试'));
   }
   assertBrowserAsrReady(config, status, { enabled: nativeEnabled, failure: native.failure });
   const source = await runTranscriptionStage(t('音轨准备'), () => transcriptionSourceForPath(path, opts, true));

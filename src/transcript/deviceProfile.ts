@@ -3,6 +3,7 @@
 // memory) — the shipped build is identical everywhere, the choice is made at runtime.
 // P0 note: thresholds are initial estimates; calibrate with real devices before release.
 import { asrModelEntry, isAsrModelTier } from '../../shared/asr-models';
+import { desktopNativeInferenceEnabled } from './desktop-inference-preference';
 import type { AsrConfig, AsrDevice, AsrModelTier, DeviceProfile } from './local-asr-types';
 
 const DEFAULT_MEMORY_GB = 8;
@@ -64,9 +65,11 @@ export function chooseAsrConfig(profile: DeviceProfile): AsrConfig {
   } catch {
     preferred = '';
   }
-  const tier: AsrModelTier = isAsrModelTier(preferred) && preferred !== ''
+  const chosen: AsrModelTier = isAsrModelTier(preferred) && preferred !== ''
     ? preferred
     : 'base';
+  // A desktop-only tier has no browser export: the browser engine uses Base, the desktop engine keeps the choice.
+  const tier: AsrModelTier = asrModelEntry(chosen)?.desktopOnly && !desktopNativeInferenceEnabled() ? 'base' : chosen;
   const model = asrModelEntry(tier);
   if (!model) throw new Error(`Unsupported local ASR model tier: ${tier}`);
   // WebGPU is an explicit opt-in (settings → 本地模型 → WebGPU 加速) and only

@@ -70,4 +70,19 @@ assert.equal(trackAlias(tl, tl.items.find((i) => i.kind === 'solid')!.track), 'V
     assert.equal(revisionOf(saved), revisionOf(live), `${file}: saved revision matches the live one`);
   }
 }
+// captioned story: the caption settings land on a real caption track (created on the first assemble, reused after),
+// so the Captions panel and preview can see them. Before the fix they were stored on no track at all.
+{
+  const cs = (params: Record<string, string>) => assemble({ recipe: load('captioned-story'), clips: clips.slice(0, 3).map((c) => ({ ...c, kind: 'video' as const, transcript: [{ text: 'hi', start: 0, end: 500 }, { text: 'there', start: 600, end: 1100 }] as never })), music, texts: { hook: 'Hook' }, params: params as never, seed: 1 });
+  const res = cs({ captionStyle: 'highlight-word' });
+  const first = historyReduce(fresh(), bindTracks({ ...res.action!, actions: [{ type: 'clear' }, ...res.action!.actions] }, activeTimeline(fresh().present) as never, ids));
+  const tlA = activeTimeline(first.present);
+  const capLanes = timelineTrackIds(tlA).filter((l) => trackKind(tlA, l) === 'caption');
+  assert.equal(capLanes.length, 1, 'one caption track is created');
+  assert.ok(tlA.tracks?.[capLanes[0]!]?.captions?.enabled, 'captions are enabled on that track');
+  assert.equal(tlA.tracks?.[capLanes[0]!]?.captions?.sourceMode, 'timeline');
+  // assembling again reuses it
+  const second = historyReduce(first, bindTracks({ ...res.action!, actions: [{ type: 'clear' }, ...res.action!.actions] }, activeTimeline(first.present) as never, ids));
+  assert.equal(timelineTrackIds(activeTimeline(second.present)).filter((l) => trackKind(activeTimeline(second.present), l) === 'caption').length, 1, 'no second caption track on re-assemble');
+}
 console.log('trackBinding.verify: ok');

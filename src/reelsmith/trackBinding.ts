@@ -37,8 +37,18 @@ export function bindTracks(action: BatchAction, tl: TimelineState, newId: () => 
     map.set(name, id);
     creates.push({ type: 'track.create', track: { id, kind } });
   }
+  // caption settings with no track (Captioned Story) need a caption track to live on; without one the
+  // captions are stored nowhere the Captions panel or preview can see. Reuse the timeline's caption track if it has one.
+  let captionTrack: TrackId | undefined;
+  if (action.actions.some((a) => a.type === 'setCaptions' && !a.track)) {
+    captionTrack = timelineTrackIds(tl).find((id) => trackKind(tl, id) === 'caption') ?? newId();
+    if (!known.has(captionTrack) && !creates.some((c) => c.type === 'track.create' && c.track.id === captionTrack)) {
+      creates.push({ type: 'track.create', track: { id: captionTrack, kind: 'caption', name: 'Captions' } });
+    }
+  }
   const revisionBySrc = new Map((tl.assets ?? []).map((asset) => [asset.src, sourceRevisionOf(asset)]));
   const actions = action.actions.map((a): AtomicAction => {
+    if (a.type === 'setCaptions' && !a.track && captionTrack) return { ...a, track: captionTrack };
     if (a.type !== 'add') return a;
     const rev = !a.item.sourceRevision && a.item.src ? revisionBySrc.get(a.item.src) : undefined;
     return { ...a, item: { ...a.item, track: map.get(a.item.track) ?? a.item.track, ...(rev ? { sourceRevision: rev } : {}) } };
