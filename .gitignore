@@ -111,3 +111,7 @@ public/whisper-cli/
 # ── Reelsmith fork ──────────────────────────────────────────
 # Track the agent guide for this private fork (see reelsmith-docs/UPSTREAM_PATCHES.md)
 !CLAUDE.md
+
+# Reelsmith local upscaler venv and weights
+.reelsmith-venv/
+server/reelsmith/upscale-models/

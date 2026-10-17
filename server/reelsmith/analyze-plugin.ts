@@ -4,6 +4,7 @@
 //   POST /api/reelsmith/instagram-finalize { src, presetId } -> validation report; re-encodes in place when needed
 //   POST /api/reelsmith/export-parity  { src, state } -> V8 check: 5 editor stills vs the same frames of the exported file
 //   POST /api/reelsmith/selection-sheet { items: [{ src, kind, atSec, label }] } -> numbered contact sheets for agent shot selection
+//   POST /api/reelsmith/upscale        { src, width, height } -> 2x enhanced copy of a small photo (`{ available:false }` when not installed)
 //   POST /api/reelsmith/preview        { project, seconds } -> 360x640 muted loop of an assembled recipe
 import { existsSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
@@ -16,6 +17,7 @@ import { detectDropBeat } from '../../src/reelsmith/assembler/drop.ts';
 import { analyzeBeatsFile } from './beatDetect.ts';
 import { extractClipFeatures } from './clipFeatures.ts';
 import { finalizeForInstagram } from './instagramFinalize.ts';
+import { upscaleAvailable, upscalePhoto } from './upscale.ts';
 import { exportParity } from './exportParity.ts';
 import { buildSelectionSheets } from './selectionSheet.ts';
 import { renderRecipePreview, type PreviewRequest } from './previewRender.ts';
@@ -78,6 +80,15 @@ export function reelsmithAnalyzePlugin(): Plugin {
         });
         if (!items.length) throw new Error('no usable items');
         return await buildSelectionSheets(items);
+      });
+      route('/api/reelsmith/upscale', async (body) => {
+        if (!upscaleAvailable()) return { available: false };
+        const file = localFile(body.src);
+        if (typeof file !== 'string') throw new Error(file.error);
+        const width = Number(body.width); const height = Number(body.height);
+        if (!(width > 0 && height > 0)) throw new Error('width and height are required');
+        const r = await upscalePhoto(file, { width, height });
+        return { available: true, src: `/media/uploads/${encodeURIComponent(r.name)}`, width: r.width, height: r.height, cached: r.cached };
       });
       route('/api/reelsmith/preview', async (body) => renderRecipePreview(body as unknown as PreviewRequest));
       route('/api/reelsmith/export-parity', async (body) => {

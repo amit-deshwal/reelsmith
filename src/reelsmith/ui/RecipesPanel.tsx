@@ -13,7 +13,7 @@ import { bundledCatalog } from '../bundledRecipes';
 import { deleteUserRecipe, listUserRecipes, saveUserRecipe } from '../userRecipesApi';
 import { RecipeGallery } from './RecipeGallery';
 import { MusicPolicyControls } from './MusicPolicyControls';
-import { MISMATCH_FIT_PARAM, mismatchFitOf, runRecipe } from '../runRecipe';
+import { ENHANCE_PHOTOS_PARAM, MISMATCH_FIT_PARAM, mismatchFitOf, runRecipe } from '../runRecipe';
 import { loadShotTags } from '../shotTagApi';
 import { LooksPanel } from './LooksPanel';
 import { requestPreview } from '../previewClient';
@@ -381,6 +381,12 @@ export function SetupForm({ recipe, projectId, assets, itemCount, fps, initialRa
             <option value="fill">Crop to fill the frame</option>
             <option value="blur">Fit whole over a blurred background</option>
           </select>
+        </label>
+
+        <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12.5 }}>
+          <input type="checkbox" checked={values.params[ENHANCE_PHOTOS_PARAM] === true}
+            onChange={(e) => setValues((v) => ({ ...v, params: { ...v.params, [ENHANCE_PHOTOS_PARAM]: e.target.checked } }))} />
+          <span>Enhance small photos (2x, slower; sharper but can invent detail)</span>
         </label>
 
         {recipe.music && (

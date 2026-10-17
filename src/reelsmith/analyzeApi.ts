@@ -23,6 +23,11 @@ export function createAnalyzeApi(fetcher: typeof fetch = fetch, subjects: typeof
       });
       return result?.sheets ? { sheets: result.sheets, skipped: result.skipped ?? [] } : null;
     },
+    upscale: async (asset) => {
+      if (!asset.width || !asset.height) return null;
+      const r = await post<{ available: boolean; src?: string; width?: number; height?: number }>('/api/reelsmith/upscale', { src: asset.src, width: asset.width, height: asset.height });
+      return r?.available && r.src && r.width && r.height ? { src: r.src, width: r.width, height: r.height } : null;
+    },
     musicGrid: async (asset) => (await post<{ grid: never }>('/api/reelsmith/music-grid', { src: asset.src }))?.grid ?? null,
   };
 }

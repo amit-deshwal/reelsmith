@@ -17,6 +17,8 @@ export interface AnalyzeApi {
   clipFeatures(asset: MediaAsset, fps: number): Promise<ClipFeatures | null>;
   /** RS-109: what each clip shows, when the visual model has indexed them (empty otherwise) */
   shotTags?(assets: MediaAsset[], onProgress?: (text: string) => void): Promise<Map<string, ClipShotTags>>;
+  /** 2x enhanced copy of a small photo (null when enhancement is not installed or fails); the original is left alone */
+  upscale?(asset: MediaAsset): Promise<{ src: string; width: number; height: number } | null>;
   musicGrid(asset: MediaAsset): Promise<Omit<AssemblyMusic, 'assetId' | 'name' | 'src'> | null>;
   /** One numbered contact sheet per 20 candidates (agent shot selection); null when the server cannot build it */
   selectionSheet?(items: Array<{ asset: MediaAsset; atSec: number; label: string }>): Promise<{ sheets: Array<{ base64: string; labels: string[] }>; skipped: string[] } | null>;
@@ -59,6 +61,11 @@ const timelineKind = (a: MediaAsset): 'video' | 'image' | null => (a.kind === 'v
 
 /** Analyse the chosen media and build the assembler input (no timeline changes). */
 /** Recipe param (boolean): leave out photos that do not fit the frame instead of cropping them badly. */
+export const ENHANCE_PHOTOS_PARAM = 'enhanceSmallPhotos';
+/** A photo whose cover crop would be enlarged more than this is worth enhancing (below it plain resizing is fine). */
+export const ENHANCE_ABOVE = 1.4;
+export const coverEnlargement = (w: number, h: number, canvas: { width: number; height: number }) => (w > 0 && h > 0 ? Math.max(canvas.width / w, canvas.height / h) : 0);
+
 export const SKIP_MISMATCHED_PARAM = 'skipMismatchedPhotos';
 /** How different a photo's shape may be from the frame's (1 = same, 2 = twice as wide). Phone portrait in 4:5 is 1.42; landscape 4:3 in 4:5 is 1.67. */
 export const MISMATCH_LIMIT = 1.6;
@@ -108,6 +115,18 @@ export async function prepareAssembly(api: AnalyzeApi, o: RunOptions): Promise<P
   const minShot = Math.max(1, Math.round(o.fps * (clipInputs[0]?.kind === 'media' ? clipInputs[0].constraints?.minClipSec ?? 0.3 : 0.3)));
   const tags = await (api.shotTags?.(base.map((b) => byId.get(b.assetId)!), o.onProgress) ?? Promise.resolve(new Map<string, ClipShotTags>())).catch(() => new Map<string, ClipShotTags>());
   const scored = toAssemblyClips(base.map(({ input: _i, ...rest }) => rest), features, minShot, undefined, recipe.canvas.width / recipe.canvas.height);
+  // optional: enhance photos that would be enlarged a lot, so they stay full-bleed and sharper instead of soft or blurred-fit
+  if (o.values.params[ENHANCE_PHOTOS_PARAM] === true && api.upscale) {
+    let enhanced = 0;
+    for (let i = 0; i < scored.length; i += 1) {
+      const c = scored[i]!;
+      if (c.kind !== 'image' || coverEnlargement(c.width ?? 0, c.height ?? 0, recipe.canvas) <= ENHANCE_ABOVE) continue;
+      o.onProgress?.(`Enhancing small photos ${enhanced + 1}`);
+      const up = await api.upscale(byId.get(c.baseAssetId ?? c.assetId)!).catch(() => null);
+      if (up) { scored[i] = { ...c, src: up.src, width: up.width, height: up.height }; enhanced += 1; }
+    }
+    if (enhanced) messages.push(`Enhanced ${enhanced} small photo${enhanced === 1 ? '' : 's'} 2x (copies; your originals are unchanged).`);
+  }
   // clips without features keep a neutral score so they are still usable
   const clips = scored.map((c) => {
     const t = tags.get(c.assetId);
