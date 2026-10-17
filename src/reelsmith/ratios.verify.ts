@@ -20,7 +20,9 @@ assert.ok(!isRatioId('2:1'));
 
 const load = (file: string): Recipe => { const r = parseRecipe(readFileSync(`recipes/${file}`, 'utf8')); assert.ok(r.ok, file); return r.recipe; };
 const files = readdirSync('recipes').filter((f) => f.endsWith('.recipe.json')).sort();
-const diary = load('mini-vlog.recipe.json');
+// a recipe with no `ratios` field, however many bundled recipes declare them by now
+const { ratios: _declared, ...bare } = load('mini-vlog.recipe.json');
+const diary: Recipe = bare;
 
 // recipeForRatio / supportedRatios
 assert.deepEqual(supportedRatios(diary), ['9:16'], 'bundled recipes without `ratios` are 9:16 only');

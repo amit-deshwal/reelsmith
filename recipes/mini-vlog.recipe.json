@@ -28,5 +28,6 @@
   "styles": { "label.small": { "fontFamily": "Inter", "fontWeight": 600, "sizePx": 44, "color": "#FFFFFF", "letterSpacingEm": 0.04, "shadow": { "color": "#00000080", "blurPx": 10, "dx": 0, "dy": 2 }, "align": "left" } },
   "look": { "colorLook": "warmFilm", "grain": 0.15, "vignette": 0.1 },
   "agentHints": "Order by capture time. A label shows the local hour (e.g. 7:40 am) and, if the user supplied them in chat, a short place or activity. Keep it calm: avoid flashes or zooms.",
+  "ratios": { "4:5": {}, "16:9": {} },
   "constraints": { "noRepeatClips": true, "insufficientMediaPolicy": "lengthenShots", "keepChronological": true, "textSafeZone": true }
 }

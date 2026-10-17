@@ -28,5 +28,6 @@
   "styles": { "title.serif": { "fontFamily": "Playfair Display", "fontWeight": 700, "sizePx": 110, "color": "#FFFFFF", "shadow": { "color": "#00000080", "blurPx": 20, "dx": 0, "dy": 4 }, "align": "center" } },
   "look": { "colorLook": "mutedMatte", "grain": 0.05, "vignette": 0 },
   "agentHints": "Group visually similar colours in the same grid. Put faces in larger cells. The hero shot should be the most striking wide image.",
+  "ratios": { "4:5": {}, "16:9": {} },
   "constraints": { "noRepeatClips": true, "insufficientMediaPolicy": "lengthenShots", "keepChronological": false, "textSafeZone": true }
 }
