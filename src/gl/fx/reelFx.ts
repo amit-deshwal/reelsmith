@@ -16,6 +16,8 @@ import cartoonFrag from './reel-cartoon.frag.ts';
 import waterRippleFrag from './reel-water-ripple.frag.ts';
 import cinemaBarsFrag from './reel-cinema-bars.frag.ts';
 import swirlFrag from './reel-swirl.frag.ts';
+import softVignetteFrag from './reel-soft-vignette.frag.ts';
+import fineGrainFrag from './reel-fine-grain.frag.ts';
 
 type U = Record<string, number | number[] | boolean>;
 const num = (u: U, key: string, fallback: number) => (typeof u[key] === 'number' ? u[key] as number : fallback);
@@ -181,6 +183,28 @@ export const REEL_FX_EFFECTS: Record<string, FxDef> = {
       { key: 'color', label: 'Bar colour', kind: 'color', default: [0, 0, 0], uniform: 'u_color' },
     ],
   },
+  'builtin:fx-fine-grain': {
+    id: 'builtin:fx-fine-grain',
+    name: 'Fine grain',
+    desc: 'Fine monochrome film grain, the same size on portrait and landscape, strongest in the midtones and alive at 24 fps. Use this instead of Film grain on vertical video.',
+    frag: fineGrainFrag,
+    props: [
+      { key: 'strength', label: 'Strength', default: 0.08, min: 0, max: 0.4, step: 0.005 },
+      { key: 'size', label: 'Grain size', default: 1.4, min: 0.6, max: 5, step: 0.1 },
+    ],
+  },
+  'builtin:fx-soft-vignette': {
+    id: 'builtin:fx-soft-vignette',
+    name: 'Soft vignette',
+    desc: 'Darkens toward the corners to draw the eye in. Never goes to black, so it is safe at any setting (the plain Vignette cuts to black).',
+    frag: softVignetteFrag,
+    props: [
+      { key: 'strength', label: 'Darkness', default: 0.4, min: 0, max: 1, step: 0.01 },
+      { key: 'size', label: 'Clear centre', default: 0.45, min: 0.1, max: 1, step: 0.01 },
+      { key: 'softness', label: 'Softness', default: 0.55, min: 0.05, max: 1.2, step: 0.01 },
+      { key: 'roundness', label: 'Roundness', default: 0.4, min: 0, max: 1, step: 0.01 },
+    ],
+  },
   'builtin:fx-swirl': {
     id: 'builtin:fx-swirl',
     name: 'Swirl',
@@ -208,5 +232,7 @@ export const REEL_FX_ORDER = [
   'builtin:fx-cartoon',
   'builtin:fx-water-ripple',
   'builtin:fx-cinema-bars',
+  'builtin:fx-soft-vignette',
+  'builtin:fx-fine-grain',
   'builtin:fx-swirl',
 ] as const;

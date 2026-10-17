@@ -1,4 +1,4 @@
-// Reels effects (halation, pro-mist, anamorphic flare, light rays, zoom blur, lens distortion, film damage, VHS, cartoon, water
+// Reels effects (soft vignette, halation, pro-mist, anamorphic flare, light rays, zoom blur, lens distortion, film damage, VHS, cartoon, water
 // ripple, cinema bars, swirl): registered in the library and for the agent, every shader uniform is fed, English names, sane
 // defaults. Pixels are checked by server/reelsmith/fx-sheet.mts.
 import assert from 'node:assert/strict';
@@ -12,7 +12,7 @@ const SAMPLERS = new Set(['u_glow']);
 const declared = (frag: string) => [...frag.matchAll(/^uniform\s+\w+\s+(u_\w+)/gm)].map((m) => m[1]!);
 const source = (frag: string) => frag;
 
-assert.equal(REEL_FX_ORDER.length, 12);
+assert.equal(REEL_FX_ORDER.length, 14);
 for (const id of REEL_FX_ORDER) {
   const def = REEL_FX_EFFECTS[id]!;
   assert.ok(def, `${id} defined`);

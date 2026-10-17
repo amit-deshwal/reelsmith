@@ -51,6 +51,10 @@ Reels cut hard by default. When the user asks for a transition ("add a bars tran
 - **Hard cut for fast flashes.** Shots under about 0.6 s (strobe hooks, beat-by-beat drops) stay hard cuts or use the plain `flash` transition; do not put a bars or window break-in on them.
 - A transition needs two adjacent clips on the same track; if there is a gap, say so instead of moving clips.
 
+## Reel looks (one call, a whole grade)
+
+When the user asks for a mood, a vibe or "make it look cinematic/retro/…", call `reels_apply_look` instead of stacking effects by hand: one undo step puts a grade + glow + texture stack on every clip (`scope:"selected"` for one clip; `look:"none"` removes it). Pick one look per reel by mood: `cinematic-travel` (trips, landscapes), `golden-hour` (warm, calm, couples), `neon-night` (city nights, parties, gaming), `retro-vhs` (throwback, funny), `old-film` (memories, family), `soft-pastel` (lifestyle, food, selfies), `moody-bleach` (dramatic, treks), `comic-pop` (playful, friends). A later look replaces the earlier one; effects added by hand stay. Tune afterwards with `manage_effects` only if asked. On vertical video use `fine-grain` and `soft-vignette`, not the older Film grain and Vignette (which streak or cut to black).
+
 ## Film and lens effects (Resolve-style looks)
 
 Apply with `manage_effects` (see `browse_library category=fx`). All have sliders; leave the defaults unless the user asks for more or less. One or two per reel, never a stack of looks.

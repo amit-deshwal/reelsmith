@@ -19,6 +19,7 @@ import { loadRun, recutSection, saveRun, type Kv } from '../runStore';
 import type { SetupValues } from '../setupForm';
 import { bindTracks } from '../trackBinding';
 import { planAssemble, planOptions } from './planTools';
+import { applyLookTool } from './lookTools';
 export { REELS_TOOL_NAMES, REELS_TOOL_SCHEMAS } from './reelsToolSchemas';
 
 type Args = Record<string, unknown>;
@@ -87,6 +88,9 @@ export async function execReelsTool(name: string, args: Args, ctx: AgentContext,
   switch (name) {
     case 'reels_lint':
       return lintReel(state);
+
+    case 'reels_apply_look':
+      return applyLookTool(args, ctx);
 
     case 'reels_plan_options':
       return planOptions(ctx, deps);

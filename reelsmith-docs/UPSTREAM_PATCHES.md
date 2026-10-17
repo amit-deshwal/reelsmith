@@ -270,3 +270,9 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 ## Reels effects (RS-1103)
 - `src/gl/fx/shaderEffects.ts`: imports `REEL_FX_EFFECTS` / `REEL_FX_ORDER` from our `src/gl/fx/reelFx.ts`, spreads the effects into `FX_EFFECTS` and appends the order to `FX_ORDER` (3 lines). The twelve effects and their shaders (`src/gl/fx/reel-*.frag` + generated `.frag.ts` twins) are ours.
 
+## Reel looks (RS-1104)
+- `src/library/LibraryPanel.tsx`: passes `items` and `selectedItem` to `RecipesPanel` (one line) so the Recipes tab can show Reel looks.
+- `src/agent/external-tool-policy.ts`: `reels_apply_look` is a draft edit tool.
+- `assets/agent/openchatcut-tool-schemas.json`: regenerated for the new tool.
+- Our own: `src/reelsmith/looks.ts`, `src/reelsmith/ui/LooksPanel.tsx`, `src/reelsmith/agent/lookTools.ts`; effects `fine-grain` and `soft-vignette` in `src/gl/fx/reelFx.ts`.
+

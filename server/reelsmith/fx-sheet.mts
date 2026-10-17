@@ -1,4 +1,5 @@
 // Contact sheet of per-clip effects on a real clip: the original first, then each effect at its default settings.
+// Pass `look:<id>` (or `looks` for all of them) to render Reel looks instead of single effects.
 //   npx tsx server/reelsmith/fx-sheet.mts <clip> <out.jpg> [effect id ...] [--at=FRAME] [--cols=N]
 // Rendered through the app's own export renderer (remotion), so what you see is what an export draws.
 import { execFileSync } from 'node:child_process';
@@ -9,6 +10,7 @@ import { emptyProjectDoc } from '../../src/app/appShell.ts';
 import { historyReduce, type History } from '../../src/editor/reduce.ts';
 import { activeTimeline, type MediaAsset } from '../../src/editor/types.ts';
 import { REEL_FX_ORDER } from '../../src/gl/fx/reelFx.ts';
+import { lookById, lookEffects, REEL_LOOKS } from '../../src/reelsmith/looks.ts';
 import { acceptExportSubmission } from '../plugins/export-submission.ts';
 import { setUploadsDirProvider } from '../plugins/export-rendering.ts';
 import { seedKeystore } from '../keystore.ts';
@@ -20,7 +22,8 @@ const pos = args.filter((a) => !a.startsWith('--'));
 const clip = pos[0] ? resolve(pos[0]) : '';
 const out = pos[1] ? resolve(pos[1]) : '';
 if (!clip || !out) throw new Error('usage: fx-sheet.mts <clip> <out.jpg> [effect id ...] [--at=FRAME] [--cols=N]');
-const ids = pos.slice(2).length ? pos.slice(2).map((id) => (id.startsWith('builtin:') ? id : `builtin:fx-${id}`)) : [...REEL_FX_ORDER];
+const wanted = pos.slice(2).flatMap((id) => (id === 'looks' ? REEL_LOOKS.map((l) => `look:${l.id}`) : [id]));
+const ids = wanted.length ? wanted.map((id) => (id.startsWith('builtin:') || id.startsWith('look:') ? id : `builtin:fx-${id}`)) : [...REEL_FX_ORDER];
 const FPS = 30;
 const at = Number(flags.at ?? 20);
 const cols = Number(flags.cols ?? 4);
@@ -43,7 +46,8 @@ async function still(effectId: string | null): Promise<Buffer> {
   hist = historyReduce(hist, { type: 'addAsset', asset } as never);
   hist = historyReduce(hist, { type: 'setCanvas', width: 1080, height: 1920, fit: 'cover' } as never);
   hist = historyReduce(hist, { type: 'add', startFrame: 0, item: { id: 'v0', track: 'V1', kind: 'video', name: 'clip', src: asset.src, durationInFrames: 60, sourceAssetId: asset.id, srcInFrame: 60 } } as never);
-  if (effectId) hist = historyReduce(hist, { type: 'setEffects', id: 'v0', effects: [{ id: `fx_${effectId}`, assetId: effectId, overrides: {} }], defs: [] } as never);
+  if (effectId?.startsWith('look:')) hist = historyReduce(hist, { type: 'setEffects', id: 'v0', effects: lookEffects(lookById(effectId.slice(5))!), defs: [] } as never);
+  else if (effectId) hist = historyReduce(hist, { type: 'setEffects', id: 'v0', effects: [{ id: `fx_${effectId}`, assetId: effectId, overrides: {} }], defs: [] } as never);
   const doc = hist.present;
   const tl = activeTimeline(doc);
   const sub = await acceptExportSubmission({ state: { ...tl, assets: doc.assets }, project: doc, timelineId: tl.id, format: 'video', codec: 'h264', resolution: '1080p' } as never);
@@ -70,5 +74,5 @@ for (let i = 0; i < tiles.length; i += cols) {
 }
 if (rows.length === 1) copyFileSync(rows[0]!, out);
 else execFileSync('ffmpeg', ['-y', '-v', 'error', ...rows.flatMap((f) => ['-i', f]), '-filter_complex', `${rows.map((_, i) => `[${i}:v]`).join('')}vstack=inputs=${rows.length}`, '-frames:v', '1', out]);
-console.log(`sheet: ${out}  (order: original, ${ids.map((i) => i.replace('builtin:fx-', '')).join(', ')})`);
+console.log(`sheet: ${out}  (order: original, ${ids.map((i) => i.replace('builtin:fx-', '').replace('look:', 'look ')).join(', ')})`);
 rmSync(work, { recursive: true, force: true });

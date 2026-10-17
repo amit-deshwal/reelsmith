@@ -246,7 +246,7 @@ export function LibraryPanel({ semanticScopeId, canvasRatio, templates, onAddTem
         </div>
       ) : isRecipes ? (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, borderTop: `0.5px solid ${theme.border}` }}>
-          <RecipesPanel onImportMedia={onImportMedia} initialRecipeId={initialRecipeId} initialRatio={recipeHandoff?.ratio ?? canvasRatio} initialBrief={recipeHandoff?.brief} initialPrompt={recipeHandoff?.prompt} projectId={semanticScopeId} assets={assets} itemCount={items.length} fps={fps} onApply={onApplyRecipe} onAskAgent={onAskAgent} />
+          <RecipesPanel onImportMedia={onImportMedia} initialRecipeId={initialRecipeId} initialRatio={recipeHandoff?.ratio ?? canvasRatio} initialBrief={recipeHandoff?.brief} initialPrompt={recipeHandoff?.prompt} projectId={semanticScopeId} assets={assets} itemCount={items.length} items={items} selectedItem={selectedItem} fps={fps} onApply={onApplyRecipe} onAskAgent={onAskAgent} />
         </div>
       ) : isSkills ? (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, borderTop: `0.5px solid ${theme.border}` }}>

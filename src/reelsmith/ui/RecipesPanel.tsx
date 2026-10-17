@@ -5,7 +5,7 @@ import { parseRecipe, supportedRatios, type Recipe, type RecipeMediaInput } from
 import { RATIO_SIZES, type RatioId } from '../../../shared/reelsmith/ratios';
 import { mapBriefToRecipe, type ReelsBrief } from '../../../shared/reelsmith/brief';
 import type { BatchAction } from '../../editor/reducerActions';
-import type { MediaAsset } from '../../editor/types';
+import type { MediaAsset, TimelineItem } from '../../editor/types';
 import { theme } from '../../theme';
 import { analyzeApi } from '../analyzeApi';
 import { briefChecklist } from '../briefChecklist';
@@ -15,6 +15,7 @@ import { RecipeGallery } from './RecipeGallery';
 import { MusicPolicyControls } from './MusicPolicyControls';
 import { MISMATCH_FIT_PARAM, mismatchFitOf, runRecipe } from '../runRecipe';
 import { loadShotTags } from '../shotTagApi';
+import { LooksPanel } from './LooksPanel';
 import { requestPreview } from '../previewClient';
 import { loadRun, saveRun } from '../runStore';
 import { kvGet, kvSet } from '../../persist/sharedKv';
@@ -29,6 +30,9 @@ export interface RecipesPanelProps {
   projectId: string;
   assets: MediaAsset[];
   itemCount: number;
+  /** timeline clips and the selected one, for Reel looks */
+  items?: readonly TimelineItem[];
+  selectedItem?: TimelineItem | null;
   fps: number;
   onApply: (action: BatchAction) => void;
   /** prefill the chat with a request (agent shot selection) */
@@ -66,7 +70,7 @@ const input: React.CSSProperties = {
   background: theme.inset, color: theme.text, border: `0.5px solid ${theme.border}`, borderRadius: 5, padding: '5px 7px', fontSize: 12.5,
 };
 
-export function RecipesPanel({ projectId, assets, itemCount, fps, onApply, onAskAgent, initialRecipeId, initialRatio, initialBrief, initialPrompt, onImportMedia }: RecipesPanelProps) {
+export function RecipesPanel({ projectId, assets, itemCount, items, selectedItem, fps, onApply, onAskAgent, initialRecipeId, initialRatio, initialBrief, initialPrompt, onImportMedia }: RecipesPanelProps) {
   const selectedRecipeId = initialRecipeId ?? (initialBrief?.target.recipeId !== 'new' ? initialBrief?.target.recipeId : undefined);
   const [recipe, setRecipe] = useState<Recipe | null>(() => catalog.recipes.find((r) => r.id === selectedRecipeId) ?? null);
   const [chosenRatio, setChosenRatio] = useState<RatioId | undefined>(initialRatio ?? initialBrief?.target.ratio);
@@ -127,6 +131,7 @@ export function RecipesPanel({ projectId, assets, itemCount, fps, onApply, onAsk
           <span style={label}>Tell your agent what the reel is about. It looks at your imported media, picks a recipe, writes the text and builds it. Nothing to copy or paste.</span>
           <button type="button" onClick={() => onAskAgent(PLAN_REEL_STARTER)} style={{ ...input, cursor: 'pointer', justifySelf: 'start' }}>Plan a reel with my agent</button>
         </section>}
+        {items && <LooksPanel items={items} selectedItem={selectedItem ?? null} onApply={onApply} />}
         <RecipeGallery recipes={[...catalog.recipes, ...userRecipes]} onSelect={(selected, ratio) => {
           setRecipe(selected);
           setChosenRatio(ratio ?? (initialRatio && supportedRatios(selected).includes(initialRatio) ? initialRatio : undefined));
