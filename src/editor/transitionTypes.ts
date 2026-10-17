@@ -24,7 +24,17 @@ export type GlslTransitionType =
   | 'dip-to-color'
   | 'bars'
   | 'wide-bars'
-  | 'window';
+  | 'window'
+  | 'zoom-through'
+  | 'whip-blur'
+  | 'spin-zoom'
+  | 'light-leak'
+  | 'chroma-glitch'
+  | 'fluted-glass'
+  | 'ripple-dissolve'
+  | 'tile-pop'
+  | 'cube-turn'
+  | 'slide-over';
 
 /** Audio-only transitions (preset `trAudioCrossFade`) — no picture. */
 export type AudioTransitionType = 'audio-cross-fade';
@@ -39,6 +49,7 @@ export const GLSL_TRANSITION_TYPES: ReadonlySet<string> = new Set<string>([
   'page-curl', 'rack-focus', 'organic-dissolve', 'impact-shake', 'anticipation-zoom', 'clean-line-wipe',
   'circle-wipe', 'radial-blur', 'glitch-cut', 'dip-to-color',
   'bars', 'wide-bars', 'window',
+  'zoom-through', 'whip-blur', 'spin-zoom', 'light-leak', 'chroma-glitch', 'fluted-glass', 'ripple-dissolve', 'tile-pop', 'cube-turn', 'slide-over',
   'custom-shader', // takes the GL render path; frag comes from the item, not GLSL_TRANSITIONS
 ]);
 
@@ -80,6 +91,16 @@ export const TRANSITION_LABELS: Record<TransitionType, string> = {
   bars: 'Bars break-in',
   'wide-bars': 'Wide bars break-in',
   window: 'Window grow-in',
+  'zoom-through': 'Zoom through',
+  'whip-blur': 'Whip blur',
+  'spin-zoom': 'Spin zoom',
+  'light-leak': 'Light leak',
+  'chroma-glitch': 'Chromatic glitch',
+  'fluted-glass': 'Fluted glass',
+  'ripple-dissolve': 'Ripple dissolve',
+  'tile-pop': 'Tile pop',
+  'cube-turn': 'Cube turn',
+  'slide-over': 'Slide over',
   /** preset.name.trAudioCrossFade */
   'audio-cross-fade': '音频交叉淡化',
   /** submit_shader-generated custom transition (per-item label in customLabel) */
@@ -107,6 +128,16 @@ export const TRANSITION_ORDER: readonly GlslTransitionType[] = [
   'bars',
   'wide-bars',
   'window',
+  'zoom-through',
+  'whip-blur',
+  'spin-zoom',
+  'light-leak',
+  'chroma-glitch',
+  'fluted-glass',
+  'ripple-dissolve',
+  'tile-pop',
+  'cube-turn',
+  'slide-over',
 ];
 
 /** Audio transition catalog (trAudioCrossFade). */
@@ -117,6 +148,26 @@ export const AUDIO_TRANSITION_ORDER: readonly AudioTransitionType[] = [
 /** Reelsmith break-in transitions are short by default (RS-408..410): 0.35 s. */
 export const BREAK_IN_TRANSITIONS: ReadonlySet<string> = new Set(['bars', 'wide-bars', 'window']);
 export const BREAK_IN_SECONDS = 0.35;
+
+/** Reels transitions (zoom through, whip blur, light leak, ...): each has its own default length, in seconds. */
+export const REEL_TRANSITION_SECONDS: Readonly<Record<string, number>> = {
+  'zoom-through': 0.4,
+  'whip-blur': 0.3,
+  'spin-zoom': 0.45,
+  'light-leak': 0.6,
+  'chroma-glitch': 0.35,
+  'fluted-glass': 0.5,
+  'ripple-dissolve': 0.55,
+  'tile-pop': 0.5,
+  'cube-turn': 0.5,
+  'slide-over': 0.4,
+};
+
+/** Default length in seconds for the transitions Reelsmith added (null = the editor's own default). */
+export function defaultTransitionSeconds(type: string): number | null {
+  if (BREAK_IN_TRANSITIONS.has(type)) return BREAK_IN_SECONDS;
+  return REEL_TRANSITION_SECONDS[type] ?? null;
+}
 
 export type TransitionDirection = 'left' | 'right' | 'up' | 'down';
 

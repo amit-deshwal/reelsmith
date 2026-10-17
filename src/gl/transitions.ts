@@ -22,6 +22,16 @@ import glitchCut from './shaders/glitch-cut.frag.ts';
 import dipToColor from './shaders/dip-to-color.frag.ts';
 import bars from './shaders/bars.frag.ts';
 import windowGrow from './shaders/window.frag.ts';
+import zoomThrough from './shaders/zoom-through.frag.ts';
+import whipBlur from './shaders/whip-blur.frag.ts';
+import spinZoom from './shaders/spin-zoom.frag.ts';
+import lightLeak from './shaders/light-leak.frag.ts';
+import chromaGlitch from './shaders/chroma-glitch.frag.ts';
+import flutedGlass from './shaders/fluted-glass.frag.ts';
+import rippleDissolve from './shaders/ripple-dissolve.frag.ts';
+import tilePop from './shaders/tile-pop.frag.ts';
+import cubeTurn from './shaders/cube-turn.frag.ts';
+import slideOver from './shaders/slide-over.frag.ts';
 
 export interface GlslTransitionDef {
   frag: string;
@@ -162,7 +172,57 @@ export const GLSL_TRANSITIONS: Record<GlslTransitionType, GlslTransitionDef> = {
       u_center: [0.5, 0.5], u_start: 0.3, u_limit: WINDOW_LIMIT, u_radius: 0.03, u_shadow: 0.5, u_aspect: aspect,
     }),
   },
+  // ── Reels transitions (zoom through, whip blur, ...) ────────────────────
+  'zoom-through': {
+    frag: zoomThrough,
+    uniforms: () => ({ u_zoom: 1.1, u_blur: 0.5, u_split: 0.12, u_center: [0.5, 0.5] }),
+  },
+  'whip-blur': {
+    frag: whipBlur,
+    uniforms: ({ direction }) => ({ u_dir: motionDir(direction), u_blur: 0.35, u_split: 1 }),
+  },
+  'spin-zoom': {
+    frag: spinZoom,
+    uniforms: ({ aspect, direction }) => ({ u_aspect: aspect, u_angle: 0.5, u_zoom: 0.9, u_blur: 0.6, u_dir: direction === 'right' || direction === 'down' ? -1 : 1 }),
+  },
+  'light-leak': {
+    frag: lightLeak,
+    uniforms: ({ aspect, direction }) => ({ u_dir: motionDir(direction), u_intensity: 0.95, u_aspect: aspect }),
+  },
+  'chroma-glitch': {
+    frag: chromaGlitch,
+    uniforms: () => ({ u_intensity: 1, u_bands: 26 }),
+  },
+  'fluted-glass': {
+    frag: flutedGlass,
+    uniforms: () => ({ u_ribs: 9, u_refract: 0.4, u_split: 0.1 }),
+  },
+  'ripple-dissolve': {
+    frag: rippleDissolve,
+    uniforms: ({ aspect }) => ({ u_aspect: aspect, u_center: [0.5, 0.5], u_amp: 0.045, u_freq: 38 }),
+  },
+  'tile-pop': {
+    frag: tilePop,
+    uniforms: ({ aspect }) => ({ u_aspect: aspect, u_cols: 5, u_round: 0.8 }),
+  },
+  'cube-turn': {
+    frag: cubeTurn,
+    uniforms: ({ direction }) => ({
+      u_vertical: direction === 'up' || direction === 'down' ? 1 : 0,
+      u_sign: direction === 'right' || direction === 'up' ? -1 : 1,
+      u_depth: 0.28,
+    }),
+  },
+  'slide-over': {
+    frag: slideOver,
+    uniforms: ({ direction }) => ({ u_dir: motionDir(direction), u_parallax: 0.3, u_shadow: 0.5 }),
+  },
 };
+
+/** The way the strip moves for a direction, the same sense as whip-pan: left = the next shot comes in from the right. */
+function motionDir(direction: TransitionDirection): [number, number] {
+  return direction === 'right' ? [-1, 0] : direction === 'up' ? [0, -1] : direction === 'down' ? [0, 1] : [1, 0];
+}
 
 /** Half width / half height the window reaches at 80% of the transition: inside Instagram's safe zone (top/bottom/right bands). */
 export const WINDOW_LIMIT: [number, number] = [0.4, 0.3];

@@ -155,7 +155,7 @@ export const RECIPE_SCHEMA = {
           "cutRule": { "enum": ["everyBeat", "every2Beats", "everyBar", "onSpeechPhrases", "fixedSec"] },
           "shotSec": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number", "minimum": 0.1, "maximum": 30 }, "description": "[min,max] shot length when not beat-driven." },
           "layout": { "enum": ["split2v", "split2h", "split3v", "grid2x2", "grid3x3"] },
-          "transition": { "enum": ["cut", "crossfade", "dipToBlack", "dipToWhite", "slideLeft", "slideUp", "pushLeft", "zoomIn", "flash", "bars", "wide-bars", "window", "auto"], "description": "Transition into each shot of the section. \"auto\" rotates through assembler.options.autoTransitions (default bars, wide-bars, window, flash)." },
+          "transition": { "enum": ["cut", "crossfade", "dipToBlack", "dipToWhite", "slideLeft", "slideUp", "pushLeft", "zoomIn", "flash", "bars", "wide-bars", "window", "zoom-through", "whip-blur", "spin-zoom", "light-leak", "chroma-glitch", "fluted-glass", "ripple-dissolve", "tile-pop", "cube-turn", "slide-over", "auto"], "description": "Transition into each shot of the section. \"auto\" rotates through assembler.options.autoTransitions (default bars, wide-bars, window, flash)." },
           "strobe": { "type": "boolean", "description": "Flash-cut hook: the section length and cut step come from the params hookSec (default 1.5) and flashSec (0.3-0.6, default 0.5), in whole beats." },
           "overlays": {
             "type": "array",

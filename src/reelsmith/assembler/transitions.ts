@@ -22,6 +22,16 @@ export const RECIPE_TRANSITIONS: Record<string, Spec> = {
   bars: { type: 'bars', seconds: 0.35 },
   'wide-bars': { type: 'wide-bars', seconds: 0.35 },
   window: { type: 'window', seconds: 0.35 },
+  'zoom-through': { type: 'zoom-through', seconds: 0.4 },
+  'whip-blur': { type: 'whip-blur', seconds: 0.3 },
+  'spin-zoom': { type: 'spin-zoom', seconds: 0.45 },
+  'light-leak': { type: 'light-leak', seconds: 0.6 },
+  'chroma-glitch': { type: 'chroma-glitch', seconds: 0.35 },
+  'fluted-glass': { type: 'fluted-glass', seconds: 0.5 },
+  'ripple-dissolve': { type: 'ripple-dissolve', seconds: 0.55 },
+  'tile-pop': { type: 'tile-pop', seconds: 0.5 },
+  'cube-turn': { type: 'cube-turn', seconds: 0.5 },
+  'slide-over': { type: 'slide-over', seconds: 0.4 },
 };
 
 export interface TransitionContext {
