@@ -105,4 +105,34 @@ assert.ok(dumpShort.seconds! > 0, 'photo-dump built');
 if (dumpShort.lengthNote) assert.match(dumpShort.lengthNote, /name about \d+/, 'a missed length says how many photos would fit');
 const fixedLen = await execReelsTool('reels_plan_options', {}, ctx2, deps) as { recipes: Array<{ id: string; lengthFixed: boolean }> };
 assert.deepEqual(fixedLen.recipes.map((r) => r.lengthFixed), [true, false]);
+
+// library songs: listed with their beat, and added by the plan itself when a recipe needs one and none is imported
+const lib = [{ id: 'aud_a', name: 'Calm Groove', category: 'music' as const, src: '/audio/a.mp3', durationInFrames: 600 }, { id: 'aud_v', name: 'Voice', category: 'voice' as const, src: '/audio/v.mp3', durationInFrames: 600 }];
+let h3: History = { past: [], present: emptyProjectDoc(), future: [] };
+h3 = historyReduce(h3, { type: 'batch', label: 'pool', actions: [...clips, ...photos].map((a) => ({ type: 'addAsset', asset: a } as AtomicAction)) });
+const ctx3: AgentContext = { ...ctx, audio: lib, commands: { batch: (actions: AtomicAction[], label?: string) => { h3 = historyReduce(h3, { type: 'batch', label, actions }); } } as never, getState: () => activeTimeline(h3.present), getDoc: () => h3.present };
+const o3 = await execReelsTool('reels_plan_options', {}, ctx3, deps) as { libraryMusic: Array<{ id: string; beat?: string }> };
+assert.deepEqual(o3.libraryMusic.map((m) => [m.id, m.beat]), [['aud_a', 'steady']], 'voice tracks are not music');
+assert.match(((await execReelsTool('reels_plan_assemble', { recipeId: 'travel-diary', music: 'No Such Song' }, ctx3, deps)) as { error?: string }).error ?? '', /unknown music/);
+const auto = await execReelsTool('reels_plan_assemble', { recipeId: 'travel-diary' }, ctx3, deps) as { ok?: boolean; error?: string; music?: string; musicAdded?: boolean };
+assert.ok(auto.ok, auto.error);
+assert.equal(auto.music, 'Calm Groove');
+assert.ok(auto.musicAdded);
+assert.ok((h3.present.assets ?? []).some((a) => a.id === 'aud_a'), 'the song is in the project');
+assert.equal(activeTimeline(h3.present).items.filter((i) => i.kind === 'audio').length, 1);
+const beforeUndo = h3.past.length;
+h3 = historyReduce(h3, { type: 'undo' });
+assert.equal(activeTimeline(h3.present).items.length, 0, 'one undo removes the reel and the song together');
+assert.equal(h3.past.length, beforeUndo - 1);
+// beatless library song: a beat recipe is not forced onto it
+const deafLib: ReelsDeps = { ...deps, api: { ...api, musicGrid: async () => null } };
+const none = await execReelsTool('reels_plan_assemble', { recipeId: 'travel-diary', replaceTimeline: true }, ctx3, deafLib) as { error?: string };
+assert.ok(none.error, 'no song with a beat: refused with a reason');
+
+// length: a photo reel asked for 10 s shows a subset of the photos that fits
+h3 = historyReduce(h3, { type: 'batch', label: 'more photos', actions: Array.from({ length: 14 }, (_, i) => ({ type: 'addAsset', asset: asset(`q${100 + i}`, 'image', 150) } as AtomicAction)) });
+const ten = await execReelsTool('reels_plan_assemble', { recipeId: 'photo-dump', targetSec: 10, replaceTimeline: true, params: { cutRule: 'every2Beats' } }, ctx3, deps) as { ok?: boolean; error?: string; seconds?: number; trimmedToPhotos?: number };
+assert.ok(ten.ok, ten.error);
+assert.ok(Math.abs(ten.seconds! - 10) <= 1.5, `asked 10 s, got ${ten.seconds}`);
+assert.ok(ten.trimmedToPhotos && ten.trimmedToPhotos < 20, 'a subset was shown');
 console.log('planTools verify ok');

@@ -2,6 +2,7 @@
 import { supportedRatios, type Recipe, type RecipeMediaInput } from '../../../shared/reelsmith/recipe';
 import { isRatioId } from '../../../shared/reelsmith/ratios';
 import type { AgentContext } from '../../agent/context';
+import type { AtomicAction } from '../../editor/reducerActions';
 import type { MediaAsset } from '../../editor/types';
 import { runRecipe } from '../runRecipe';
 import { SIGNATURES } from '../signatures';
@@ -26,12 +27,33 @@ async function beatOf(asset: MediaAsset, deps: ReelsDeps): Promise<'steady' | 'n
   } catch { return 'unknown'; }
 }
 
+/** The bundled songs, as media assets a recipe can use. They are added to the project only when a plan picks one. */
+function libraryMusic(ctx: AgentContext): MediaAsset[] {
+  return (ctx.audio ?? []).filter((t) => t.category === 'music').map((t) => ({ id: t.id, name: t.name, kind: 'audio' as const, src: t.src, durationInFrames: t.durationInFrames }));
+}
+
+/** The song for a plan: the one named (library or imported), else, when the recipe needs a song and none is imported, the first library song with a steady beat. */
+async function chooseSong(recipe: Recipe, wanted: unknown, assets: MediaAsset[], ctx: AgentContext, deps: ReelsDeps): Promise<{ song?: MediaAsset; add?: MediaAsset; error?: string }> {
+  const library = libraryMusic(ctx);
+  const name = typeof wanted === 'string' ? wanted.trim().toLowerCase() : '';
+  if (name) {
+    const hit = [...assets.filter((a) => a.kind === 'audio'), ...library].find((a) => a.id.toLowerCase() === name || a.name.toLowerCase() === name);
+    if (!hit) return { error: `unknown music ${JSON.stringify(wanted)}; use one of: ${[...assets.filter((a) => a.kind === 'audio'), ...library].map((a) => a.name).join(', ') || 'none imported'}` };
+    return assets.some((a) => a.id === hit.id) ? { song: hit } : { song: hit, add: hit };
+  }
+  const needsSong = recipe.music?.required === true || needsBeat(recipe);
+  if (!needsSong || assets.some((a) => a.kind === 'audio')) return {};
+  for (const track of library) if (await beatOf(track, deps) === 'steady') return { song: track, add: track };
+  return {};
+}
+
 export async function planOptions(ctx: AgentContext, deps: ReelsDeps): Promise<unknown> {
   const fps = ctx.getState().fps;
   const all = (ctx.getDoc().assets ?? []).filter((a) => PLANNABLE.has(a.kind));
   const shown = all.slice(0, MAX_ASSETS);
   const songs = shown.filter((a) => a.kind === 'audio').slice(0, MAX_BEAT_CHECKS);
-  const beats = new Map(await Promise.all(songs.map(async (a) => [a.id, await beatOf(a, deps)] as const)));
+  const library = libraryMusic(ctx);
+  const beats = new Map(await Promise.all([...songs, ...library].map(async (a) => [a.id, await beatOf(a, deps)] as const)));
   return {
     assets: shown.map((a) => ({
       assetId: a.id, name: a.name, kind: a.kind, seconds: secs(a, fps),
@@ -39,6 +61,7 @@ export async function planOptions(ctx: AgentContext, deps: ReelsDeps): Promise<u
       ...(a.width && a.height ? { size: `${a.width}x${a.height}`, orientation: a.height > a.width ? 'portrait' : a.height < a.width ? 'landscape' : 'square' } : {}),
     })),
     ...(all.length > MAX_ASSETS ? { assetsTruncated: all.length - MAX_ASSETS } : {}),
+    libraryMusic: library.map((a) => ({ id: a.id, name: a.name, seconds: secs(a, ctx.getState().fps), beat: beats.get(a.id) })),
     timelineIsEmpty: ctx.getState().items.length === 0,
     signatures: SIGNATURES.map((g) => ({ id: g.id, name: g.name, mood: g.mood, bestRecipes: g.recipes })),
     recipes: deps.recipes.map((r) => ({
@@ -107,7 +130,12 @@ async function assembleOne(args: Record<string, unknown>, ctx: AgentContext, dep
 
   const assets = [...(ctx.getDoc().assets ?? [])];
   const values = defaultValues(recipe);
-  const { media, problems } = pickMedia(recipe, args.media, assets);
+  const picked = await chooseSong(recipe, args.music, assets, ctx, deps);
+  if (picked.error) return { error: picked.error };
+  if (picked.add) assets.push(picked.add);
+  const songInput = mediaInputs(recipe).find((i) => i.accept.includes('audio') && !i.accept.includes('video'));
+  const named = args.media && typeof args.media === 'object' && !Array.isArray(args.media) ? args.media as Record<string, unknown> : {};
+  const { media, problems } = pickMedia(recipe, picked.song && songInput ? { ...named, [songInput.id]: [picked.song.id] } : args.media, assets);
   values.media = media;
   const textCheck = checkTexts(args.texts, recipe);
   Object.assign(values.texts, textCheck.texts);
@@ -121,24 +149,40 @@ async function assembleOne(args: Record<string, unknown>, ctx: AgentContext, dep
   }
   if (problems.length) return { error: problems.join('; ') };
 
+  const run = (v: typeof values) => runRecipe({ ...deps.api, ...(deps.shotTags ? { shotTags: deps.shotTags(projectId(ctx)) } : {}) }, {
+    recipe, ...(ratio && isRatioId(ratio) ? { ratio } : {}), values: v, assets, fps: state.fps, replaceTimeline: true,
+    ...(typeof args.seed === 'number' && Number.isFinite(args.seed) ? { seed: Math.round(args.seed) } : {}),
+    onProgress: ctx.onToolProgress,
+  });
   let out;
+  let trimmedTo: number | undefined;
   try {
-    out = await runRecipe({ ...deps.api, ...(deps.shotTags ? { shotTags: deps.shotTags(projectId(ctx)) } : {}) }, {
-      recipe, ...(ratio && isRatioId(ratio) ? { ratio } : {}), values, assets, fps: state.fps, replaceTimeline: true,
-      ...(typeof args.seed === 'number' && Number.isFinite(args.seed) ? { seed: Math.round(args.seed) } : {}),
-      onProgress: ctx.onToolProgress,
-    });
+    out = await run(values);
+    // a photo reel is as long as its photos x shot length: when the user asked for a length, show an evenly spread subset that fits it
+    const clipsInput = mediaInputs(recipe).find((i) => i.accept.includes('image') && !i.accept.includes('audio'));
+    const first = out.action ? out.result.report : undefined;
+    if (wantSec !== undefined && first && recipe.assembler.strategy === 'photo-dump@1' && clipsInput && first.shots > 3) {
+      const secs1 = first.totalFrames / state.fps;
+      const have = values.media[clipsInput.id] ?? [];
+      const n = Math.min(have.length, Math.max(3, Math.round(wantSec / (secs1 / first.shots))));
+      if (Math.abs(secs1 - wantSec) > 1.5 && n < have.length) {
+        const subset = Array.from({ length: n }, (_, i) => have[Math.floor((i * have.length) / n)]!);
+        const again = await run({ ...values, media: { ...values.media, [clipsInput.id]: subset } });
+        if (again.action) { out = again; trimmedTo = n; }
+      }
+    }
   } catch (error) { return { error: error instanceof Error ? error.message : String(error), media: Object.fromEntries(Object.entries(media).map(([k, v]) => [k, v.length])) }; }
   if (!out.action) return { error: `could not assemble: ${out.messages.join('; ') || 'not enough usable footage'}` };
   const seconds = Math.round((out.result.report.totalFrames / state.fps) * 10) / 10;
   const shots = out.result.report.shots;
   const fixed = base?.assembler.strategy === 'travel-diary@1';
-  commit(ctx, out.action.actions, out.action.label ?? `Plan: ${recipe.name}`);
+  commit(ctx, [...(picked.add ? [{ type: 'addAsset', asset: picked.add } as AtomicAction] : []), ...out.action.actions], out.action.label ?? `Plan: ${recipe.name}`);
   let saved = true;
   try { await saveRun(deps.kv, projectId(ctx), out.run); } catch { saved = false; }
   return {
     ok: true, recipe: recipe.name, ratio: ratio ?? supportedRatios(recipe)[0], shots: out.result.report.shots,
     seconds, ...(wantSec !== undefined && Math.abs(seconds - wantSec) > 1.5 ? { lengthNote: `The reel is ${seconds} s, not the ${wantSec} s asked for${fixed ? ': this recipe has a fixed slot plan whose length follows the song tempo' : ''}. Use a recipe without lengthFixed, or tell the user.${shots > 0 && seconds > 0 && !fixed ? ` Shots here run about ${Math.round((seconds / shots) * 10) / 10} s, so name about ${Math.max(3, Math.round(wantSec / (seconds / shots)))} of the best clips or photos in media (or change the cut rule) to land on ${wantSec} s.` : ''}` } : {}),
+    ...(picked.song ? { music: picked.song.name, ...(picked.add ? { musicAdded: true } : {}) } : {}), ...(trimmedTo ? { trimmedToPhotos: trimmedTo } : {}),
     usedAssetIds: out.result.report.usedAssetIds, texts: values.texts, notes: out.messages, ...(rejected.length ? { rejected } : {}),
     ...(saved ? {} : { warning: 'The reel was built, but the recipe run could not be saved; re-cut from chat will not work.' }),
     next: 'Run reels_lint, then tell the user what you built in two or three plain lines.',

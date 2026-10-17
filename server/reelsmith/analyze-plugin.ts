@@ -5,7 +5,10 @@
 //   POST /api/reelsmith/export-parity  { src, state } -> V8 check: 5 editor stills vs the same frames of the exported file
 //   POST /api/reelsmith/selection-sheet { items: [{ src, kind, atSec, label }] } -> numbered contact sheets for agent shot selection
 //   POST /api/reelsmith/preview        { project, seconds } -> 360x640 muted loop of an assembled recipe
+import { existsSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { Plugin } from 'vite';
 import { resolveUploadFile, uploadNameOfSource } from '../media-dir.ts';
 import { readJsonBody, sendJson } from '../plugins/export-http.ts';
@@ -18,9 +21,17 @@ import { buildSelectionSheets } from './selectionSheet.ts';
 import { renderRecipePreview, type PreviewRequest } from './previewRender.ts';
 import { REEL_PRESETS, presetForCanvas } from '../../shared/reelsmith/instagramPreset.ts';
 
-function localFile(src: unknown): string | { error: string } {
+const BUILTIN_AUDIO_DIR = fileURLToPath(new URL('../../assets/audio/', import.meta.url));
+
+/** An imported file (/media/uploads/...) or one of the bundled library songs (/audio/track-1.mp3). */
+export function localFile(src: unknown): string | { error: string } {
+  const builtin = typeof src === 'string' ? /^\/audio\/([\w-]+\.(?:mp3|m4a|wav))$/.exec(src)?.[1] : undefined;
+  if (builtin) {
+    const file = join(BUILTIN_AUDIO_DIR, builtin);
+    return existsSync(file) ? file : { error: `media not found: ${builtin}` };
+  }
   const name = typeof src === 'string' ? uploadNameOfSource(src) : null;
-  if (!name) return { error: 'src must be a /media/uploads/ path' };
+  if (!name) return { error: 'src must be a /media/uploads/ or /audio/ path' };
   return resolveUploadFile(name) ?? { error: `media not found: ${name}` };
 }
 
