@@ -24,6 +24,9 @@ Every OpenChatCut file we change goes in this table, so `git merge upstream/main
 | `src/export/serverExportOperation.ts` | `.srt` sidecar block moved into `deliverSrtSidecar()` and also called from the recovered/retried export path; recovered context reads its caption track from the saved timeline state instead of `null` | RS-301: Retry-from-failed-job wrote no `.srt` | 2026-10-17 |
 | `remotion/performance.mjs` | Added `maxSourcePixels`, `resolveSourceAwareConcurrency` and two constants (existing functions untouched) | RS-803: 4K sources export fastest with 2 render workers; light sources keep the automatic count | 2026-10-17 |
 | `remotion/render.mjs` | `concurrency: resolveSourceAwareConcurrency(renderOptions.inputProps?.state)` instead of `currentRenderConcurrency()` (plus the import) | RS-803 | 2026-10-17 |
+| `server/plugins/asr-models.ts` | Per-download `AbortController`; `POST /api/asr-models/cancel`; the signal is passed to the downloader; GET rows carry `partialBytes` (bytes of the file in flight); three `__...ForVerify` test seams; `startDownload` takes `cacheDir`/`download` for tests | A running model download could not be cancelled and progress only moved per finished file | 2026-10-17 |
+| `shared/asr-models.ts` | `AsrDownloadTask.partialBytes?` | same | 2026-10-17 |
+| `src/components/settings/LocalAsrPane.tsx`, `local-asr-model-mutation.ts` | The "…" label became a **Cancel** button; progress uses `downloadPercent()` (`src/reelsmith/asrDownloadProgress.ts`); mutation type gains `cancel` | same | 2026-10-17 |
 
 ## package.json (RS-003, RS-101)
 Added script `test:reelsmith` (our verifies) and appended `&& npm run test:reelsmith` to `test:serial`. Add each new Reelsmith `*.verify.ts` to `test:reelsmith`, not to the upstream chain.

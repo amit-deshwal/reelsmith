@@ -5,14 +5,15 @@
 //
 //   GET  /api/asr-models              → catalog + per-model, per-engine downloaded state
 //   POST /api/asr-models/download     → { id } start background download
+//   POST /api/asr-models/cancel       → { id } stop a running download (Reelsmith)
 //   GET  /api/asr-models/download/:id → task status { status, progress, … }
 //   POST /api/asr-models/delete       → { id } remove cached files
 import type { Plugin } from 'vite';
 import { createHash } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createReadStream } from 'node:fs';
-import { rm, stat } from 'node:fs/promises';
-import { join } from 'node:path';
+import { readdir, rm, stat } from 'node:fs/promises';
+import { basename, dirname, join } from 'node:path';
 import {
   ASR_MODELS,
   asrModelEntry,
@@ -220,9 +221,24 @@ function catalogState(cacheDir = modelCacheDir()): Promise<Array<AsrModelInspect
       onnxDownloaded: state.onnxDownloaded,
       ggmlDownloaded: state.ggmlDownloaded,
       bytes: state.bytes,
-      task: tasks.get(entry.id),
+      task: await taskWithPartial(entry, cacheDir),
     };
   }));
+}
+
+/** The running task plus the bytes already on disk for files still downloading (`<file>.part*`), so progress moves continuously. */
+async function taskWithPartial(entry: AsrModelEntry, cacheDir: string): Promise<AsrDownloadTask | undefined> {
+  const task = tasks.get(entry.id);
+  if (!task || task.status !== 'downloading') return task;
+  let partialBytes = 0;
+  for (const file of asrModelDownloads(entry, cacheDir)) {
+    const dir = dirname(file.destination);
+    const stem = basename(file.destination);
+    for (const name of await readdir(dir).catch(() => [] as string[])) {
+      if (name === `${stem}.part` || name.startsWith(`${stem}.part.`)) partialBytes += (await stat(join(dir, name)).catch(() => null))?.size ?? 0;
+    }
+  }
+  return { ...task, partialBytes };
 }
 
 /** One catalog file: where the downloader fetches it from and writes it to. */
@@ -264,14 +280,16 @@ async function downloadAsrModel(
   task: AsrDownloadTask,
   cacheDir: string,
   download: typeof downloadModelFile,
+  signal?: AbortSignal,
 ): Promise<void> {
   // Adopt a companion an older build stranded before deciding to re-fetch it.
   if (entry.ggmlFile) resolveGgmlPath(cacheDir, entry.ggmlFile.fileName);
   for (const file of asrModelDownloads(entry, cacheDir)) {
+    throwIfAborted(signal);
     if (!(await modelFileVerified(file.destination, file))) {
       await rm(file.destination, { force: true });
       await download(file.target, file.destination, {
-        expectedBytes: file.sizeBytes, expectedSha256: file.sha256,
+        expectedBytes: file.sizeBytes, expectedSha256: file.sha256, ...(signal ? { signal } : {}),
       });
     }
     task.filesDone += 1;
@@ -292,21 +310,47 @@ function newDownloadTask(entry: AsrModelEntry): AsrDownloadTask {
   };
 }
 
-async function startDownload(id: string): Promise<AsrDownloadTask> {
+/** One abort controller per running download, so a download can be cancelled from the UI (Reelsmith). */
+const controllers = new Map<string, AbortController>();
+
+async function startDownload(
+  id: string,
+  cacheDir = modelCacheDir(),
+  download: typeof downloadModelFile = downloadModelFile,
+): Promise<AsrDownloadTask> {
   const entry = asrModelEntry(id);
   if (!entry) throw new Error(`unknown model ${id}`);
   const existing = tasks.get(id);
   if (existing && existing.status === 'downloading') return existing;
   const task = newDownloadTask(entry);
-  forgetInspections(modelCacheDir(), entry);
+  const controller = new AbortController();
+  forgetInspections(cacheDir, entry);
   tasks.set(id, task);
-  void downloadAsrModel(entry, task, modelCacheDir(), downloadModelFile).then(() => {
+  controllers.set(id, controller);
+  const finished = downloadAsrModel(entry, task, cacheDir, download, controller.signal).then(() => {
     task.status = 'done';
   }, (error: unknown) => {
-    task.status = 'error';
-    task.error = error instanceof Error ? error.message : String(error);
+    if (controller.signal.aborted) {
+      // cancelled by the user: not a failure, and nothing to retry or show; the row goes back to "Download"
+      if (tasks.get(id) === task) tasks.delete(id);
+    } else {
+      task.status = 'error';
+      task.error = error instanceof Error ? error.message : String(error);
+    }
+  }).finally(() => {
+    if (controllers.get(id) === controller) controllers.delete(id);
+    forgetInspections(cacheDir, entry);
   });
+  void finished;
   return task;
+}
+
+/** Stop a running download. Files already complete are kept, so the next Download carries on from them. */
+function cancelDownload(id: string): boolean {
+  const controller = controllers.get(id);
+  if (!controller || controller.signal.aborted) return false;
+  controller.abort(new Error('download cancelled'));
+  return true;
 }
 
 async function deleteModel(id: string): Promise<boolean> {
@@ -351,6 +395,16 @@ export async function handleAsrModelsRequest(
     sendJson(res, 200, task ?? { status: 'idle' });
     return;
   }
+  if (pathname === '/api/asr-models/cancel' && req.method === 'POST') {
+    if (!requireAsrMutation(req, res)) return;
+    try {
+      const body = await readJson(req);
+      sendJson(res, 200, { ok: true, cancelled: cancelDownload(String(body.id ?? '')) });
+    } catch (error) {
+      sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) });
+    }
+    return;
+  }
   if (pathname === '/api/asr-models/delete' && req.method === 'POST') {
     if (!requireAsrMutation(req, res)) return;
     try {
@@ -393,6 +447,11 @@ export function __resetAsrTasks(): void {
 export function __asrCatalogForVerify(cacheDir: string): ReturnType<typeof catalogState> {
   return catalogState(cacheDir);
 }
+
+/** Test seams: start/cancel a download against `cacheDir` with a stand-in transport, and read a running task. */
+export const __startAsrDownloadForVerify = startDownload;
+export const __cancelAsrDownloadForVerify = cancelDownload;
+export const __asrTaskForVerify = (id: string): AsrDownloadTask | undefined => tasks.get(id);
 
 /** Test seam: run the real download routine against `cacheDir` with a stand-in transport. */
 export async function __downloadAsrModelForVerify(

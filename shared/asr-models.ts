@@ -188,5 +188,7 @@ export interface AsrDownloadTask {
   bytesTotal: number;
   filesDone: number;
   filesTotal: number;
+  /** Bytes already on disk for files still downloading (added by GET /api/asr-models while a download runs). */
+  partialBytes?: number;
   error?: string;
 }

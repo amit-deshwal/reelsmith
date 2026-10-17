@@ -1,5 +1,7 @@
 // Reelsmith additions to the EN dictionary (key = Chinese original). Kept out of the upstream field files to avoid merge conflicts.
 export default {
+  // Cancel button on a running model download
+  '停止下载；已下载完的文件会保留，下次从这里继续': 'Stop the download. Files already finished are kept, so the next Download carries on from them.',
   // Transcription language choices added for Hindi/Marathi speech (RS-501)
   '印地语（hi）': 'Hindi (hi)',
   '马拉地语（mr）': 'Marathi (mr)',

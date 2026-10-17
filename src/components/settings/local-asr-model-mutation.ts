@@ -1,4 +1,4 @@
-export type LocalAsrModelMutation = 'download' | 'delete';
+export type LocalAsrModelMutation = 'download' | 'delete' | 'cancel';
 
 export async function mutateLocalAsrModel(action: LocalAsrModelMutation, id: string): Promise<void> {
   const response = await fetch(`/api/asr-models/${action}`, {

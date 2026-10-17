@@ -2,6 +2,7 @@
 // Models are NOT bundled — users pick and download them on demand through the
 // local hf-proxy (multi-source accelerated download into the disk cache).
 // Whisper is OpenAI's open-source model, so the official OpenAI mark is used.
+import { downloadPercent } from '../../reelsmith/asrDownloadProgress';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { theme } from '../../theme';
 import { useT } from '../../i18n/locale';
@@ -151,6 +152,16 @@ export function LocalAsrPane({ fields, ctx }: { fields: readonly SettingsField[]
     }
   }, [refresh]);
 
+  const cancelDownload = useCallback(async (id: string) => {
+    setBusyId(id);
+    try {
+      await mutateLocalAsrModel('cancel', id);
+      await refresh();
+    } finally {
+      setBusyId(null);
+    }
+  }, [refresh]);
+
   const deleteModel = useCallback(async (id: string) => {
     setBusyId(id);
     try {
@@ -164,11 +175,8 @@ export function LocalAsrPane({ fields, ctx }: { fields: readonly SettingsField[]
   const statusLabel = (m: AsrModelState, row: LocalAsrModelRowState): { text: string; color: string } => {
     const task = m.task;
     if (task?.status === 'downloading') {
-      // Byte totals are unknown before a file finishes; file-level progress
-      // advances reliably (configs first, then the big ONNX weights).
-      const pct = (task.filesTotal ?? 0) > 0
-        ? Math.min(100, Math.round((task.filesDone ?? 0) / (task.filesTotal ?? 1) * 100))
-        : 0;
+      // Reelsmith: follows the bytes on disk (including the file in flight), so a big model never looks frozen
+      const pct = downloadPercent(task);
       return { text: t('下载中 {pct}%', { pct }), color: theme.accent };
     }
     if (task?.status === 'error') return { text: t('下载失败'), color: theme.danger };
@@ -259,7 +267,8 @@ export function LocalAsrPane({ fields, ctx }: { fields: readonly SettingsField[]
               </div>
               <span style={{ fontSize: 11, color: status.color, whiteSpace: 'nowrap' }}>{status.text}</span>
               {downloading ? (
-                <span style={{ fontSize: 11, color: theme.textDim }}>…</span>
+                <button type="button" disabled={busy} onClick={() => void cancelDownload(m.id)}
+                  title={t('停止下载；已下载完的文件会保留，下次从这里继续')} style={smallBtn}>{t('取消')}</button>
               ) : (
                 <>
                   {row.canDownload && (
