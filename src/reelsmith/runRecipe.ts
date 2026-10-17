@@ -9,6 +9,9 @@ import { toAssemblyClips, type ClipFeatures } from './assembler/scoring';
 import type { ClipShotTags } from './shotTags';
 import { validateSetup, type SetupValues } from './setupForm';
 import { fillTransformForFocus } from './cropFocus';
+import { UPSCALE_SOFT } from './qualityLint';
+import { focusForRange, withTitleClear } from './titleClear';
+import { matchEffect, planShotMatch, type ColorStats } from './shotMatch';
 
 export interface AnalyzeApi {
   clipFeatures(asset: MediaAsset, fps: number): Promise<ClipFeatures | null>;
@@ -108,7 +111,8 @@ export async function prepareAssembly(api: AnalyzeApi, o: RunOptions): Promise<P
   // clips without features keep a neutral score so they are still usable
   const clips = scored.map((c) => {
     const t = tags.get(c.assetId);
-    const withTag = t ? { ...c, shot: { top: t.top, confidence: t.confidence, scores: t.scores } } : c;
+    const color = features.find((f) => f.assetId === c.assetId)?.color;
+    const withTag = { ...c, ...(color ? { color } : {}), ...(t ? { shot: { top: t.top, confidence: t.confidence, scores: t.scores } } : {}) };
     return features.some((f) => f.assetId === c.assetId) ? withTag : { ...withTag, score: 0.5 };
   });
   const primary = clips.filter((c) => base.find((b) => b.assetId === c.assetId)?.input === clipInputs[0]?.id);
@@ -160,31 +164,44 @@ export function withBeatGrid(actions: AtomicAction[], music: AssemblyMusic | und
 /** Fill the canvas with each selected shot, panned to its face/subject in the source range it plays. */
 export const MISMATCH_FIT_PARAM = 'mismatchFit';
 /** RS-903: how clips whose shape differs from the canvas are framed: cropped to fill, or fitted whole over a blurred copy. */
-export const mismatchFitOf = (params: Record<string, unknown>): 'fill' | 'blur' => params[MISMATCH_FIT_PARAM] === 'blur' ? 'blur' : 'fill';
+export type MismatchFit = 'fill' | 'blur' | 'auto';
+/** 'auto' (the default) crops to fill but fits the whole picture over a blurred copy when filling would enlarge it past the soft limit. */
+export const mismatchFitOf = (params: Record<string, unknown>): MismatchFit => params[MISMATCH_FIT_PARAM] === 'blur' ? 'blur' : params[MISMATCH_FIT_PARAM] === 'fill' ? 'fill' : 'auto';
 
-export function withCropFocus(actions: AtomicAction[], clips: AssemblyClip[], canvas: { width: number; height: number }, fit: 'fill' | 'blur' = 'fill'): AtomicAction[] {
+/** Blurred fit for this clip? Always for 'blur', never for 'fill', and for 'auto' when the cover crop would be soft. */
+export function usesBlurFit(fit: MismatchFit, sourceWidth: number, sourceHeight: number, canvas: { width: number; height: number }, fillScale: number): boolean {
+  if (fit !== 'auto') return fit === 'blur';
+  if (!(sourceWidth > 0 && sourceHeight > 0)) return false;
+  return Math.min(canvas.width / sourceWidth, canvas.height / sourceHeight) * fillScale > UPSCALE_SOFT;
+}
+
+export function withCropFocus(actions: AtomicAction[], clips: AssemblyClip[], canvas: { width: number; height: number }, fit: MismatchFit = 'fill'): AtomicAction[] {
   const byId = new Map(clips.map((clip) => [clip.assetId, clip]));
+  // shot matching works on whole source assets: extra moments of one long video share its colour
+  const stats = new Map<string, ColorStats>();
+  for (const clip of clips) if (clip.color) stats.set(clip.baseAssetId ?? clip.assetId, clip.color);
+  const matches = planShotMatch(stats);
   return actions.map((action) => {
     if (action.type !== 'add' || (action.item.kind !== 'video' && action.item.kind !== 'image')) return action;
     const clip = action.item.sourceAssetId ? byId.get(action.item.sourceAssetId) : undefined;
     if (!clip) return action;
     const start = action.item.srcInFrame ?? 0;
     const end = start + action.item.durationInFrames * (action.item.playbackRate ?? 1);
-    const window = clip.sourceAnalysis?.windows.reduce<typeof clip.sourceAnalysis.windows[number] | undefined>((best, candidate) => {
-      const overlap = clip.kind === 'image' ? 1 : Math.max(0, Math.min(end, candidate.endFrame) - Math.max(start, candidate.startFrame));
-      const bestOverlap = best ? (clip.kind === 'image' ? 1 : Math.max(0, Math.min(end, best.endFrame) - Math.max(start, best.startFrame))) : -1;
-      return candidate.focusRect && overlap > bestOverlap ? candidate : best;
-    }, undefined);
-    const focus = window?.focusRect;
+    const gain = matches.get(clip.baseAssetId ?? clip.assetId);
+    const focus = focusForRange(clip, start, end);
     const fill = fillTransformForFocus(clip.width ?? 0, clip.height ?? 0, canvas.width, canvas.height, focus);
+    const blur = !!fill && usesBlurFit(fit, clip.width ?? 0, clip.height ?? 0, canvas, fill.scale);
     return { ...action, item: { ...action.item,
       width: action.item.width ?? clip.width, height: action.item.height ?? clip.height,
+      ...(gain && !action.item.effects?.length ? { effects: [matchEffect(gain)] } : {}),
       // Slot-placed clips (collage cells, split-screen halves) already carry their own transform: leave them.
-      ...(fill && !action.item.transform && fit === 'blur' ? { backgroundFill: true } : {}),
-      ...(fill && !action.item.transform && fit === 'fill' ? { transform: { scale: fill.scale, scaleX: fill.scale, scaleY: fill.scale, x: fill.x, y: fill.y } } : {}),
+      ...(fill && !action.item.transform && blur ? { backgroundFill: true } : {}),
+      ...(fill && !action.item.transform && !blur ? { transform: { scale: fill.scale, scaleX: fill.scale, scaleY: fill.scale, x: fill.x, y: fill.y } } : {}),
     } };
   });
 }
+
+
 
 export async function runRecipe(api: AnalyzeApi, o: RunOptions): Promise<RunOutcome> {
   const errors = validateSetup(o.recipe, o.values, o.assets);
@@ -202,6 +219,6 @@ export async function runRecipe(api: AnalyzeApi, o: RunOptions): Promise<RunOutc
   ];
   return {
     result, messages, run,
-    action: { type: 'batch', label: result.action.label, actions: [...prefix, ...withCropFocus(withBeatGrid(result.action.actions, input.music), [...input.clips, ...(input.broll ?? [])], input.recipe.canvas, mismatchFitOf(o.values.params))] },
+    action: { type: 'batch', label: result.action.label, actions: [...prefix, ...withTitleClear(withCropFocus(withBeatGrid(result.action.actions, input.music), [...input.clips, ...(input.broll ?? [])], input.recipe.canvas, mismatchFitOf(o.values.params)), [...input.clips, ...(input.broll ?? [])], input.recipe.canvas)] },
   };
 }

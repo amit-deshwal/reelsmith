@@ -26,6 +26,8 @@ export interface ClipFeatures {
   /** 64-bit difference hash as 16 hex chars, of a representative frame */
   dHash: string;
   captureTimeMs?: number;
+  /** mean display colour of the clip (0..1), for matching shots to each other */
+  color?: { r: number; g: number; b: number };
   /** shot boundaries split the clip; windows never cross them */
   windows: WindowFeatures[];
   /** source frames where a new shot starts (hard cuts inside the clip) */

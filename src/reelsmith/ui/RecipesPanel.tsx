@@ -377,6 +377,7 @@ export function SetupForm({ recipe, projectId, assets, itemCount, fps, initialRa
           <span style={{ fontSize: 12.5 }}>Clips that are not {ratio}</span>
           <select style={{ background: theme.inset, color: theme.text, border: `0.5px solid ${theme.border}`, borderRadius: 5, padding: '5px 7px', fontSize: 12.5 }}
             value={mismatchFitOf(values.params)} onChange={(e) => setValues((v) => ({ ...v, params: { ...v.params, [MISMATCH_FIT_PARAM]: e.target.value } }))}>
+            <option value="auto">Automatic (crop, but fit small pictures whole)</option>
             <option value="fill">Crop to fill the frame</option>
             <option value="blur">Fit whole over a blurred background</option>
           </select>

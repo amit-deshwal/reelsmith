@@ -68,7 +68,18 @@ const blurred = withCropFocus([{ type: 'add', startFrame: 0, item: {
   srcInFrame: 105, durationInFrames: 50,
 } }], [clip], { width: 1080, height: 1920 }, 'blur')[0]!;
 assert.ok(blurred.type === 'add' && blurred.item.backgroundFill === true && !blurred.item.transform, 'blur: background fill, no crop transform');
-assert.equal(mismatchFitOf({}), 'fill');
+assert.equal(mismatchFitOf({}), 'auto');
 assert.equal(mismatchFitOf({ mismatchFit: 'blur' }), 'blur');
-assert.equal(mismatchFitOf({ mismatchFit: 'nonsense' }), 'fill');
+assert.equal(mismatchFitOf({ mismatchFit: 'fill' }), 'fill');
+assert.equal(mismatchFitOf({ mismatchFit: 'nonsense' }), 'auto');
+// automatic: a sharp 12 MP landscape photo is cropped to fill; a small one (cover crop would enlarge it past 2x) is fitted whole over blur
+const autoFor = (width: number, height: number, kind: 'image' | 'video' = 'image') => {
+  const a = withCropFocus([{ type: 'add', startFrame: 0, item: { id: 'p', track: 'V1', kind, name: 'p', src: '/p', sourceAssetId: 'p', durationInFrames: 30 } }],
+    [{ ...clip, assetId: 'p', kind, width, height, sourceAnalysis: undefined }], { width: 1080, height: 1920 }, 'auto')[0]!;
+  return a.type === 'add' ? a.item : null;
+};
+assert.ok(autoFor(4000, 3000)!.transform && !autoFor(4000, 3000)!.backgroundFill, '12 MP landscape photo: crop to fill');
+assert.ok(autoFor(1920, 1080, 'video')!.transform, '1080p landscape video (1.8x): crop to fill');
+assert.ok(autoFor(800, 600)!.backgroundFill === true && !autoFor(800, 600)!.transform, 'small 800x600 photo (3.2x): blurred fit');
+assert.ok(autoFor(1280, 720, 'video')!.backgroundFill === true, '720p landscape video (2.7x): blurred fit');
 console.log('cropFocus.verify: ok');

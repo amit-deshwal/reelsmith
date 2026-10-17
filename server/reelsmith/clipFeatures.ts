@@ -29,6 +29,25 @@ function readGrayFrames(file: string, maxSec: number, stillImage = false): Promi
   });
 }
 
+/** Mean display colour (0..1) over a few sampled frames, from an 8x8 box-downsample; undefined when ffmpeg cannot read it. */
+function readMeanColor(file: string, maxSec: number, stillImage = false): Promise<{ r: number; g: number; b: number } | undefined> {
+  return new Promise((resolve) => {
+    const ff = spawn(ffmpegBin(), ['-v', 'error', '-t', String(maxSec), ...(stillImage ? ['-loop', '1'] : []), '-i', file, '-an', '-vf', `fps=${stillImage ? SAMPLE_FPS : 2},scale=8:8:flags=area,format=rgb24`, '-f', 'rawvideo', '-']);
+    const chunks: Buffer[] = [];
+    ff.stdout.on('data', (d: Buffer) => chunks.push(d));
+    ff.stderr.resume();
+    ff.on('error', () => resolve(undefined));
+    ff.on('close', () => {
+      const all = Buffer.concat(chunks);
+      const px = Math.floor(all.length / 3);
+      if (!px) return resolve(undefined);
+      const sum = [0, 0, 0];
+      for (let i = 0; i < px * 3; i += 1) sum[i % 3]! += all[i]!;
+      resolve({ r: sum[0]! / px / 255, g: sum[1]! / px / 255, b: sum[2]! / px / 255 });
+    });
+  });
+}
+
 /** Variance of the 4-neighbour Laplacian, squashed to 0..1. */
 export function sharpnessOf(f: Buffer): number {
   let sum = 0; let sumSq = 0; let n = 0;
@@ -196,10 +215,11 @@ export async function extractClipFeatures(
   file: string, assetId: string, fps: number, opts: { maxSec?: number; captureTimeMs?: number; stillImage?: boolean } = {},
 ): Promise<ClipFeatures> {
   const maxSec = opts.stillImage ? 1 / SAMPLE_FPS : opts.maxSec ?? 120;
-  const [frames, pcm, metadata] = await Promise.all([
+  const [frames, pcm, metadata, color] = await Promise.all([
     readGrayFrames(file, maxSec, opts.stillImage),
     opts.stillImage ? Promise.resolve(new Int16Array(0)) : readSpeechBand(file, maxSec),
     readMetadata(file),
+    readMeanColor(file, Math.min(maxSec, 4), opts.stillImage),
   ]);
   if (!frames.length) throw new Error('No video frames could be analysed');
   const durationSec = Number(metadata.streams?.find((stream) => stream.codec_type === 'video')?.duration ?? metadata.format?.duration);
@@ -230,7 +250,7 @@ export async function extractClipFeatures(
   }
   const mid = frames[Math.floor(frames.length / 2)];
   return {
-    assetId, dHash: mid ? dHashOf(mid) : '0'.repeat(16), captureTimeMs: opts.captureTimeMs ?? captureTimeFromMetadata(metadata), windows,
+    assetId, dHash: mid ? dHashOf(mid) : '0'.repeat(16), captureTimeMs: opts.captureTimeMs ?? captureTimeFromMetadata(metadata), windows, ...(color ? { color } : {}),
     shotBoundariesFrame: cuts.map((i) => Math.round((i / SAMPLE_FPS) * fps)),
   };
 }

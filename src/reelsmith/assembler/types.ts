@@ -20,6 +20,8 @@ export interface AssemblyClip {
   score: number;
   /** near-duplicate group id; at most one clip per group is used */
   groupId?: string;
+  /** mean display colour (0..1) from analysis; drives shot matching */
+  color?: { r: number; g: number; b: number };
   /** capture time (epoch ms) for chronological ordering */
   captureTimeMs?: number;
   /** best window inside the source, frames (default: from 0) */
