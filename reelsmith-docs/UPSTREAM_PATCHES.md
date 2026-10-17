@@ -276,3 +276,12 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 - `assets/agent/openchatcut-tool-schemas.json`: regenerated for the new tool.
 - Our own: `src/reelsmith/looks.ts`, `src/reelsmith/ui/LooksPanel.tsx`, `src/reelsmith/agent/lookTools.ts`; effects `fine-grain` and `soft-vignette` in `src/gl/fx/reelFx.ts`.
 
+## Person-matte effects (RS-1105)
+Effects that need the person cut out of every frame. The matte is MediaPipe's segmenter run on the frame an effect is about to process (`src/gl/personMask.ts`, maths in `personMaskMath.ts`), bound to the effect passes as `u_mask`, with `u_subjectCenter` / `u_subjectSize` / `u_subjectArea`.
+- `src/gl/runtime.ts`, `src/gl/runtimeTypes.ts`: `renderFx` and `renderFxChain` take optional extra named 2D textures (bound only when the shader declares the sampler; created on their own texture unit so they never rebind the input).
+- `src/gl/ClipFx.tsx`: when a clip's effects ask for the matte (`FxDef.needsMask`) it loads the segmenter, waits for it (also during export), computes the matte from the staged frame and passes it plus the subject uniforms; the "Find people" slider (`detect`) picks the sharp single-person model or the group/distance model.
+- `src/gl/fx/uniforms.ts`: `FxDef.needsMask`; `fxPasses` accepts per-effect `extraUniforms`. `src/gl/shaderFrame.ts`: types follow.
+- `src/gl/fxThumb.ts`: library thumbnails of matte effects use a head-and-shoulders stand-in matte.
+- `remotion/serve-bundle.mjs`: the export bundle now includes `public/mediapipe` (the render page loads the model from the serve root).
+- `scripts/sync-mediapipe.mjs`: also provisions `deeplab_v3.tflite` (2.8 MB, sha256 pinned).
+

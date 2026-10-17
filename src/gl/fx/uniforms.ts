@@ -41,6 +41,8 @@ export interface FxDef {
   pipeline?: (uniforms: Record<string, UniformValue>) => FxPass[];
   /** .cube 3D LUT URL(/luts/<file>);frag should be universal lut.frag(u_lut+u_intensity) */
   cube?: string;
+  /** Reelsmith: the shader reads u_mask (the person matte) and u_subjectCenter / u_subjectSize / u_subjectArea */
+  needsMask?: boolean;
 }
 
 /** Serializable subset of FxDef (without pipeline function field): persisted with TimelineState.fxDefs,
@@ -78,12 +80,12 @@ export function fxUniforms(def: FxDef, overrides?: Record<string, UniformValue>)
 /** Flatten effect-local pass graphs into one clip-local chain, rebasing every
  * explicit pass reference so effect N consumes effect N-1's output. */
 export function fxPasses(
-  effects: Array<{ def: FxDef; overrides?: Record<string, UniformValue> }>,
+  effects: Array<{ def: FxDef; overrides?: Record<string, UniformValue>; extraUniforms?: Record<string, UniformValue> }>,
   time: number,
 ): FxPass[] {
   const out: FxPass[] = [];
-  for (const { def, overrides } of effects) {
-    const uniforms: Record<string, UniformValue> = { ...fxUniforms(def, overrides), u_time: time };
+  for (const { def, overrides, extraUniforms } of effects) {
+    const uniforms: Record<string, UniformValue> = { ...fxUniforms(def, overrides), ...extraUniforms, u_time: time };
     let lut3d;
     if (def.cube) {
       // Semantics: LUT not ready (loading/failed) = transparent transmission. If intensity is pressed to 0, runtime will give

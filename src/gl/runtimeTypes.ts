@@ -38,7 +38,9 @@ export interface GlRuntime {
     input: TexImageSource,
     extra?: Record<string, UniformValue>,
     lut3d?: CubeLut,
+    /** extra named 2D textures, e.g. { u_mask } (bound only when the shader declares the sampler) */
+    extraTextures?: Record<string, TexImageSource>,
   ) => void;
-  renderFxChain: (passes: FxPass[], input: TexImageSource) => void;
+  renderFxChain: (passes: FxPass[], input: TexImageSource, extraTextures?: Record<string, TexImageSource>) => void;
   dispose: () => void;
 }

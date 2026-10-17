@@ -9,10 +9,12 @@ import { REEL_FX_EFFECTS, REEL_FX_ORDER } from './reelFx';
 
 const RUNTIME = new Set(['u_input', 'u_time', 'u_resolution', 'u_width', 'u_height']);
 const SAMPLERS = new Set(['u_glow']);
+// the person matte and where the subject is: supplied by the renderer to effects with needsMask
+const MASK = new Set(['u_mask', 'u_subjectCenter', 'u_subjectSize', 'u_subjectArea']);
 const declared = (frag: string) => [...frag.matchAll(/^uniform\s+\w+\s+(u_\w+)/gm)].map((m) => m[1]!);
 const source = (frag: string) => frag;
 
-assert.equal(REEL_FX_ORDER.length, 23);
+assert.equal(REEL_FX_ORDER.length, 33);
 for (const id of REEL_FX_ORDER) {
   const def = REEL_FX_EFFECTS[id]!;
   assert.ok(def, `${id} defined`);
@@ -35,22 +37,25 @@ for (const id of REEL_FX_ORDER) {
     assert.match(frag, /^#version 300 es/, `${id}/pass ${i}: GLSL ES 3.0`);
     const given = new Set([...Object.keys(pass.uniforms ?? {}), ...Object.keys(pass.samplers ?? {})]);
     for (const name of declared(frag)) {
-      if (RUNTIME.has(name) || SAMPLERS.has(name)) continue;
+      if (RUNTIME.has(name) || SAMPLERS.has(name) || (def.needsMask && MASK.has(name))) continue;
       assert.ok(given.has(name), `${id}/pass ${i}: uniform ${name} is not supplied`);
     }
     assert.ok(!/pow\(\s*sin\(/.test(frag), `${id}/pass ${i}: no pow(sin(..)) on a value that can dip below 0`);
     for (const key of Object.keys(pass.samplers ?? {})) assert.ok(pass.samplers![key]! < i, `${id}/pass ${i}: sampler ${key} reads an earlier pass`);
     if (pass.inputFrom !== undefined) assert.ok(pass.inputFrom < i, `${id}/pass ${i}: inputFrom reads an earlier pass`);
   });
+  // an effect asks for the matte exactly when its shader reads it
+  const readsMask = [def.frag, ...passes.map((p) => p.frag)].some((f) => /uniform sampler2D u_mask;/.test(f));
+  assert.equal(!!def.needsMask, readsMask, `${id}: needsMask must match whether the shader reads u_mask`);
   // single-pass effects: props and shader uniforms line up exactly (no dead sliders)
   if (!def.pipeline) {
-    const fed = Object.keys(fxUniforms(def));
-    const need = declared(def.frag).filter((n) => !RUNTIME.has(n));
+    const fed = Object.keys(fxUniforms(def)).filter((n) => !(def.needsMask && n === 'u_detect'));   // read by ClipFx, not the shader
+    const need = declared(def.frag).filter((n) => !RUNTIME.has(n) && !(def.needsMask && MASK.has(n)));
     assert.deepEqual([...fed].sort(), [...need].sort(), `${id}: sliders and uniforms match`);
   } else {
     // pipeline effects: moving any slider to its far end changes some pass
     for (const p of def.props) {
-      if (p.kind === 'color') continue;
+      if (p.kind === 'color' || p.key === 'detect') continue;
       const to = p.default === p.max ? p.min : p.max;
       assert.notDeepEqual(fxPasses([{ def, overrides: { [p.key]: to } }], 0), passes, `${id}.${p.key} reaches a pass`);
     }

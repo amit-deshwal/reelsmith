@@ -30,6 +30,13 @@ const MODELS = [
     bytes: 229_746,
     sha256: 'b4578f35940bf5a1a655214a1cce5cab13eba73c1297cd78e1a04c2380b0152f',
   },
+  {
+    // Reelsmith: finds people in groups and at a distance; used for the person-matte effects (src/gl/personMask.ts)
+    file: 'deeplab_v3.tflite',
+    url: 'https://storage.googleapis.com/mediapipe-models/image_segmenter/deeplab_v3/float32/1/deeplab_v3.tflite',
+    bytes: 2_780_176,
+    sha256: 'ff36e24d40547fe9e645e2f4e8745d1876d6e38b332d39a82f0bf0f5d1d561b3',
+  },
 ];
 
 const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');

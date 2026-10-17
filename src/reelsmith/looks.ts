@@ -122,6 +122,23 @@ export const REEL_LOOKS: ReelLook[] = [
       { assetId: 'builtin:fx-soft-vignette', overrides: { strength: 0.2 } },
     ],
   },
+  {
+    id: 'mixmedia-cutout', name: 'MixMedia cut-out', mood: 'creator, selfie, playful, scrapbook (needs a person)',
+    description: 'The person cut out like a paper sticker on patterned crayon paper with doodles scribbled behind and over the edge, redrawn at 8 fps.',
+    steps: [
+      { assetId: 'builtin:fx-mixmedia-cutout' },
+      { assetId: 'builtin:fx-fine-grain', overrides: { strength: 0.04 } },
+    ],
+  },
+  {
+    id: 'spotlight', name: 'Spotlight', mood: 'solo creator, dance, talking, bold (needs a person)',
+    description: 'The person stays vivid with a glowing rim while the world behind them goes dark and soft; a gentle vignette and grain finish it.',
+    steps: [
+      { assetId: 'builtin:fx-subject-pop' },
+      { assetId: 'builtin:fx-soft-vignette', overrides: { strength: 0.25 } },
+      { assetId: 'builtin:fx-fine-grain', overrides: { strength: 0.04 } },
+    ],
+  },
 ];
 
 export const lookById = (id: string) => REEL_LOOKS.find((look) => look.id === id);

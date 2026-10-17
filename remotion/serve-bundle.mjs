@@ -70,6 +70,8 @@ async function buildBundle(outDir) {
   // Remotion copies publicDir under serveUrl/public; app uses root-absolute
   // paths (/fonts, /audio, …) like Vite — overlay product assets at serve root.
   await cp(ASSETS_DIR, serveUrl, { recursive: true });
+  // Reelsmith: the person-matte effects run MediaPipe inside the render page, which loads /mediapipe/* from the serve root.
+  await cp(path.join(PUBLIC_DIR, 'mediapipe'), path.join(serveUrl, 'mediapipe'), { recursive: true }).catch(() => {});
   // User uploads live separately under public/media/uploads (or MEDIA_DIR);
   // relinkUploads() points serveUrl/media/uploads at the live upload dir.
   return serveUrl;

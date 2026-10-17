@@ -49,14 +49,15 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
       'Looks: cinematic-travel (teal/orange, halation, mist; trips and landscapes), golden-hour (warm sunset glow; calm, couples), neon-night (cyber grade,',
       'anamorphic streaks, bloom; city nights, parties), retro-vhs (tape wobble; throwback, funny), old-film (sepia, dust, scratches; memories, family),',
       'soft-pastel (portrait colour, soft glow; lifestyle, food, selfies), moody-bleach (bleach bypass, halation; dramatic, trek), comic-pop (ink outlines; playful),',
-      'mixmedia-crayon (taped photo on patterned paper with crayon doodles; scrapbook, kids, diary), sketchbook (pencil drawing), riso-zine (two-ink halftone print; indie, fashion), watercolor-dream (soft washes; dreamy, nature).',
+      'mixmedia-crayon (taped photo on patterned paper with crayon doodles; scrapbook, kids, diary), sketchbook (pencil drawing), riso-zine (two-ink halftone print; indie, fashion), watercolor-dream (soft washes; dreamy, nature),',
+      'mixmedia-cutout (the person as a paper sticker on crayon paper with doodles) and spotlight (vivid person, dark soft background): both need a person in the shot.',
       '"none" removes the looks. Effects a look added are replaced by the next look; effects added by hand stay. Sliders stay editable with manage_effects.',
       'Pick the look from the reel\'s mood and use one per reel; do not stack looks.',
     ].join(' '),
     input_schema: {
       type: 'object',
       properties: {
-        look: { type: 'string', enum: ['cinematic-travel', 'golden-hour', 'neon-night', 'retro-vhs', 'old-film', 'soft-pastel', 'moody-bleach', 'comic-pop', 'mixmedia-crayon', 'sketchbook', 'riso-zine', 'watercolor-dream', 'none'] },
+        look: { type: 'string', enum: ['cinematic-travel', 'golden-hour', 'neon-night', 'retro-vhs', 'old-film', 'soft-pastel', 'moody-bleach', 'comic-pop', 'mixmedia-crayon', 'sketchbook', 'riso-zine', 'watercolor-dream', 'mixmedia-cutout', 'spotlight', 'none'] },
         scope: { type: 'string', enum: ['all', 'selected'], description: 'all (default): every video/photo clip; selected: only the selected clip.' },
       },
       required: ['look'],

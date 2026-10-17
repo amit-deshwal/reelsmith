@@ -12,6 +12,7 @@ import { sourceFrameAt } from '../editor/sourceLimit';
 import { offthreadTrimBefore, offthreadVideoTransparent, useRuntimeVideoDecoder } from '../editor/serverVideoDecoder';
 import { glEffects } from './clipEffects';
 import { cropPositionFromProps, type CropPosition } from '../reelsmith/cropFocus';
+import { fullFrameMask, loadPersonMask, subjectUniforms, type PersonMaskProvider, type PersonModel } from './personMask';
 
 // One video/image clip rendered through a builtin:fx-* single-input WebGL pass.
 // Mounts a hidden, frame-synced media
@@ -89,6 +90,18 @@ export function ClipFx({ item, fit, width, height, frameOffset = 0, onPreviewSta
   }, [width, height]);
 
   const active = useMemo(() => glEffects(item), [item]);
+  // Reelsmith: effects that need the person matte load the segmenter once; undefined = still loading, null = unavailable
+  const wantsMask = useMemo(() => active.some(({ def }) => def.needsMask), [active]);
+  // the effects' "Find people" slider: 0 = one person, sharp edges (default); 1 = groups and people far away, rougher edges
+  const maskModel: PersonModel = active.some(({ def, fx }) => def.needsMask && Number(fx.overrides?.detect) >= 0.5) ? 'deeplab' : 'selfie';
+  const [maskProvider, setMaskProvider] = useState<PersonMaskProvider | null | undefined>(undefined);
+  useEffect(() => {
+    if (!wantsMask) return;
+    let alive = true;
+    setMaskProvider(undefined);
+    void loadPersonMask(maskModel).then((provider) => { if (alive) setMaskProvider(provider); });
+    return () => { alive = false; };
+  }, [wantsMask, maskModel]);
   const cropPosition = cropPositionFromProps(item.props);
   const definitionKey = useMemo(
     () => active.map(({ def }) => `${def.id}:${def.frag}`).join('\u0000'),
@@ -185,17 +198,19 @@ export function ClipFx({ item, fit, width, height, frameOffset = 0, onPreviewSta
         : !!imageRef.current?.complete;
       if (!mediaReady) { reportWaiting(); raf = requestAnimationFrame(tick); return; }
       if (active.some(({ def }) => def.cube && !cubeSettled(def.cube))) { reportWaiting(); raf = requestAnimationFrame(tick); return; }
+      if (wantsMask && maskProvider === undefined) { reportWaiting(); raf = requestAnimationFrame(tick); return; }
       try {
         const runtime = ensureRuntimeSlot(runtimeRef, () => createGlRuntime(canvas));
         const ctx = staging.getContext('2d');
         if (!ctx) throw new Error('2d context unavailable');
         if (!decodedVideo && imageRef.current) drawFit(ctx, imageRef.current, fit, cropPosition);
+        const maskFrame = wantsMask ? (maskProvider ? maskProvider.frameFor(staging) : fullFrameMask()) : null;
         const shaderFrame = buildEffectShaderFrame(
-          active.map(({ fx, def }) => ({ def, overrides: fx.overrides })),
+          active.map(({ fx, def }) => ({ def, overrides: fx.overrides, ...(def.needsMask && maskFrame ? { extraUniforms: subjectUniforms(maskFrame.subject) } : {}) })),
           frame,
           fps,
         );
-        runtime.renderFxChain(shaderFrame.passes, staging);
+        runtime.renderFxChain(shaderFrame.passes, staging, maskFrame ? { u_mask: maskFrame.mask } : undefined);
         // Make the freshly drawn canvas authoritative before unblocking export;
         // React state then preserves the same choice for subsequent renders.
         canvas.style.opacity = '1';
@@ -216,7 +231,7 @@ export function ClipFx({ item, fit, width, height, frameOffset = 0, onPreviewSta
     };
     tick();
     return () => { cancelAnimationFrame(raf); finish(); };
-  }, [active, definitionKey, fit, cropPosition.x, cropPosition.y, staging, item.id, item.kind, frame, fps, isRendering, renderKey, onPreviewStatus]);
+  }, [active, definitionKey, fit, cropPosition.x, cropPosition.y, staging, item.id, item.kind, frame, fps, isRendering, renderKey, onPreviewStatus, wantsMask, maskProvider]);
 
   useEffect(() => () => {
     disposeRuntimeSlot(runtimeRef);

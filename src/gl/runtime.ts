@@ -213,6 +213,33 @@ export function createGlRuntime(canvas: HTMLCanvasElement): GlRuntime {
     return unit + 1;
   };
 
+  // Extra named 2D textures for effect passes (Reelsmith: u_mask, the person matte). Only bound when the shader declares the
+  // sampler, uploaded top-down like the input so both share one coordinate system.
+  const extraTextures = new Map<string, WebGLTexture>();
+  const bindExtraTextures = (prog: WebGLProgram, unit: number, extras?: Record<string, TexImageSource>): number => {
+    if (!extras) return unit;
+    for (const [name, src] of Object.entries(extras)) {
+      const loc = gl.getUniformLocation(prog, name);
+      if (!loc) continue;
+      let tex = extraTextures.get(name);
+      if (!tex) {
+        tex = gl.createTexture();
+        if (!tex) continue;
+        extraTextures.set(name, tex);
+        gl.activeTexture(gl.TEXTURE0 + unit);   // not the input's unit: creating must not rebind it
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      }
+      upload(tex, unit, src);
+      gl.uniform1i(loc, unit);
+      unit++;
+    }
+    return unit;
+  };
+
   const drawTransitionFromTextures = (
     frag: string,
     outgoing: WebGLTexture,
@@ -370,7 +397,7 @@ export function createGlRuntime(canvas: HTMLCanvasElement): GlRuntime {
         extra,
       );
     },
-    renderFx(frag, input, extra, lut3d) {
+    renderFx(frag, input, extra, lut3d, extras) {
       assertContextAvailable();
       const prog = getProgram(frag);
       gl.viewport(0, 0, canvas.width, canvas.height);
@@ -380,7 +407,7 @@ export function createGlRuntime(canvas: HTMLCanvasElement): GlRuntime {
       upload(texFx, 0, input);
       const locIn = gl.getUniformLocation(prog, 'u_input');
       if (locIn) gl.uniform1i(locIn, 0);
-      bindLutIfUsed(prog, 1, lut3d);
+      bindExtraTextures(prog, bindLutIfUsed(prog, 1, lut3d), extras);
 
       setUniform(prog, 'u_width', canvas.width);
       setUniform(prog, 'u_height', canvas.height);
@@ -394,7 +421,7 @@ export function createGlRuntime(canvas: HTMLCanvasElement): GlRuntime {
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     },
-    renderFxChain(passes, input) {
+    renderFxChain(passes, input, extras) {
       assertContextAvailable();
       if (passes.length === 0) return;
       const rt = ensureFbos(Math.max(0, passes.length - 1));
@@ -430,6 +457,7 @@ export function createGlRuntime(canvas: HTMLCanvasElement): GlRuntime {
           unit++;
         }
         unit = bindLutIfUsed(prog, unit, passes[i].lut3d);
+        unit = bindExtraTextures(prog, unit, extras);
         setUniform(prog, 'u_width', canvas.width);
         setUniform(prog, 'u_height', canvas.height);
         setUniform(prog, 'u_canvas_width', canvas.width);
@@ -453,6 +481,8 @@ export function createGlRuntime(canvas: HTMLCanvasElement): GlRuntime {
       gl.deleteTexture(texOut);
       gl.deleteTexture(texIn);
       gl.deleteTexture(texFx);
+      for (const t of extraTextures.values()) gl.deleteTexture(t);
+      extraTextures.clear();
       for (const t of lutTextures.values()) gl.deleteTexture(t);
       lutTextures.clear();
       if (dummyLut) { gl.deleteTexture(dummyLut); dummyLut = null; }

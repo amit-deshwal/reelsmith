@@ -69,7 +69,7 @@ export interface EffectShaderFrame {
 }
 
 export function buildEffectShaderFrame(
-  effects: Array<{ def: FxDef; overrides?: Record<string, UniformValue> }>,
+  effects: Array<{ def: FxDef; overrides?: Record<string, UniformValue>; extraUniforms?: Record<string, UniformValue> }>,
   frame: number,
   fps: number,
 ): EffectShaderFrame {

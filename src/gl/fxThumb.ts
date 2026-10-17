@@ -1,3 +1,4 @@
+import { subjectUniforms, syntheticMaskFrame } from './personMask';
 import { createGlRuntime, type GlRuntime, type UniformValue } from './runtime';
 import { cubeSettled, getCubeSync, parseCube, type CubeLut } from './fx/cube';
 import { fxUniforms, type FxDef } from './fx/effects';
@@ -188,6 +189,14 @@ function renderFx(def: FxDef, time: number, overrides?: Record<string, UniformVa
   const u = { ...fxUniforms(def, overrides), u_time: time };
   const lut3d = def.cube ? activeOrPreviewLut(def.cube) ?? undefined : undefined;
   if (def.cube && !lut3d) return false;
+  if (def.needsMask) {
+    // effects that cut out the person get a head-and-shoulders stand-in on the sample photo
+    const stand = syntheticMaskFrame();
+    const uu = { ...u, ...subjectUniforms(stand.subject) };
+    const passes = def.pipeline ? def.pipeline(uu) : def.passes?.length ? def.passes.map((frag) => ({ frag, uniforms: uu })) : [{ frag: def.frag, uniforms: uu }];
+    rt.renderFxChain(passes, sample, { u_mask: stand.mask });
+    return true;
+  }
   if (def.pipeline) rt.renderFxChain(def.pipeline(u), sample);
   else if (def.passes && def.passes.length > 1) {
     rt.renderFxChain(def.passes.map((frag) => ({ frag, uniforms: u })), sample);
