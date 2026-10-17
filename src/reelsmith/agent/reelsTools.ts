@@ -1,5 +1,6 @@
 // Executors for the Reelsmith agent tools (schemas in ./reelsToolSchemas.ts).
 // Every edit is one commands.batch call, so each tool call is one undo step.
+import { withNewClips } from '../newClips';
 import type { Recipe } from '../../../shared/reelsmith/recipe';
 import type { AgentContext } from '../../agent/context';
 import type { AtomicAction } from '../../editor/reducerActions';
@@ -43,7 +44,7 @@ function valuesFromRun(run: RecipeRunRecord, assets: readonly MediaAsset[]): Set
   return { media, texts: run.texts, params: run.params, agentPick: 'off', ...(run.openerAssetId ? { openerAssetId: run.openerAssetId } : {}) };
 }
 
-async function rebuild(ctx: AgentContext, deps: ReelsDeps): Promise<{ run: RecipeRunRecord; recipe: Recipe; prepared: Prepared; snapshot: string; selectionKey: string; projectId: string } | { error: string }> {
+async function rebuild(ctx: AgentContext, deps: ReelsDeps, opts: { useNewClips?: boolean } = {}): Promise<{ run: RecipeRunRecord; recipe: Recipe; prepared: Prepared; snapshot: string; selectionKey: string; projectId: string; newClips: string[] } | { error: string }> {
   const id = projectId(ctx);
   const snapshot = selectionSnapshot(id, ctx.getDoc());
   const run = await loadRun(deps.kv, id);
@@ -54,12 +55,14 @@ async function rebuild(ctx: AgentContext, deps: ReelsDeps): Promise<{ run: Recip
   if (recipe.version !== run.recipeVersion || recipe.assembler.strategy !== run.assembler) return { error: 'The recipe version changed. Assemble it again before choosing shots.' };
   const state = ctx.getState();
   const assets = ctx.getDoc().assets ?? [];
+  const base = valuesFromRun(run, assets);
+  const fresh = opts.useNewClips ? withNewClips(base, recipe, assets) : { values: base, added: [] as string[] };
   const prepared = await prepareAssembly(deps.api, {
-    recipe, ...(isRatioId(run.ratio) ? { ratio: run.ratio } : {}), values: valuesFromRun(run, assets), assets: [...assets], fps: state.fps, replaceTimeline: false, seed: run.seed, preferredAssetIds: run.preferredAssetIds, preferredBrollAssetIds: run.preferredBrollAssetIds,
+    recipe, ...(isRatioId(run.ratio) ? { ratio: run.ratio } : {}), values: fresh.values, assets: [...assets], fps: state.fps, replaceTimeline: false, seed: run.seed, preferredAssetIds: run.preferredAssetIds, preferredBrollAssetIds: run.preferredBrollAssetIds,
   });
   const key = await selectionKey(snapshot, run);
   if (selectionSnapshot(projectId(ctx), ctx.getDoc()) !== snapshot) return { error: 'The timeline or media changed during analysis. Call reels_selection_candidates again before making picks.' };
-  return { run, recipe, prepared, snapshot, selectionKey: key, projectId: id };
+  return { run, recipe, prepared, snapshot, selectionKey: key, projectId: id, newClips: fresh.added };
 }
 
 function sections(state: TimelineState): Record<string, number> {
@@ -92,13 +95,13 @@ export async function execReelsTool(name: string, args: Args, ctx: AgentContext,
       if (!section) return { error: 'section is required' };
       const present = sections(state);
       if (!present[section]) return { error: `no clips of section "${section}" on the timeline; sections: ${Object.keys(present).join(', ') || 'none'}` };
-      const built = await rebuild(ctx, deps);
+      const built = await rebuild(ctx, deps, { useNewClips: args.useNewClips !== false });
       if ('error' in built) return built;
       const seed = typeof args.seed === 'number' && Number.isFinite(args.seed) ? Math.round(args.seed) : (Date.now() % 1_000_000) + 1;
       const batch = recutSection(state.items, built.prepared.input, section, seed);
       if (!batch) return { error: `could not re-cut "${section}" (not enough unused clips?)`, warnings: built.prepared.messages };
       commit(ctx, batch.actions, batch.label ?? `Re-cut ${section}`);
-      return { ok: true, section, seed, removed: present[section], added: batch.actions.filter((a) => a.type === 'add').length, notes: built.prepared.messages };
+      return { ok: true, section, seed, removed: present[section], added: batch.actions.filter((a) => a.type === 'add').length, newClipsAvailable: built.newClips.length, notes: built.prepared.messages };
     }
 
     case 'reels_snap_cuts_to_beats': {

@@ -32,6 +32,7 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
       properties: {
         section: { type: 'string', description: 'Section name from reels_run_info.sections.' },
         seed: { type: 'number', description: 'Optional seed; omit for a new random variation.' },
+        useNewClips: { type: 'boolean', description: 'Default true: clips imported after the reel was built can be picked too. Pass false to use only the clips the reel was built from.' },
       },
       required: ['section'],
     },

@@ -43,7 +43,7 @@ Reels cut hard by default. When the user asks for a transition ("add a bars tran
 A reel made from the Recipes tab remembers its recipe run.
 
 - `reels_run_info`: which recipe, its params and texts, and the sections on the timeline (e.g. `intro`, `body`, `outro`, `drop`).
-- `reels_recut_section`: fresh shots for one section ("re-cut the body"). Other sections and clips the user added by hand are kept.
+- `reels_recut_section`: fresh shots for one section ("re-cut the body"). Other sections and clips the user added by hand are kept. Clips imported after the reel was built are picked from too (pass `useNewClips:false` to use only the original set).
 - To change rhythm ("cut every beat in the body"), re-cut the section, then `reels_snap_cuts_to_beats` with the wanted `every`.
 - Hook or closer ("add a flash opener"): `reels_strobe` with `mode` opener or closer. It adds 3 beat-cut flashes of different footage with white flashes between, on its own track above the reel. Needs music with a beat grid; keep the default 1.5 s unless asked.
 
