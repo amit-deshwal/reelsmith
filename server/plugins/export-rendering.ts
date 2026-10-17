@@ -2,6 +2,7 @@ import { skipAacPriming } from '../reelsmith/audioPriming.ts';
 import { dirname } from 'node:path';
 import { mkdir, rename, unlink } from 'node:fs/promises';
 import {
+  h264EncoderProfile,
   resolveH264RenderOptions,
   resolveH264TargetBitrate,
   type H264EncoderOutcome,
@@ -47,10 +48,16 @@ export async function cleanupExportOutputs(paths: Array<string | null>): Promise
   return cleanupStatus;
 }
 
-export async function h264RenderOptions(codec: string) {
-  return codec === 'h264'
-    ? resolveH264RenderOptions(ffmpegBin(), remotionFfmpegPath())
-    : {};
+/**
+ * Reelsmith: exports use software x264, which beats the hardware encoder at the same bitrate
+ * (SSIM .951 vs .945 at 15 Mbps) and costs seconds on a reel. Previews pass `preferSpeed`;
+ * REELSMITH_EXPORT_ENCODER=hardware restores the hardware encoder for exports.
+ */
+export async function h264RenderOptions(codec: string, options: { preferSpeed?: boolean } = {}) {
+  if (codec !== 'h264') return {};
+  const detected = await resolveH264RenderOptions(ffmpegBin(), remotionFfmpegPath());
+  if (options.preferSpeed || process.env.REELSMITH_EXPORT_ENCODER === 'hardware') return detected;
+  return { ...detected, h264Profile: h264EncoderProfile('libx264') };
 }
 
 export async function renderExportPlan(

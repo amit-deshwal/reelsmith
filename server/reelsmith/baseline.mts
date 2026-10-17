@@ -117,7 +117,7 @@ const raw = join(work, 'reel.mp4');
 t = Date.now();
 try {
   const plan = submission.plan;
-  const opts = await h264RenderOptions(plan.media.codec);
+  const opts = await h264RenderOptions(plan.media.codec, { preferSpeed: true });
   await withExportPermit(() => renderTimeline({ state: plan.state, project: plan.project, timelineId: plan.timelineId, outputLocation: raw, codec: plan.media.codec, frameRange: plan.frameRange, scale: plan.scale, videoBitrate: plan.videoBitrate, ...opts }));
 } finally { await submission.cleanup(); }
 const exportMs = Date.now() - t;

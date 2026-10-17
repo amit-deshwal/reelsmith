@@ -83,7 +83,7 @@ assert.throws(() => validateVideoParams({ videoBitrate: 12_500_000.5 }, 'video')
 const bitrateInput = { width: 1920, height: 1080, fps: 30, customMbps: 12 } as const;
 assert.equal(resolveVideoBitrateBps({ ...bitrateInput, mode: 'recommended' }), 10_000_000);
 assert.equal(resolveVideoBitrateBps({ ...bitrateInput, mode: 'compact' }), 6_500_000);
-assert.equal(resolveVideoBitrateBps({ ...bitrateInput, mode: 'high' }), 15_000_000);
+assert.equal(resolveVideoBitrateBps({ ...bitrateInput, mode: 'high' }), 25_000_000);
 assert.equal(resolveVideoBitrateBps({ ...bitrateInput, mode: 'custom' }), 12_000_000);
 assert.equal(requestedVideoBitrateBps({ ...bitrateInput, mode: 'auto' }), undefined);
 

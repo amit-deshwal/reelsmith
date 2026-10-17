@@ -39,7 +39,7 @@ export async function renderRecipePreview(req: PreviewRequest): Promise<{ src: s
   const raw = join(dir, `rs-preview-${randomUUID()}.raw.mp4`);
   const name = `rs-preview-${randomUUID()}.mp4`;
   try {
-    const opts = await h264RenderOptions(plan.media.codec);
+    const opts = await h264RenderOptions(plan.media.codec, { preferSpeed: true });
     await withExportPermit(() => renderTimeline({
       state: plan.state, project: plan.project, timelineId: plan.timelineId, outputLocation: raw,
       codec: plan.media.codec, frameRange: plan.frameRange, scale: plan.scale, videoBitrate: plan.videoBitrate, ...opts,

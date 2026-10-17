@@ -138,7 +138,7 @@ for (const recipe of recipes) {
   const plan = submission.plan;
   const raw = join(work, `${recipe.id}.raw.mp4`);
   try {
-    const renderOpts = await h264RenderOptions(plan.media.codec);
+    const renderOpts = await h264RenderOptions(plan.media.codec, { preferSpeed: true });
     await withExportPermit(() => renderTimeline({
       state: plan.state, project: plan.project, timelineId: plan.timelineId, outputLocation: raw,
       codec: plan.media.codec, frameRange: plan.frameRange, scale: plan.scale, videoBitrate: plan.videoBitrate,

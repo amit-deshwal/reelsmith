@@ -17,6 +17,8 @@ Every OpenChatCut file we change goes in this table, so `git merge upstream/main
 | `src/components/timeline/TimelineTabs.tsx`, `src/editor/useEditorController.tsx` | Names of the vertical-duplicate timeline (`竖屏` → `Vertical`) and the recorded voiceover (`旁白` → `Voiceover`) | RS-006 | 2026-10-16 |
 | `index.html`, `src/components/icons.tsx`, `config/electron-builder.config.mjs` | Page `<title>` → Reelsmith; app icon switched to our own `reelsmith-icon` (SVG source `assets/branding/reelsmith-icon.svg`; generated `public/reelsmith-icon.png` and `assets/branding/reelsmith-icon.icns`); upstream `openchatcut-icon.*` files deleted | RS-002 | 2026-10-16 |
 | `server/claude-code/turn-runner.ts` | Passes `--effort` from `resolveClaudeEffort()` (`server/reelsmith/claudeEffort.ts`, env `REELSMITH_CLAUDE_EFFORT`, default `medium`, `default` = CLI default) | Agent speed: ~87% of a measured reel edit's output tokens were hidden reasoning | 2026-10-17 |
+| `server/plugins/export-rendering.ts` | `h264RenderOptions(codec, {preferSpeed})` forces software x264 for exports (env `REELSMITH_EXPORT_ENCODER=hardware` opts out); our preview/baseline callers pass `preferSpeed` | Export quality: x264 beats VideoToolbox at equal bitrate (SSIM .951 vs .945 at 15 Mbps) and costs seconds on a reel | 2026-10-17 |
+| `src/export/bitrate.ts`, `server/plugins/export-params.verify.ts` | "High" bitrate multiplier 1.5 → 2.5 (15 → 25 Mbps at 1080p30) | Export quality: SSIM .945 → .969 on detailed phone footage | 2026-10-17 |
 
 ## package.json (RS-003, RS-101)
 Added script `test:reelsmith` (our verifies) and appended `&& npm run test:reelsmith` to `test:serial`. Add each new Reelsmith `*.verify.ts` to `test:reelsmith`, not to the upstream chain.

@@ -33,7 +33,7 @@ function roundedBitrate(value: number): number {
 export function resolveVideoBitrateBps(input: VideoBitrateInput): number {
   const automatic = automaticVideoBitrateBps(input.width, input.height, input.fps);
   if (input.mode === 'compact') return roundedBitrate(automatic * 0.65);
-  if (input.mode === 'high') return roundedBitrate(automatic * 1.5);
+  if (input.mode === 'high') return roundedBitrate(automatic * 2.5); // Reelsmith: detailed phone footage needs more than 1.5x (SSIM .945 -> .969 at 1080p30)
   if (input.mode === 'custom') return roundedBitrate(input.customMbps * 1_000_000);
   return automatic;
 }
