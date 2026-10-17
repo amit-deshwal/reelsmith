@@ -11,6 +11,15 @@ export interface IndexProgress {
   skipped: number;
 }
 
+/**
+ * Model loads depend on no asset, so a changing media pool (an import is a stream of asset updates)
+ * must never abort one; only index runs, which read the asset list, are cancelled by it.
+ */
+const loadOperations = new WeakSet<AbortController>();
+export const markLoadOperation = (controller: AbortController) => { loadOperations.add(controller); };
+export const abortsOnAssetChange = (controller: AbortController | null): controller is AbortController =>
+  controller !== null && !loadOperations.has(controller);
+
 export const isAbortError = (reason: unknown) =>
   reason instanceof DOMException && reason.name === 'AbortError';
 

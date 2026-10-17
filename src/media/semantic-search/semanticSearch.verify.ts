@@ -9,6 +9,8 @@ import {
   packSemanticVectors, rankSemanticMatches,
 } from './vectorSearch';
 import { shouldPruneVector } from './vectorStore';
+import { isSemanticReady } from './mediaFrames';
+import { abortsOnAssetChange, markLoadOperation } from './semanticOperations';
 
 const records = [
   { scopeId: 'project-a', assetId: 'sunset-a', sampleTime: 0, vector: [1, 0, 0] },
@@ -192,3 +194,14 @@ assert.equal(
   434,
   'the floating panel opens above the trigger near the viewport edge',
 );
+
+// An import is a stream of asset updates: they must not cancel a model load, and a file still uploading is not indexable yet.
+const loading = new AbortController();
+markLoadOperation(loading);
+assert.equal(abortsOnAssetChange(loading), false, 'a media pool change never aborts the model load');
+assert.equal(abortsOnAssetChange(new AbortController()), true, 'an index run still stops when the media list changes');
+assert.equal(abortsOnAssetChange(null), false);
+const media = (src: string, kind = 'video') => ({ id: 'a', name: 'a', kind, src, durationInFrames: 30 }) as never;
+assert.equal(isSemanticReady(media('blob:http://localhost/1')), false, 'a placeholder that is still uploading');
+assert.equal(isSemanticReady(media('/media/uploads/f1.mov')), true);
+assert.equal(isSemanticReady(media('/media/uploads/a.wav', 'audio')), false, 'audio has no frames');

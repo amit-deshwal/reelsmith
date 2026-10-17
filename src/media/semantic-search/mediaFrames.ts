@@ -213,6 +213,10 @@ async function sampleVideo(asset: MediaAsset, signal: AbortSignal): Promise<Fram
 export const isSemanticMedia = (asset: MediaAsset) =>
   asset.kind === 'video' || asset.kind === 'image' || asset.kind === 'gif' || asset.kind === 'svg';
 
+/** Visual media whose file is final. A placeholder still points at a blob: URL while it uploads or normalizes, and its revision changes when it is ready. */
+export const isSemanticReady = (asset: MediaAsset) =>
+  isSemanticMedia(asset) && !/^(blob|data):/i.test(asset.src ?? '');
+
 export async function sampleAssetFrames(asset: MediaAsset, signal: AbortSignal): Promise<FramePixels[]> {
   throwIfAborted(signal);
   return asset.kind === 'video' ? sampleVideo(asset, signal) : sampleImage(asset, signal);

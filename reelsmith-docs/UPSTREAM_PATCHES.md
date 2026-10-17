@@ -256,3 +256,7 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 - `assets/agent/openchatcut-tool-schemas.json`: regenerated (`npm run generate:server-tool-catalog`) for the two new tools.
 - `package.json`: `planTools.verify.ts` added to `test:reelsmith`.
 
+## Import progress and semantic model (performance bugs, 2026-10-17)
+- `src/media/mediaPoolImport.ts`, `src/media/media-pool-progressive-import.verify.ts`: overall upload progress is the mean over all files (it was the highest `(index + ratio) / n`, so it read ~100% while earlier files still uploaded and the button stayed disabled); at most `MAX_CONCURRENT_IMPORTS` (3) files upload/normalize at once, so the first clips are usable early and the CPU is not saturated.
+- `src/media/semantic-search/useSemanticSearch.ts`, `semanticOperations.ts`, `mediaFrames.ts`, `SemanticSearchControls.tsx`, `semanticSearch.verify.ts`: a change to the media pool no longer aborts the model load (it was aborted by every asset update during an import, and the abort was swallowed, leaving the panel on "loading"); an aborted index run resets the status; load/index finish against the latest snapshot; files still uploading (blob: sources) are not indexed or counted.
+

@@ -4,8 +4,8 @@ import {
 } from 'react';
 import type { MediaAsset } from '../../editor/types';
 import { sourceRevisionOf } from '../../editor/mediaSourceRevision';
-import { isSemanticMedia } from './mediaFrames';
-import { indexSemanticAssets, isAbortError, loadWithFallback } from './semanticOperations';
+import { isSemanticReady } from './mediaFrames';
+import { abortsOnAssetChange, indexSemanticAssets, isAbortError, loadWithFallback, markLoadOperation } from './semanticOperations';
 import { SemanticClient } from './semanticClient';
 import { rankSemanticMatches } from './vectorSearch';
 import { clearSemanticVectors, hybridSearchRemote, pruneSemanticVectors, readSemanticVectors, searchSemanticVectorsRemote } from './vectorStore';
@@ -155,7 +155,15 @@ function useSemanticLifecycle(scopeId: string, assets: MediaAsset[]) {
   const previousScope = useRef(scopeId);
   snapshotRef.current = snapshot;
   useSemanticSnapshotEffects(scopeId, assets, snapshot, snapshotRef, previousScope, runtime);
-  const refresh = useSemanticRefresh(snapshot, snapshotRef, runtime);
+  const refreshForSnapshot = useSemanticRefresh(snapshot, snapshotRef, runtime);
+  // A load or index run started on one snapshot finishes on a later one while media imports; it must
+  // refresh against the latest, not throw a stale-snapshot abort that nobody reports.
+  const latestRefresh = useRef(refreshForSnapshot);
+  latestRefresh.current = refreshForSnapshot;
+  const refresh = useCallback(async () => {
+    try { await latestRefresh.current(); }
+    catch (reason) { if (!isAbortError(reason)) throw reason; }
+  }, []);
   return { state, ...runtime, snapshot, snapshotRef, refresh };
 }
 
@@ -168,8 +176,13 @@ function useSemanticSnapshotEffects(
   runtime: SemanticRuntime,
 ): void {
   useEffect(() => {
-    runtime.operation.current?.abort();
-    runtime.operation.current = null;
+    const running = runtime.operation.current;
+    if (abortsOnAssetChange(running)) {
+      running.abort();
+      runtime.operation.current = null;
+      // the aborted run reports nothing, so leave 'indexing' here or the panel stays on it
+      runtime.setState((current) => current.status === 'indexing' ? { ...current, status: 'ready' } : current);
+    }
     runtime.duplicateOperation.current?.abort();
     runtime.duplicateOperation.current = null;
     if (previousScope.current !== scopeId) {
@@ -261,6 +274,7 @@ function useEnableSemantic(
 ) {
   return useCallback(async () => {
     const controller = new AbortController();
+    markLoadOperation(controller);
     operation.current = controller;
     const preferred = preferredDevice();
     setState((current) => ({ ...current, status: 'loading', device: preferred, modelProgress: 0, error: null }));
@@ -268,9 +282,9 @@ function useEnableSemantic(
     let ready = false;
     try {
       await loadWithFallback(client.current, preferred, controller.signal, load);
-      await refresh();
       setState((current) => ({ ...current, status: 'ready', modelProgress: 100 }));
       ready = true;
+      await refresh();
     } catch (reason) {
       if (!isAbortError(reason)) setFailure(setState, reason);
     } finally {
@@ -310,7 +324,7 @@ function useIndexSemantic(
     const controller = new AbortController();
     lifecycle.operation.current = controller;
     const indexedIds = new Set(lifecycle.records.current.map((record) => record.assetId));
-    const pending = assets.filter(isSemanticMedia).filter((asset) => !indexedIds.has(asset.id));
+    const pending = assets.filter(isSemanticReady).filter((asset) => !indexedIds.has(asset.id));
     lifecycle.setState((current) => ({
       ...current, status: 'indexing', totalAssets: pending.length, indexedAssets: 0, skippedAssets: 0, error: null,
     }));

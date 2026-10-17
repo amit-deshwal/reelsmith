@@ -6,7 +6,7 @@ import { createPortal } from 'react-dom';
 import { Icon } from '../../components/icons';
 import type { MediaAsset } from '../../editor/types';
 import { useT } from '../../i18n/locale';
-import { isSemanticMedia } from './mediaFrames';
+import { isSemanticReady } from './mediaFrames';
 import { resolveSemanticPanelRect } from './semanticPanelPosition';
 import { MAX_SEMANTIC_QUERY_LENGTH, type SemanticMatch } from './types';
 import { useSemanticSearch } from './useSemanticSearch';
@@ -34,7 +34,7 @@ export function SemanticSearchControls({ scopeId, assets, onResultsChange, openR
   const [searchedQuery, setSearchedQuery] = useState('');
   const anchorRef = useRef<HTMLDivElement>(null);
   const semantic = useSemanticSearch(scopeId, assets);
-  const visualAssets = useMemo(() => assets.filter(isSemanticMedia), [assets]);
+  const visualAssets = useMemo(() => assets.filter(isSemanticReady), [assets]);
   const names = useMemo(() => new Map(assets.map((asset) => [asset.id, asset.name])), [assets]);
   useEffect(() => {
     onResultsChange(searchedQuery ? semantic.state.matches : null);
