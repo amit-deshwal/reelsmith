@@ -58,6 +58,8 @@ export interface Prepared {
   messages: string[];
 }
 
+/** Clips analysed at once (each is an ffmpeg decode on the server). */
+const ANALYSIS_CONCURRENCY = 3;
 const timelineKind = (a: MediaAsset): 'video' | 'image' | null => (a.kind === 'video' ? 'video' : a.kind === 'image' ? 'image' : null);
 
 /** Analyse the chosen media and build the assembler input (no timeline changes). */
@@ -105,14 +107,24 @@ export async function prepareAssembly(api: AnalyzeApi, o: RunOptions): Promise<P
       messages.push(`Skipped ${skipped.length} photo${skipped.length === 1 ? '' : 's'} that do not fit the frame without cutting off the subject: ${skipped.slice(0, 6).map((s) => s.name).join(', ')}${skipped.length > 6 ? '…' : ''}.`);
     }
   }
-  const features: ClipFeatures[] = [];
+  // a few clips at a time: each is one ffmpeg decode, and 3 in flight is ~2x faster than 1 on 4K footage
+  const results: Array<ClipFeatures | null> = new Array(base.length).fill(null);
+  let next = 0;
   let done = 0;
-  for (const b of base) {
-    o.onProgress?.(`Analysing clips ${++done}/${base.length}`);
-    const f = await api.clipFeatures(byId.get(b.assetId)!, o.fps).catch(() => null);
+  o.onProgress?.(`Analysing clips 0/${base.length}`);
+  await Promise.all(Array.from({ length: Math.min(ANALYSIS_CONCURRENCY, base.length) }, async () => {
+    while (next < base.length) {
+      const i = next++;
+      results[i] = await api.clipFeatures(byId.get(base[i]!.assetId)!, o.fps).catch(() => null);
+      o.onProgress?.(`Analysing clips ${++done}/${base.length}`);
+    }
+  }));
+  const features: ClipFeatures[] = [];
+  base.forEach((b, i) => {
+    const f = results[i];
     if (f) features.push({ ...f, assetId: b.assetId });
     else messages.push(`${b.name}: could not be analysed, using a neutral score`);
-  }
+  });
   const minShot = Math.max(1, Math.round(o.fps * (clipInputs[0]?.kind === 'media' ? clipInputs[0].constraints?.minClipSec ?? 0.3 : 0.3)));
   const tags = await (api.shotTags?.(base.map((b) => byId.get(b.assetId)!), o.onProgress) ?? Promise.resolve(new Map<string, ClipShotTags>())).catch(() => new Map<string, ClipShotTags>());
   const scored = toAssemblyClips(base.map(({ input: _i, ...rest }) => rest), features, minShot, undefined, recipe.canvas.width / recipe.canvas.height);

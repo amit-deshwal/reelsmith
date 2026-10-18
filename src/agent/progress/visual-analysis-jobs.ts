@@ -92,34 +92,9 @@ async function runAnalysis(
     };
   }
 
-  // Video: warm contact sheet via server ffmpeg when on /media/uploads.
+  // Video on /media/uploads: check it is reachable. Reelsmith: the old "warm" built a 4K contact sheet per import
+  // (~3.4 s of ffmpeg each, unbounded) and threw it away; view_asset_frames builds sheets on demand anyway.
   if (src.startsWith('/media/uploads/')) {
-    try {
-      const res = await fetch('/api/extract-frames', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ src, count: 4 }),
-      });
-      if (res.ok) {
-        const data = (await res.json().catch(() => ({}))) as {
-          count?: number;
-          frames?: unknown[];
-          ok?: boolean;
-        };
-        const n = typeof data.count === 'number'
-          ? data.count
-          : Array.isArray(data.frames) ? data.frames.length : 4;
-        return {
-          assetId: asset.id,
-          status: 'succeeded',
-          sampleCount: n,
-          note: 'contact-sheet warm complete; use view_asset_frames for vision',
-        };
-      }
-      // extract may be unavailable — fall through to reachability probe
-    } catch {
-      /* probe path */
-    }
     const ok = await isMediaSrcReachable(src);
     return {
       assetId: asset.id,

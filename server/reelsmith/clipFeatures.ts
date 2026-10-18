@@ -9,10 +9,12 @@ const W = 64;
 const H = 64;
 const SAMPLE_FPS = 4;
 const WINDOW_SEC = 2;
+/** Decode video on the GPU on macOS (about 2x faster on 4K HEVC); ffmpeg falls back to software by itself. */
+const decodeArgs = (stillImage: boolean) => (!stillImage && process.platform === 'darwin' && process.env.REELSMITH_ANALYSIS_HWACCEL !== '0' ? ['-hwaccel', 'videotoolbox'] : []);
 
 function readGrayFrames(file: string, maxSec: number, stillImage = false): Promise<Buffer[]> {
   return new Promise((resolve, reject) => {
-    const args = ['-v', 'error', '-t', String(maxSec), ...(stillImage ? ['-loop', '1'] : []), '-i', file, '-an', '-vf', `fps=${SAMPLE_FPS},scale=${W}:${H}:flags=area,format=gray`, '-f', 'rawvideo', '-'];
+    const args = ['-v', 'error', ...decodeArgs(stillImage), '-t', String(maxSec), ...(stillImage ? ['-loop', '1'] : []), '-i', file, '-an', '-vf', `fps=${SAMPLE_FPS},scale=${W}:${H}:flags=area,format=gray`, '-f', 'rawvideo', '-'];
     const ff = spawn(ffmpegBin(), args);
     const chunks: Buffer[] = [];
     let err = '';
@@ -32,7 +34,7 @@ function readGrayFrames(file: string, maxSec: number, stillImage = false): Promi
 /** Mean display colour (0..1) over a few sampled frames, from an 8x8 box-downsample; undefined when ffmpeg cannot read it. */
 function readMeanColor(file: string, maxSec: number, stillImage = false): Promise<{ r: number; g: number; b: number } | undefined> {
   return new Promise((resolve) => {
-    const ff = spawn(ffmpegBin(), ['-v', 'error', '-t', String(maxSec), ...(stillImage ? ['-loop', '1'] : []), '-i', file, '-an', '-vf', `fps=${stillImage ? SAMPLE_FPS : 2},scale=8:8:flags=area,format=rgb24`, '-f', 'rawvideo', '-']);
+    const ff = spawn(ffmpegBin(), ['-v', 'error', ...decodeArgs(stillImage), '-t', String(maxSec), ...(stillImage ? ['-loop', '1'] : []), '-i', file, '-an', '-vf', `fps=${stillImage ? SAMPLE_FPS : 2},scale=8:8:flags=area,format=rgb24`, '-f', 'rawvideo', '-']);
     const chunks: Buffer[] = [];
     ff.stdout.on('data', (d: Buffer) => chunks.push(d));
     ff.stderr.resume();

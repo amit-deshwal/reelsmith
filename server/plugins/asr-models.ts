@@ -26,13 +26,16 @@ import {
 } from '../../shared/asr-ggml-cache.ts';
 import { editorCredentialAuthorized } from '../editor-auth.ts';
 import { downloadModelFile, modelCacheDir, type ProxyTarget } from './hf-proxy.ts';
+import { loadVerdicts, saveVerdicts } from './asr-model-verdicts.ts';
 
 const MAX_JSON = 8 * 1024;
 
 const tasks = new Map<string, AsrDownloadTask>();
 /** Last sha256 verdict per file group, reused while the files' stat fingerprint holds. */
 const inspections = new Map<string, { fingerprint: string; verified: boolean }>();
-
+const loadedVerdicts = new Set<string>();
+/** One hash run per file set at a time: parallel imports each ask for the catalog. */
+const hashing = new Map<string, Promise<boolean>>();
 /**
  * Per-engine readiness of one tier. Each flag means every file of that group is
  * present with its catalog size and sha256.
@@ -122,7 +125,8 @@ async function modelFileVerified(
     if ((await stat(path)).size !== file.sizeBytes) return false;
     throwIfAborted(signal);
     const hash = createHash('sha256');
-    const stream = createReadStream(path);
+    const stream = createReadStream(path, { highWaterMark: 4 * 1024 * 1024 }); // Reelsmith: 64 KB chunks made 3 GB take 30 s
+
     const onAbort = (): void => {
       if (signal) stream.destroy(abortError(signal));
     };
@@ -152,7 +156,9 @@ async function filesVerified(
   key: string,
   files: readonly AsrModelDownload[],
   signal?: AbortSignal,
+  cacheDir?: string,
 ): Promise<boolean> {
+  if (cacheDir) await loadVerdicts(cacheDir, inspections, loadedVerdicts);
   const stats: string[] = [];
   for (const file of files) {
     throwIfAborted(signal);
@@ -160,7 +166,7 @@ async function filesVerified(
       const info = await stat(file.destination);
       throwIfAborted(signal);
       if (!info.isFile() || info.size !== file.sizeBytes) return false;
-      stats.push(`${file.destination}:${info.size}:${info.mtimeMs}:${info.ctimeMs}`);
+      stats.push(`${file.destination}:${info.size}:${info.mtimeMs}:${info.ctimeMs}:${file.sha256}`);
     } catch {
       throwIfAborted(signal);
       return false;
@@ -170,10 +176,18 @@ async function filesVerified(
   const fingerprint = stats.join('|');
   const cached = inspections.get(key);
   if (cached?.fingerprint === fingerprint) return cached.verified;
-  const verified = (await Promise.all(files.map((file) =>
-    modelFileVerified(file.destination, file, signal)))).every(Boolean);
-  inspections.set(key, { fingerprint, verified });
-  return verified;
+  const running = hashing.get(`${key}\0${fingerprint}`);
+  if (running && !signal) return running;
+  const run = (async () => {
+    const verified = (await Promise.all(files.map((file) =>
+      modelFileVerified(file.destination, file, signal)))).every(Boolean);
+    inspections.set(key, { fingerprint, verified });
+    if (cacheDir) await saveVerdicts(cacheDir, inspections);
+    return verified;
+  })();
+  if (signal) return run;
+  hashing.set(`${key}\0${fingerprint}`, run);
+  try { return await run; } finally { hashing.delete(`${key}\0${fingerprint}`); }
 }
 
 function totalBytes(files: readonly AsrModelDownload[]): number {
@@ -194,8 +208,8 @@ export async function inspectAsrModel(
   // Each engine is judged on its own files only: a missing companion must not
   // hide a complete ONNX export from the browser engine, nor the reverse (#168).
   const [onnxDownloaded, ggmlDownloaded] = await Promise.all([
-    filesVerified(inspectionKey(cacheDir, entry, 'onnx'), onnx, signal),
-    ggml.length > 0 ? filesVerified(inspectionKey(cacheDir, entry, 'ggml'), ggml, signal) : false,
+    filesVerified(inspectionKey(cacheDir, entry, 'onnx'), onnx, signal, cacheDir),
+    ggml.length > 0 ? filesVerified(inspectionKey(cacheDir, entry, 'ggml'), ggml, signal, cacheDir) : false,
   ]);
   return {
     onnxDownloaded,
@@ -441,6 +455,8 @@ export function asrModelsPlugin(): Plugin {
 export function __resetAsrTasks(): void {
   tasks.clear();
   inspections.clear();
+  loadedVerdicts.clear();
+  hashing.clear();
 }
 
 /** Test seam: the GET /api/asr-models rows for `cacheDir`. */
