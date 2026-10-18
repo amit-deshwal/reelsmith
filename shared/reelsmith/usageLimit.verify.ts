@@ -7,6 +7,7 @@ for (const m of [
   "You've hit your limit · resets 11pm (Asia/Kolkata)",
   'API Error: 429 {"type":"error","error":{"type":"rate_limit_error","message":"..."}}',
   'Weekly limit reached, resets Mon 9am',
+  "You've reached your weekly limit. Resets Mon 9:00 AM",
 ]) assert.ok(isUsageLimitError(m), m);
 for (const m of ['Claude Code CLI exited with code 1.', 'tool failed: no such clip', 'MCP server not reachable']) {
   assert.equal(isUsageLimitError(m), false, m);
@@ -14,6 +15,10 @@ for (const m of ['Claude Code CLI exited with code 1.', 'tool failed: no such cl
 }
 assert.equal(resetHint('5-hour limit reached ∙ resets 3pm'), '3pm');
 assert.ok(resetHint('Claude AI usage limit reached|1999999999', 0)?.startsWith('around'));
+// a bracketed timezone keeps its bracket; a sentence-wrapping bracket does not leak in
+assert.equal(resetHint("You've hit your limit · resets 7pm (Asia/Kolkata)"), '7pm (Asia/Kolkata)');
+assert.equal(resetHint('Limit reached (resets 3pm)'), '3pm');
+assert.equal(resetHint("You've reached your weekly limit. Resets Mon 9:00 AM"), 'Mon 9:00 AM');
 const msg = friendlyAgentError("You've hit your limit · resets 11pm");
 assert.match(msg, /usage limit is reached \(it resets 11pm\)/);
 assert.match(msg, /keep editing by hand/);

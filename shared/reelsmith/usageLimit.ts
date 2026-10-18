@@ -4,7 +4,7 @@
 const PATTERNS: RegExp[] = [
   /usage limit reached/i,
   /\b(5-hour|five-hour|weekly|daily|opus|session) limit reached\b/i,
-  /you['’]ve (hit|reached) your (usage )?limit/i,
+  /you['’]ve (hit|reached) your (\w+ )?(usage )?limit/i,
   /\blimit reached\b.*\bresets?\b/i,
   /rate[_ ]limit(_error|ed)?\b/i,
   /\bquota (exceeded|exhausted)\b/i,
@@ -23,8 +23,12 @@ export function resetHint(message: string, now = Date.now()): string | null {
     const at = new Date(Number(unix[1]) * 1000);
     if (at.getTime() > now) return `around ${at.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
   }
-  const words = /\bresets?\s+(?:at\s+)?([^.\n,;)]{2,40})/i.exec(message);
-  return words ? words[1]!.trim() : null;
+  const words = /\bresets?\s+(?:at\s+)?([^.\n,;]{2,40})/i.exec(message);
+  if (!words) return null;
+  let hint = words[1]!.trim();
+  // "(resets 3pm)" wraps the hint in the sentence's own bracket; "7pm (Asia/Kolkata)" owns its bracket
+  if (hint.endsWith(')') && (hint.match(/\(/g)?.length ?? 0) < (hint.match(/\)/g)?.length ?? 0)) hint = hint.slice(0, -1).trim();
+  return hint;
 }
 
 export function friendlyAgentError(message: string, agent = 'Claude'): string {
