@@ -335,3 +335,8 @@ Effects that need the person cut out of every frame. The matte is MediaPipe's se
 - `src/gl/fxThumb.ts`: `u_word` read through a loose record.
 - `src/gl/titleText.verify.ts`: reads `max` through an optional-typed view.
 - Our own: `src/reelsmith/agent/lookTools.ts`, `planTools.ts` (removed an unused helper), `looks.verify.ts`, `recipeQuality.verify.ts`, `reelTransitions.verify.ts`.
+
+## Ideas: describe your reel, AI picks a recipe
+- `src/app/useDashboardActions.ts`: `onStartRecipe` details type gains `texts` (recipe text inputs prefilled by an Ideas pick).
+- `src/library/LibraryPanel.tsx`: passes `initialTexts={recipeHandoff?.texts}` to `RecipesPanel` (one prop).
+- Our own: `shared/reelsmith/ideaMatch.ts`, `server/reelsmith/claudeOnce.ts` (one-shot tool-less `claude -p --json-schema`), `server/reelsmith/ideas.ts` (routes `/api/reelsmith/ideas` and `/api/reelsmith/ideas/draft-recipe`, mounted from `user-recipes-plugin.ts`), `src/reelsmith/ideasApi.ts`, `src/reelsmith/ui/IdeasPanel.tsx`, `RecipeHome.tsx`, `RecipesPanel.tsx`, `recipeStart.ts`, `server/reelsmith/ideas.verify.ts`.

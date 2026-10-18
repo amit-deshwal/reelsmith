@@ -19,7 +19,7 @@ type Translate = (zh: string, params?: Record<string, string | number>) => strin
 export interface DashboardActions {
   onOpen: (id: string) => void;
   onNew: () => Promise<void>;
-  onStartRecipe: (recipeId: string, details?: { ratio?: RatioId; brief?: ReelsBrief; prompt?: string }) => Promise<void>;
+  onStartRecipe: (recipeId: string, details?: { ratio?: RatioId; brief?: ReelsBrief; prompt?: string; texts?: Record<string, string> }) => Promise<void>;
   onRename: (id: string, name: string) => Promise<void>;
   onDuplicate: (id: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;

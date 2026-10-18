@@ -43,6 +43,8 @@ export interface RecipesPanelProps {
   initialBrief?: ReelsBrief;
   /** One-time prompt from an opted-in Ideas research handoff. */
   initialPrompt?: string;
+  /** Text inputs prefilled by an Ideas pick (title, place name), keyed by input id. */
+  initialTexts?: Record<string, string>;
   onImportMedia?: (file: File) => Promise<MediaAsset>;
 }
 
@@ -70,7 +72,7 @@ const input: React.CSSProperties = {
   background: theme.inset, color: theme.text, border: `0.5px solid ${theme.border}`, borderRadius: 5, padding: '5px 7px', fontSize: 12.5,
 };
 
-export function RecipesPanel({ projectId, assets, itemCount, items, selectedItem, fps, onApply, onAskAgent, initialRecipeId, initialRatio, initialBrief, initialPrompt, onImportMedia }: RecipesPanelProps) {
+export function RecipesPanel({ projectId, assets, itemCount, items, selectedItem, fps, onApply, onAskAgent, initialRecipeId, initialRatio, initialBrief, initialPrompt, initialTexts, onImportMedia }: RecipesPanelProps) {
   const selectedRecipeId = initialRecipeId ?? (initialBrief?.target.recipeId !== 'new' ? initialBrief?.target.recipeId : undefined);
   const [recipe, setRecipe] = useState<Recipe | null>(() => catalog.recipes.find((r) => r.id === selectedRecipeId) ?? null);
   const [chosenRatio, setChosenRatio] = useState<RatioId | undefined>(initialRatio ?? initialBrief?.target.ratio);
@@ -158,13 +160,13 @@ export function RecipesPanel({ projectId, assets, itemCount, items, selectedItem
       </div>
     );
   }
-  return <SetupForm key={recipe.id} recipe={recipe} projectId={projectId} assets={assets} itemCount={itemCount} fps={fps} initialRatio={chosenRatio} initialBrief={initialBrief} initialPrompt={initialPrompt} onBack={() => setRecipe(null)} onImportMedia={onImportMedia} onApply={onApply} onAskAgent={onAskAgent} />;
+  return <SetupForm key={recipe.id} recipe={recipe} projectId={projectId} assets={assets} itemCount={itemCount} fps={fps} initialRatio={chosenRatio} initialBrief={initialBrief} initialPrompt={initialPrompt} initialTexts={initialTexts} onBack={() => setRecipe(null)} onImportMedia={onImportMedia} onApply={onApply} onAskAgent={onAskAgent} />;
 }
 
-export function SetupForm({ recipe, projectId, assets, itemCount, fps, initialRatio, initialBrief, initialPrompt, onBack, onApply, onAskAgent, onImportMedia }: RecipesPanelProps & { recipe: Recipe; onBack: () => void }) {
+export function SetupForm({ recipe, projectId, assets, itemCount, fps, initialRatio, initialBrief, initialPrompt, initialTexts, onBack, onApply, onAskAgent, onImportMedia }: RecipesPanelProps & { recipe: Recipe; onBack: () => void }) {
   const ratios = supportedRatios(recipe);
   const [ratio, setRatio] = useState<RatioId>(() => ratios.includes(initialRatio as RatioId) ? initialRatio! : ratios[0]!);
-  const [values, setValues] = useState<SetupValues>(() => defaultValues(recipe));
+  const [values, setValues] = useState<SetupValues>(() => { const v = defaultValues(recipe); return initialTexts ? { ...v, texts: { ...v.texts, ...initialTexts } } : v; });
   const [busy, setBusy] = useState('');
   const working = useRef(false);
   const [notes, setNotes] = useState<string[]>([]);

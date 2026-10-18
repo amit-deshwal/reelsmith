@@ -4,7 +4,7 @@ import type { RatioId } from '../../shared/reelsmith/ratios';
 import type { ReelsBrief } from '../../shared/reelsmith/brief';
 import type { ProjectDoc } from '../editor/types';
 
-export interface RecipeStartHandoff { recipeId: string; ratio?: RatioId; brief?: ReelsBrief; prompt?: string }
+export interface RecipeStartHandoff { recipeId: string; ratio?: RatioId; brief?: ReelsBrief; prompt?: string; texts?: Record<string, string> }
 const pending = new Map<string, RecipeStartHandoff>();
 const key = (projectId: string) => `reelsmith:recipe-start:${projectId}`;
 

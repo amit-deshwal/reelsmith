@@ -34,15 +34,6 @@ export function localIdeaBrief(recipe: Recipe, options: TrendIdeaOptions): Reels
   };
 }
 
-export function rankLocalIdeas(recipes: Recipe[], topic: string): Recipe[] {
-  const terms = topic.toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length > 2);
-  const score = (recipe: Recipe) => {
-    const haystack = [recipe.name, recipe.description, recipe.category, ...(recipe.tags ?? [])].join(' ').toLowerCase();
-    return terms.reduce((total, term) => total + (haystack.includes(term) ? 1 : 0), 0);
-  };
-  return [...recipes].sort((a, b) => score(b) - score(a) || a.name.localeCompare(b.name)).slice(0, 3);
-}
-
 /** Prompt used only after the user opts into research; all returned ideas must be valid brief JSON. */
 /** First words of the research prompt; the chat reply capture (trendCapture.ts) finds the turn by it. */
 export const TREND_PROMPT_MARKER = 'Load the reels-trends skill and research';
