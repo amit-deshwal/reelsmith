@@ -1,5 +1,6 @@
 // RS-1002: the brief checklist as a pure function ("4/7 clips ✓, song ✓, line ✗"), used by the setup form.
 import type { ReelsBrief, BriefRecipeMapping } from '../../shared/reelsmith/brief';
+import type { RecipeRunRecord } from './assembler/types';
 import type { SetupValues } from './setupForm';
 
 export interface BriefChecklistItem { id: string; label: string; complete: boolean; kind: 'shot' | 'plain'; index?: number }
@@ -36,4 +37,22 @@ export function briefChecklist(
     ...(brief.music ? [{ id: 'music', label: brief.music.mode === 'instagram' ? 'Add music in Instagram' : brief.music.mode === 'named' ? `Music · ${brief.music.name}` : `Music · ${brief.music.description}`, complete: brief.music.mode === 'instagram' || (!!mapping.music && (values.media[mapping.music.id]?.length ?? 0) > 0), kind: 'plain' as const }] : []),
   ];
   return { items, complete: items.every((item) => item.complete) && mapping.warnings.length === 0 };
+}
+
+/** Put a saved run's media and text back in the form, so the checklist shows the same progress after a relaunch. Assets that are gone are skipped. */
+export function restoreRunSelections(
+  run: Pick<RecipeRunRecord, 'media' | 'texts'>,
+  assets: ReadonlyArray<{ id: string; kind: string }>,
+  current: SetupValues,
+): SetupValues {
+  const byId = new Map(assets.map((a) => [a.id, a]));
+  const media: SetupValues['media'] = { ...current.media };
+  for (const [inputId, ids] of Object.entries(run.media ?? {})) {
+    if (media[inputId]?.length) continue;
+    const picked = ids.flatMap((id) => { const a = byId.get(id); return a ? [{ assetId: id, kind: a.kind as 'video' | 'image' | 'audio' }] : []; });
+    if (picked.length) media[inputId] = picked;
+  }
+  const texts = { ...current.texts };
+  for (const [inputId, text] of Object.entries(run.texts ?? {})) if (!texts[inputId]?.trim() && text.trim()) texts[inputId] = text;
+  return { ...current, media, texts };
 }

@@ -8,7 +8,7 @@ import type { BatchAction } from '../../editor/reducerActions';
 import type { MediaAsset, TimelineItem } from '../../editor/types';
 import { theme } from '../../theme';
 import { analyzeApi } from '../analyzeApi';
-import { briefChecklist } from '../briefChecklist';
+import { briefChecklist, restoreRunSelections } from '../briefChecklist';
 import { bundledCatalog } from '../bundledRecipes';
 import { deleteUserRecipe, listUserRecipes, saveUserRecipe } from '../userRecipesApi';
 import { RecipeGallery } from './RecipeGallery';
@@ -187,6 +187,7 @@ export function SetupForm({ recipe, projectId, assets, itemCount, fps, initialRa
       if (!active || run?.recipeId !== recipe.id || !run.brief) return;
       setBrief(run.brief);
       setConfirmedShotRequests(run.briefConfirmedShotRequests ?? []);
+      setValues((v) => restoreRunSelections(run, assets, v));
     }).catch(() => {});
     return () => { active = false; };
   }, [initialBrief, projectId, recipe.id]);

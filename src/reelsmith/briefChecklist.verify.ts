@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { mapBriefToRecipe, type ReelsBrief } from '../../shared/reelsmith/brief';
 import { parseRecipe } from '../../shared/reelsmith/recipe';
-import { briefChecklist } from './briefChecklist';
+import { briefChecklist, restoreRunSelections } from './briefChecklist';
 import { loadRun, saveRun, type Kv } from './runStore';
 import { defaultValues } from './setupForm';
 
@@ -62,4 +62,15 @@ const reopened = await loadRun(kv, 'p1');
 assert.ok(reopened?.brief);
 assert.deepEqual(reopened.briefConfirmedShotRequests, [0]);
 assert.deepEqual(briefChecklist(reopened.brief, mapBriefToRecipe(reopened.brief, recipe), values, assets, fps, reopened.briefConfirmedShotRequests ?? []), r);
+// a relaunch loses the form's own state: the media and text come back from the saved run alone
+const fresh = defaultValues(recipe);
+const savedRun = { media: { [clipInput.id]: ['a', 'b', 'gone'], [audioInput.id]: ['song'] }, texts: { [textInput.id]: 'one two three' } };
+const media = [{ id: 'a', kind: 'video' }, { id: 'b', kind: 'video' }, { id: 'c', kind: 'video' }, { id: 'song', kind: 'audio' }];
+const restored = restoreRunSelections(savedRun, media, fresh);
+assert.deepEqual(restored.media[clipInput.id], [{ assetId: 'a', kind: 'video' }, { assetId: 'b', kind: 'video' }], 'missing assets are skipped');
+assert.deepEqual(restored.media[audioInput.id], [{ assetId: 'song', kind: 'audio' }]);
+assert.equal(restored.texts[textInput.id], 'one two three');
+assert.deepEqual(restoreRunSelections(savedRun, media, restored), restored, 'restoring twice changes nothing');
+const picked = { ...fresh, media: { [clipInput.id]: [{ assetId: 'c', kind: 'video' as const }] } };
+assert.deepEqual(restoreRunSelections(savedRun, media, picked).media[clipInput.id], picked.media[clipInput.id], 'a fresh pick is not overwritten');
 console.log('briefChecklist verify ok');
