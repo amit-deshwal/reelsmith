@@ -64,6 +64,21 @@ try {
   const v6 = loud.second?.checks.find((c) => c.id === 'V6') ?? loud.first.checks.find((c) => c.id === 'V6');
   assert.equal(loud.ok, true, JSON.stringify(loud.second?.checks ?? loud.first.checks));
   assert.equal(v6?.status, 'PASS', v6?.detail);
+
+  // only the sound fails (too quiet): the picture is kept bit for bit and just the audio is rewritten
+  const quiet = join(dir, 'quiet.mp4');
+  ff('-f', 'lavfi', '-i', 'testsrc2=size=1080x1920:rate=30:duration=4', '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000',
+    '-af', 'volume=0.02', '-c:v', 'libx264', '-profile:v', 'high', '-b:v', '12M', '-pix_fmt', 'yuv420p', '-colorspace', 'bt709', '-color_primaries', 'bt709',
+    '-color_trc', 'bt709', '-color_range', 'tv', '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2', '-t', '4', '-movflags', '+faststart', quiet);
+  const videoHash = (f: string) => execFileSync('ffmpeg', ['-v', 'error', '-i', f, '-map', '0:v', '-c', 'copy', '-f', 'md5', '-']).toString();
+  const pictureBefore = videoHash(quiet);
+  const calls: boolean[] = [];
+  const fast = await finalizeForInstagram(quiet, preset, { encode: async (i, o, p, opts) => { calls.push(!!opts?.copyVideo); await encodeForInstagram(i, o, p, opts); } });
+  const failedIds = fast.first.checks.filter((c) => c.status === 'FAIL').map((c) => c.id);
+  assert.deepEqual(failedIds, ['V6'], `only loudness should fail: ${JSON.stringify(fast.first.checks)}`);
+  assert.equal(fast.ok, true, JSON.stringify(fast.second?.checks));
+  assert.deepEqual(calls, [true], 'one audio-only pass, no second full encode');
+  assert.equal(videoHash(quiet), pictureBefore, 'the picture is untouched');
   console.log('instagramFinalize.verify ok');
 } finally {
   rmSync(dir, { recursive: true, force: true });

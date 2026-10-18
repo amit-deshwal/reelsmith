@@ -93,6 +93,9 @@ const parsed = parseRecipe(readFileSync(join('recipes', `${recipeId}.recipe.json
 if (!parsed.ok) throw new Error(parsed.errors[0]);
 const recipe = parsed.recipe;
 const values = defaultValues(recipe);
+// --seconds N: ask for a reel of about N seconds (the recipe's own limits still apply, so a short recipe may stop short)
+const secondsArg = Number(argv[argv.indexOf('--seconds') + 1]);
+if (argv.includes('--seconds') && secondsArg > 0) recipe.duration = { ...recipe.duration, targetSec: secondsArg, maxSec: Math.max(recipe.duration?.maxSec ?? 0, secondsArg) };
 for (const input of recipe.inputs) {
   if (input.kind === 'text') { values.texts[input.id] = input.placeholder ?? input.label; continue; }
   const pool = input.accept.includes('audio') ? (song ? [song] : []) : assets.filter((a) => (input.accept as string[]).includes(a.kind));
@@ -133,6 +136,7 @@ console.log(`export: ${(exportMs / 1000).toFixed(1)} s for a ${(end / FPS).toFix
 t = Date.now();
 const fin = await finalizeForInstagram(raw, presetForCanvas(REEL_PRESETS['instagram-reel']!, tl.width, tl.height) ?? REEL_PRESETS['instagram-reel']!);
 t = lap(`instagram finalize (${fin.ok ? (fin.reencoded ? 're-encoded' : 'already passed') : 'FAILED'})`, t);
+if (fin.reencoded) console.log(`first render failed: ${fin.first.checks.filter((c) => c.status !== 'PASS').map((c) => `${c.id} ${c.detail}`).join('; ')}`);
 for (const c of (fin.second ?? fin.first).checks) console.log(`  ${c.id} ${c.status} ${c.detail}`);
 const v8 = await exportParity(raw, { ...tl, assets: doc.assets } as never);
 console.log(`  ${v8.id} ${v8.status} ${v8.detail}`);

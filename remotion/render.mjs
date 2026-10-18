@@ -261,6 +261,7 @@ export async function renderTimeline({
           ? `${Math.round(videoBitrate / 1000)}k`
           : undefined,
       ...proresOptions,
+      ...(codec === 'h264' ? { colorSpace: 'bt709' } : {}),
       chromiumOptions: { gl: resolveRenderGlBackend() },
       browserExecutable: browserExecutable(),
       puppeteerInstance: browser,

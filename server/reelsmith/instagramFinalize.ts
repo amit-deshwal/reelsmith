@@ -7,6 +7,9 @@ import type { ReelPreset } from '../../shared/reelsmith/instagramPreset.ts';
 import { validateReel, type ValidationReport } from './exportValidate.ts';
 import { encodeForInstagram } from './instagramEncode.ts';
 
+/** checks about the sound alone; a failure confined to these can be fixed without touching the picture */
+const AUDIO_CHECKS = new Set(['V3', 'V4', 'V6']);
+
 export interface FinalizeResult {
   ok: boolean;
   /** true when the safe encoder rewrote the file */
@@ -26,13 +29,22 @@ export async function finalizeForInstagram(
   const first = await validate(file, { preset });
   if (first.ok) return { ok: true, reencoded: false, first };
   const tmp = file.replace(/(\.[a-z0-9]+)?$/i, '.instagram-tmp.mp4');
+  // Picture passes and only sound (levels, length match) fails: keep the video as rendered and rewrite just the audio.
+  const failed = first.checks.filter((c) => c.status === 'FAIL');
+  const audioOnly = failed.length > 0 && failed.every((c) => AUDIO_CHECKS.has(c.id));
+  let second: ValidationReport | undefined;
   try {
+    if (audioOnly) {
+      await encode(file, tmp, preset, { copyVideo: true });
+      second = await validate(tmp, { preset });
+      if (second.ok) { await rename(tmp, file); return { ok: true, reencoded: true, first, second }; }
+    }
     await encode(file, tmp, preset);
   } catch (error) {
     if (existsSync(tmp)) await rm(tmp, { force: true });
     throw error;
   }
-  const second = await validate(tmp, { preset });
+  second = await validate(tmp, { preset });
   if (second.ok) {
     await rename(tmp, file);
     return { ok: true, reencoded: true, first, second };

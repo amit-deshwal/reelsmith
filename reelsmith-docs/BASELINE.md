@@ -60,6 +60,10 @@ With that default and no override: 4K60 18.4 s and 18.8 s (was 32.5 s), 540p 5.2
 Encoder: the same 4K60 job took 33.3 s with the hardware encoder and 32.2 s with software x264 (both at 8 workers), so
 exports use x264 for quality at no speed cost; decode dominates, not encode.
 
-**Not measured:** an actual 60 s reel (the recipes cap this fixture at 18 s; the render time per frame was flat across the
-two 18 s runs, so ~62 s is an extrapolation), preview dropped frames, and scrub latency (need the live app).
+**60 s reel, measured 2026-10-18** (Apple M5, 24 GB, the 20 clips + song, Travel Beat Montage asked for 60 s: a 58.3 s reel, 17 items, 1080x1920):
+render 44.0 s (0.75x real time), Instagram finalize 22.3 s, total 66 s, under the 90 s target. All of V1-V9 pass (V8 mean SSIM 0.986).
+Before the fix the same reel took 52.6 s to render plus 50.2 s of finalize (103 s): the render was tagged `yuvj420p` / `smpte170m`, failed V2, and the
+finalize re-encoded the whole picture. The render is now tagged bt709 (`remotion/render.mjs`), and when only the sound fails (V3/V4/V6) the finalize copies the
+video and rewrites the audio (`instagramFinalize.verify.ts` checks the picture is bit-identical).
+**Not measured:** preview dropped frames and scrub latency (need the live app).
 

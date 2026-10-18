@@ -28,13 +28,14 @@ export function limiterFilter(l: LimitedGain, sampleRate: number): string {
   return `volume=${l.gainDb.toFixed(2)}dB,aresample=${sampleRate * 4},alimiter=limit=${limit.toFixed(4)}:attack=5:release=80:level=false:latency=true,aresample=${sampleRate}`;
 }
 
-export function encodeArgs(input: string, output: string, p: ReelPreset, hasAudio: boolean, measured?: LoudnessMeasure, durationSec?: number, tpMargin = TP_MARGIN, limited?: LimitedGain): string[] {
+export function encodeArgs(input: string, output: string, p: ReelPreset, hasAudio: boolean, measured?: LoudnessMeasure, durationSec?: number, tpMargin = TP_MARGIN, limited?: LimitedGain, copyVideo = false): string[] {
   const vf = [
     `scale=${p.width}:${p.height}:force_original_aspect_ratio=decrease:flags=lanczos:in_range=auto:out_range=tv`,
     `pad=${p.width}:${p.height}:(ow-iw)/2:(oh-ih)/2:black`,
     `fps=${p.fps}`, 'format=yuv420p', 'setsar=1',
   ].join(',');
-  const args = ['-v', 'error', '-y', '-i', input, '-vf', vf,
+  // copyVideo: the picture already passes, so only the audio is rewritten (seconds instead of a second full encode)
+  const args = copyVideo ? ['-v', 'error', '-y', '-i', input, '-c:v', 'copy'] : ['-v', 'error', '-y', '-i', input, '-vf', vf,
     '-c:v', 'libx264', '-profile:v', 'high', '-level', p.level, '-preset', 'medium', '-crf', '18',
     '-g', String(p.fps * 2), '-bf', '2', '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709',
     '-color_range', 'tv', '-fps_mode', 'cfr'];
@@ -56,7 +57,7 @@ export function encodeArgs(input: string, output: string, p: ReelPreset, hasAudi
   return args;
 }
 
-export async function encodeForInstagram(input: string, output: string, p: ReelPreset): Promise<void> {
+export async function encodeForInstagram(input: string, output: string, p: ReelPreset, opts: { copyVideo?: boolean } = {}): Promise<void> {
   const probe = await run('ffprobe', ['-v', 'error', '-select_streams', 'a', '-show_entries', 'stream=index', '-of', 'csv=p=0', input]);
   const hasAudio = probe.stdout.trim().length > 0;
   let measured: LoudnessMeasure | undefined;
@@ -74,7 +75,7 @@ export async function encodeForInstagram(input: string, output: string, p: ReelP
       measured = json ? JSON.parse(json) as LoudnessMeasure : undefined;
       if (measured && needsLimiter(measured, p, margin)) limited = { gainDb: p.lufs - Number(measured.input_i), ceilingDb: p.truePeakDb - margin };
     }
-    await run('ffmpeg', encodeArgs(input, output, p, hasAudio, measured, durationSec, margin, limited), { maxBuffer: 64 * 1024 * 1024 });
+    await run('ffmpeg', encodeArgs(input, output, p, hasAudio, measured, durationSec, margin, limited, opts.copyVideo), { maxBuffer: 64 * 1024 * 1024 });
     if (!hasAudio || p.lufs === null || attempt >= 3) return;
     const m = await loudnessOf(output);
     if (!m) return;
