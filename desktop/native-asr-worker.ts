@@ -337,8 +337,10 @@ async function preload(request: DesktopAsrPreloadRequest): Promise<DesktopModelL
   const engine = await ensureEngine(request);
   // Warm the persistent server so the first transcription does not pay the
   // cold model-load cost; failure is non-fatal (transcribe falls back to
-  // whisper-cli spawn).
-  await ensureWhisperServer(engine.ggmlPath).catch(() => undefined);
+  // whisper-cli spawn). A DTW model never uses the server, so it is not loaded for one.
+  if (!ASR_MODELS.find((model) => model.modelId === engine.modelId)?.dtwPreset) {
+    await ensureWhisperServer(engine.ggmlPath).catch(() => undefined);
+  }
   return {
     requestId: request.requestId,
     backend: engine.backend,

@@ -349,5 +349,5 @@ Effects that need the person cut out of every frame. The matte is MediaPipe's se
 ## Hindi/Hinglish captions drifted late (2026-10-18)
 The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words evenly over its 30 s window: on a 27 s clip captions started 0.5 s early and ended ~3.5 s late.
 - `shared/asr-models.ts`: `AsrModelEntry.dtwPreset?`; `hinglish-apex` sets `large.v3.turbo`.
-- `desktop/native-asr-worker.ts`: a model with `dtwPreset` skips whisper-server and runs whisper-cli with `-nfa --dtw <preset>` in 30 s windows (Metal, then CPU); `runWhisperCli` takes the mode flags (default `-ml 20 -sow` unchanged).
+- `desktop/native-asr-worker.ts`: a model with `dtwPreset` skips whisper-server (also not warmed on preload) and runs whisper-cli with `-nfa --dtw <preset>` in 30 s windows (Metal, then CPU); `runWhisperCli` takes the mode flags (default `-ml 20 -sow` unchanged).
 - Our own: `shared/reelsmith/whisperDtw.ts` (DTW token times to word chunks; re-runs from the last timed token when the model stops early and speech remains), `shared/reelsmith/whisperDtw.verify.ts`.
