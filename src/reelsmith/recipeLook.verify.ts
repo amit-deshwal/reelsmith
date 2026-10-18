@@ -21,7 +21,7 @@ for (const recipe of recipes) {
     for (const [key, value] of Object.entries(fx.overrides ?? {})) {
       const prop = def.props?.find((p) => p.key === key);
       assert.ok(prop, `${recipe.id}: ${fx.assetId} has no parameter ${key}`);
-      if (typeof value === 'number' && typeof prop.min === 'number' && typeof prop.max === 'number') {
+      if (typeof value === 'number' && 'min' in prop && typeof prop.min === 'number' && typeof prop.max === 'number') {
         assert.ok(value >= prop.min && value <= prop.max, `${recipe.id}: ${fx.assetId}.${key}=${value} outside ${prop.min}..${prop.max}`);
       }
     }
@@ -53,7 +53,7 @@ const full = {
 const out2 = withRecipeLook(actions, full);
 assert.deepEqual(fx(out2[0]!).map((e) => e.assetId), ['builtin:match', 'builtin:fx-thermal', 'builtin:fx-rgb-split', ...lookById('retro-vhs')!.steps.map((s) => s.assetId), 'builtin:fx-shake']);
 assert.deepEqual(fx(out2[1]!).map((e) => e.assetId), [...lookById('retro-vhs')!.steps.map((s) => s.assetId), 'builtin:fx-shake'], 'build has no section effects');
-assert.equal(fx(out2[0]!).find((e) => e.assetId === 'builtin:fx-rgb-split')!.overrides.amount, 0.02);
+assert.equal(fx(out2[0]!).find((e) => e.assetId === 'builtin:fx-rgb-split')!.overrides?.amount, 0.02);
 assert.ok(fx(out2[0]!).filter((e) => e.id.startsWith(SECTION_EFFECT_PREFIX)).length === 2);
 assert.equal(new Set(fx(out2[0]!).map((e) => e.id)).size, fx(out2[0]!).length, 'effect ids are unique on a clip');
 // overrides are copies: editing one clip's slider never moves another's

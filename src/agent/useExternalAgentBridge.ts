@@ -1,9 +1,10 @@
+import type { ExternalAppliedChange } from '../reelsmith/agent/externalAppliedChange';
 import {
   useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction,
 } from 'react';
 import type { AgentContext } from './context';
 import {
-  ExternalBridgeRuntime, type ExternalAppliedChange, type ExternalGuardRequest, type ExternalProposalSnapshot,
+  ExternalBridgeRuntime, type ExternalGuardRequest, type ExternalProposalSnapshot,
 } from './external-bridge-runtime';
 import {
   ExternalEditSessionOutcomeError, type ExternalEditSessionTerminalStatus,

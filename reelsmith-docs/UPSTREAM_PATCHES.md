@@ -238,8 +238,9 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 
 ## Revert this turn for Claude CLI edits (RS-701)
 - `src/agent/external-proposal-apply.ts`: the committed result also returns the project before the edit and the applied operations.
-- `src/agent/external-bridge-runtime.ts`: new `onApplied` callback (and `ExternalAppliedChange` type), called once after an edit is committed.
-- `src/agent/useExternalAgentBridge.ts`: optional third argument `onApplied`, wired to the runtime.
+- `src/agent/external-bridge-runtime.ts`: new `onApplied` callback, called once after an edit is committed (two added lines; the `ExternalAppliedChange` type lives in `src/reelsmith/agent/externalAppliedChange.ts` so the file stays within the 500-line gate).
+- `src/agent/useExternalAgentBridge.ts`: optional third argument `onApplied`, wired to the runtime (imports `ExternalAppliedChange` from our module).
+- `src/i18n/dict/en/transcript.ts`, `src/i18n/dict/en/settings.ts`, `src/i18n/dict/it/settings.ts`: entries for the Hindi/Hinglish model strings (desktop-only error, model label, Hindi/Marathi/auto language, stop download) so the i18n coverage checks pass.
 - `src/agent/serverRunProposalBridge.ts`, `src/agent/useAgent.ts`, `src/components/chat/useChatAgentController.ts`, `src/components/chat/chatPanelController.ts`: `recordExternalChange` adds the edit to the existing change log, so the existing "Revert this turn" button appears.
 - Test: `src/agent/external-edit-session-apply.verify.ts` (extended).
 

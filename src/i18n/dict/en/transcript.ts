@@ -17,6 +17,7 @@ export default {
   // local-asr — failures while the browser engine runs
   '{stage}失败：{detail}': '{stage} failed: {detail}',
   '音轨准备': 'Audio track preparation',
+  '这个模型只能在桌面应用中运行，请打开桌面应用后重试': 'This model only runs in the desktop app. Open the desktop app and try again.',
   '音频解码': 'Audio decoding',
   '模型加载': 'Model loading',
   '模型推理': 'Model inference',

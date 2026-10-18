@@ -557,6 +557,7 @@ export default {
   'Whisper Small（约 250MB · 推荐）': 'Whisper Small (~250MB · recommended)',
   'Whisper Medium（约 1.1GB · 精度最高）': 'Whisper Medium (~1.1GB · highest accuracy)',
   'Whisper Large v3 Turbo（约 1.1GB · 多语言最强）': 'Whisper Large v3 Turbo (~1.1GB · best multilingual)',
+  'Hindi/Hinglish Apex（约 1.6GB · 仅桌面端）': 'Hindi/Hinglish Apex (~1.6GB · desktop only)',
   // Downloadable music intelligence model packs
   '本地智能模型': 'Local intelligence models',
   '模型不会自动安装。安装后，节拍与音乐语义分析只在本机运行。':
