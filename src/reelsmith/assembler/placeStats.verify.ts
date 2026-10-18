@@ -7,7 +7,7 @@ import { historyReduce, type History } from '../../editor/reduce';
 import type { ProjectDoc } from '../../editor/types';
 import { loadCatalog } from '../catalog';
 import { assemble, type AssemblyClip, type AssemblyMusic } from './index';
-import { pickTransitions } from './transitions';
+import { pickTransitions, transitionActions } from './transitions';
 
 const load = (file: string): Recipe => {
   const r = parseRecipe(readFileSync(file, 'utf8'));
@@ -101,5 +101,8 @@ assert.equal(((h.present.timelines[0] as any).transitions ?? []).length, 0, 'und
 const shots = Array.from({ length: 5 }, (_, i) => ({ section: 's', startBeat: i, lengthBeats: 1, startFrame: i * 15, durationInFrames: 15, transition: i === 3 ? 'cut' : 'auto' }));
 const picks = pickTransitions(shots, { options: {}, params: {}, seed: 0, fps: 30, legacyFlash: false });
 assert.deepEqual(picks, [null, 'bars', 'wide-bars', null, 'window']);
+// a 0.45 s spin-zoom between 15-frame shots is capped at half a shot, not the whole shot
+const spin = transitionActions(shots.slice(0, 2), ['a', 'b'], [null, 'spin-zoom'], { options: {}, params: {}, seed: 0, fps: 30, legacyFlash: false }, 't', 0);
+assert.equal((spin[0] as any).durationInFrames, 7);
 assert.deepEqual(pickTransitions([{ ...shots[0]!, transition: 'flash' }, { ...shots[1]!, transition: 'flash' }], { params: {}, seed: 0, fps: 30, legacyFlash: true }), [null, null]);
 console.log('placeStats.verify ok');

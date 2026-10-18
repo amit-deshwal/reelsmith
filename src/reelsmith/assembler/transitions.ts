@@ -77,7 +77,8 @@ export function transitionActions(shots: PlannedShot[], ids: string[], names: Ar
     const shot = shots[i]!;
     if (prev.startFrame + prev.durationInFrames < shot.startFrame - 2) return; // not adjacent
     const spec = RECIPE_TRANSITIONS[name]!;
-    const length = Math.max(2, Math.min(Math.round(spec.seconds * ctx.fps), prev.durationInFrames, shot.durationInFrames));
+    // at most half the shorter shot, so beat-length shots still hold still between transitions
+    const length = Math.max(2, Math.min(Math.round(spec.seconds * ctx.fps), Math.floor(Math.min(prev.durationInFrames, shot.durationInFrames) / 2)));
     out.push({ type: 'addTransition', id: stableId('rs-tr', tag, scope, i), incomingItemId: ids[i]!, transType: spec.type, durationInFrames: length });
   });
   return out;
