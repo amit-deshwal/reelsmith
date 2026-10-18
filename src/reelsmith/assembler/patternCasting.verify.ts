@@ -38,6 +38,15 @@ const s = castPatternSlots(picked, shots, [...picked, spare], new Set(['k']), fa
 assert.equal(s.swapped, 1);
 assert.ok(s.order.includes(spare) && shots[s.order.indexOf(spare)]!.section === 'k');
 assert.equal(new Set(s.order.map((c) => c.assetId)).size, s.order.length);
+// moments of one bright video do not take every pattern slot when a nearly-as-good other clip exists
+const sky = (n: number) => clip(`sky#${n}`, { baseAssetId: 'sky', color: { r: 0.4, g: 0.6, b: 0.9 }, sharpness: 0.9, shot: tags('scenery') });
+const nearly = clip('nearly', { color: { r: 0.5, g: 0.6, b: 0.4 }, sharpness: 0.85, shot: tags('scenery') });
+assert.ok(patternSuitability(nearly) < patternSuitability(sky(0)) && patternSuitability(nearly) > patternSuitability(sky(0)) - 0.1);
+const kkk: PlannedShot[] = ['k', 'plain', 'k', 'plain', 'k'].map((section, i) => ({ section, startBeat: i, lengthBeats: 1, startFrame: i * 15, durationInFrames: 15 }));
+const m = castPatternSlots([sky(0), dark, sky(1), nearly, sky(2)], kkk, [], new Set(['k']), false).order;
+const inPattern = [0, 2, 4].map((i) => m[i]!.assetId);
+assert.ok(inPattern.includes('nearly'), `pattern slots ${inPattern.join(',')}`);
+assert.equal(inPattern.filter((id) => id.startsWith('sky')).length, 2);
 // no pattern section: untouched
 assert.deepEqual(castPatternSlots(picked, shots, picked, new Set(['x']), false).order, picked);
 

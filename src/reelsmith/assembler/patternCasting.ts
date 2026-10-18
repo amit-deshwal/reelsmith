@@ -9,6 +9,8 @@ export const PATTERN_EFFECTS = ['builtin:fx-kaleidoscope', 'builtin:fx-mirror'];
 
 /** An unused clip replaces a picked one only when it suits the pattern this much better. */
 const SPARE_MARGIN = 0.1;
+/** Each extra pattern slot for the same source counts this much against it. */
+const REPEAT_PENALTY = 0.1;
 
 /** Names of the sections that apply a pattern effect. */
 export function patternSections(recipe: Recipe): Set<string> {
@@ -49,6 +51,8 @@ export function castPatternSlots(
   const usedAssets = new Set(out.map(realAssetId));
   const usedGroups = new Set(out.flatMap((c) => (c.groupId ? [c.groupId] : [])));
   let swapped = 0;
+  // pattern slots already given to each source video: four moments of one sky shot make four near-identical kaleidoscopes
+  const perSource = new Map<string, number>();
   for (const kind of ['video', 'image'] as const) {
     const slots = movable.filter((i) => out[i]!.kind === kind);
     const pSlots = slots.filter(isPattern);
@@ -58,11 +62,12 @@ export function castPatternSlots(
     const spares = pool
       .filter((c) => c.kind === kind && !usedAssets.has(realAssetId(c)) && !(c.groupId && usedGroups.has(c.groupId)))
       .sort((a, b) => suitOf(b) - suitOf(a) || a.assetId.localeCompare(b.assetId));
-    const rank = [...own.map((c) => ({ c, v: suitOf(c) })), ...spares.map((c) => ({ c, v: suitOf(c) - SPARE_MARGIN }))]
-      .sort((a, b) => b.v - a.v || a.c.assetId.localeCompare(b.c.assetId));
+    const left = [...own.map((c) => ({ c, v: suitOf(c) })), ...spares.map((c) => ({ c, v: suitOf(c) - SPARE_MARGIN }))];
     const chosen: AssemblyClip[] = [];
-    for (const { c } of rank) {
-      if (chosen.length === pSlots.length) break;
+    while (chosen.length < pSlots.length && left.length) {
+      const value = (x: { c: AssemblyClip; v: number }) => x.v - REPEAT_PENALTY * (perSource.get(realAssetId(x.c)) ?? 0);
+      left.sort((a, b) => value(b) - value(a) || a.c.assetId.localeCompare(b.c.assetId));
+      const { c } = left.shift()!;
       if (!own.includes(c)) {
         if (usedAssets.has(realAssetId(c)) || (c.groupId && usedGroups.has(c.groupId))) continue;
         usedAssets.add(realAssetId(c));
@@ -70,6 +75,7 @@ export function castPatternSlots(
         swapped += 1;
       }
       chosen.push(c);
+      perSource.set(realAssetId(c), (perSource.get(realAssetId(c)) ?? 0) + 1);
     }
     // pattern slots: chosen clips in their original order; plain slots: the rest in theirs, dropping the weakest
     // picked clips when spares took their places
