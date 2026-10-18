@@ -345,3 +345,9 @@ Effects that need the person cut out of every frame. The matte is MediaPipe's se
 - `server/plugins/asr-models.ts`: the per-file "verified" result for downloaded speech models is saved in `~/.reelsmith/asr-models/.verified-v1.json` (keyed on size, mtime, ctime and catalog sha256), concurrent checks share one hash run, and files are read in 4 MB chunks (persistence in our own `server/plugins/asr-model-verdicts.ts`). Before, every launch re-hashed 3.3 GB on the server thread, once per imported clip in parallel, stalling imports. Test: `server/plugins/asr-model-verdicts.verify.ts`.
 - `src/agent/progress/visual-analysis-jobs.ts`: imported videos are only checked for reachability; the 4K contact-sheet "warm" (≈3.4 s of ffmpeg per clip, unbounded, result discarded) is gone. A 12-clip 4K import went from 7.8 s to 1.3 s.
 - Our own: `server/reelsmith/clipFeatures.ts` decodes with VideoToolbox on macOS (bit-identical features; `REELSMITH_ANALYSIS_HWACCEL=0` turns it off) and `src/reelsmith/runRecipe.ts` analyses 3 clips at a time: analyse + assemble of 12 4K60 HEVC clips 45 s → 12 s.
+
+## Hindi/Hinglish captions drifted late (2026-10-18)
+The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words evenly over its 30 s window: on a 27 s clip captions started 0.5 s early and ended ~3.5 s late.
+- `shared/asr-models.ts`: `AsrModelEntry.dtwPreset?`; `hinglish-apex` sets `large.v3.turbo`.
+- `desktop/native-asr-worker.ts`: a model with `dtwPreset` skips whisper-server and runs whisper-cli with `-nfa --dtw <preset>` in 30 s windows (Metal, then CPU); `runWhisperCli` takes the mode flags (default `-ml 20 -sow` unchanged).
+- Our own: `shared/reelsmith/whisperDtw.ts` (DTW token times to word chunks; re-runs from the last timed token when the model stops early and speech remains), `shared/reelsmith/whisperDtw.verify.ts`.

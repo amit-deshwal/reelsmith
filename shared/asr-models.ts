@@ -46,6 +46,8 @@ export interface AsrModelEntry {
   readonly note: string;
   /** Desktop (whisper.cpp) only: no browser ONNX export exists, so the browser never loads it. */
   readonly desktopOnly?: boolean;
+  /** whisper.cpp alignment-head preset: the model emits no timestamp tokens, so word times come from DTW instead. */
+  readonly dtwPreset?: string;
 }
 
 export const ASR_MODELS: readonly AsrModelEntry[] = [
@@ -175,6 +177,7 @@ export const ASR_MODELS: readonly AsrModelEntry[] = [
     label: 'Hindi/Hinglish Apex', sizeLabel: '~1.6GB', language: 'Multilingual (Hindi, Hinglish, English)',
     note: 'Hindi 与 Hinglish 混合语音的精度优先选择；仅桌面端可用。',
     desktopOnly: true,
+    dtwPreset: 'large.v3.turbo',
   },
 ];
 

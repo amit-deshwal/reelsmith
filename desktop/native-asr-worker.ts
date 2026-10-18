@@ -22,6 +22,8 @@ import {
 } from '../shared/desktop-inference.ts';
 import { ASR_INFERENCE_CONTRACT } from '../shared/asr-inference-contract.ts';
 import { resolveGgmlPath } from '../shared/asr-ggml-cache.ts';
+import { ASR_MODELS } from '../shared/asr-models.ts';
+import { DTW_WINDOW_MS, transcribeDtwWindows, type DtwJson } from '../shared/reelsmith/whisperDtw.ts';
 import { NativeAsrWorkerLifecycle } from './native-asr-worker-lifecycle.ts';
 import { extractPcm } from './native-asr-pcm.ts';
 import {
@@ -93,6 +95,7 @@ function runWhisperCli(
   language: string,
   useGpu: boolean,
   signal?: AbortSignal,
+  modeArgs: readonly string[] = ['-ml', '20', '-sow'],
 ): Promise<{ jsonPath: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     const args = [
@@ -100,8 +103,7 @@ function runWhisperCli(
       '-f', wavPath,
       '-t', '8',
       '-l', language,
-      '-ml', '20',
-      '-sow',
+      ...modeArgs,
       '-ojf',
       '-nt',
       '-of', wavPath,
@@ -247,6 +249,26 @@ async function transcribeWithEngine(
   const wavPath = join(dir, 'input.wav');
   try {
     await writeWav(samples, wavPath);
+    // Reelsmith: a model without timestamp tokens gets DTW word times from whisper-cli (Metal, then CPU).
+    const dtwPreset = ASR_MODELS.find((model) => model.modelId === engine.modelId)?.dtwPreset;
+    if (dtwPreset) {
+      const viaCli = async (useGpu: boolean) => transcribeDtwWindows(samples, SAMPLE_RATE, async (offsetMs) => {
+        const { jsonPath } = await runWhisperCli(engine.ggmlPath, wavPath, whisperLanguage(request.language), useGpu, signal,
+          ['-nfa', '--dtw', dtwPreset, '-ot', String(offsetMs), '-d', String(DTW_WINDOW_MS)]);
+        return JSON.parse(await readFile(jsonPath, 'utf8')) as DtwJson;
+      });
+      let backend: DesktopAsrBackend = engine.backend;
+      let result: Awaited<ReturnType<typeof viaCli>>;
+      try {
+        result = await viaCli(true);
+      } catch (gpuError) {
+        if (engine.backend === 'native-cpu') throw gpuError;
+        result = await viaCli(false);
+        backend = 'native-cpu';
+      }
+      const { chunks } = whisperTokensToChunks(result.segments);
+      return { requestId: request.requestId, backend, text: result.text, chunks };
+    }
     // 1. Persistent whisper-server: model loaded once, Metal by default.
     try {
       const { text, chunks } = await transcribeViaServer(
