@@ -18,6 +18,8 @@ export interface AssemblyClip {
   durationInFrames: number;
   /** higher = better; produced by the scorer (RS-105), 0..1 */
   score: number;
+  /** sharpness of the best window, 0..1 (absent without analysis) */
+  sharpness?: number;
   /** near-duplicate group id; at most one clip per group is used */
   groupId?: string;
   /** mean display colour (0..1) from analysis; drives shot matching */

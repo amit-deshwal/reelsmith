@@ -7,6 +7,7 @@ import { fitFontSize } from './common';
 import { makeRng, stableId } from './rng';
 import { realAssetId, spreadSameSource, videosOnLongShots, withExtraWindows } from './extraWindows';
 import { applyCastingBias, castSlots, planToOrder } from './casting';
+import { castPatternSlots, patternSections } from './patternCasting';
 import { pickTransitions, transitionActions } from './transitions';
 import { fitToBars, musicStart } from '../beatGrid';
 import { MUSIC_PARAM, musicFadeFrames } from '../musicPolicy';
@@ -347,6 +348,13 @@ export function assembleBeatMontage(input: AssembleInput): AssembleResult {
     const rest = picked.filter((c) => c !== opener && !(opener.groupId && c.groupId === opener.groupId));
     picked = [opener, ...rest].slice(0, Math.max(1, Math.min(shots.length, picked.length + (picked.includes(opener) ? 0 : 1))));
   } else if (input.openerAssetId && !onlySection) warnings.push('the clip chosen to open the reel is not among the selected clips');
+  // kaleidoscope/mirror sections get the bright, colourful, sharp clips; faces and dark shots stay in the plain sections
+  const pattern = patternSections(recipe);
+  if (pattern.size && !input.preferredAssetIds?.length && !chronological) {
+    const recast = castPatternSlots(picked.slice(0, shots.length), shots, pool, pattern, !!opener);
+    picked = [...recast.order, ...picked.slice(shots.length)];
+    if (recast.swapped) warnings.push(`${recast.swapped} brighter, more detailed clip${recast.swapped === 1 ? '' : 's'} swapped in for the ${[...pattern].join('/')} effect`);
+  }
   if (picked.length < shots.length) {
     if (!allowRepeat) {
       shots.length = picked.length; // out of footage: drop trailing shots

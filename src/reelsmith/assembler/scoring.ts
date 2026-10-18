@@ -109,6 +109,7 @@ export function toAssemblyClips(
     return {
       ...c,
       score: win ? scoreWindow(win, weights, shape) : 0,
+      ...(win ? { sharpness: win.sharpness } : {}),
       groupId: groups.get(c.assetId),
       captureTimeMs: f.captureTimeMs,
       bestStartFrame: win?.startFrame,
