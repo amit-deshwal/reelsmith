@@ -332,7 +332,7 @@ export function SetupForm({ recipe, projectId, assets, itemCount, fps, initialRa
           );
         })}
 
-        {recipe.assembler.strategy === 'beat-montage@1' && (() => {
+        {(recipe.assembler.strategy === 'beat-montage@1' || recipe.assembler.strategy === 'postcard-collage@1') && (() => {
           const first = mediaInputs(recipe).find((i) => !i.accept.includes('audio'));
           const chosenClips = first ? (values.media[first.id] ?? []).map((m) => assets.find((a) => a.id === m.assetId)).filter((a): a is MediaAsset => !!a) : [];
           if (chosenClips.length < 2) return null;

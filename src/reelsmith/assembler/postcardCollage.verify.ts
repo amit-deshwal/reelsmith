@@ -138,6 +138,9 @@ assert.equal(scrambleStates('SÃO PAULO', 10, 1).at(-1), 'SÃO PAULO');
 // the graphic passes the template sandbox
 validateTemplate(POSTCARD_GRAPHIC_CODE);
 
+// the user's chosen opening clip opens the film
+const picked = assemble({ recipe, clips, music, texts, params: { person: true }, seed: 3, openerAssetId: 'harbour' });
+assert.equal((picked.action!.actions as any[]).find((a) => a.item?.track === L.opener).item.sourceAssetId, 'harbour');
 // a close-up opener gets no cut-out (it would cover the strips), with a note
 const close = clips.map((c) => c.assetId === 'walker' ? { ...c, sourceAnalysis: { minShotFrames: 15, shotBoundariesFrame: [], windows: [{ startFrame: 0, endFrame: 300, score: 1, focusRect: { x: 0.2, y: 0.1, w: 0.5, h: 0.8 } }] } } : c);
 const closeRes = assemble({ recipe, clips: close, music, texts, params: { person: true }, seed: 3 });

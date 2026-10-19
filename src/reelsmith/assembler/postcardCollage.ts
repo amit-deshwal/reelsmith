@@ -90,7 +90,7 @@ const personSized = (c: AssemblyClip) => {
  * opener. Top and middle: other wide videos. Strips: tall subjects; portrait clips and photos first, never the opener.
  * Grid: details. Every slot gets its own clip while there are enough; then the best clips are reused.
  */
-export function castPostcards(clips: AssemblyClip[], fps: number, preferred: string[] = []): PostcardCast {
+export function castPostcards(clips: AssemblyClip[], fps: number, preferred: string[] = [], openerId?: string): PostcardCast {
   const rank = (c: AssemblyClip) => (preferred.includes(c.assetId) ? preferred.indexOf(c.assetId) : preferred.length);
   const ranked = [...clips].sort((a, b) => rank(a) - rank(b) || b.score - a.score || a.assetId.localeCompare(b.assetId));
   const used = new Map<string, number>();
@@ -106,7 +106,8 @@ export function castPostcards(clips: AssemblyClip[], fps: number, preferred: str
   const tagged = (c: AssemblyClip, tags: string[]) => (tags.includes(tagOf(c) ?? '') ? 1 : 0);
 
   const wide = (c: AssemblyClip) => (portrait(c) ? 0 : 1);
-  const opener = take((c) => 16 * video(c) + 8 * wide(c) + 4 * tagged(c, PERSON_TAGS) + 6 * personSized(c) + long(c, PC.openerEnd));
+  const chosen = openerId ? ranked.find((c) => c.assetId === openerId) : undefined;
+  const opener = take((c) => (c === chosen ? 1000 : 0) + 16 * video(c) + 8 * wide(c) + 4 * tagged(c, PERSON_TAGS) + 6 * personSized(c) + long(c, PC.openerEnd));
   const closer = take((c) => 16 * video(c) + 8 * wide(c) + 4 * tagged(c, WIDE_TAGS) + 2 * long(c, FINALE_NEEDS_SEC.closer), [opener]);
   const top = take((c) => 16 * video(c) + 8 * wide(c) + 4 * tagged(c, WIDE_TAGS) + 2 * long(c, FINALE_NEEDS_SEC.top), [opener, closer]);
   const middle = take((c) => 16 * video(c) + 8 * wide(c) + 4 * tagged(c, WIDE_TAGS) + 2 * long(c, FINALE_NEEDS_SEC.middle), [opener, closer, top]);
@@ -177,7 +178,8 @@ export function assemblePostcardCollage(input: AssembleInput): AssembleResult {
   const place = (texts.place ?? '').replace(/[{}]/g, '').replace(/\s+/g, ' ').trim().toUpperCase();
   if (!place) return fail('Type the place for the title.');
 
-  const cast = castPostcards(clips, fps, input.preferredAssetIds);
+  const cast = castPostcards(clips, fps, input.preferredAssetIds, input.openerAssetId);
+  if (input.openerAssetId && cast.opener.assetId !== input.openerAssetId) warnings.push('The clip chosen to open the film is not among the selected clips.');
   if (clips.length < 13) warnings.push(`${clips.length} clips for 13 slots: some clips are used twice, at different moments.`);
   const uses = new Map<string, Array<[number, number]>>();
   /** A source start (frames) for `sec` seconds of `clip`, away from its other uses; loops when the clip is too short. */
