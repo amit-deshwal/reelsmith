@@ -9,7 +9,8 @@ export interface TextCell { canvas: HTMLCanvasElement; aspect: number }
 const cells = new Map<string, TextCell>();
 
 /** `word` is an index into the effect's built-in words, or the text itself (Reelsmith director: a clip's rsFxText). */
-export function textCellFor(word0: number | string, kind?: 'title' | 'scenery'): TextCell {
+export function textCellFor(word0: number | string, kind?: 'title' | 'scenery' | 'tag'): TextCell {
+  if (kind === 'tag') return tagCellFor(typeof word0 === 'string' ? word0 : 'ME');
   if (kind === 'scenery') return sceneryCellFor(typeof word0 === 'string' ? word0 : 'HORIZON');
   if (kind === 'title') return titleCellFor(word0);
   const word = typeof word0 === 'string' ? word0.toUpperCase() : behindWord(word0);
@@ -98,3 +99,35 @@ function sceneryCellFor(text: string): TextCell {
   return cell;
 }
 
+
+// RS-1207 "follow tag": a label on a rounded pill for text that rides above the person. Two masks in one cell: red is the
+// pill, green the letters, so the shader can draw a dark pill and white letters from one texture.
+const TAG_LINE = 120;
+function tagCellFor(text: string): TextCell {
+  const key = `tag:${text}`;
+  const cached = cells.get(key);
+  if (cached) return cached;
+  const font = `700 ${Math.round(TAG_LINE * 0.62)}px "Poppins", "Inter", "Helvetica Neue", Arial, sans-serif`;
+  const probe = document.createElement('canvas').getContext('2d')!;
+  probe.font = font;
+  const padX = TAG_LINE * 0.42;
+  const width = Math.ceil(probe.measureText(text).width + padX * 2);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.min(8192, width);
+  canvas.height = TAG_LINE;
+  const ctx = canvas.getContext('2d')!;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#f00';
+  ctx.beginPath();
+  ctx.roundRect(0, 0, canvas.width, canvas.height, TAG_LINE / 2);
+  ctx.fill();
+  ctx.fillStyle = '#ff0';
+  ctx.font = font;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  ctx.fillText(text, canvas.width / 2, TAG_LINE * 0.53, canvas.width - padX);
+  const cell = { canvas, aspect: canvas.width / canvas.height };
+  cells.set(key, cell);
+  return cell;
+}

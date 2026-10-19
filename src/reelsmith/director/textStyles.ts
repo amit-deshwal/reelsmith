@@ -142,5 +142,14 @@ const landscape: ClipTextStyle = {
   clipEffect: (ctx) => ({ assetId: 'builtin:fx-text-scenery', overrides: { y: num(ctx.params.y, 0.2), rise: num(ctx.params.rise, 1.8), outline: ctx.params.solid === true ? 0 : 1, size: ctx.H > ctx.W ? 0.05 : 0.09 } }),
 };
 
-export const CLIP_TEXT_STYLES: readonly ClipTextStyle[] = [behindYou, landscape];
+const followTag: ClipTextStyle = {
+  id: 'follow-tag', name: 'Follow tag', maxChars: 24,
+  looks: 'A small label on a dark pill rides above the person\'s head and follows them as they move (body-tracked text).',
+  use: 'Name or role of the person in the shot ("me", "the planner", "@friend"), a short joke label. Needs one clear person in video footage.',
+  params: [{ id: 'size', type: 'number', label: 'Label height', default: 0.045, min: 0.02, max: 0.12 }],
+  build: () => {},
+  clipEffect: (ctx) => ({ assetId: 'builtin:fx-follow-tag', overrides: { size: num(ctx.params.size, 0.045) } }),
+};
+
+export const CLIP_TEXT_STYLES: readonly ClipTextStyle[] = [behindYou, landscape, followTag];
 export const isClipTextStyle = (s: TextStyleDef): s is ClipTextStyle => 'clipEffect' in s;

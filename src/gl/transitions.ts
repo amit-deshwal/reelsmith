@@ -32,6 +32,12 @@ import rippleDissolve from './shaders/ripple-dissolve.frag.ts';
 import tilePop from './shaders/tile-pop.frag.ts';
 import cubeTurn from './shaders/cube-turn.frag.ts';
 import slideOver from './shaders/slide-over.frag.ts';
+import pixelate from './shaders/pixelate.frag.ts';
+import filmBurn from './shaders/film-burn.frag.ts';
+import flip3d from './shaders/flip-3d.frag.ts';
+import mirrorFlip from './shaders/mirror-flip.frag.ts';
+import prismFlash from './shaders/prism-flash.frag.ts';
+import brushWipe from './shaders/brush-wipe.frag.ts';
 
 export interface GlslTransitionDef {
   frag: string;
@@ -216,6 +222,35 @@ export const GLSL_TRANSITIONS: Record<GlslTransitionType, GlslTransitionDef> = {
   'slide-over': {
     frag: slideOver,
     uniforms: ({ direction }) => ({ u_dir: motionDir(direction), u_parallax: 0.3, u_shadow: 0.5 }),
+  },
+  pixelate: {
+    frag: pixelate,
+    uniforms: ({ aspect }) => ({ u_aspect: aspect, u_blocks: 14 }),
+  },
+  'film-burn': {
+    frag: filmBurn,
+    // the burn starts in the corner the motion comes from: left = from the right edge, as the other directional transitions
+    uniforms: ({ aspect, time, direction }) => ({
+      u_aspect: aspect, u_time: time,
+      u_origin: direction === 'right' ? [0.0, 0.85] : direction === 'up' ? [0.5, 0.0] : direction === 'down' ? [0.5, 1.0] : [1.0, 0.85],
+    }),
+  },
+  'flip-3d': {
+    frag: flip3d,
+    uniforms: ({ aspect, direction }) => ({ u_aspect: aspect, u_vertical: direction === 'up' || direction === 'down' ? 1 : 0, u_sign: direction === 'right' || direction === 'up' ? -1 : 1 }),
+  },
+  'mirror-flip': {
+    frag: mirrorFlip,
+    uniforms: ({ direction }) => ({ u_vertical: direction === 'up' || direction === 'down' ? 1 : 0 }),
+  },
+  'prism-flash': {
+    frag: prismFlash,
+    // left (default) sweeps right to left, slightly diagonal
+    uniforms: ({ aspect, direction }) => ({ u_aspect: aspect, u_angle: direction === 'right' ? 0.35 : direction === 'up' ? 1.5708 + 0.35 : direction === 'down' ? -1.5708 + 0.35 : 3.14159 + 0.35 }),
+  },
+  'brush-wipe': {
+    frag: brushWipe,
+    uniforms: () => ({ u_strokes: 4 }),
   },
 };
 

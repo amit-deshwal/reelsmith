@@ -372,3 +372,21 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 - `assets/agent/openchatcut-tool-schemas.json`: regenerated.
 - Our own: `src/reelsmith/director/{catalog,textGraphic,textStyles}.ts`, new moves in `moves.ts`, compiler support in `assembleDirector.ts`, `fill` on graphic windows in `postcardGraphics.ts`.
 
+## Effects that move with the song, sound, custom shaders, lines behind you (RS-1203 to RS-1206)
+- `src/editor/clipTypes.ts`: `ClipEffect.mix` (optional envelope: strength over time and person/background region; type in `src/reelsmith/effectMix.ts`).
+- `src/gl/fx/uniforms.ts`: `fxPasses` takes an optional per-effect `mix`: skips an effect at zero strength, otherwise blends it over its input with our `reel-mix.frag` (copying the input first with `reel-copy.frag` when the effect is first in the chain), and still draws the clip when every effect is off. New `FxMix` type.
+- `src/gl/shaderFrame.ts`: `buildEffectShaderFrame` passes `mix` through.
+- `src/gl/ClipFx.tsx`: computes each effect's envelope for the frame (`envelopeFrame`: motion effects scale their own strength, others blend), loads the person matte when an effect has a subject/background region, and includes `mix` in the render key.
+- `src/gl/GlTransition.tsx`: the same envelope on the clips inside a transition (no matte there: regions blend everywhere).
+- `src/agent/tools/effect-tools.ts`, `src/agent/tools/schemas/effect-tools.ts`: `manage_effects` add/update take `mix` (`{}` clears it) and list it.
+- `src/agent/external-tool-policy.ts`: `reels_custom_shader` added to the Reelsmith edit tools.
+- `package.json`: registers the new verifies in `test:reelsmith`. `assets/agent/openchatcut-tool-schemas.json`: regenerated.
+- Our own: `src/reelsmith/effectMix.ts`, `src/gl/fx/reel-mix.frag` (+ twin), `src/reelsmith/director/{effectTiming,sfx,frontCutout}.ts`, `src/reelsmith/agent/customShaderTool.ts`, plan fields in `shared/reelsmith/directorPlan.ts`, compiler support in `assembleDirector.ts`, `withFrontCutouts` in `runRecipe.ts`, the reels-director skill.
+
+## Creator effects, transitions and moves (RS-1207, RS-1208)
+- `src/editor/transitionTypes.ts`: six new GLSL transitions (pixelate, film-burn, flip-3d, mirror-flip, prism-flash, brush-wipe) in the type, the GLSL set, labels, library order and default lengths; the remaining Chinese transition labels are English now.
+- `src/gl/transitions.ts`: their shaders (ours, `src/gl/shaders/<name>.frag` + twins) and uniforms. `src/editor/transitionPreview.ts`: CSS approximations for them.
+- `src/gl/fx/reelFx.ts`: includes our `creatorFx.ts` (follow tag, bounce, blackout, sparkle, flare sweep). `src/gl/fx/uniforms.ts`: `textKind` adds `'tag'`. `src/gl/textLayer.ts`: the `tag` cell (pill + letters in two channels).
+- `reelsmith-docs/plan/schemas/recipe.schema.json` and the generated `shared/reelsmith/recipe-schema.ts`: the new transition names. `src/agent/skills/reels-editor/SKILL.md`: lists them.
+- Our own: `src/reelsmith/director/{creatorMoves,moveKit}.ts` (the move contract and item helpers moved out of `moves.ts`), catalogue/sound cues/text style entries, `fillPlacement` in `runRecipe.ts`.
+- RS-1209: `src/agent/external-tool-policy.ts` adds `reels_time_effect`; `src/agent/skills/reels-editor/SKILL.md` covers timed effects and the creator effects. Our own: `src/reelsmith/agent/timeEffectTool.ts`.

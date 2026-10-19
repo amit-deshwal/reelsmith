@@ -18,7 +18,7 @@ const supplied = (def: { needsMask?: boolean; needsText?: boolean; history?: unk
 const declared = (frag: string) => [...frag.matchAll(/^uniform\s+\w+\s+(u_\w+)/gm)].map((m) => m[1]!);
 const source = (frag: string) => frag;
 
-assert.equal(REEL_FX_ORDER.length, 39);
+assert.equal(REEL_FX_ORDER.length, 44);
 for (const id of REEL_FX_ORDER) {
   const def = REEL_FX_EFFECTS[id]!;
   assert.ok(def, `${id} defined`);

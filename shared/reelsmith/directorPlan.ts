@@ -19,10 +19,31 @@ export interface PlanSection {
   params?: Record<string, PlanValue>;
   /** how this section comes in from the one before (a transition id); omitted = a hard cut */
   transition?: string;
-  /** clip effects on this section's footage, with their own params */
-  effects?: Array<{ id: string; params?: Record<string, number> }>;
+  /** clip effects on this section's footage, with their own params and how they move (see PlanEffect) */
+  effects?: PlanEffect[];
   /** a look for this section only (overrides the reel's look here) */
   look?: string;
+  /** draw this section's line behind the person in the shot (a cut-out of them goes on top) */
+  textBehind?: boolean;
+  /** sound effects from the sound library placed by hand: beat counted from the section start (default 0) */
+  sounds?: Array<{ id: string; beat?: number }>;
+}
+
+/** How a section effect plays: steady all through, fade in and out, punch on every `every` beats, hit once on the
+ * section's first beat and fall away (the drop), or build up to the next section. */
+export const EFFECT_TIMINGS = ['steady', 'fade', 'beat', 'drop', 'build'] as const;
+export type EffectTiming = (typeof EFFECT_TIMINGS)[number];
+
+export interface PlanEffect {
+  id: string;
+  params?: Record<string, number>;
+  /** 0..1, default 1 */
+  strength?: number;
+  /** only on the person, or only behind them (default everywhere) */
+  region?: 'all' | 'subject' | 'background';
+  timing?: EffectTiming;
+  /** beats between punches for timing 'beat' (default 1) */
+  every?: number;
 }
 
 /** A line that stays on screen across several sections (a title over a montage). */
@@ -33,6 +54,8 @@ export interface PlanOverlay {
   from: number;
   to: number;
   params?: Record<string, PlanValue>;
+  /** behind the person in the shots it crosses */
+  behind?: boolean;
 }
 
 export interface ReelPlan {
@@ -46,6 +69,8 @@ export interface ReelPlan {
   look?: string;
   sections: PlanSection[];
   overlays?: PlanOverlay[];
+  /** sound effects on cuts, drops and builds: 'auto' (default), 'subtle' (quieter) or 'off' */
+  sfx?: 'auto' | 'subtle' | 'off';
 }
 
 export const MAX_SECTIONS = 24;
@@ -62,6 +87,7 @@ export function parsePlan(raw: unknown): { ok: true; plan: ReelPlan } | { ok: fa
   const ms = raw.musicStart;
   if (ms !== undefined && ms !== 'firstDownbeat' && ms !== 'fromStart' && !(typeof ms === 'number' && ms >= 0)) errors.push('musicStart must be firstDownbeat, fromStart or a number of seconds');
   if (raw.look !== undefined && typeof raw.look !== 'string') errors.push('look must be a look id');
+  if (raw.sfx !== undefined && raw.sfx !== 'auto' && raw.sfx !== 'subtle' && raw.sfx !== 'off') errors.push('sfx must be auto, subtle or off');
   const params = (v: unknown, where: string) => {
     if (v === undefined) return undefined;
     if (!obj(v)) { errors.push(`${where}.params must be an object`); return undefined; }
@@ -89,7 +115,7 @@ export function parsePlan(raw: unknown): { ok: true; plan: ReelPlan } | { ok: fa
     const num = (v: unknown, k: string) => (v === undefined ? undefined : typeof v === 'number' && Number.isFinite(v) && v > 0 && v <= 600 ? v : (errors.push(`${w}.${k} must be a positive number`), undefined));
     const clips = s.clips === undefined ? undefined
       : Array.isArray(s.clips) && s.clips.every((c) => typeof c === 'string') ? s.clips as string[] : (errors.push(`${w}.clips must be an array of assetIds`), undefined);
-    const effects: Array<{ id: string; params?: Record<string, number> }> = [];
+    const effects: PlanEffect[] = [];
     if (s.effects !== undefined) {
       if (!Array.isArray(s.effects)) errors.push(`${w}.effects must be an array`);
       else s.effects.forEach((e, k) => {
@@ -98,15 +124,32 @@ export function parsePlan(raw: unknown): { ok: true; plan: ReelPlan } | { ok: fa
         for (const [key, v] of Object.entries(obj(e.params) ? e.params : {})) {
           if (typeof v === 'number' && Number.isFinite(v)) p[key] = v; else errors.push(`${w}.effects[${k}].params.${key} must be a number`);
         }
-        effects.push({ id: e.id, ...(Object.keys(p).length ? { params: p } : {}) });
+        const fw = `${w}.effects[${k}]`;
+        const strength = e.strength === undefined ? undefined : typeof e.strength === 'number' && e.strength >= 0 && e.strength <= 1 ? e.strength : (errors.push(`${fw}.strength must be 0 to 1`), undefined);
+        const region = e.region === undefined ? undefined : e.region === 'all' || e.region === 'subject' || e.region === 'background' ? e.region : (errors.push(`${fw}.region must be all, subject or background`), undefined);
+        const timing = e.timing === undefined ? undefined : (EFFECT_TIMINGS as readonly unknown[]).includes(e.timing) ? e.timing as EffectTiming : (errors.push(`${fw}.timing must be one of ${EFFECT_TIMINGS.join(', ')}`), undefined);
+        const every = e.every === undefined ? undefined : typeof e.every === 'number' && e.every >= 0.25 && e.every <= 16 ? e.every : (errors.push(`${fw}.every must be 0.25 to 16 beats`), undefined);
+        effects.push({
+          id: e.id, ...(Object.keys(p).length ? { params: p } : {}), ...(strength !== undefined ? { strength } : {}),
+          ...(region ? { region } : {}), ...(timing ? { timing } : {}), ...(every !== undefined ? { every } : {}),
+        });
       });
       if (effects.length > 3) errors.push(`${w}: at most 3 effects on a section`);
+    }
+    const sounds: Array<{ id: string; beat?: number }> = [];
+    if (s.sounds !== undefined) {
+      if (!Array.isArray(s.sounds) || s.sounds.length > 8) errors.push(`${w}.sounds must be an array of at most 8 sounds`);
+      else s.sounds.forEach((x, k) => {
+        if (!obj(x) || typeof x.id !== 'string') { errors.push(`${w}.sounds[${k}] needs an id`); return; }
+        if (x.beat !== undefined && !(typeof x.beat === 'number' && x.beat >= 0 && x.beat <= 600)) { errors.push(`${w}.sounds[${k}].beat must be a number of beats from the section start`); return; }
+        sounds.push({ id: x.id, ...(typeof x.beat === 'number' ? { beat: x.beat } : {}) });
+      });
     }
     sections.push({
       move: s.move, beats: num(s.beats, 'beats'), seconds: num(s.seconds, 'seconds'), clips, text: text(s.text, `${w}.text`),
       textStyle: typeof s.textStyle === 'string' ? s.textStyle : undefined, params: params(s.params, w),
       ...(typeof s.transition === 'string' ? { transition: s.transition } : {}), ...(effects.length ? { effects } : {}),
-      ...(typeof s.look === 'string' ? { look: s.look } : {}),
+      ...(typeof s.look === 'string' ? { look: s.look } : {}), ...(sounds.length ? { sounds } : {}), ...(s.textBehind === true ? { textBehind: true } : {}),
     });
   });
   const overlays: PlanOverlay[] = [];
@@ -121,7 +164,7 @@ export function parsePlan(raw: unknown): { ok: true; plan: ReelPlan } | { ok: fa
       const from = Number(o.from ?? 0);
       const to = Number(o.to ?? from);
       if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < from || to >= sections.length) { errors.push(`${w}: from/to must be section indexes, from <= to`); return; }
-      overlays.push({ text: t, style: o.style, from, to, params: params(o.params, w) });
+      overlays.push({ text: t, style: o.style, from, to, params: params(o.params, w), ...(o.behind === true ? { behind: true } : {}) });
     });
   }
   if (errors.length) return { ok: false, errors };
@@ -131,6 +174,7 @@ export function parsePlan(raw: unknown): { ok: true; plan: ReelPlan } | { ok: fa
       version: 1, ratio: ratio as RatioId, sections,
       ...(typeof raw.music === 'string' ? { music: raw.music } : {}), ...(ms !== undefined ? { musicStart: ms as ReelPlan['musicStart'] } : {}),
       ...(typeof raw.look === 'string' ? { look: raw.look } : {}), ...(overlays.length ? { overlays } : {}),
+      ...(raw.sfx === 'auto' || raw.sfx === 'subtle' || raw.sfx === 'off' ? { sfx: raw.sfx } : {}),
     },
   };
 }

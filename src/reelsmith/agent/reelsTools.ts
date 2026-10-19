@@ -20,6 +20,8 @@ import type { SetupValues } from '../setupForm';
 import { bindTracks } from '../trackBinding';
 import { planAssemble, planOptions } from './planTools';
 import { directorBuild, directorOptions } from './directorTools';
+import { customShaderTool } from './customShaderTool';
+import { parseTimeEffectArgs, planTimedEffect } from './timeEffectTool';
 import { applySignatureTool } from './signatureTools';
 import { applyLookTool } from './lookTools';
 export { REELS_TOOL_NAMES, REELS_TOOL_SCHEMAS } from './reelsToolSchemas';
@@ -108,6 +110,18 @@ export async function execReelsTool(name: string, args: Args, ctx: AgentContext,
 
     case 'reels_director_build':
       return directorBuild(args, ctx, deps);
+
+    case 'reels_custom_shader':
+      return customShaderTool(args);
+
+    case 'reels_time_effect': {
+      const parsed = parseTimeEffectArgs(args);
+      if ('error' in parsed) return parsed;
+      const out = await planTimedEffect(state, ctx.getDoc().assets ?? [], parsed, deps.api);
+      if (!out.ok) return { error: out.error };
+      ctx.commands.batch(out.actions, out.label);
+      return { ok: true, effect: parsed.effect, timing: parsed.timing, clips: out.clips, beats: out.beats };
+    }
 
     case 'reels_run_info': {
       const run = await loadRun(deps.kv, projectId(ctx));

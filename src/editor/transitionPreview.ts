@@ -26,6 +26,12 @@ const PREVIEW_APPROXIMATION: Partial<Record<TransitionItem['type'], CssTransitio
   'tile-pop': 'luma-blend',
   'cube-turn': 'soft-wipe',
   'slide-over': 'soft-wipe',
+  pixelate: 'luma-blend',
+  'film-burn': 'flash',
+  'flip-3d': 'soft-wipe',
+  'mirror-flip': 'soft-wipe',
+  'prism-flash': 'flash',
+  'brush-wipe': 'soft-wipe',
 };
 
 export function previewTransitionType(type: TransitionItem['type']): CssTransitionType {

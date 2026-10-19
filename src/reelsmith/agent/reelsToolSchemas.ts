@@ -212,6 +212,7 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
             music: { type: 'string', description: 'Song assetId (imported or libraryMusic). Omit for silent.' },
             musicStart: { description: "'firstDownbeat' (default), 'fromStart' or a second of the song." },
             look: { type: 'string', description: 'Optional look id from reels_director_options.' },
+            sfx: { type: 'string', enum: ['auto', 'subtle', 'off'], description: 'Sound effects on transitions, flash cuts, drops and builds: auto (default), subtle (quieter) or off.' },
             sections: {
               type: 'array',
               items: {
@@ -221,15 +222,32 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
                   clips: { type: 'array', items: { type: 'string' } }, text: { type: 'string' }, textStyle: { type: 'string' },
                   params: { type: 'object', additionalProperties: {}, description: "The move's params and the text style's params." },
                   transition: { type: 'string', description: 'How the section comes in from the one before (a transitions id).' },
-                  effects: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, params: { type: 'object', additionalProperties: { type: 'number' } } }, required: ['id'] }, description: 'Up to 3 effects ids with params, on this section\'s footage.' },
+                  effects: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        id: { type: 'string', description: 'An effects id, or a custom:fx-* id from reels_custom_shader.' },
+                        params: { type: 'object', additionalProperties: { type: 'number' } },
+                        strength: { type: 'number', description: '0-1, default 1.' },
+                        region: { type: 'string', enum: ['all', 'subject', 'background'], description: 'Only on the person or only behind them (person matte); default all.' },
+                        timing: { type: 'string', enum: ['steady', 'fade', 'beat', 'drop', 'build'], description: 'steady (default) all through; fade in and out; beat = punch on every `every` beats and fall back; drop = hit on the first beat and fall away; build = grow into the next section.' },
+                        every: { type: 'number', description: 'Beats between punches for timing beat (default 1).' },
+                      },
+                      required: ['id'],
+                    },
+                    description: 'Up to 3 effects on this section\'s footage.',
+                  },
                   look: { type: 'string', description: 'A look for this section only.' },
+                  textBehind: { type: 'boolean', description: 'Draw this section\'s line behind the person in the shot (they are cut out on top). Needs one clear person in video footage.' },
+                  sounds: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, beat: { type: 'number' } }, required: ['id'] }, description: 'Hand-placed sound effects (sounds ids), beat counted from the section start. Auto sounds already cover transitions, flash cuts, drops and builds.' },
                 },
                 required: ['move'],
               },
             },
             overlays: {
               type: 'array',
-              items: { type: 'object', properties: { text: { type: 'string' }, style: { type: 'string' }, from: { type: 'number' }, to: { type: 'number' }, params: { type: 'object', additionalProperties: {} } }, required: ['text', 'style', 'from', 'to'] },
+              items: { type: 'object', properties: { text: { type: 'string' }, style: { type: 'string' }, from: { type: 'number' }, to: { type: 'number' }, params: { type: 'object', additionalProperties: {} }, behind: { type: 'boolean', description: 'Behind the person in the shots it crosses.' } }, required: ['text', 'style', 'from', 'to'] },
             },
           },
           required: ['sections'],
@@ -240,8 +258,56 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
       required: ['plan'],
     },
   },
+  {
+    name: 'reels_time_effect',
+    description: [
+      'Put an effect on clips timed to the song, as one undo step: "glitch on every beat", "zoom blur hit on the drop", "shake building',
+      'into the chorus", "black and white only behind me". timing: beat (punches on every `every` beats, falls back between), drop (hits',
+      'once at the start and falls away), build (grows to full by the end), fade (eases in and out), steady. region subject/background',
+      'uses the person cut-out. Targets: itemIds, else the picture clips overlapping fromSec..toSec, else the selected clips. The beat',
+      'grid comes from the song on the timeline. Re-running with the same effect replaces its timing.',
+    ].join(' '),
+    input_schema: {
+      type: 'object',
+      properties: {
+        effect: { type: 'string', description: 'Effect id, e.g. "glitch", "rgb-split", "zoom-blur", "shake", "bounce", "blackout", "duotone" (browse_library category=fx).' },
+        timing: { type: 'string', enum: ['steady', 'fade', 'beat', 'drop', 'build'] },
+        every: { type: 'number', description: 'Beats between punches for timing beat (default 1; 2 = every other beat, 4 = on the bar).' },
+        strength: { type: 'number', description: '0-1, default 1.' },
+        region: { type: 'string', enum: ['all', 'subject', 'background'] },
+        params: { type: 'object', additionalProperties: { type: 'number' }, description: "The effect's own sliders." },
+        itemIds: { type: 'array', items: { type: 'string' } },
+        fromSec: { type: 'number', description: 'Timeline seconds where the timing starts (a drop lands here).' },
+        toSec: { type: 'number', description: 'Timeline seconds where it ends (a build peaks here).' },
+      },
+      required: ['effect', 'timing'],
+    },
+  },
+  {
+    name: 'reels_custom_shader',
+    description: [
+      'Director mode, optional: write your own GLSL effect or transition when nothing in the catalogue fits the story (one signature',
+      'look per reel, e.g. a paper-burn reveal for a campfire story). You write the shader; it is checked, compiled and registered for this',
+      'session, and the returned id goes in a section\'s effects (with strength/region/timing like any effect) or as its transition.',
+      'Effect contract: #version 300 es; precision highp float; uniform sampler2D u_input; uniform float u_time (seconds into the clip);',
+      'uniform vec2 u_resolution; uniform float u_aspect; uniform float u_<param> per param; in vec2 v_texCoord ((0,0) bottom-left);',
+      'out vec4 fragColor; keep alpha from u_input. Transition contract: u_outgoing, u_incoming, u_progress (0 = outgoing exactly,',
+      '1 = incoming exactly), u_resolution, u_aspect, u_time, u_<param>, v_texCoord, fragColor. No other samplers, no #include.',
+    ].join(' '),
+    input_schema: {
+      type: 'object',
+      properties: {
+        type: { type: 'string', enum: ['effect', 'transition'] },
+        name: { type: 'string', description: 'What it looks like, two or three words.' },
+        looks: { type: 'string', description: 'One sentence on what it looks like.' },
+        glsl: { type: 'string', description: 'The full fragment shader source.' },
+        params: { type: 'array', items: { type: 'object', properties: { key: { type: 'string' }, label: { type: 'string' }, default: { type: 'number' }, min: { type: 'number' }, max: { type: 'number' } }, required: ['key'] }, description: 'Adjustable floats, each read in the shader as u_<key>.' },
+      },
+      required: ['type', 'name', 'glsl'],
+    },
+  },
 ];
 
 export const REELS_TOOL_NAMES = new Set(REELS_TOOL_SCHEMAS.map((t) => t.name));
 export const REELS_READ_TOOL_NAMES = ['reels_lint', 'reels_plan_options', 'reels_director_options', 'reels_run_info', 'reels_selection_candidates', 'reels_selection_sheet'] as const;
-export const REELS_EDIT_TOOL_NAMES = ['reels_plan_assemble', 'reels_director_build', 'reels_apply_look', 'reels_apply_signature', 'reels_recut_section', 'reels_snap_cuts_to_beats', 'reels_strobe', 'propose_selection'] as const;
+export const REELS_EDIT_TOOL_NAMES = ['reels_plan_assemble', 'reels_director_build', 'reels_custom_shader', 'reels_time_effect', 'reels_apply_look', 'reels_apply_signature', 'reels_recut_section', 'reels_snap_cuts_to_beats', 'reels_strobe', 'propose_selection'] as const;

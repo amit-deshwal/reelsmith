@@ -2,6 +2,7 @@ export { EFFECT_TOOL_SCHEMAS, EFFECT_TOOL_NAMES } from './schemas/effect-tools';
 import type { AgentContext } from '../context';
 import type { ClipEffect, ClipEffectValue, TimelineItem } from '../../editor/types';
 import { ALL_FX, serializableDefsFor } from '../../gl/fx/effects';
+import { parseEffectMix } from '../../reelsmith/effectMix';
 const FX_EFFECTS = ALL_FX;
 const FX_IDS = Object.keys(ALL_FX);
 
@@ -41,13 +42,21 @@ function cleanOverrides(raw: unknown): Record<string, ClipEffectValue> {
 }
 
 const describe = (it: TimelineItem) => {
-  const effects = (it.effects ?? []).filter((e) => e.assetId in FX_EFFECTS).map((fx) => ({ effectId: fx.id, assetId: fx.assetId, name: FX_EFFECTS[fx.assetId].name, overrides: fx.overrides ?? {} }));
+  const effects = (it.effects ?? []).filter((e) => e.assetId in FX_EFFECTS).map((fx) => ({ effectId: fx.id, assetId: fx.assetId, name: FX_EFFECTS[fx.assetId].name, overrides: fx.overrides ?? {}, ...(fx.mix ? { mix: fx.mix } : {}) }));
   return { itemId: it.id, kind: it.kind, effect: effects[0] ?? null, effects };
 };
 
 export async function execEffectTool(name: string, args: Args, ctx: AgentContext): Promise<unknown> {
   if (name !== 'manage_effects') return { error: `unknown tool ${name}` };
   if (String(args.action) === 'list') return { effects: catalog() };
+  // Reelsmith: mix = the effect's strength over time and region; {} clears it
+  const mixArg = args.mix === undefined || args.mix === null ? null : parseEffectMix(args.mix);
+  if (mixArg && !mixArg.ok) return { error: mixArg.errors.join('; ') };
+  const withMix = (e: ClipEffect): ClipEffect => {
+    if (!mixArg?.ok) return e;
+    if (!Object.keys(mixArg.mix).length) { const { mix: _drop, ...rest } = e; return rest; }
+    return { ...e, mix: mixArg.mix };
+  };
 
   const state = ctx.getState();
   const visual = state.items.filter((it) => it.kind === 'video' || it.kind === 'image');
@@ -60,7 +69,7 @@ export async function execEffectTool(name: string, args: Args, ctx: AgentContext
     case 'add': {
       const assetId = String(args.assetId ?? '');
       if (!(assetId in FX_EFFECTS)) return { error: `unknown effect ${assetId}`, available: FX_IDS };
-      const effect: ClipEffect = { id: `fx_${crypto.randomUUID()}`, assetId, overrides: cleanOverrides(args.propertyOverrides) };
+      const effect: ClipEffect = withMix({ id: `fx_${crypto.randomUUID()}`, assetId, overrides: cleanOverrides(args.propertyOverrides) });
       const nextEffects = [...(it.effects ?? []), effect];
       ctx.commands.setItemEffects(it.id, nextEffects, serializableDefsFor([effect]));
       return { ok: true, ...describe({ ...it, effects: nextEffects }) };
@@ -72,7 +81,7 @@ export async function execEffectTool(name: string, args: Args, ctx: AgentContext
       if (!cur) return { error: `clip ${it.id} has no effect to update — use action="add" first` };
       const patch = cleanOverrides(args.propertyOverrides);
       const nextAsset = typeof args.assetId === 'string' && args.assetId in FX_EFFECTS ? args.assetId : cur.assetId;
-      const next: ClipEffect = { ...cur, assetId: nextAsset, overrides: { ...cur.overrides, ...patch } };
+      const next: ClipEffect = withMix({ ...cur, assetId: nextAsset, overrides: { ...cur.overrides, ...patch } });
       const nextEffects = (it.effects ?? []).map((fx, i) => i === index ? next : fx);
       ctx.commands.setItemEffects(it.id, nextEffects, serializableDefsFor([next]));
       return { ok: true, ...describe({ ...it, effects: nextEffects }) };

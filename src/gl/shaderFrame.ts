@@ -1,6 +1,6 @@
 import type { TransitionDirection } from '../editor/types';
 import { GL_COLOR_PIPELINE } from './colorPipeline';
-import type { FxDef } from './fx/uniforms';
+import type { FxDef, FxMix } from './fx/uniforms';
 import { fxPasses } from './fx/uniforms';
 import type { FxPass, UniformValue } from './runtime';
 
@@ -69,7 +69,7 @@ export interface EffectShaderFrame {
 }
 
 export function buildEffectShaderFrame(
-  effects: Array<{ def: FxDef; overrides?: Record<string, UniformValue>; extraUniforms?: Record<string, UniformValue> }>,
+  effects: Array<{ def: FxDef; overrides?: Record<string, UniformValue>; extraUniforms?: Record<string, UniformValue>; mix?: FxMix }>,
   frame: number,
   fps: number,
 ): EffectShaderFrame {

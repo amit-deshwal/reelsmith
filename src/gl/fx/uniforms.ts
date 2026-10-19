@@ -3,6 +3,8 @@
 // gn(name, default, min, max) = clamp(properties[name] ?? default).
 import type { FxPass, UniformValue } from '../runtime.js';
 import { getCubeSync } from './cube.js';
+import reelCopyFrag from './reel-copy.frag.ts';
+import reelMixFrag from './reel-mix.frag.ts';
 
 interface FxNumberProperty {
   key: string;   // Property name in properties[key].
@@ -46,7 +48,7 @@ export interface FxDef {
   /** Reelsmith: the shader also reads u_text (a word drawn by the renderer, see ../textLayer.ts) and u_textAspect */
   needsText?: boolean;
   /** Reelsmith: which word list `word` indexes ('title' = the movie titles, default = the behind-you words) */
-  textKind?: 'title' | 'scenery';
+  textKind?: 'title' | 'scenery' | 'tag';
   /** Reelsmith: the shader reads the clip as it looked 1..taps steps ago (u_hist0.., each with its matte u_histMask0..); the
    * step length in seconds is the `stepKey` setting, read by ClipFx rather than the shader */
   history?: { taps: number; stepKey: string; countKey: string };
@@ -64,6 +66,9 @@ export interface SerializableFxDef {
   passes?: string[];
   cube?: string;
 }
+
+/** Reelsmith: an effect's envelope at this frame (see src/reelsmith/effectMix.ts); region 0 all, 1 person, 2 background. */
+export interface FxMix { amount: number; region: number; hasMask?: number }
 
 // Clamp properties[name] to the declared minimum and maximum.
 export function fxUniform(p: FxProperty, overrides?: Record<string, UniformValue>): UniformValue {
@@ -87,11 +92,16 @@ export function fxUniforms(def: FxDef, overrides?: Record<string, UniformValue>)
 /** Flatten effect-local pass graphs into one clip-local chain, rebasing every
  * explicit pass reference so effect N consumes effect N-1's output. */
 export function fxPasses(
-  effects: Array<{ def: FxDef; overrides?: Record<string, UniformValue>; extraUniforms?: Record<string, UniformValue> }>,
+  effects: Array<{ def: FxDef; overrides?: Record<string, UniformValue>; extraUniforms?: Record<string, UniformValue>; mix?: FxMix }>,
   time: number,
 ): FxPass[] {
   const out: FxPass[] = [];
-  for (const { def, overrides, extraUniforms } of effects) {
+  for (const { def, overrides, extraUniforms, mix } of effects) {
+    // Reelsmith envelope: an effect at zero strength is skipped; a partial or regional one is blended over its input after
+    if (mix && mix.amount <= 1e-3) continue;
+    const blend = !!mix && (mix.amount < 0.999 || mix.region !== 0);
+    if (blend && out.length === 0) out.push({ frag: reelCopyFrag });
+    const before = out.length - 1;
     const uniforms: Record<string, UniformValue> = { ...fxUniforms(def, overrides), ...extraUniforms, u_time: time };
     let lut3d;
     if (def.cube) {
@@ -113,6 +123,9 @@ export function fxPasses(
           : undefined,
       });
     }
+    if (blend) out.push({ frag: reelMixFrag, uniforms: { u_amount: mix!.amount, u_region: mix!.region, u_hasMask: mix!.hasMask ?? 0 }, samplers: { u_before: before } });
   }
+  // every effect is at zero strength right now: still draw the clip
+  if (!out.length && effects.length) out.push({ frag: reelCopyFrag });
   return out;
 }

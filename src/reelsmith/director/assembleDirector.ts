@@ -13,9 +13,16 @@ import { moveById, textStyleById, type MoveDef, type MoveParam } from './moves';
 import { BAND_STYLE_ID, underBand } from './bandText';
 import { isClipTextStyle } from './textStyles';
 import { directorEffectById, directorTransitionById } from './catalog';
-import { ALL_FX } from '../../gl/fx/effects';
+import { effectMixFor } from './effectTiming';
+import { isLibrarySound, isSfxCue, sfxActions, TRANSITION_CUES, type SfxEvent } from './sfx';
+import { ALL_FX, serializableDefsFor } from '../../gl/fx/effects';
+import { customTransitionUniforms, getCustomTransition } from '../../gl/customTransitions';
 import { RECIPE_TRANSITIONS } from '../assembler/transitions';
 import { lookById, lookEffects } from '../looks';
+
+/** A section effect's asset: a catalogue effect, or a custom one the agent registered this session (custom:fx-*). */
+const effectAsset = (id: string) => directorEffectById(id)?.id ?? (id.startsWith('custom:fx-') && ALL_FX[id] ? id : undefined);
+const isCustomTransition = (id: string) => id.startsWith('custom:tr-') && !!getCustomTransition(id);
 
 /** Video lanes: V1 holds the black canvas, each section uses V2.. ; text lanes T1..T3 per section, T4.. for overlays. */
 const SECTION_TEXT_LANES = 3;
@@ -107,21 +114,27 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
       beats = Math.min(move.beats.max, Math.max(move.beats.min, s.beats));
     }
     if (s.text && !style) errors.push(`${where}: unknown textStyle "${s.textStyle}"`);
-    if (s.transition && !directorTransitionById(s.transition)) errors.push(`${where}: unknown transition "${s.transition}"`);
+    if (s.transition && !directorTransitionById(s.transition) && !isCustomTransition(s.transition)) errors.push(`${where}: unknown transition "${s.transition}"${s.transition.startsWith('custom:') ? ' (custom shaders last for this session; register it again with reels_custom_shader)' : ''}`);
     if (s.look && !lookById(s.look)) errors.push(`${where}: unknown look "${s.look}"`);
     for (const e of s.effects ?? []) {
-      const known = directorEffectById(e.id);
-      if (!known) { errors.push(`${where}: unknown effect "${e.id}"`); continue; }
-      const def = ALL_FX[known.id]!;
+      const asset = effectAsset(e.id);
+      if (!asset) { errors.push(`${where}: unknown effect "${e.id}"${e.id.startsWith('custom:') ? ' (custom shaders last for this session; register it again with reels_custom_shader)' : ''}`); continue; }
+      const def = ALL_FX[asset]!;
       for (const [k, v] of Object.entries(e.params ?? {})) {
         const p = def.props.find((x) => x.key === k);
-        if (!p) errors.push(`${where}: effect ${known.id} has no param "${k}" (it has ${def.props.map((x) => x.key).join(', ')})`);
-        else if ('min' in p && typeof p.min === 'number' && typeof p.max === 'number' && (v < p.min || v > p.max)) errors.push(`${where}: ${known.id}.${k} must be ${p.min} to ${p.max}`);
+        if (!p) errors.push(`${where}: effect ${asset} has no param "${k}" (it has ${def.props.map((x) => x.key).join(', ')})`);
+        else if ('min' in p && typeof p.min === 'number' && typeof p.max === 'number' && (v < p.min || v > p.max)) errors.push(`${where}: ${asset}.${k} must be ${p.min} to ${p.max}`);
       }
     }
+    for (const snd of s.sounds ?? []) if (!isLibrarySound(snd.id)) errors.push(`${where}: unknown sound "${snd.id}" (use a sound id from reels_director_options sounds)`);
     if (s.text && style && s.text.length > style.maxChars) errors.push(`${where}.text is longer than ${style.maxChars} characters for ${style.id}`);
     return { s, move, params, beats, style, textParams: style ? resolveParams(style.params, own(style.params), where, errors) : {} };
   });
+  // one custom effect and one custom transition per reel: a signature, not a different shader in every section
+  const customFx = new Set(plan.sections.flatMap((s) => (s.effects ?? []).map((e) => e.id)).filter((x) => x.startsWith('custom:')));
+  const customTr = new Set(plan.sections.map((s) => s.transition).filter((x): x is string => !!x && x.startsWith('custom:')));
+  if (customFx.size > 1) errors.push(`use one custom effect per reel (the plan has ${customFx.size}); reuse it where the story returns to that idea`);
+  if (customTr.size > 1) errors.push(`use one custom transition per reel (the plan has ${customTr.size})`);
   for (const o of plan.overlays ?? []) {
     const style = textStyleById(o.style);
     if (!style) errors.push(`overlay "${o.text}": unknown style "${o.style}"`);
@@ -188,12 +201,12 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
   type Add = { type: 'add'; startFrame: number; item: { id: string; kind: string; track: string; durationInFrames: number; effects?: unknown; props?: Record<string, unknown> } };
   const isFootage = (a: AtomicAction): a is AtomicAction & Add => a.type === 'add' && (a.item.kind === 'video' || a.item.kind === 'image')
     && !((a.item.effects as Array<{ assetId: string }> | undefined) ?? []).some((e) => e.assetId === 'builtin:fx-person-cutout');
-  const onClips = (section: number, baseOnly: boolean, f: (item: Add['item']) => Add['item']) => {
+  const onClips = (section: number, baseOnly: boolean, f: (item: Add['item'], startFrame: number) => Add['item']) => {
     const r = ranges[section];
     if (!r) return;
     for (let k = r[0]; k < r[1]; k += 1) {
       const a = actions[k]!;
-      if (isFootage(a) && (!baseOnly || a.item.track === 'V2')) actions[k] = { ...a, item: f(a.item) } as AtomicAction;
+      if (isFootage(a) && (!baseOnly || a.item.track === 'V2')) actions[k] = { ...a, item: f(a.item, a.startFrame) } as AtomicAction;
     }
   };
   const bases = (section: number) => { const r = ranges[section]; return r ? actions.slice(r[0], r[1]).filter((a): a is AtomicAction & Add => isFootage(a) && a.item.track === 'V2').sort((x, y) => x.startFrame - y.startFrame) : []; };
@@ -205,6 +218,7 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
     if (!any) warnings.push(`sections[${section}]: "${text}" needs full-frame footage under it (this move has none); not shown.`);
   };
   let lastClips = new Set<string>();
+  const sfx: SfxEvent[] = [];
   resolved.forEach((r, i) => {
     const { s, move, params } = r!;
     const { b0, b1 } = spans[i]!;
@@ -258,23 +272,45 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
     }
     ranges[i] = [firstAction, actions.length];
     // section effects and look on its footage; a text style that lives in the picture rides on its main clips
-    const fxList = [
-      ...(s.effects ?? []).map((e, k) => ({ id: id('fx', k), assetId: directorEffectById(e.id)!.id, overrides: { ...(e.params ?? {}) } })),
+    // each section effect carries its own envelope per clip (strength, region, timing on the beat)
+    const sectionClock = { fps, start, end, beats: b1 - b0, beatAt: (b: number) => frame(b0 + b) };
+    const lookList = s.look ? lookEffects(lookById(s.look)!).map((e) => ({ ...e, id: `${e.id}_s${i}` })) : [];
+    if (s.effects?.length || lookList.length) onClips(i, false, (item, at) => ({ ...item, effects: [
+      ...((item.effects as unknown[]) ?? []),
+      ...(s.effects ?? []).map((e, k) => {
+        const mix = effectMixFor(e, sectionClock, at, item.durationInFrames);
+        return { id: id('fx', k), assetId: effectAsset(e.id)!, overrides: { ...(e.params ?? {}) }, ...(mix ? { mix } : {}) };
+      }),
       // look effect ids keep their look_ prefix so the Looks panel can replace them later
-      ...(s.look ? lookEffects(lookById(s.look)!).map((e) => ({ ...e, id: `${e.id}_s${i}` })) : []),
-    ];
-    if (fxList.length) onClips(i, false, (item) => ({ ...item, effects: [...((item.effects as unknown[]) ?? []), ...fxList.map((e) => ({ ...e, overrides: { ...e.overrides } }))] }));
+      ...lookList.map((e) => ({ ...e, overrides: { ...e.overrides } })),
+    ] }));
     if (s.text && r!.style && isClipTextStyle(r!.style)) clipText(i, r!.style.clipEffect({ W, H, fps, start, end, beats: b1 - b0, text: s.text, params: r!.textParams, seed: seed + i, beatFrame: frame, id, lane: () => 'T1', emit: () => {}, warn: () => {} }), s.text, id('textfx'));
     // the way in from the section before
     if (s.transition && i > 0) {
       const lastPrev = lastBase(i - 1);
       const firstHere = firstBase(i);
-      const spec = RECIPE_TRANSITIONS[s.transition]!;
+      const custom = getCustomTransition(s.transition);
+      const spec = RECIPE_TRANSITIONS[s.transition] ?? { type: 'custom-shader' as const, seconds: 0.5 };
       if (lastPrev && firstHere && lastPrev.startFrame + lastPrev.item.durationInFrames === firstHere.startFrame) {
         const length = Math.max(2, Math.min(Math.round(spec.seconds * fps), Math.floor(Math.min(lastPrev.item.durationInFrames, firstHere.item.durationInFrames) / 2)));
-        actions.push({ type: 'addTransition', id: id('tr-in'), incomingItemId: firstHere.item.id, transType: spec.type, durationInFrames: length } as AtomicAction);
+        actions.push({
+          type: 'addTransition', id: id('tr-in'), incomingItemId: firstHere.item.id, transType: spec.type, durationInFrames: length,
+          ...(custom ? { custom: { frag: custom.frag, uniforms: customTransitionUniforms(custom), label: custom.label } } : {}),
+        } as AtomicAction);
+        const cue = custom ? 'whoosh-soft' : TRANSITION_CUES[s.transition];
+        if (cue) sfx.push({ frame: firstHere.startFrame, cue });
       } else warnings.push(`sections[${i}]: the ${s.transition} transition needs footage on both sides of the cut (${previous?.move ?? 'none'} → ${move.id}); left as a cut.`);
     }
+    // the moments that want a sound: cuts inside fast moves, a punch on the drop, a build into the next section
+    const cuts = bases(i).map((a) => a.startFrame).filter((f) => f > start);
+    if (move.id === 'flash-cuts' || move.id === 'break-in') cuts.forEach((f) => sfx.push({ frame: f, cue: 'shutter' }));
+    if (move.id === 'photo-stack') { const r0 = ranges[i]!; actions.slice(r0[0], r0[1]).filter(isFootage).forEach((a) => sfx.push({ frame: a.startFrame, cue: 'shutter' })); }
+    if (move.id === 'speed-ramp' && cuts.length >= 2) sfx.push({ frame: cuts[0]!, cue: 'whoosh-heavy' }, { frame: cuts[1]!, cue: 'whoosh-soft' });
+    if (move.id === 'zoom-punch' || s.textStyle === 'slam' || (s.effects ?? []).some((e) => e.timing === 'drop')) sfx.push({ frame: start, cue: 'hit' });
+    if ((s.effects ?? []).some((e) => e.timing === 'build') && i < resolved.length - 1) sfx.push({ frame: end, cue: 'riser' });
+    // moves mark their own sound moments (a velocity slam, a freeze, a 3D zoom...) with props.rsAccent
+    { const r0 = ranges[i]!; for (const a of actions.slice(r0[0], r0[1])) { if (a.type !== 'add') continue; const accent = (a.item.props as { rsAccent?: unknown } | undefined)?.rsAccent; if (typeof accent === 'string' && isSfxCue(accent)) sfx.push({ frame: a.startFrame ?? 0, cue: accent }); } }
+    for (const snd of s.sounds ?? []) sfx.push({ frame: frame(b0 + (snd.beat ?? 0)), cue: 'hit', soundId: snd.id });
     previous = { move: move.id, ...(move.leaves?.({ params }) ?? {}) };
     lastClips = new Set(clips.map((c) => c.assetId));
   });
@@ -303,7 +339,50 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
     });
   });
 
-  // 5. the song
+  // lines behind the person: a cut-out copy of each shot under the line goes on a lane above every text lane
+  const behind = [
+    ...plan.sections.flatMap((x, i) => (x.textBehind && x.text ? [{ from: i, to: i, what: `sections[${i}]`, style: resolved[i]?.style }] : [])),
+    ...(plan.overlays ?? []).flatMap((o, k) => (o.behind ? [{ from: o.from, to: o.to, what: `overlays[${k}]`, style: textStyleById(o.style) }] : [])),
+  ];
+  const cutouts = new Set<string>();
+  for (const b of behind) {
+    if (b.style && isClipTextStyle(b.style)) { warnings.push(`${b.what}: ${b.style.id} is already drawn in the picture; behind is ignored.`); continue; }
+    let any = false;
+    for (let sct = b.from; sct <= b.to; sct += 1) {
+      for (const base of bases(sct)) {
+        if (base.item.kind !== 'video' || cutouts.has(base.item.id)) continue;
+        cutouts.add(base.item.id);
+        any = true;
+        const c = input.clips.find((x) => x.assetId === (base.item as { sourceAssetId?: string }).sourceAssetId);
+        if (c?.shot && !['people', 'posing', 'portrait', 'action'].includes(c.shot.top)) warnings.push(`${b.what}: "${c.name}" may have nobody in it; the line stays in front there.`);
+        const tr = actions.find((a) => a.type === 'addTransition' && (a as { incomingItemId: string }).incomingItemId === base.item.id) as { durationInFrames?: number } | undefined;
+        actions.push({
+          type: 'add', startFrame: base.startFrame,
+          item: {
+            ...base.item, id: `${base.item.id}-front`, track: 'P1', name: `${base.item.name} (in front of the line)`,
+            // the same effects as the shot; the cut-out itself is added last, after shot matching (withFrontCutouts)
+            ...(base.item.effects ? { effects: (base.item.effects as Array<{ id: string }>).map((e) => ({ ...e, id: `${e.id}-front` })) } : {}),
+            ...(tr?.durationInFrames ? { fadeInFrames: tr.durationInFrames } : {}),
+            props: { ...(base.item.props ?? {}), rsFront: true },
+          },
+        } as AtomicAction);
+      }
+    }
+    if (!any) warnings.push(`${b.what}: behind needs video footage with a person under the line; left in front.`);
+  }
+
+  // custom effects live in this session's registry: snapshot their shaders into the project (state.fxDefs) through one
+  // clip that uses each, so they survive a reload and render in export
+  for (const fxId of customFx) {
+    const user = actions.find((a): a is AtomicAction & Add => a.type === 'add' && ((a.item.effects as Array<{ assetId: string }> | undefined) ?? []).some((e) => e.assetId === fxId));
+    if (user) actions.push({ type: 'setEffects', id: user.item.id, effects: user.item.effects, defs: serializableDefsFor([{ assetId: fxId }]) } as AtomicAction);
+  }
+
+  // 5. sound effects under the song (hand-placed ones always; the rest unless the plan turns them off)
+  const level = plan.sfx ?? 'auto';
+  actions.push(...sfxActions(level === 'off' ? sfx.filter((e) => e.soundId) : sfx, { fps, total, level: level === 'off' ? 'auto' : level, id: (...p) => stableId('rs-dir', tag, seed, ...p) }));
+
+  // 6. the song
   if (music) {
     const fade = Math.min(Math.round(0.6 * fps), Math.max(0, total - 1));
     actions.push({

@@ -14,7 +14,7 @@ import { RECIPE_TRANSITIONS } from './assembler/transitions';
 import { RECIPE_SCHEMA } from '../../shared/reelsmith/recipe-schema';
 
 const TYPES = Object.keys(REEL_TRANSITION_SECONDS) as Array<keyof typeof REEL_TRANSITION_SECONDS & string>;
-assert.equal(TYPES.length, 10);
+assert.equal(TYPES.length, 16);
 const DIRECTIONS = ['left', 'right', 'up', 'down'] as const;
 const declared = (src: string) => [...src.matchAll(/^uniform\s+\w+\s+(u_\w+)/gm)].map((m) => m[1]!);
 const file = (name: string) => readFileSync(new URL(`../gl/shaders/${name}.frag`, import.meta.url), 'utf8');
@@ -44,7 +44,7 @@ for (const type of TYPES) {
 
 // directional ones really change with the direction
 const dirOf = (type: string, d: 'left' | 'right' | 'up' | 'down') => JSON.stringify(GLSL[type]!.uniforms({ time: 0, aspect: 1, direction: d }));
-for (const type of ['whip-blur', 'light-leak', 'slide-over', 'cube-turn']) assert.notEqual(dirOf(type, 'left'), dirOf(type, 'right'), `${type}: left and right differ`);
+for (const type of ['whip-blur', 'light-leak', 'slide-over', 'cube-turn', 'film-burn', 'flip-3d', 'prism-flash']) assert.notEqual(dirOf(type, 'left'), dirOf(type, 'right'), `${type}: left and right differ`);
 assert.notEqual(dirOf('cube-turn', 'left'), dirOf('cube-turn', 'up'), 'cube-turn: vertical differs from horizontal');
 
 // default lengths: each has its own, between 0.3 and 0.6 s, capped by the shorter clip, and the agent helper agrees

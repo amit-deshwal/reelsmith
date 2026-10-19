@@ -1,5 +1,6 @@
 import type { TranscriptCarrier, TranscriptVariant } from '../transcript/types.js';
 import type { TrackId } from './trackTypes.js';
+import type { EffectMix } from '../reelsmith/effectMix.js';
 
 /** per-clip color/blur adjustments (CSS filter) — special effects (blur)/LUT(color) */
 export interface ClipFilters {
@@ -131,6 +132,8 @@ export interface ClipEffect {
   id: string;
   assetId: string;
   overrides?: Record<string, ClipEffectValue>;
+  /** Reelsmith: strength over time and region (person/background); absent = full strength everywhere */
+  mix?: EffectMix;
 }
 
 export interface TimelineItem extends TranscriptCarrier {

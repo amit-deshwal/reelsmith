@@ -12,6 +12,7 @@ import { directorRecipe } from '../director/assembleDirector';
 import { MOVES, TEXT_STYLES } from '../director/moves';
 import { isClipTextStyle } from '../director/textStyles';
 import { DIRECTOR_EFFECTS, DIRECTOR_TRANSITIONS, effectParams } from '../director/catalog';
+import { DIRECTOR_SOUNDS } from '../director/sfx';
 import { commit, projectId, type ReelsDeps } from './reelsTools';
 
 const VISUAL = new Set(['video', 'image']);
@@ -77,11 +78,16 @@ export async function directorOptions(ctx: AgentContext, deps: ReelsDeps): Promi
     })),
     effects: DIRECTOR_EFFECTS.map((e) => ({ id: e.id.replace('builtin:fx-', ''), group: e.group, looks: e.looks, use: e.use, ...(e.person ? { needsPerson: true } : {}), params: effectParams(e.id).map((p) => ({ id: p.id, default: p.default, ...(p.min !== undefined ? { min: p.min, max: p.max } : {}) })) })),
     transitions: DIRECTOR_TRANSITIONS.map((t) => ({ id: t.id, looks: t.looks, use: t.use })),
+    effectTiming: 'Each section effect can have strength (0-1), region (all | subject | background: on the person or behind them) and timing: steady, fade (in and out), beat (punches on every `every` beats, falls back between), drop (hits on the first beat, falls away), build (grows into the next section). A beat-timed glitch or zoom-blur reads as cut to the music; a background-only grade keeps the person natural.',
+    sounds: DIRECTOR_SOUNDS,
+    sfx: 'Sound effects are automatic (plan sfx "auto"): whooshes on moving transitions, shutters on flash cuts and photo drops, a hit on a drop or slam, a riser before a build ends. Use "subtle" for calm stories and "off" if the user asks; add a section `sounds` entry only for a moment the auto rules miss.',
     looks: REEL_LOOKS.map((l) => ({ id: l.id, name: l.name, mood: l.mood, looks: l.description })),
     planShape: {
       ratio: '9:16 (default) | 4:5 | 1:1 | 16:9', music: 'song assetId (imported or libraryMusic)', musicStart: "'firstDownbeat' (default) | 'fromStart' | seconds", look: 'optional look id',
-      sections: '[{ move, beats, clips?: ["assetId" or "assetId@seconds"...] in the order the move uses them, text?, textStyle?, params? (the move\'s and the text style\'s), transition? (how it comes in from the section before), effects?: [{ id, params? }] (at most 3), look? }] back to back on the beat',
-      overlays: '[{ text, style, from, to (section indexes), params? }] for a line across several sections',
+      sfx: "'auto' (default) | 'subtle' | 'off'",
+      sections: '[{ move, beats, clips?: ["assetId" or "assetId@seconds"...] in the order the move uses them, text?, textStyle?, params? (the move\'s and the text style\'s), transition? (how it comes in from the section before), effects?: [{ id, params?, strength?, region?, timing?, every? }] (at most 3), look?, textBehind?: true (the line goes behind the person), sounds?: [{ id, beat? }] }] back to back on the beat',
+      overlays: '[{ text, style, from, to (section indexes), params?, behind? }] for a line across several sections',
+      customShaders: 'optional: reels_custom_shader registers your own GLSL effect or transition (one of each per reel); use the returned id like a catalogue id',
     },
     hint: 'A beat is 60/bpm seconds (0.5 s without a song). Fit the sum of beats to the song: seconds left after firstBeatSec x bpm / 60. Name clips for every section that shows your judgement; omitted clips are cast from unused footage.',
   };

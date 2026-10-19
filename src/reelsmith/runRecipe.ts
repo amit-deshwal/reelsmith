@@ -10,6 +10,8 @@ import { toAssemblyClips, type ClipFeatures } from './assembler/scoring';
 import type { ClipShotTags } from './shotTags';
 import { validateSetup, type SetupValues } from './setupForm';
 import { fillTransformForFocus } from './cropFocus';
+import type { TimelineItem } from '../editor/types';
+import { withFrontCutouts } from './director/frontCutout';
 import { UPSCALE_SOFT } from './qualityLint';
 import { focusForRange, withTitleClear } from './titleClear';
 import { matchEffect, planShotMatch, type ColorStats } from './shotMatch';
@@ -232,12 +234,22 @@ export function withCropFocus(actions: AtomicAction[], clips: AssemblyClip[], ca
       ...(gain && !action.item.effects?.length ? { effects: [matchEffect(gain)] } : {}),
       // Slot-placed clips (collage cells, split-screen halves) already carry their own transform: leave them.
       ...(fill && !action.item.transform && blur ? { backgroundFill: true } : {}),
-      ...(fill && !action.item.transform && !blur ? { transform: { scale: fill.scale, scaleX: fill.scale, scaleY: fill.scale, x: fill.x, y: fill.y } } : {}),
+      ...(fill && !action.item.transform && !blur ? fillPlacement(action.item, fill) : {}),
     } };
   });
 }
 
 
+
+/**
+ * The cover placement of a clip. A clip that animates its scale (a push in, a punch, a 3D zoom) gets the cover scale folded
+ * into its scale keyframes instead: the editor takes a fixed transform scale over a scale keyframe, so the move would freeze.
+ */
+function fillPlacement(item: Pick<TimelineItem, 'keyframes'>, fill: { scale: number; x: number; y: number }): Pick<TimelineItem, 'transform' | 'keyframes'> {
+  const kfs = item.keyframes?.scale;
+  if (!kfs?.length) return { transform: { scale: fill.scale, scaleX: fill.scale, scaleY: fill.scale, x: fill.x, y: fill.y } };
+  return { transform: { x: fill.x, y: fill.y }, keyframes: { ...item.keyframes, scale: kfs.map((k) => ({ ...k, value: k.value * fill.scale })) } };
+}
 
 export async function runRecipe(api: AnalyzeApi, o: RunOptions): Promise<RunOutcome> {
   const errors = validateSetup(o.recipe, o.values, o.assets);
@@ -255,6 +267,6 @@ export async function runRecipe(api: AnalyzeApi, o: RunOptions): Promise<RunOutc
   ];
   return {
     result, messages, run,
-    action: { type: 'batch', label: result.action.label, actions: [...prefix, ...withRecipeLook(withTitleClear(withCropFocus(withBeatGrid(result.action.actions, input.music), [...input.clips, ...(input.broll ?? [])], input.recipe.canvas, mismatchFitOf(o.values.params)), [...input.clips, ...(input.broll ?? [])], input.recipe.canvas), input.recipe)] },
+    action: { type: 'batch', label: result.action.label, actions: [...prefix, ...withFrontCutouts(withRecipeLook(withTitleClear(withCropFocus(withBeatGrid(result.action.actions, input.music), [...input.clips, ...(input.broll ?? [])], input.recipe.canvas, mismatchFitOf(o.values.params)), [...input.clips, ...(input.broll ?? [])], input.recipe.canvas), input.recipe))] },
   };
 }

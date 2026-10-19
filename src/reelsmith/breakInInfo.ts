@@ -15,6 +15,12 @@ export const BREAK_IN_INFO: Record<string, string> = {
   'tile-pop': 'Reels transition (0.5 s): the next shot pops open as a mosaic of rounded windows growing from the middle outward. Playful; good for collages, photo dumps and friends.',
   'cube-turn': 'Reels transition (0.5 s): the shots are faces of a cube that turns, with depth and shading. direction left/right turns sideways, up/down turns vertically. Good for before/after and place changes.',
   'slide-over': 'Reels transition (0.4 s): the next shot slides over the current one with an ease-out while the current one drifts back, dims and gets a soft shadow. Clean and quick; the safest pick for vlogs and talking reels.',
+  'pixelate': "Reels transition (0.4 s): the shot breaks into square pixels that grow to their coarsest in the middle, swap to the next shot pixel by pixel and sharpen back. A tech reveal, gaming, or a censored-joke cut.",
+  'film-burn': "Reels transition (0.6 s): a warm film burn blooms from a corner (hot white core, ragged orange rim, overexposure) and the cut happens under its brightest moment. Vintage travel, memories, golden hour. direction picks the corner it starts from.",
+  'flip-3d': "Reels transition (0.45 s): the shot is a card that spins away in 3D perspective, edge-on in the middle, and the next shot spins in on its back. direction left/right spins sideways, up/down top over bottom. Sports, fitness, energetic cuts.",
+  'mirror-flip': "Reels transition (0.3 s): the frame flips like a flat coin on the beat, squeezing to a bright line and opening out as the next shot. Before/after reveals, outfit changes, a drop. up/down flips top over bottom.",
+  'prism-flash': "Reels transition (0.4 s): a bright band of light sweeps across, splitting into rainbow prism fringes, with the next shot behind it. Fashion, nights out, a polished cut. direction sets the sweep.",
+  'brush-wipe': "Reels transition (0.55 s): the next shot is painted on in four thick brush strokes, alternating direction, with ragged bristle edges and an ink line at each front. Art, journals, handmade and scrapbook stories.",
 };
 
 /** Default transition length in frames: break-ins are 0.35 s, the Reels transitions have their own (0.3 to 0.6 s), everything else keeps the editor's own default (null). */

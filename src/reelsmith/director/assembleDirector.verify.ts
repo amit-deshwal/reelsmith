@@ -87,9 +87,14 @@ assert.equal(place.length, 1);
 assert.equal(place[0].startFrame + place[0].item.durationInFrames, Math.round(clock(8 + 14 + 8) * fps), 'the overlay ends with section 3');
 assert.ok(place[0].item.props.fontSize * 16 * 0.42 <= 1080 * 0.87, 'the title fits the width');
 // song from the first downbeat, as long as the reel, faded
-const song = adds.find((a) => a.item.kind === 'audio');
+const song = adds.find((a) => a.item.kind === 'audio' && a.item.track === 'A1');
 assert.equal(song.item.srcInFrame, 6);
 assert.equal(song.item.durationInFrames, res.report.totalFrames);
+// RS-1204: sound effects on the break-in cuts, from the built-in library, on lanes under the song, never past the end
+const sounds = adds.filter((a) => a.item.props?.rsSfx);
+assert.ok(sounds.length >= 2, 'break-in cuts get a sound');
+assert.ok(sounds.every((a) => /^\/sound-effects\/.+\.mp3$/.test(a.item.src) && /^A[2-9]$/.test(a.item.track) && a.item.volume > 0 && a.item.volume <= 2));
+assert.ok(sounds.every((a) => a.startFrame >= 0 && a.startFrame + a.item.durationInFrames <= res.report.totalFrames));
 
 const bad = (p: unknown) => { const r = parsePlan(p); return r.ok ? assemble({ recipe, clips, music, texts: {}, params: {}, seed: 5, plan: r.plan }).report.warnings.join('; ') : r.errors.join('; '); };
 // a second plan: the newer moves, every other text style, section effects, a look, transitions
@@ -101,9 +106,14 @@ const raw2 = {
     { move: 'zoom-punch', beats: 4, transition: 'whip-blur', clips: ['trail', 'climb', 'group', 'camp'] },
     { move: 'speed-ramp', beats: 8, clips: ['climb@1'], text: 'FREEDOM', textStyle: 'behind-you' },
     { move: 'photo-stack', beats: 6, clips: ['photo1', 'photo2', 'food'], look: 'golden-hour' },
-    { move: 'compare', beats: 6, clips: ['trail', 'ridge'] },
+    { move: 'compare', beats: 6, clips: ['trail', 'ridge'], text: 'me', textStyle: 'follow-tag' },
     { move: 'cut', beats: 8, params: { every: 2, transition: 'crossfade' }, clips: ['ridge', 'fort', 'group', 'trail'] },
-    ...engineStyles.map((st) => ({ move: 'black', beats: 2, text: st === 'count-up' ? '6,000 calories' : st === 'rise-lines' ? 'two days / one fort' : 'Day 2 summit', textStyle: st, ...(st === 'location-tag' ? { params: { sub: '1,424 m' } } : {}) })),
+    { move: 'velocity', beats: 8, clips: ['climb'], transition: 'film-burn', text: 'send it', textStyle: 'tracking-in' },
+    { move: 'photo-3d', beats: 8, clips: ['photo1', 'photo2'], effects: [{ id: 'bounce', timing: 'beat' }], text: 'core memory', textStyle: 'wave' },
+    { move: 'freeze-intro', beats: 4, clips: ['walker'], text: 'this is me', textStyle: 'location-tag' },
+    { move: 'match-cut', beats: 4, clips: ['group', 'trail', 'walker'], params: { flash: true }, text: 'every fit', textStyle: 'glitch' },
+    { move: 'talk-zoom', beats: 8, clips: ['group'], transition: 'prism-flash', effects: [{ id: 'sparkle' }, { id: 'flare-sweep' }, { id: 'blackout', timing: 'beat', every: 2 }] },
+    ...engineStyles.filter((st) => !['tracking-in', 'wave', 'glitch'].includes(st)).map((st) => ({ move: 'black', beats: 2, text: st === 'count-up' ? '6,000 calories' : st === 'rise-lines' ? 'two days / one fort' : 'Day 2 summit', textStyle: st, ...(st === 'location-tag' ? { params: { sub: '1,424 m' } } : {}) })),
   ],
 };
 const allMoves = new Set([...raw.sections, ...raw2.sections].map((x) => x.move));
@@ -139,6 +149,32 @@ assert.equal(prints.length, 3);
 prints.forEach((p, i) => assert.equal(p.item.transform.rotation, pics[i].item.transform.rotation));
 assert.ok(pics.every((a) => a.item.effects?.some((e: any) => e.id.includes('look_'))), 'the section look is on its pictures');
 // compare: one graphic with both clips and a white divider
+// RS-1208 creator moves: a velocity edit ramps fast, slams to slow on the beat with a flash and a hit, blurs the fast parts
+const vel = inSec(7).filter((a) => a.item.kind === 'video').sort((x, y) => x.startFrame - y.startFrame);
+const rates = vel.map((a) => a.item.playbackRate ?? 1);
+assert.ok(Math.max(...rates) > 2 && Math.min(...rates) < 0.5, `fast and slow: ${rates.join(',')}`);
+assert.ok(vel.every((a, i) => i === 0 || a.startFrame === vel[i - 1].startFrame + vel[i - 1].item.durationInFrames), 'one continuous shot');
+assert.ok(vel.every((a, i) => i === 0 || a.item.srcInFrame >= vel[i - 1].item.srcInFrame), 'the source runs forward');
+assert.ok(vel.filter((a) => (a.item.playbackRate ?? 1) >= 1.6).every((a) => a.item.effects?.some((e: any) => e.assetId === 'builtin:fx-motion-blur')));
+assert.ok(inSec(7).some((a) => a.item.name === 'Flash' && a.item.props.rsAccent === 'hit'));
+assert.ok(adds2.some((a) => a.item.props?.rsSfx === 'hit'), 'the slam gets its hit');
+// 3D zoom: per photo a background pulling back and a front copy pushing in, marked for the cut-out
+const p3 = inSec(8).filter((a) => a.item.kind === 'image');
+assert.equal(p3.length, 4);
+const front = p3.filter((a) => a.item.props.rsFront);
+assert.equal(front.length, 2);
+assert.ok(front.every((a) => a.item.keyframes.scale.at(-1).value > a.item.keyframes.scale[0].value));
+assert.ok(p3.filter((a) => !a.item.props.rsFront).every((a) => a.item.keyframes.scale.at(-1).value < a.item.keyframes.scale[0].value));
+// freeze: plays, then holds nearly still with the subject pop and a shutter flash
+const fz = inSec(9).filter((a) => a.item.kind === 'video').sort((x, y) => x.startFrame - y.startFrame);
+assert.equal(fz.length, 2);
+assert.ok(fz[1].item.playbackRate < 0.05 && fz[1].item.effects.some((e: any) => e.assetId === 'builtin:fx-subject-pop'));
+// talking jump zooms keep the clip's sound and alternate the framing
+const talk = inSec(11).filter((a) => a.item.kind === 'video');
+assert.ok(talk.length >= 2 && talk.every((a) => a.item.volume === 1));
+assert.ok(new Set(talk.map((a) => a.item.keyframes.scale[0].value)).size === 2);
+assert.ok(a2.some((a) => a.type === 'addTransition' && a.transType === 'prism-flash'));
+assert.ok(a2.some((a) => a.type === 'addTransition' && a.transType === 'film-burn'));
 const cmp = inSec(5).find((a) => a.item.kind === 'motion-graphic');
 assert.deepEqual(Object.keys(cmp.item.props.sources), ['a', 'b']);
 assert.ok(cmp.item.props.windows.some((w: any) => w.fill === '#ffffff'));
@@ -146,11 +182,11 @@ assert.ok(cmp.item.props.windows.some((w: any) => w.fill === '#ffffff'));
 assert.equal(a2.filter((a) => a.type === 'addTransition' && a.transType === 'cross-dissolve').length, 3);
 // every engine style is a text graphic with its typeface named for the font loader
 const graphics = adds2.filter((a) => a.item.kind === 'motion-graphic' && a.item.props?.preset);
-assert.equal(graphics.length, engineStyles.length);
+assert.equal(graphics.length, engineStyles.length + 1, "plus the freeze intro's location tag");
 assert.ok(graphics.every((g) => typeof g.item.props.fontFamily === 'string' && g.item.props.fontSize >= 24));
 const slamWords = graphics.find((g) => g.item.props.preset === 'slam');
 assert.ok(!slamWords || Array.isArray(slamWords.item.props.beats));
-assert.equal(graphics.find((g) => g.item.props.preset === 'location').item.props.sub, '1,424 M');
+assert.ok(graphics.some((g) => g.item.props.preset === 'location' && g.item.props.sub === '1,424 M'));
 // a pinned start near the end of a clip is moved earlier so the shot plays to the end of its section instead of freezing
 const near = parsePlan({ ratio: '9:16', music: 'song', sections: [{ move: 'hold', beats: 8, clips: ['fort@11'] }] });
 assert.ok(near.ok);

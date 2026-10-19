@@ -34,7 +34,13 @@ export type GlslTransitionType =
   | 'ripple-dissolve'
   | 'tile-pop'
   | 'cube-turn'
-  | 'slide-over';
+  | 'slide-over'
+  | 'pixelate'
+  | 'film-burn'
+  | 'flip-3d'
+  | 'mirror-flip'
+  | 'prism-flash'
+  | 'brush-wipe';
 
 /** Audio-only transitions (preset `trAudioCrossFade`) — no picture. */
 export type AudioTransitionType = 'audio-cross-fade';
@@ -50,6 +56,7 @@ export const GLSL_TRANSITION_TYPES: ReadonlySet<string> = new Set<string>([
   'circle-wipe', 'radial-blur', 'glitch-cut', 'dip-to-color',
   'bars', 'wide-bars', 'window',
   'zoom-through', 'whip-blur', 'spin-zoom', 'light-leak', 'chroma-glitch', 'fluted-glass', 'ripple-dissolve', 'tile-pop', 'cube-turn', 'slide-over',
+  'pixelate', 'film-burn', 'flip-3d', 'mirror-flip', 'prism-flash', 'brush-wipe',
   'custom-shader', // takes the GL render path; frag comes from the item, not GLSL_TRANSITIONS
 ]);
 
@@ -72,22 +79,22 @@ export function isVisualTransition(type: TransitionType): type is GlslTransition
 // en labels for the transition library cards (Resource Library·Transition·Screen Transition).
 // Shared by the inspector select + the resource-library grid.
 export const TRANSITION_LABELS: Record<TransitionType, string> = {
-  'anticipation-zoom': '推进转场',
-  'clean-line-wipe': '白色划线转场',
-  'cross-dissolve': '叠化转场',
-  'dip-to-black': '闪黑转场',
-  flash: '闪白转场',
-  'impact-shake': '冲击抖动转场',
-  'luma-blend': '叠加转场',
-  'organic-dissolve': '光溶转场',
-  'page-curl': '翻页转场',
-  'rack-focus': '焦点转场',
-  'soft-wipe': '柔化擦除转场',
-  'whip-pan': '甩镜转场',
-  'circle-wipe': '圆形擦除转场',
-  'radial-blur': '径向模糊转场',
-  'glitch-cut': '故障切换转场',
-  'dip-to-color': '闪色转场',
+  'anticipation-zoom': 'Push in',
+  'clean-line-wipe': 'Line wipe',
+  'cross-dissolve': 'Cross dissolve',
+  'dip-to-black': 'Dip to black',
+  flash: 'Flash',
+  'impact-shake': 'Impact shake',
+  'luma-blend': 'Luma blend',
+  'organic-dissolve': 'Light dissolve',
+  'page-curl': 'Page curl',
+  'rack-focus': 'Blur focus',
+  'soft-wipe': 'Soft wipe',
+  'whip-pan': 'Whip pan',
+  'circle-wipe': 'Circle wipe',
+  'radial-blur': 'Radial blur',
+  'glitch-cut': 'Glitch cut',
+  'dip-to-color': 'Dip to colour',
   bars: 'Bars break-in',
   'wide-bars': 'Wide bars break-in',
   window: 'Window grow-in',
@@ -101,10 +108,16 @@ export const TRANSITION_LABELS: Record<TransitionType, string> = {
   'tile-pop': 'Tile pop',
   'cube-turn': 'Cube turn',
   'slide-over': 'Slide over',
+  'pixelate': 'Pixel dissolve',
+  'film-burn': 'Film burn',
+  'flip-3d': '3D spin',
+  'mirror-flip': 'Mirror flip',
+  'prism-flash': 'Prism flash',
+  'brush-wipe': 'Brush wipe',
   /** preset.name.trAudioCrossFade */
-  'audio-cross-fade': '音频交叉淡化',
+  'audio-cross-fade': 'Audio crossfade',
   /** submit_shader-generated custom transition (per-item label in customLabel) */
-  'custom-shader': '自定义着色器转场',
+  'custom-shader': 'Custom shader',
 };
 
 /** catalog display order + extended visual transitions. */
@@ -138,6 +151,12 @@ export const TRANSITION_ORDER: readonly GlslTransitionType[] = [
   'tile-pop',
   'cube-turn',
   'slide-over',
+  'pixelate',
+  'film-burn',
+  'flip-3d',
+  'mirror-flip',
+  'prism-flash',
+  'brush-wipe',
 ];
 
 /** Audio transition catalog (trAudioCrossFade). */
@@ -161,6 +180,12 @@ export const REEL_TRANSITION_SECONDS: Readonly<Record<string, number>> = {
   'tile-pop': 0.5,
   'cube-turn': 0.5,
   'slide-over': 0.4,
+  'pixelate': 0.4,
+  'film-burn': 0.6,
+  'flip-3d': 0.45,
+  'mirror-flip': 0.3,
+  'prism-flash': 0.4,
+  'brush-wipe': 0.55,
 };
 
 /** Default length in seconds for the transitions Reelsmith added (null = the editor's own default). */

@@ -32,6 +32,22 @@ export const RECIPE_TRANSITIONS: Record<string, Spec> = {
   'tile-pop': { type: 'tile-pop', seconds: 0.5 },
   'cube-turn': { type: 'cube-turn', seconds: 0.5 },
   'slide-over': { type: 'slide-over', seconds: 0.4 },
+  'pixelate': { type: 'pixelate', seconds: 0.4 },
+  'film-burn': { type: 'film-burn', seconds: 0.6 },
+  'flip-3d': { type: 'flip-3d', seconds: 0.45 },
+  'mirror-flip': { type: 'mirror-flip', seconds: 0.3 },
+  'prism-flash': { type: 'prism-flash', seconds: 0.4 },
+  'brush-wipe': { type: 'brush-wipe', seconds: 0.55 },
+  // the editor's own transitions, for the director
+  'blur-focus': { type: 'rack-focus', seconds: 0.45 },
+  'radial-blur': { type: 'radial-blur', seconds: 0.4 },
+  'page-curl': { type: 'page-curl', seconds: 0.6 },
+  'circle-wipe': { type: 'circle-wipe', seconds: 0.45 },
+  'light-dissolve': { type: 'organic-dissolve', seconds: 0.6 },
+  'impact-shake': { type: 'impact-shake', seconds: 0.35 },
+  'glitch-cut': { type: 'glitch-cut', seconds: 0.3 },
+  'line-wipe': { type: 'clean-line-wipe', seconds: 0.45 },
+  'luma-blend': { type: 'luma-blend', seconds: 0.5 },
 };
 
 export interface TransitionContext {

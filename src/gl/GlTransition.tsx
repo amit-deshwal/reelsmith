@@ -5,6 +5,7 @@ import { createGlRuntime, type GlRuntime } from './runtime';
 import { cubeSettled, ensureCube } from './fx/cube';
 import { disposeRuntimeSlot, ensureRuntimeSlot } from './runtimeSlot';
 import { buildEffectShaderFrame, buildTransitionShaderFrame } from './shaderFrame';
+import { envelopeFrame, mixUniformsAt } from '../reelsmith/effectMix';
 import { glPreviewFailureReason } from './previewAdapter';
 import type { SelectedPreviewFallbackReason, SelectedPreviewStatusListener } from './previewAdapter';
 import { GLSL_TRANSITIONS } from './transitions';
@@ -296,12 +297,12 @@ export function GlTransition({ type, direction, L, windowStart, outgoing, incomi
           direction,
         });
         const outgoingFrame = buildEffectShaderFrame(
-          outgoingEffects.map(({ fx, def: effect }) => ({ def: effect, overrides: fx.overrides })),
+          outgoingEffects.map(({ fx, def: effect }) => ({ def: effect, ...envelopeFrame(effect.id, effect.props, fx.overrides, mixUniformsAt(fx.mix, (absoluteFrame - outgoing.startFrame) / fps, outgoing.durationInFrames / fps)) })),
           absoluteFrame - outgoing.startFrame,
           fps,
         );
         const incomingFrame = buildEffectShaderFrame(
-          incomingEffects.map(({ fx, def: effect }) => ({ def: effect, overrides: fx.overrides })),
+          incomingEffects.map(({ fx, def: effect }) => ({ def: effect, ...envelopeFrame(effect.id, effect.props, fx.overrides, mixUniformsAt(fx.mix, (absoluteFrame - incoming.startFrame) / fps, incoming.durationInFrames / fps)) })),
           absoluteFrame - incoming.startFrame,
           fps,
         );

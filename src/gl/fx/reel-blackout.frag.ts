@@ -1,0 +1,2 @@
+// GENERATED from src/gl/fx/reel-blackout.frag by scripts/sync-shader-sources.mjs — do not edit.
+export default "#version 300 es\nprecision highp float;\n// Blackout: the picture drops to black (or a colour). With timing \"beat\" it strobes black on the beats and comes back.\nuniform sampler2D u_input;\nuniform float u_amount;\nuniform vec3 u_color;\nin vec2 v_texCoord;\nout vec4 fragColor;\nvoid main() {\n  vec4 c = texture(u_input, v_texCoord);\n  fragColor = vec4(mix(c.rgb, u_color * c.a, clamp(u_amount, 0.0, 1.0)), c.a);\n}\n";

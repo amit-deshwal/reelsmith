@@ -17,6 +17,7 @@ import { HistoryTap } from './HistoryTap';
 import { LruCache } from './frameCache';
 import { textCellFor } from './textLayer';
 import { fxUniform } from './fx/uniforms';
+import { envelopeFrame, mixUniformsAt } from '../reelsmith/effectMix';
 
 // mattes of recent source frames, so echo trails segment each frame once while the playhead moves on
 const historyMasks = new LruCache<PersonMaskFrame>(24);
@@ -98,7 +99,7 @@ export function ClipFx({ item, fit, width, height, frameOffset = 0, onPreviewSta
 
   const active = useMemo(() => glEffects(item), [item]);
   // Reelsmith: effects that need the person matte load the segmenter once; undefined = still loading, null = unavailable
-  const wantsMask = useMemo(() => active.some(({ def }) => def.needsMask), [active]);
+  const wantsMask = useMemo(() => active.some(({ def, fx }) => def.needsMask || (fx.mix?.region ?? 'all') !== 'all'), [active]);
   // the effects' "Find people" slider: 0 = one person, sharp edges (default); 1 = groups and people far away, rougher edges
   const maskModel: PersonModel = active.some(({ def, fx }) => def.needsMask && Number(fx.overrides?.detect) >= 0.5) ? 'deeplab' : 'selfie';
   const [maskProvider, setMaskProvider] = useState<PersonMaskProvider | null | undefined>(undefined);
@@ -138,7 +139,7 @@ export function ClipFx({ item, fit, width, height, frameOffset = 0, onPreviewSta
     [active],
   );
   const renderKey = useMemo(
-    () => JSON.stringify([frame, fit, width, height, cropPosition.x, cropPosition.y, active.map(({ fx }) => [fx.id, fx.overrides])]),
+    () => JSON.stringify([frame, fit, width, height, cropPosition.x, cropPosition.y, active.map(({ fx }) => [fx.id, fx.overrides, fx.mix])]),
     [frame, fit, width, height, cropPosition.x, cropPosition.y, active],
   );
   const onVideoFrame = useCallback(
@@ -257,14 +258,19 @@ export function ClipFx({ item, fit, width, height, frameOffset = 0, onPreviewSta
           extras[`u_hist${i}`] = canvas;
           extras[`u_histMask${i}`] = matteAt(canvas, sourceFrameAt(item, frameOffset + Math.max(0, frame - frameOffset - (i + 1) * tapLag))).mask;
         });
+        const local = frame / fps; // seconds into the clip, for the effect envelopes
         const shaderFrame = buildEffectShaderFrame(
-          active.map(({ fx, def }) => ({
+          active.map(({ fx, def }) => {
+            const env = envelopeFrame(def.id, def.props, fx.overrides, mixUniformsAt(fx.mix, local, item.durationInFrames / fps));
+            return {
             def,
-            overrides: fx.overrides,
+            overrides: env.overrides,
+            ...(env.mix ? { mix: { ...env.mix, hasMask: maskFrame && maskProvider ? 1 : 0 } } : {}),
             ...((def.needsMask && maskFrame) || (def.needsText && textCell)
               ? { extraUniforms: { ...(def.needsMask && maskFrame ? subjectUniforms(maskFrame.subject) : {}), ...(def.needsText && textCell ? { u_textAspect: textCell.aspect } : {}) } }
               : {}),
-          })),
+            };
+          }),
           frame,
           fps,
         );
