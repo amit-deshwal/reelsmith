@@ -14,6 +14,7 @@ import { kenBurnsActions, type KenBurnsPreset } from '../kenBurns';
 import { RECIPE_TRANSITIONS } from '../assembler/transitions';
 import { focusForRange } from '../titleClear';
 import type { PlanValue } from '../../../shared/reelsmith/directorPlan';
+import { topBand } from './bandText';
 import { CLIP_TEXT_STYLES, ENGINE_STYLES } from './textStyles';
 
 export interface MoveParam {
@@ -585,5 +586,5 @@ const caption: TextStyleDef = {
   },
 };
 
-export const TEXT_STYLES: readonly TextStyleDef[] = [titleShuffle, wordsOnBeat, bigTitle, caption, ...ENGINE_STYLES, ...CLIP_TEXT_STYLES];
+export const TEXT_STYLES: readonly TextStyleDef[] = [titleShuffle, wordsOnBeat, bigTitle, caption, topBand, ...ENGINE_STYLES, ...CLIP_TEXT_STYLES];
 export const textStyleById = (id: string) => TEXT_STYLES.find((t) => t.id === id);

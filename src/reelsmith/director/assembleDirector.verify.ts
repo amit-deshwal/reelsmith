@@ -108,7 +108,7 @@ const raw2 = {
 };
 const allMoves = new Set([...raw.sections, ...raw2.sections].map((x) => x.move));
 assert.deepEqual([...MOVES.map((m) => m.id)].filter((m) => !allMoves.has(m)), [], 'the two plans use every move');
-const allStyles = new Set([...raw.sections, ...raw2.sections].flatMap((x) => ('textStyle' in x && x.textStyle ? [x.textStyle] : [])).concat(raw.overlays.map((o) => o.style)));
+const allStyles = new Set([...raw.sections, ...raw2.sections].flatMap((x) => ('textStyle' in x && x.textStyle ? [x.textStyle] : [])).concat(raw.overlays.map((o) => o.style), 'top-band')); // top-band has its own check below
 assert.deepEqual(TEXT_STYLES.map((t) => t.id).filter((t) => !allStyles.has(t)), [], 'and every text style');
 const parsed2 = parsePlan(raw2);
 assert.ok(parsed2.ok, parsed2.ok ? '' : parsed2.errors.join('; '));
@@ -159,6 +159,19 @@ const nearRun = assemble({ recipe: directorRecipe(nearPlan), clips, music, texts
 const nearClip = (nearRun.action!.actions as any[]).find((a) => a.item?.kind === 'video');
 assert.ok(nearClip.item.srcInFrame + nearClip.item.durationInFrames <= 12 * fps, 'the held shot does not run past the end of its clip');
 assert.match(nearRun.report.warnings.join('; '), /so it does not freeze/);
+// the title band: footage scaled under a black strip, the line centred in the strip for the whole span
+const banded = parsePlan({ ratio: '16:9', music: 'song', sections: [{ move: 'cut', beats: 8 }, { move: 'hold', beats: 8, clips: ['fort'] }], overlays: [{ text: 'Pune traffic only chills after midnight', style: 'top-band', from: 0, to: 1 }] });
+assert.ok(banded.ok, banded.ok ? '' : banded.errors.join('; '));
+const bandPlan = (banded as { plan: ReelPlan }).plan;
+const bandRun = assemble({ recipe: directorRecipe(bandPlan), clips, music, texts: {}, params: {}, seed: 5, plan: bandPlan });
+const bandAdds = (bandRun.action!.actions as any[]).filter((a) => a.type === 'add');
+const footage = bandAdds.filter((a) => a.item.kind === 'video');
+assert.ok(footage.length > 0 && footage.every((a) => Math.abs(a.item.transform.scale - 0.8) < 1e-9 && Math.abs(a.item.transform.y - 10) < 1e-9), 'footage sits under the band');
+const bandText = bandAdds.find((a) => a.item.kind === 'text');
+assert.equal(bandText.item.props.text, 'Pune traffic only chills after midnight');
+assert.equal(bandText.item.transform.y, -40);
+assert.equal(bandText.startFrame, 0);
+assert.equal(bandText.startFrame + bandText.item.durationInFrames, bandRun.report.totalFrames, 'the band stays for the whole reel');
 // bad effect, transition and look names are reported
 assert.match(bad({ sections: [{ move: 'cut', effects: [{ id: 'sparkles' }] }] }), /unknown effect "sparkles"/);
 assert.match(bad({ sections: [{ move: 'cut', effects: [{ id: 'halation', params: { warmth: 7 } }] }] }), /warmth must be 0 to 1/);

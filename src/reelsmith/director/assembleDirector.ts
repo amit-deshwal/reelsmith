@@ -10,6 +10,7 @@ import { pickMoment } from '../assembler/travelDiary';
 import { stableId } from '../assembler/rng';
 import type { AssembleInput, AssembleResult, AssemblyClip, AssemblyMusic } from '../assembler/types';
 import { moveById, textStyleById, type MoveDef, type MoveParam } from './moves';
+import { BAND_STYLE_ID, underBand } from './bandText';
 import { isClipTextStyle } from './textStyles';
 import { directorEffectById, directorTransitionById } from './catalog';
 import { ALL_FX } from '../../gl/fx/effects';
@@ -287,6 +288,13 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
     if (isClipTextStyle(style)) {
       for (let sct = o.from; sct <= o.to; sct += 1) clipText(sct, style.clipEffect({ W, H, fps, start: a, end: b, beats: 0, text: o.text, params, seed, beatFrame: frame, id: (...p) => stableId('rs-dir', tag, seed, 'overlay', k, ...p), lane: () => 'T1', emit: () => {}, warn: () => {} }), o.text, stableId('rs-dir', tag, seed, 'overlay', k, sct));
       return;
+    }
+    if (style.id === BAND_STYLE_ID) {
+      for (let sct = o.from; sct <= o.to; sct += 1) {
+        onClips(sct, false, (item) => underBand(item as never, W, H) as never);
+        const r = ranges[sct];
+        if (r && actions.slice(r[0], r[1]).some((x) => x.type === 'add' && (x as Add).item.kind === 'motion-graphic')) warnings.push(`sections[${sct}] (${resolved[sct]?.move.id}): this move draws full-frame graphics that cover the title band; use cut, hold or flash-cuts under a band.`);
+      }
     }
     style.build({
       W, H, fps, start: a, end: b, beats: spans[o.to]!.b1 - spans[o.from]!.b0, text: o.text, params, seed: seed + 100 + k,
