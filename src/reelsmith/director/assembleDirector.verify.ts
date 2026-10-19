@@ -106,6 +106,11 @@ const quiet = assemble({ recipe, clips, texts: {}, params: {}, seed: 5, plan: { 
 assert.equal(quiet.report.totalFrames, 4 * fps);
 assert.equal(new Set((quiet.action!.actions as any[]).filter((a) => a.item?.kind === 'video').map((a) => a.item.sourceAssetId)).size, 4);
 
+// "assetId@seconds" starts the clip at that second of the source, every time it is used
+const pinned = assemble({ recipe, clips, music, texts: {}, params: {}, seed: 5, plan: { version: 1, ratio: '9:16', sections: [{ move: 'hold', beats: 4, clips: ['fort@3'] }, { move: 'cut', beats: 4, params: { every: 2 }, clips: ['fort@3', 'ridge'] }] } });
+const pinnedShots = (pinned.action!.actions as any[]).filter((a) => a.item?.sourceAssetId === 'fort');
+assert.deepEqual(pinnedShots.map((a) => a.item.srcInFrame), [90, 90]);
+
 // one undo step; tracks bind in order: the canvas at the bottom, section lanes above it, text lanes on top
 const doc: ProjectDoc = {
   version: CURRENT_PROJECT_VERSION, assets: [], mediaFolders: [], activeTimelineId: 't',

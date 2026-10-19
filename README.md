@@ -179,7 +179,8 @@ You give a story, your media and a song; the agent splits the story into section
 - [x] **Skill and routing.** `src/agent/skills/reels-director/SKILL.md`; a new reel request goes to director mode unless the user names a recipe.
 - [x] **Director box.** Recipes tab: story, shape (9:16 default), "Direct my reel" sends the request to the agent.
 - *Check so far:* `director/assembleDirector.verify.ts` (a plan using every move and text style: sections on the beat, no lane overlaps, picks honoured, clear errors for bad plans, layer order after binding, one undo step, deterministic); a hand-written 9:16 plan rendered on 23 real trek clips and photos with their song: 19.1 s, every section reviewed frame by frame.
-- [ ] **End to end with the agent in the app**: story + media + song → the agent's own plan → reel, in ≤ 15 turns.
+- [x] **First run with the agent in the app** (2026-10-19, Sonnet, medium effort): story + 13 trek clips → its own 5-section 4:5 plan → 18.3 s reel, applied in 3.3 min. Fixes from it: `reels_director_options` now returns numbered contact sheets of every clip in one call (it had made 13 frame calls); plans can start a clip at a chosen second (`"assetId@4"`; its opener started on a selfie before the view); the Director box shows what is imported and warns when there is no song (it picked a library track).
+- [ ] **End to end again after these fixes**, target ≤ 2 min and ≤ 12 turns.
 - [ ] **Frame check tool**: one call renders a frame at each section start for the agent's single review pass.
 - [ ] **More moves**: speed ramp, zoom/whip transitions, text behind the person, map or route line, before/after split, look per section.
 - [ ] **Save a plan as a recipe**: a plan that worked becomes a reusable template (replaces RS-1004).

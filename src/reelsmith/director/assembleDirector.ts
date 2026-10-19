@@ -132,7 +132,15 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
   if (music && clock(at) > music.durationSec - startSec + 0.05) warnings.push(`The song ends ${(clock(at) - (music.durationSec - startSec)).toFixed(1)} s before the reel; shorten the plan or start the song earlier.`);
 
   // 3. clips: the plan's picks, else the best clips not used yet
-  const byId = (id: string) => input.clips.find((c) => c.assetId === id) ?? input.clips.find((c) => c.baseAssetId === id);
+  // "assetId@4.5" starts the clip at 4.5 s of the source (skipping a weak start)
+  const byId = (ref: string): AssemblyClip | undefined => {
+    const [id, at] = ref.split('@') as [string, string | undefined];
+    const c = input.clips.find((x) => x.assetId === id) ?? input.clips.find((x) => x.baseAssetId === id);
+    const sec = at === undefined ? NaN : Number(at);
+    if (!c || !Number.isFinite(sec) || sec < 0 || c.kind !== 'video') return c;
+    const f = Math.min(Math.round(sec * fps), Math.max(0, c.durationInFrames - 1));
+    return { ...c, pinnedStartFrame: f, bestStartFrame: f };
+  };
   const uses = new Map<string, number>();
   const used = new Map<string, Array<[number, number]>>();
   const tagScore = (c: AssemblyClip, wants: string[] = []) => (c.shot && wants.includes(c.shot.top) ? (wants.length - wants.indexOf(c.shot.top)) / wants.length : 0);
@@ -183,6 +191,7 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
       id, layer: (n) => `V${2 + n}`,
       moment: (clip, frames) => {
         if (clip.kind === 'image') return { inFrame: 0, loop: false };
+        if (clip.pinnedStartFrame !== undefined) return { inFrame: clip.pinnedStartFrame, loop: clip.durationInFrames - clip.pinnedStartFrame < frames };
         const len = Math.max(1, Math.min(frames, clip.durationInFrames));
         const key = clip.baseAssetId ?? clip.assetId;
         const s0 = pickMoment(clip, len, used.get(key) ?? [], Math.round(fps * 0.5)) ?? 0;

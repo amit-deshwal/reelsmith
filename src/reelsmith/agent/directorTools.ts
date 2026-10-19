@@ -5,6 +5,7 @@ import type { AgentContext } from '../../agent/context';
 import type { AtomicAction } from '../../editor/reducerActions';
 import type { MediaAsset } from '../../editor/types';
 import { REEL_LOOKS } from '../looks';
+import { framesAllowed } from '../framePrivacy';
 import { runRecipe } from '../runRecipe';
 import { defaultValues } from '../setupForm';
 import { directorRecipe } from '../director/assembleDirector';
@@ -28,12 +29,35 @@ async function tempo(asset: MediaAsset, deps: ReelsDeps): Promise<{ beat: 'stead
   } catch { return { beat: 'unknown' }; }
 }
 
+/** Where a video is sampled for the sheet: four moments, so the agent sees how each clip starts, develops and ends. */
+const SAMPLES = [0.1, 0.37, 0.63, 0.9];
+
+/** Numbered contact sheets of every clip in one go (cells "n·seconds"), instead of one frame call per clip. */
+async function contactSheets(assets: MediaAsset[], fps: number, ctx: AgentContext, deps: ReelsDeps) {
+  if (!assets.length || !deps.api.selectionSheet || !framesAllowed(projectId(ctx))) return null;
+  const legend = assets.map((a, i) => ({ n: i + 1, assetId: a.id, name: a.name }));
+  const cells = assets.flatMap((a, i) => {
+    const sec = a.durationInFrames / fps;
+    return a.kind === 'image' ? [{ asset: a, atSec: 0, label: `${i + 1}` }]
+      : SAMPLES.map((p) => { const t = Math.round(p * sec * 10) / 10; return { asset: a, atSec: t, label: `${i + 1}·${t}s` }; });
+  });
+  const made = await deps.api.selectionSheet(cells).catch(() => null);
+  if (!made?.sheets.length) return null;
+  return {
+    images: made.sheets.map((sheet, i) => ({ frame: i, base64: sheet.base64 })),
+    legend,
+    note: `${made.sheets.length} contact sheet(s), 5 cells per row, left to right then top to bottom. A cell "n·t s" is clip n of sheetLegend at t seconds (videos: 4 cells at 10/37/63/90% of their length; photos: 1 cell). Plan from these; start a clip at a good moment with "assetId@seconds".`,
+  };
+}
+
 export async function directorOptions(ctx: AgentContext, deps: ReelsDeps): Promise<unknown> {
   const fps = ctx.getState().fps;
   const assets = (ctx.getDoc().assets ?? []).filter((a) => VISUAL.has(a.kind) || a.kind === 'audio');
   const songs = [...assets.filter((a) => a.kind === 'audio').slice(0, 3), ...libraryMusic(ctx)];
   const beats = new Map(await Promise.all(songs.map(async (a) => [a.id, await tempo(a, deps)] as const)));
+  const sheets = await contactSheets(assets.filter((a) => VISUAL.has(a.kind)).slice(0, 60), fps, ctx, deps);
   return {
+    ...(sheets ? { __images: sheets.images, sheetLegend: sheets.legend, sheetNote: sheets.note } : { sheetNote: 'No contact sheets (frame sharing is off or unavailable): choose from names and seconds, or view_asset_frames for a few clips.' }),
     media: assets.slice(0, 150).map((a) => ({
       assetId: a.id, name: a.name, kind: a.kind, seconds: secs(a.durationInFrames, fps),
       ...(a.width && a.height ? { orientation: a.height > a.width ? 'portrait' : a.height < a.width ? 'landscape' : 'square' } : {}),
@@ -71,7 +95,7 @@ export async function directorBuild(args: Record<string, unknown>, ctx: AgentCon
     if (!assets.some((a) => a.id === hit.id)) { assets.push(hit); added = hit; }
     plan.music = hit.id;
   }
-  const named = new Set(plan.sections.flatMap((s) => s.clips ?? []));
+  const named = new Set(plan.sections.flatMap((s) => s.clips ?? []).map((ref) => ref.split('@')[0]!));
   const unknown = [...named].filter((id) => !assets.some((a) => a.id === id && VISUAL.has(a.kind)));
   if (unknown.length) return { error: `unknown clip assetIds: ${unknown.join(', ')} (use assetIds from reels_director_options media)` };
   const recipe = directorRecipe(plan);

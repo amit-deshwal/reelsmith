@@ -134,6 +134,13 @@ export function RecipesPanel({ projectId, assets, itemCount, items, selectedItem
         {onAskAgent && <section aria-label="Direct my reel" style={{ display: 'grid', gap: 6, padding: 10, border: `0.5px solid ${theme.border}`, borderRadius: 8 }}>
           <b style={{ fontSize: 13 }}>Direct my reel</b>
           <span style={label}>Import your clips, photos and song, then tell the story. Your agent picks the effects, the clips and the words, and builds it.</span>
+          {(() => {
+            const n = (k: string) => assets.filter((a) => a.kind === k).length;
+            const songs = n('audio');
+            return <span style={{ ...label, color: songs ? theme.textDim : theme.danger }}>
+              Imported: {n('video')} clips, {n('image')} photos, {songs} song{songs === 1 ? '' : 's'}.{songs ? '' : ' No song yet: import yours, or your agent picks one from the library.'}
+            </span>;
+          })()}
           <textarea aria-label="Your story" value={story} onChange={(e) => setStory(e.target.value.slice(0, STORY_MAX))} rows={3} placeholder="2 days on the toughest trek in Maharashtra: climbed at dawn, cooked on the cliff, made it to the top" style={{ ...input, resize: 'vertical' }} />
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
             <select aria-label="Shape" value={directorRatio} onChange={(e) => setDirectorRatio(e.target.value as RatioId)} style={input}>

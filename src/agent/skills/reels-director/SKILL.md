@@ -10,11 +10,12 @@ The user brings three things: **a story** (a line or a few sentences), **their m
 
 ## The loop (8-15 turns)
 
-1. **One look at everything.** Call `reels_director_options` once (media with seconds and orientation, songs with bpm and first beat, the moves, text styles, looks). Then one contact sheet per source clip with `view_asset_frames` (12-16 samples) so you know what each clip shows and where it is steady. Do not look at a clip twice.
-2. **Ask only what is missing**, in one message, at most two questions: the story if there is none, the song if none is imported and the user wants music. Never ask about effects, ratio or fonts.
+1. **One look at everything.** Call `reels_director_options` once: media with seconds and orientation, songs with bpm and first beat, the moves, text styles, looks, **and numbered contact sheets of every clip** (videos at 10/37/63/90% of their length, cells labelled "n·seconds"; `sheetLegend` maps n to assetId). Plan from the sheets. Use `view_asset_frames` only for one or two clips you are truly unsure about, never once per clip.
+2. **Ask only what is missing**, in one message, at most two questions: the story if there is none; the song if the user said they have one but no song is imported (then ask them to import it instead of picking a library song). Never ask about effects, ratio or fonts.
 3. **Write the story as beats.** 3-6 short story beats: hook, journey, peak, payoff, ending. Each becomes one or two sections.
 4. **Fit the song.** Total beats ≈ (song seconds after firstBeatSec) × bpm / 60, minus a beat or two. Reels land best at 12-25 s unless the user says otherwise. Without a song a beat is 0.5 s.
 5. **Pick a move per section** by what the story beat needs and what the footage can carry (read each move's `use` and `clips`):
+   - A clip often starts weak (a selfie before the pan, a shaky first second): start it where it is good with `"assetId@seconds"` (e.g. `"abc123@4"`); every use of that reference starts there.
    - Opener (first 2-4 s decides if people stay): `strips-reveal` when there is a steady wide shot of the user standing or walking; `flash-cuts` for a hype start; `hold` on the strongest view with a `big-title`.
    - Journey / build: `cut` (2 beats a shot lively, 4 calm), `photo-drift` for photos, `break-in` for contrast pairs.
    - "Everything at once": `split` (rows suit 9:16) or `postcard-band` under a title overlay.

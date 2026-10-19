@@ -9,6 +9,6 @@ export function directorPrompt(story: string, ratio: RatioId): string {
   return [
     `Direct a ${ratio} reel from my imported clips, photos and song (director mode).`,
     text ? `My story, in my words: "${text}"` : 'I have not written a story: ask me for one line about it first.',
-    'Use the reels-director skill: reels_director_options, one contact sheet per clip, then one plan and reels_director_build. Keep my words on screen; describe only what the clips show.',
+    'Use the reels-director skill: reels_director_options (it includes contact sheets of every clip), then one plan and reels_director_build. Keep my words on screen; describe only what the clips show.',
   ].join('\n');
 }

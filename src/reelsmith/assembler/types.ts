@@ -29,6 +29,8 @@ export interface AssemblyClip {
   captureTimeMs?: number;
   /** best window inside the source, frames (default: from 0) */
   bestStartFrame?: number;
+  /** RS-1201: the director chose where this clip starts (frames); every use starts here */
+  pinnedStartFrame?: number;
   /** Scored source windows and hard cuts, retained for duration-aware placement. */
   sourceAnalysis?: {
     minShotFrames: number;
