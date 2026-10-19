@@ -15,6 +15,7 @@ import cardFrag from './pm-card-breakout.frag.ts';
 import echoTrailsFrag from './pm-echo-trails.frag.ts';
 import textBehindFrag from './pm-text-behind.frag.ts';
 import lightTrailsFrag from './pm-light-trails.frag.ts';
+import cutoutFrag from './reel-person-cutout.frag.ts';
 import { BEHIND_WORDS } from '../behindText';
 
 
@@ -215,6 +216,17 @@ const RAW_SUBJECT_FX: Record<string, FxDef> = {
       { key: 'backColor2', label: 'Background bottom', kind: 'color', default: [1, 0.45, 0.4], uniform: 'u_backColor2' },
     ],
   },
+  'builtin:fx-person-cutout': {
+    id: 'builtin:fx-person-cutout',
+    name: 'Person cut-out',
+    desc: 'Only the person shows; everything around them is transparent, so the tracks below show through. "White" turns them into a solid white silhouette (a flash). Needs the person cut-out.',
+    needsMask: true,
+    frag: cutoutFrag,
+    props: [
+      { key: 'edge', label: 'Edge softness', default: 0.08, min: 0, max: 0.3, step: 0.01 },
+      { key: 'white', label: 'White', default: 0, min: 0, max: 1, step: 0.01 },
+    ],
+  },
 };
 
 export const SUBJECT_FX_EFFECTS: Record<string, FxDef> = Object.fromEntries(
@@ -235,4 +247,5 @@ export const SUBJECT_FX_ORDER = [
   'builtin:fx-echo-trails',
   'builtin:fx-text-behind',
   'builtin:fx-light-trails',
+  'builtin:fx-person-cutout',
 ] as const;

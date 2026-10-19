@@ -352,3 +352,7 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 - `shared/asr-models.ts`: `AsrModelEntry.dtwPreset?`; `hinglish-apex` sets `large.v3.turbo`.
 - `desktop/native-asr-worker.ts`: a model with `dtwPreset` skips whisper-server (also not warmed on preload) and runs whisper-cli with `-nfa --dtw <preset>` in 30 s windows (Metal, then CPU); `runWhisperCli` takes the mode flags (default `-ml 20 -sow` unchanged).
 - Our own: `shared/reelsmith/whisperDtw.ts` (DTW token times to word chunks; re-runs from the last timed token when the model stops early and speech remains), `shared/reelsmith/whisperDtw.verify.ts`.
+
+## Postcard Collage (RS-1111)
+- `package.json`: registers `src/reelsmith/assembler/postcardCollage.verify.ts` in `test:reelsmith`.
+- Our own: `src/reelsmith/assembler/postcardCollage.ts`, `src/reelsmith/postcardGraphics.ts`, `recipes/postcard-collage.recipe.json`, the `builtin:fx-person-cutout` effect (`src/gl/fx/reel-person-cutout.frag` + twin, registered in `src/gl/fx/subjectFx.ts`), `rsFixedPosition` text opt-out in `src/reelsmith/titleClear.ts`, Bebas Neue and Figtree in `src/reelsmith/fonts.ts` / `assets/fonts/rs/`.

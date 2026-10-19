@@ -47,6 +47,8 @@ for (const recipe of recipes) {
     const song: MediaAsset = { id: 'song', name: 'song', kind: 'audio', src: '/media/uploads/song', durationInFrames: 3600 };
     const assets = [...media, song];
     const values = defaultValues(recipe);
+    // a required text (postcard-collage's place) gets its placeholder, as a user would type something like it
+    for (const input of recipe.inputs) if (input.kind === 'text' && !input.optional && !values.texts[input.id]) values.texts[input.id] = input.placeholder ?? 'Test';
     values.media = Object.fromEntries(mediaInputs(recipe).map((i) => [i.id, (i.accept.includes('audio') && !i.accept.includes('video') ? [song] : media.filter((m) => i.accept.includes(m.kind as 'image' | 'video' | 'audio')).slice(0, i.max)).map((a) => ({ assetId: a.id, kind: a.kind as 'video' | 'image' | 'audio' }))]));
     let out;
     try { out = await runRecipe(api, { recipe, values, assets, fps: 30, replaceTimeline: true, seed: 3 }); } catch (e) { if (/add at least/.test(String(e))) continue; report.push(`${recipe.id} / ${shape.name}: threw ${String(e)}`); continue; }

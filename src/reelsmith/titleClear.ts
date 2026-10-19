@@ -38,6 +38,8 @@ export function withTitleClear(actions: AtomicAction[], clips: AssemblyClip[], c
   return actions.map((action) => {
     if (action.type !== 'add' || action.item.kind !== 'text') return action;
     const text = action.item;
+    // Layouts that place their words exactly (postcard-collage@1) keep them where they are.
+    if ((text.props as { rsFixedPosition?: unknown } | undefined)?.rsFixedPosition) return action;
     const textStart = action.startFrame ?? 0;
     const textEnd = textStart + text.durationInFrames;
     const under = visuals
