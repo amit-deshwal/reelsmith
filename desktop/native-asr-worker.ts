@@ -24,6 +24,7 @@ import { ASR_INFERENCE_CONTRACT } from '../shared/asr-inference-contract.ts';
 import { resolveGgmlPath } from '../shared/asr-ggml-cache.ts';
 import { ASR_MODELS } from '../shared/asr-models.ts';
 import { DTW_WINDOW_MS, transcribeDtwWindows, type DtwJson } from '../shared/reelsmith/whisperDtw.ts';
+import { killWithOwner } from '../server/reelsmith/orphanGuard.ts';
 import { NativeAsrWorkerLifecycle } from './native-asr-worker-lifecycle.ts';
 import { extractPcm } from './native-asr-pcm.ts';
 import {
@@ -190,6 +191,7 @@ async function ensureWhisperServer(ggmlPath: string): Promise<{ child: ChildProc
     '--port', String(serverPort),
     '-t', '8',
   ], { stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
+  killWithOwner(child.pid);
   child.stderr?.resume();
   const deadline = Date.now() + SERVER_READY_TIMEOUT_MS;
   while (Date.now() < deadline) {
