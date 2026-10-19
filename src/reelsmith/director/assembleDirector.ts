@@ -230,7 +230,13 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
       id, layer: (n) => `V${2 + n}`,
       moment: (clip, frames) => {
         if (clip.kind === 'image') return { inFrame: 0, loop: false };
-        if (clip.pinnedStartFrame !== undefined) return { inFrame: clip.pinnedStartFrame, loop: clip.durationInFrames - clip.pinnedStartFrame < frames };
+        if (clip.pinnedStartFrame !== undefined) {
+          // a start too close to the end would leave the shot frozen for the rest of the section: start earlier so it keeps playing
+          const room = Math.max(0, clip.durationInFrames - frames);
+          if (clip.pinnedStartFrame > room && clip.durationInFrames >= frames) warnings.push(`sections[${i}]: "${clip.name}" starts ${(clip.pinnedStartFrame / fps).toFixed(1)} s but has only ${((clip.durationInFrames - clip.pinnedStartFrame) / fps).toFixed(1)} s left for a ${(frames / fps).toFixed(1)} s shot; started at ${(room / fps).toFixed(1)} s so it does not freeze.`);
+          const inFrame = Math.min(clip.pinnedStartFrame, room);
+          return { inFrame, loop: clip.durationInFrames - inFrame < frames };
+        }
         const len = Math.max(1, Math.min(frames, clip.durationInFrames));
         const key = clip.baseAssetId ?? clip.assetId;
         const s0 = pickMoment(clip, len, used.get(key) ?? [], Math.round(fps * 0.5)) ?? 0;

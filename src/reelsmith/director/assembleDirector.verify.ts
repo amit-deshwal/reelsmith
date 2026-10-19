@@ -151,6 +151,14 @@ assert.ok(graphics.every((g) => typeof g.item.props.fontFamily === 'string' && g
 const slamWords = graphics.find((g) => g.item.props.preset === 'slam');
 assert.ok(!slamWords || Array.isArray(slamWords.item.props.beats));
 assert.equal(graphics.find((g) => g.item.props.preset === 'location').item.props.sub, '1,424 M');
+// a pinned start near the end of a clip is moved earlier so the shot plays to the end of its section instead of freezing
+const near = parsePlan({ ratio: '9:16', music: 'song', sections: [{ move: 'hold', beats: 8, clips: ['fort@11'] }] });
+assert.ok(near.ok);
+const nearPlan = (near as { plan: ReelPlan }).plan;
+const nearRun = assemble({ recipe: directorRecipe(nearPlan), clips, music, texts: {}, params: {}, seed: 5, plan: nearPlan });
+const nearClip = (nearRun.action!.actions as any[]).find((a) => a.item?.kind === 'video');
+assert.ok(nearClip.item.srcInFrame + nearClip.item.durationInFrames <= 12 * fps, 'the held shot does not run past the end of its clip');
+assert.match(nearRun.report.warnings.join('; '), /so it does not freeze/);
 // bad effect, transition and look names are reported
 assert.match(bad({ sections: [{ move: 'cut', effects: [{ id: 'sparkles' }] }] }), /unknown effect "sparkles"/);
 assert.match(bad({ sections: [{ move: 'cut', effects: [{ id: 'halation', params: { warmth: 7 } }] }] }), /warmth must be 0 to 1/);
