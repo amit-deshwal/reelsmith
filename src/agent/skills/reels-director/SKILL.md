@@ -20,7 +20,7 @@ The user brings three things: **a story** (a line or a few sentences), **their m
    - Journey / build: `cut` (2 beats a shot lively, 4 calm), `photo-drift` for photos, `break-in` for contrast pairs.
    - "Everything at once": `split` (rows suit 9:16) or `postcard-band` under a title overlay.
    - Peak / drop of the song: `flash-cuts` for 2-4 beats, then the best shot.
-   - Ending: `cards-finale` for a trip (14+ beats), or `hold` on the most beautiful shot with the closing line; `black` with a `big-title` for a final word.
+   - Ending: `cards-finale` for a trip (14-16 beats at 120 bpm or faster, 18 below that; its first 2-3 s show only the first three clips, so cast clips with visible movement there, never people sitting or a held selfie, and keep still clips for the grid), or `hold` on the most beautiful shot with the closing line; `black` with a `big-title` for a final word.
    - Also: `zoom-punch` for a strong-beat build, `speed-ramp` for the single best action moment, `photo-stack` for photos and memories, `compare` for before/after or day/night pairs.
    Vary the moves: never the same move twice in a row, at most one `flash-cuts` burst per 15 s.
 6. **Cast with judgement.** Name `clips` for every section, in the order the move uses them (each move's `use` says the order). Best shot last, strongest hook first, never the same clip in two neighbouring sections unless at a different moment. Portrait clips suit 9:16; for 16:9 prefer landscape. Leave `clips` out only for montage moves (`postcard-band`) to sweep up the rest.
