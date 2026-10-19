@@ -219,7 +219,10 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
                 properties: {
                   move: { type: 'string' }, beats: { type: 'number' }, seconds: { type: 'number' },
                   clips: { type: 'array', items: { type: 'string' } }, text: { type: 'string' }, textStyle: { type: 'string' },
-                  params: { type: 'object', additionalProperties: {} },
+                  params: { type: 'object', additionalProperties: {}, description: "The move's params and the text style's params." },
+                  transition: { type: 'string', description: 'How the section comes in from the one before (a transitions id).' },
+                  effects: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, params: { type: 'object', additionalProperties: { type: 'number' } } }, required: ['id'] }, description: 'Up to 3 effects ids with params, on this section\'s footage.' },
+                  look: { type: 'string', description: 'A look for this section only.' },
                 },
                 required: ['move'],
               },

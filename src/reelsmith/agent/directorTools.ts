@@ -10,6 +10,8 @@ import { runRecipe } from '../runRecipe';
 import { defaultValues } from '../setupForm';
 import { directorRecipe } from '../director/assembleDirector';
 import { MOVES, TEXT_STYLES } from '../director/moves';
+import { isClipTextStyle } from '../director/textStyles';
+import { DIRECTOR_EFFECTS, DIRECTOR_TRANSITIONS, effectParams } from '../director/catalog';
 import { commit, projectId, type ReelsDeps } from './reelsTools';
 
 const VISUAL = new Set(['video', 'image']);
@@ -69,11 +71,16 @@ export async function directorOptions(ctx: AgentContext, deps: ReelsDeps): Promi
       id: m.id, name: m.name, looks: m.looks, use: m.use, clips: m.clips, beats: m.beats,
       params: m.params.map((p) => ({ id: p.id, type: p.type, label: p.label, default: p.default, ...(p.options ? { options: p.options } : {}), ...(p.min !== undefined ? { min: p.min, max: p.max } : {}) })),
     })),
-    textStyles: TEXT_STYLES.map((t) => ({ id: t.id, name: t.name, looks: t.looks, use: t.use, maxChars: t.maxChars, params: t.params.map((p) => ({ id: p.id, type: p.type, default: p.default })) })),
-    looks: REEL_LOOKS.map((l) => ({ id: l.id, name: l.name, mood: l.mood })),
+    textStyles: TEXT_STYLES.map((t) => ({
+      id: t.id, name: t.name, looks: t.looks, use: t.use, maxChars: t.maxChars, ...(isClipTextStyle(t) ? { inPicture: true } : {}),
+      params: t.params.map((p) => ({ id: p.id, type: p.type, default: p.default, ...(p.min !== undefined ? { min: p.min, max: p.max } : {}) })),
+    })),
+    effects: DIRECTOR_EFFECTS.map((e) => ({ id: e.id.replace('builtin:fx-', ''), group: e.group, looks: e.looks, use: e.use, ...(e.person ? { needsPerson: true } : {}), params: effectParams(e.id).map((p) => ({ id: p.id, default: p.default, ...(p.min !== undefined ? { min: p.min, max: p.max } : {}) })) })),
+    transitions: DIRECTOR_TRANSITIONS.map((t) => ({ id: t.id, looks: t.looks, use: t.use })),
+    looks: REEL_LOOKS.map((l) => ({ id: l.id, name: l.name, mood: l.mood, looks: l.description })),
     planShape: {
       ratio: '9:16 (default) | 4:5 | 1:1 | 16:9', music: 'song assetId (imported or libraryMusic)', musicStart: "'firstDownbeat' (default) | 'fromStart' | seconds", look: 'optional look id',
-      sections: '[{ move, beats, clips?: [assetId...] in the order the move uses them, text?, textStyle?, params? }] back to back on the beat',
+      sections: '[{ move, beats, clips?: ["assetId" or "assetId@seconds"...] in the order the move uses them, text?, textStyle?, params? (the move\'s and the text style\'s), transition? (how it comes in from the section before), effects?: [{ id, params? }] (at most 3), look? }] back to back on the beat',
       overlays: '[{ text, style, from, to (section indexes), params? }] for a line across several sections',
     },
     hint: 'A beat is 60/bpm seconds (0.5 s without a song). Fit the sum of beats to the song: seconds left after firstBeatSec x bpm / 60. Name clips for every section that shows your judgement; omitted clips are cast from unused footage.',

@@ -40,8 +40,6 @@ const raw = {
   ],
   overlays: [{ text: 'Harishchandragad', style: 'title-shuffle', from: 1, to: 2, params: { left: 'greetings', right: 'from' } }],
 };
-assert.deepEqual(new Set(raw.sections.map((s) => s.move)), new Set(MOVES.map((m) => m.id)), 'the test plan uses every move');
-assert.deepEqual(new Set([...raw.sections.flatMap((s) => (s.textStyle ? [s.textStyle] : [])), ...raw.overlays.map((o) => o.style)]), new Set(TEXT_STYLES.map((t) => t.id)), 'and every text style');
 const parsed = parsePlan(raw);
 assert.ok(parsed.ok, parsed.ok ? '' : parsed.errors.join('; '));
 const plan = (parsed as { plan: ReelPlan }).plan;
@@ -93,8 +91,73 @@ const song = adds.find((a) => a.item.kind === 'audio');
 assert.equal(song.item.srcInFrame, 6);
 assert.equal(song.item.durationInFrames, res.report.totalFrames);
 
-// bad plans say what is wrong
 const bad = (p: unknown) => { const r = parsePlan(p); return r.ok ? assemble({ recipe, clips, music, texts: {}, params: {}, seed: 5, plan: r.plan }).report.warnings.join('; ') : r.errors.join('; '); };
+// a second plan: the newer moves, every other text style, section effects, a look, transitions
+const engineStyles = ['cinematic-title', 'tracking-in', 'typewriter', 'location-tag', 'rise-lines', 'slam', 'count-up', 'wave', 'glitch', 'neon', 'split-reveal', 'highlight', 'draw-on', 'shine', 'pop-words'];
+const raw2 = {
+  ratio: '16:9', music: 'song',
+  sections: [
+    { move: 'hold', beats: 6, clips: ['fort'], text: 'Harishchandragad', textStyle: 'landscape-title', effects: [{ id: 'halation', params: { intensity: 1.4 } }, { id: 'soft-vignette' }] },
+    { move: 'zoom-punch', beats: 4, transition: 'whip-blur', clips: ['trail', 'climb', 'group', 'camp'] },
+    { move: 'speed-ramp', beats: 8, clips: ['climb@1'], text: 'FREEDOM', textStyle: 'behind-you' },
+    { move: 'photo-stack', beats: 6, clips: ['photo1', 'photo2', 'food'], look: 'golden-hour' },
+    { move: 'compare', beats: 6, clips: ['trail', 'ridge'] },
+    { move: 'cut', beats: 8, params: { every: 2, transition: 'crossfade' }, clips: ['ridge', 'fort', 'group', 'trail'] },
+    ...engineStyles.map((st) => ({ move: 'black', beats: 2, text: st === 'count-up' ? '6,000 calories' : st === 'rise-lines' ? 'two days / one fort' : 'Day 2 summit', textStyle: st, ...(st === 'location-tag' ? { params: { sub: '1,424 m' } } : {}) })),
+  ],
+};
+const allMoves = new Set([...raw.sections, ...raw2.sections].map((x) => x.move));
+assert.deepEqual([...MOVES.map((m) => m.id)].filter((m) => !allMoves.has(m)), [], 'the two plans use every move');
+const allStyles = new Set([...raw.sections, ...raw2.sections].flatMap((x) => ('textStyle' in x && x.textStyle ? [x.textStyle] : [])).concat(raw.overlays.map((o) => o.style)));
+assert.deepEqual(TEXT_STYLES.map((t) => t.id).filter((t) => !allStyles.has(t)), [], 'and every text style');
+const parsed2 = parsePlan(raw2);
+assert.ok(parsed2.ok, parsed2.ok ? '' : parsed2.errors.join('; '));
+const plan2 = (parsed2 as { plan: ReelPlan }).plan;
+const res2 = assemble({ recipe: directorRecipe(plan2), clips, music, texts: {}, params: {}, seed: 9, plan: plan2 });
+assert.ok(res2.action, res2.report.warnings.join('; '));
+const a2 = res2.action!.actions as any[];
+const adds2 = a2.filter((a) => a.type === 'add');
+const inSec = (n: number) => adds2.filter((a) => a.item.props?.rsSection?.startsWith(`${n}-`));
+// landscape title rides on the hold clip as an effect with the text; effects stack after it
+const holdClip = inSec(1).find((a) => a.item.kind === 'video');
+assert.deepEqual(holdClip.item.effects.map((e: any) => e.assetId), ['builtin:fx-halation', 'builtin:fx-soft-vignette', 'builtin:fx-text-scenery']);
+assert.equal(holdClip.item.props.rsFxText, 'Harishchandragad');
+assert.equal(holdClip.item.effects[0].overrides.intensity, 1.4);
+// punch-in cuts: a scale keyframe on every shot; the whip transition into section 2
+assert.ok(inSec(2).every((a) => a.item.keyframes?.scale?.[0]?.value > 1));
+assert.ok(a2.some((a) => a.type === 'addTransition' && a.transType === 'whip-blur' && a.incomingItemId === inSec(2)[0].item.id));
+// speed ramp: three pieces at 1x, slow, fast, the source running forward, pinned at 1 s; text behind the person
+const ramp = inSec(3).filter((a) => a.item.kind === 'video');
+assert.deepEqual(ramp.map((a) => a.item.playbackRate ?? 1), [1, 0.35, 2.5]);
+assert.equal(ramp[0].item.srcInFrame, 30);
+assert.ok(ramp[1].item.srcInFrame > ramp[0].item.srcInFrame && ramp[2].item.srcInFrame > ramp[1].item.srcInFrame);
+assert.ok(ramp.every((a) => a.item.props.rsFxText === 'FREEDOM' && a.item.effects.at(-1).assetId === 'builtin:fx-text-behind'));
+// photo stack: a white print under each picture, same tilt; golden-hour look on the pictures
+const prints = inSec(4).filter((a) => a.item.name === 'Print');
+const pics = inSec(4).filter((a) => a.item.kind !== 'solid');
+assert.equal(prints.length, 3);
+prints.forEach((p, i) => assert.equal(p.item.transform.rotation, pics[i].item.transform.rotation));
+assert.ok(pics.every((a) => a.item.effects?.some((e: any) => e.id.includes('look_'))), 'the section look is on its pictures');
+// compare: one graphic with both clips and a white divider
+const cmp = inSec(5).find((a) => a.item.kind === 'motion-graphic');
+assert.deepEqual(Object.keys(cmp.item.props.sources), ['a', 'b']);
+assert.ok(cmp.item.props.windows.some((w: any) => w.fill === '#ffffff'));
+// crossfades between the cut's shots
+assert.equal(a2.filter((a) => a.type === 'addTransition' && a.transType === 'cross-dissolve').length, 3);
+// every engine style is a text graphic with its typeface named for the font loader
+const graphics = adds2.filter((a) => a.item.kind === 'motion-graphic' && a.item.props?.preset);
+assert.equal(graphics.length, engineStyles.length);
+assert.ok(graphics.every((g) => typeof g.item.props.fontFamily === 'string' && g.item.props.fontSize >= 24));
+const slamWords = graphics.find((g) => g.item.props.preset === 'slam');
+assert.ok(!slamWords || Array.isArray(slamWords.item.props.beats));
+assert.equal(graphics.find((g) => g.item.props.preset === 'location').item.props.sub, '1,424 M');
+// bad effect, transition and look names are reported
+assert.match(bad({ sections: [{ move: 'cut', effects: [{ id: 'sparkles' }] }] }), /unknown effect "sparkles"/);
+assert.match(bad({ sections: [{ move: 'cut', effects: [{ id: 'halation', params: { warmth: 7 } }] }] }), /warmth must be 0 to 1/);
+assert.match(bad({ sections: [{ move: 'cut' }, { move: 'cut', transition: 'teleport' }] }), /unknown transition/);
+assert.match(bad({ sections: [{ move: 'cut', look: 'sunburn' }] }), /unknown look/);
+
+// bad plans say what is wrong
 assert.match(bad({ sections: [{ move: 'teleport' }] }), /unknown move "teleport"/);
 assert.match(bad({ sections: [{ move: 'cut', params: { speed: 3 } }] }), /unknown param "speed"/);
 assert.match(bad({ sections: [{ move: 'cut', params: { every: 99 } }] }), /every must be a number from 0.5 to 8/);

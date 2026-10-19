@@ -26,8 +26,9 @@ export interface GraphicSource {
 
 export interface WindowKey { t: number; win: Rect; anchor?: Rect; opacity?: number; /** straight line to the next key */ linear?: boolean }
 export interface GraphicWindow {
-  /** source key, or null for a solid black window */
+  /** source key, or null for a solid window (black unless fill) */
   s: string | null;
+  fill?: string;
   from: number;
   to: number;
   cover: 'frame' | 'window';
@@ -75,7 +76,7 @@ export const POSTCARD_GRAPHIC_CODE = String.raw`const PostcardGraphic = ({ item 
     if (win[2] <= 0.5 || win[3] <= 0.5 || opacity <= 0.001) return null;
     const box = { position: 'absolute', left: win[0], top: win[1], width: win[2], height: win[3], overflow: 'hidden', opacity };
     const s = w.s == null ? null : sources[w.s];
-    if (!s) return React.createElement('div', { key: 'w' + n, style: { ...box, background: '#000' } });
+    if (!s) return React.createElement('div', { key: 'w' + n, style: { ...box, background: w.fill || '#000' } });
     const f = s.focus || [0.5, 0.5];
     let pw, ph, x, y;
     if (w.cover === 'window') {

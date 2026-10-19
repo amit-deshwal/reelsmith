@@ -364,3 +364,11 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 - `package.json`: registers `src/reelsmith/director/assembleDirector.verify.ts` in `test:reelsmith`.
 - Our own: `shared/reelsmith/directorPlan.ts`, `src/reelsmith/director/` (compiler, moves, prompt), `src/reelsmith/agent/directorTools.ts`, `src/agent/skills/reels-director/`, the Director box in `src/reelsmith/ui/RecipesPanel.tsx`, `plan` in `runRecipe.ts` / `assembler/types.ts`.
 
+## Director library (RS-1202)
+- `src/editor/TimelineComposition.tsx`: each GL transition window is rendered right after its incoming clip (same layer) instead of after every clip, so higher tracks (titles, text graphics) stay on top during transitions; windows whose incoming clip is not drawn fall back to the old place.
+- `src/gl/ClipFx.tsx`: a text effect draws the clip's `props.rsFxText` when set (any words), else its word index as before.
+- `src/gl/textLayer.ts`: `textCellFor` takes a word index or a string; new `scenery` cell (thin, widely spaced capitals). `src/gl/fx/uniforms.ts`: `textKind` adds `'scenery'`.
+- `src/gl/fx/titleFx.ts`: registers `builtin:fx-text-scenery` (ours: `reel-text-scenery.frag` + twin). `src/gl/fx/reelFx.verify.ts`: 39 effects.
+- `assets/agent/openchatcut-tool-schemas.json`: regenerated.
+- Our own: `src/reelsmith/director/{catalog,textGraphic,textStyles}.ts`, new moves in `moves.ts`, compiler support in `assembleDirector.ts`, `fill` on graphic windows in `postcardGraphics.ts`.
+

@@ -297,6 +297,25 @@ function TimelineContent({ state, project, transparent, browserRenderer = false,
   });
   const sharedVisualIds = new Set(sharedVisualGroups.flatMap((group) => group.map((item) => item.id)));
 
+  // Reelsmith: each GL transition window is painted at its incoming clip's layer, so tracks above it (titles, text
+  // graphics, overlays) stay on top during the transition instead of vanishing under it.
+  const renderGlWindow = (w: GlWindow) => (
+        <Sequence key={w.key} from={w.from} durationInFrames={w.L} premountFor={premountFrames} name={`tr:${w.type}`}>
+          <GlTransition
+            type={w.type} direction={w.direction} L={w.L} windowStart={w.from}
+            outgoing={w.outgoing} incoming={w.incoming} trimOut={w.trimOut} trimIn={w.trimIn}
+            width={state.width} height={state.height} fit={fit}
+            outgoingBackgroundFill={isBackgroundFillActive(state, w.outgoing)}
+            incomingBackgroundFill={isBackgroundFillActive(state, w.incoming)}
+            customFrag={w.customFrag} customUniforms={w.customUniforms}
+            previewTargetId={w.previewTargetId} onPreviewStatus={w.previewTargetId ? onSelectedPreviewStatus : undefined}
+            onReadyChange={(ready) => setGlWindowReady(w.key, ready)}
+          />
+        </Sequence>
+  );
+  const drawnIds = new Set(ordered.filter((it) => !sharedVisualIds.has(it.id)).map((it) => it.id));
+  const windowAt = new Map(glWindows.filter((w) => drawnIds.has(w.incoming.id)).map((w) => [w.key, w.incoming.id] as const));
+  const windowsAfter = (id: string) => glWindows.filter((w) => windowAt.get(w.key) === id).map(renderGlWindow);
   return (
     <AbsoluteFill style={{ background: transparent ? undefined : GRID }}>
       {staticPreviewStatuses.map((status) => (
@@ -318,7 +337,7 @@ function TimelineContent({ state, project, transparent, browserRenderer = false,
           browserRenderer={browserRenderer}
         />
       ))}
-      {ordered.map((item) => {
+      {ordered.flatMap((item) => [(() => {
         if (sharedVisualIds.has(item.id)) return null;
         const eb = extendBefore.get(item.id) ?? 0;
         const ea = extendAfter.get(item.id) ?? 0;
@@ -368,22 +387,9 @@ function TimelineContent({ state, project, transparent, browserRenderer = false,
             </GlTransitionVisibility>
           </Sequence>
         );
-      })}
-      {/* GLSL transition windows: painted over both clips, beneath captions */}
-      {glWindows.map((w) => (
-        <Sequence key={w.key} from={w.from} durationInFrames={w.L} premountFor={premountFrames} name={`tr:${w.type}`}>
-          <GlTransition
-            type={w.type} direction={w.direction} L={w.L} windowStart={w.from}
-            outgoing={w.outgoing} incoming={w.incoming} trimOut={w.trimOut} trimIn={w.trimIn}
-            width={state.width} height={state.height} fit={fit}
-            outgoingBackgroundFill={isBackgroundFillActive(state, w.outgoing)}
-            incomingBackgroundFill={isBackgroundFillActive(state, w.incoming)}
-            customFrag={w.customFrag} customUniforms={w.customUniforms}
-            previewTargetId={w.previewTargetId} onPreviewStatus={w.previewTargetId ? onSelectedPreviewStatus : undefined}
-            onReadyChange={(ready) => setGlWindowReady(w.key, ready)}
-          />
-        </Sequence>
-      ))}
+      })(), ...windowsAfter(item.id)])}
+      {/* GLSL transition windows whose incoming clip is not drawn above (painted over both clips, beneath captions) */}
+      {glWindows.filter((w) => !windowAt.has(w.key)).map(renderGlWindow)}
       {audio.map((item) => (
         <AudioClip
           key={item.id}

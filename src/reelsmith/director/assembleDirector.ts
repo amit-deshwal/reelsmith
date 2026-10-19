@@ -10,6 +10,11 @@ import { pickMoment } from '../assembler/travelDiary';
 import { stableId } from '../assembler/rng';
 import type { AssembleInput, AssembleResult, AssemblyClip, AssemblyMusic } from '../assembler/types';
 import { moveById, textStyleById, type MoveDef, type MoveParam } from './moves';
+import { isClipTextStyle } from './textStyles';
+import { directorEffectById, directorTransitionById } from './catalog';
+import { ALL_FX } from '../../gl/fx/effects';
+import { RECIPE_TRANSITIONS } from '../assembler/transitions';
+import { lookById, lookEffects } from '../looks';
 
 /** Video lanes: V1 holds the black canvas, each section uses V2.. ; text lanes T1..T3 per section, T4.. for overlays. */
 const SECTION_TEXT_LANES = 3;
@@ -101,6 +106,18 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
       beats = Math.min(move.beats.max, Math.max(move.beats.min, s.beats));
     }
     if (s.text && !style) errors.push(`${where}: unknown textStyle "${s.textStyle}"`);
+    if (s.transition && !directorTransitionById(s.transition)) errors.push(`${where}: unknown transition "${s.transition}"`);
+    if (s.look && !lookById(s.look)) errors.push(`${where}: unknown look "${s.look}"`);
+    for (const e of s.effects ?? []) {
+      const known = directorEffectById(e.id);
+      if (!known) { errors.push(`${where}: unknown effect "${e.id}"`); continue; }
+      const def = ALL_FX[known.id]!;
+      for (const [k, v] of Object.entries(e.params ?? {})) {
+        const p = def.props.find((x) => x.key === k);
+        if (!p) errors.push(`${where}: effect ${known.id} has no param "${k}" (it has ${def.props.map((x) => x.key).join(', ')})`);
+        else if ('min' in p && typeof p.min === 'number' && typeof p.max === 'number' && (v < p.min || v > p.max)) errors.push(`${where}: ${known.id}.${k} must be ${p.min} to ${p.max}`);
+      }
+    }
     if (s.text && style && s.text.length > style.maxChars) errors.push(`${where}.text is longer than ${style.maxChars} characters for ${style.id}`);
     return { s, move, params, beats, style, textParams: style ? resolveParams(style.params, own(style.params), where, errors) : {} };
   });
@@ -165,6 +182,27 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
   let shotsCount = 0;
   actions.push({ type: 'add', startFrame: 0, item: { id: stableId('rs-dir', tag, seed, 'bg'), track: 'V1', kind: 'solid', name: 'Black canvas', durationInFrames: Math.max(1, total), width: W, height: H, props: { color: '#000000', rsSection: 'canvas' } } as never });
   let previous: { move: string; bandCover?: number } | undefined;
+  // which actions each section emitted, for effects, looks, in-picture text and transitions
+  const ranges: Array<[number, number]> = [];
+  type Add = { type: 'add'; startFrame: number; item: { id: string; kind: string; track: string; durationInFrames: number; effects?: unknown; props?: Record<string, unknown> } };
+  const isFootage = (a: AtomicAction): a is AtomicAction & Add => a.type === 'add' && (a.item.kind === 'video' || a.item.kind === 'image')
+    && !((a.item.effects as Array<{ assetId: string }> | undefined) ?? []).some((e) => e.assetId === 'builtin:fx-person-cutout');
+  const onClips = (section: number, baseOnly: boolean, f: (item: Add['item']) => Add['item']) => {
+    const r = ranges[section];
+    if (!r) return;
+    for (let k = r[0]; k < r[1]; k += 1) {
+      const a = actions[k]!;
+      if (isFootage(a) && (!baseOnly || a.item.track === 'V2')) actions[k] = { ...a, item: f(a.item) } as AtomicAction;
+    }
+  };
+  const bases = (section: number) => { const r = ranges[section]; return r ? actions.slice(r[0], r[1]).filter((a): a is AtomicAction & Add => isFootage(a) && a.item.track === 'V2').sort((x, y) => x.startFrame - y.startFrame) : []; };
+  const firstBase = (section: number) => bases(section)[0];
+  const lastBase = (section: number) => bases(section).at(-1);
+  const clipText = (section: number, effect: { assetId: string; overrides: Record<string, number> }, text: string, fxId: string) => {
+    let any = false;
+    onClips(section, true, (item) => { any = true; return { ...item, props: { ...(item.props ?? {}), rsFxText: text }, effects: [...((item.effects as unknown[]) ?? []), { id: fxId, assetId: effect.assetId, overrides: { ...effect.overrides } }] }; });
+    if (!any) warnings.push(`sections[${section}]: "${text}" needs full-frame footage under it (this move has none); not shown.`);
+  };
   let lastClips = new Set<string>();
   resolved.forEach((r, i) => {
     const { s, move, params } = r!;
@@ -185,6 +223,7 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
     clips.forEach((c) => usedIds.add(c.baseAssetId ?? c.assetId));
     shotsCount += clips.length;
     const id = (...parts: Array<string | number>) => stableId('rs-dir', tag, seed, i, ...parts);
+    const firstAction = actions.length;
     move.build({
       W, H, fps, start, end, beats: b1 - b0, clips, params, seed: seed + i,
       beatFrame: (b) => Math.min(end, Math.max(start, frame(b0 + b))),
@@ -210,6 +249,25 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
         emit: (a) => actions.push(a), warn: (m) => warnings.push(`sections[${i}] text: ${m}`),
       });
     }
+    ranges[i] = [firstAction, actions.length];
+    // section effects and look on its footage; a text style that lives in the picture rides on its main clips
+    const fxList = [
+      ...(s.effects ?? []).map((e, k) => ({ id: id('fx', k), assetId: directorEffectById(e.id)!.id, overrides: { ...(e.params ?? {}) } })),
+      // look effect ids keep their look_ prefix so the Looks panel can replace them later
+      ...(s.look ? lookEffects(lookById(s.look)!).map((e) => ({ ...e, id: `${e.id}_s${i}` })) : []),
+    ];
+    if (fxList.length) onClips(i, false, (item) => ({ ...item, effects: [...((item.effects as unknown[]) ?? []), ...fxList.map((e) => ({ ...e, overrides: { ...e.overrides } }))] }));
+    if (s.text && r!.style && isClipTextStyle(r!.style)) clipText(i, r!.style.clipEffect({ W, H, fps, start, end, beats: b1 - b0, text: s.text, params: r!.textParams, seed: seed + i, beatFrame: frame, id, lane: () => 'T1', emit: () => {}, warn: () => {} }), s.text, id('textfx'));
+    // the way in from the section before
+    if (s.transition && i > 0) {
+      const lastPrev = lastBase(i - 1);
+      const firstHere = firstBase(i);
+      const spec = RECIPE_TRANSITIONS[s.transition]!;
+      if (lastPrev && firstHere && lastPrev.startFrame + lastPrev.item.durationInFrames === firstHere.startFrame) {
+        const length = Math.max(2, Math.min(Math.round(spec.seconds * fps), Math.floor(Math.min(lastPrev.item.durationInFrames, firstHere.item.durationInFrames) / 2)));
+        actions.push({ type: 'addTransition', id: id('tr-in'), incomingItemId: firstHere.item.id, transType: spec.type, durationInFrames: length } as AtomicAction);
+      } else warnings.push(`sections[${i}]: the ${s.transition} transition needs footage on both sides of the cut (${previous?.move ?? 'none'} → ${move.id}); left as a cut.`);
+    }
     previous = { move: move.id, ...(move.leaves?.({ params }) ?? {}) };
     lastClips = new Set(clips.map((c) => c.assetId));
   });
@@ -220,6 +278,10 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
     const a = frame(spans[o.from]!.b0);
     const b = frame(spans[o.to]!.b1);
     const params = resolveParams(style.params, o.params, `overlays[${k}]`, warnings);
+    if (isClipTextStyle(style)) {
+      for (let sct = o.from; sct <= o.to; sct += 1) clipText(sct, style.clipEffect({ W, H, fps, start: a, end: b, beats: 0, text: o.text, params, seed, beatFrame: frame, id: (...p) => stableId('rs-dir', tag, seed, 'overlay', k, ...p), lane: () => 'T1', emit: () => {}, warn: () => {} }), o.text, stableId('rs-dir', tag, seed, 'overlay', k, sct));
+      return;
+    }
     style.build({
       W, H, fps, start: a, end: b, beats: spans[o.to]!.b1 - spans[o.from]!.b0, text: o.text, params, seed: seed + 100 + k,
       beatFrame: (x) => Math.min(b, Math.max(a, frame(spans[o.from]!.b0 + x))), id: (...p) => stableId('rs-dir', tag, seed, 'overlay', k, ...p),

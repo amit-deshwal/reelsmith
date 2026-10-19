@@ -21,12 +21,14 @@ The user brings three things: **a story** (a line or a few sentences), **their m
    - "Everything at once": `split` (rows suit 9:16) or `postcard-band` under a title overlay.
    - Peak / drop of the song: `flash-cuts` for 2-4 beats, then the best shot.
    - Ending: `cards-finale` for a trip (14+ beats), or `hold` on the most beautiful shot with the closing line; `black` with a `big-title` for a final word.
-   Vary the moves: never the same move twice in a row, at most one `flash-cuts` burst per 15 s, one look per reel.
+   - Also: `zoom-punch` for a strong-beat build, `speed-ramp` for the single best action moment, `photo-stack` for photos and memories, `compare` for before/after or day/night pairs.
+   Vary the moves: never the same move twice in a row, at most one `flash-cuts` burst per 15 s.
 6. **Cast with judgement.** Name `clips` for every section, in the order the move uses them (each move's `use` says the order). Best shot last, strongest hook first, never the same clip in two neighbouring sections unless at a different moment. Portrait clips suit 9:16; for 16:9 prefer landscape. Leave `clips` out only for montage moves (`postcard-band`) to sweep up the rest.
-7. **Write the words.** Use the user's own words and tone; short. One line per section at most; `words-on-beat` for punchy fragments (3-8 words), `caption` for a sentence, `big-title` for a name or a final word, `title-shuffle` as an overlay for the place across a montage. Keep text off faces and inside Instagram's safe area (the styles already do).
-8. **Build** with `reels_director_build` (ask before replacing a non-empty timeline). If it refuses, fix every listed problem and build again.
-9. **Check once.** Look at the timeline at the start of each section (one frame each). Fix what is clearly wrong (a strip with nothing in it, a blurry hero shot, a line over a face) by changing the plan and building again. Then `reels_lint`.
-10. **Report in three lines**: the structure (sections and moves in plain words), the length and song, and two or three things they could ask next ("slower ending", "different opener", "add a look").
+7. **Write the words.** Use the user's own words and tone; short. One line per section at most, and pick its text style by what the words are (read each style's `use`): a place → `landscape-title` (open sky), `cinematic-title`, `location-tag` (arriving) or `title-shuffle` (overlay over a montage); a number → `count-up`; a punchline → `slam` on the drop; a statement → `rise-lines`; a note or time → `typewriter`; a spoken-style sentence → `pop-words` or `caption`; one mood word with a clear person → `behind-you`; a celebration → `shine`. Keep text off faces and inside Instagram's safe area (the styles already do).
+8. **Season, lightly.** Optional per section: `transition` (how it comes in from the one before; only between sections with footage on both sides), up to 3 `effects` (read `use` and `needsPerson`), and a section `look`. Defaults are good; add these only where the story asks for it (see Taste).
+9. **Build** with `reels_director_build` (ask before replacing a non-empty timeline). If it refuses, fix every listed problem and build again.
+10. **Check once.** Look at the timeline at the start of each section (one frame each). Fix what is clearly wrong (a strip with nothing in it, a blurry hero shot, a line over a face) by changing the plan and building again. Then `reels_lint`.
+11. **Report in three lines**: the structure (sections and moves in plain words), the length and song, and two or three things they could ask next ("slower ending", "different opener", "add a look").
 
 ## Example plan
 
@@ -38,14 +40,23 @@ A 2-day trek, 130 bpm song of 20 s, 13 portrait clips:
   "sections": [
     { "move": "strips-reveal", "beats": 8, "clips": ["<walking on the trail>", "<climb>", "<orange jacket>", "<group on plateau>", "<selfie>"] },
     { "move": "postcard-band", "beats": 8 },
-    { "move": "cut", "beats": 4, "params": { "every": 2 }, "clips": ["<view>", "<group>"], "text": "the toughest trek in maharashtra", "textStyle": "caption" },
+    { "move": "cut", "beats": 4, "params": { "every": 2 }, "clips": ["<view>@4", "<group>"], "text": "the toughest trek in maharashtra", "textStyle": "rise-lines" },
     { "move": "break-in", "beats": 8, "params": { "every": 4, "kind": "tall" }, "clips": ["<climb>", "<360 rock>"] },
-    { "move": "split", "beats": 4, "params": { "layout": "split3v" }, "clips": ["<eating>", "<cooking>", "<camp>"] },
+    { "move": "split", "beats": 4, "params": { "layout": "split3v", "sub": "burnt" }, "clips": ["<eating>", "<cooking>", "<camp>"], "text": "6,000 calories", "textStyle": "count-up" },
     { "move": "cards-finale", "beats": 14, "clips": ["<view>", "<group>", "<360 rock>", "<eating>", "<orange jacket>", "<pinnacle>"] }
   ],
   "overlays": [{ "text": "Maharashtra", "style": "title-shuffle", "from": 1, "to": 1 }]
 }
 ```
+
+## Taste (what makes it look paid-for, not cheap)
+
+- **One idea per reel.** One reel look (plan `look`) or none; section looks only for a deliberate change (a flashback, the night part).
+- **Few effects.** Most sections need none. At most one stylise or retro effect per reel unless the story is about that style; person effects only when `needsPerson` is clearly met (one person, big in frame).
+- **Two or three typefaces.** Do not use a different text style in every section; repeat the one that fits the voice, and change it only for a title, a number or the punchline.
+- **In-picture text needs the right shot**: `landscape-title` needs open sky above the scenery; `behind-you` needs one clear person; neither works on close-ups or indoors.
+- **Transitions mark changes** (a new place, a new day, the drop). A whip or zoom on every cut is cheap; plain cuts on the beat are the default.
+- **Let the best shot breathe**: give the hero view a `hold` or the `cards-finale` closer, and the strongest action a `speed-ramp`.
 
 ## Rules
 

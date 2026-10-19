@@ -248,7 +248,7 @@ export function ClipFx({ item, fit, width, height, frameOffset = 0, onPreviewSta
         };
         const maskFrame = wantsMask ? matteAt(staging, sourceFrameAt(item, frame)) : null;
         const textCell = active.some(({ def }) => def.needsText)
-          ? (({ def, fx }) => textCellFor(Number(fx.overrides?.word ?? def.props.find((p) => p.key === 'word')?.default ?? 0), def.textKind))(active.find(({ def }) => def.needsText)!)
+          ? (({ def, fx }) => textCellFor(typeof item.props?.rsFxText === 'string' && item.props.rsFxText ? item.props.rsFxText : Number(fx.overrides?.word ?? def.props.find((p) => p.key === 'word')?.default ?? 0), def.textKind))(active.find(({ def }) => def.needsText)!)
           : null;
         const extras: Record<string, TexImageSource> = {};
         if (maskFrame) extras.u_mask = maskFrame.mask;

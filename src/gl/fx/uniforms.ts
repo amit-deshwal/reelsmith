@@ -46,7 +46,7 @@ export interface FxDef {
   /** Reelsmith: the shader also reads u_text (a word drawn by the renderer, see ../textLayer.ts) and u_textAspect */
   needsText?: boolean;
   /** Reelsmith: which word list `word` indexes ('title' = the movie titles, default = the behind-you words) */
-  textKind?: 'title';
+  textKind?: 'title' | 'scenery';
   /** Reelsmith: the shader reads the clip as it looked 1..taps steps ago (u_hist0.., each with its matte u_histMask0..); the
    * step length in seconds is the `stepKey` setting, read by ClipFx rather than the shader */
   history?: { taps: number; stepKey: string; countKey: string };

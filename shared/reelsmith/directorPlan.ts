@@ -17,6 +17,12 @@ export interface PlanSection {
   text?: string;
   textStyle?: string;
   params?: Record<string, PlanValue>;
+  /** how this section comes in from the one before (a transition id); omitted = a hard cut */
+  transition?: string;
+  /** clip effects on this section's footage, with their own params */
+  effects?: Array<{ id: string; params?: Record<string, number> }>;
+  /** a look for this section only (overrides the reel's look here) */
+  look?: string;
 }
 
 /** A line that stays on screen across several sections (a title over a montage). */
@@ -83,9 +89,24 @@ export function parsePlan(raw: unknown): { ok: true; plan: ReelPlan } | { ok: fa
     const num = (v: unknown, k: string) => (v === undefined ? undefined : typeof v === 'number' && Number.isFinite(v) && v > 0 && v <= 600 ? v : (errors.push(`${w}.${k} must be a positive number`), undefined));
     const clips = s.clips === undefined ? undefined
       : Array.isArray(s.clips) && s.clips.every((c) => typeof c === 'string') ? s.clips as string[] : (errors.push(`${w}.clips must be an array of assetIds`), undefined);
+    const effects: Array<{ id: string; params?: Record<string, number> }> = [];
+    if (s.effects !== undefined) {
+      if (!Array.isArray(s.effects)) errors.push(`${w}.effects must be an array`);
+      else s.effects.forEach((e, k) => {
+        if (!obj(e) || typeof e.id !== 'string') { errors.push(`${w}.effects[${k}] needs an id`); return; }
+        const p: Record<string, number> = {};
+        for (const [key, v] of Object.entries(obj(e.params) ? e.params : {})) {
+          if (typeof v === 'number' && Number.isFinite(v)) p[key] = v; else errors.push(`${w}.effects[${k}].params.${key} must be a number`);
+        }
+        effects.push({ id: e.id, ...(Object.keys(p).length ? { params: p } : {}) });
+      });
+      if (effects.length > 3) errors.push(`${w}: at most 3 effects on a section`);
+    }
     sections.push({
       move: s.move, beats: num(s.beats, 'beats'), seconds: num(s.seconds, 'seconds'), clips, text: text(s.text, `${w}.text`),
       textStyle: typeof s.textStyle === 'string' ? s.textStyle : undefined, params: params(s.params, w),
+      ...(typeof s.transition === 'string' ? { transition: s.transition } : {}), ...(effects.length ? { effects } : {}),
+      ...(typeof s.look === 'string' ? { look: s.look } : {}),
     });
   });
   const overlays: PlanOverlay[] = [];

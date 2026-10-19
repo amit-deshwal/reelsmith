@@ -2,6 +2,7 @@
 // is drawn by the renderer (see ../textLayer.ts) and the shader gives it its look.
 import type { FxDef } from './uniforms';
 import titleRevealFrag from './pm-title-reveal.frag.ts';
+import sceneryFrag from './reel-text-scenery.frag.ts';
 import { TITLE_WORDS, titleLabel } from '../titleText';
 
 export const TITLE_FX_EFFECTS: Record<string, FxDef> = {
@@ -25,6 +26,23 @@ export const TITLE_FX_EFFECTS: Record<string, FxDef> = {
       { key: 'steel', label: 'Steel tone', kind: 'color', default: [0.66, 0.63, 0.57], uniform: 'u_steel' },
     ],
   },
+  'builtin:fx-text-scenery': {
+    id: 'builtin:fx-text-scenery',
+    name: 'Landscape title',
+    desc: 'Thin, widely spaced capitals rise into the sky from behind the scenery and settle there; ridges, trees and people stay in front of the letters. Best on a wide view with open sky. The text is the clip\'s title (set by the director).',
+    needsText: true,
+    textKind: 'scenery',
+    frag: sceneryFrag,
+    props: [
+      { key: 'y', label: 'Height in the frame (0 top, 1 bottom)', default: 0.2, min: 0.05, max: 0.6, step: 0.01 },
+      { key: 'size', label: 'Letter height', default: 0.09, min: 0.03, max: 0.25, step: 0.005 },
+      { key: 'opacity', label: 'Opacity', default: 0.75, min: 0.1, max: 1, step: 0.01 },
+      { key: 'rise', label: 'Rise (seconds)', default: 1.8, min: 0.2, max: 5, step: 0.05 },
+      { key: 'delay', label: 'Delay (seconds)', default: 0.2, min: 0, max: 5, step: 0.05 },
+      { key: 'outline', label: 'Hollow outline (1) or solid (0)', default: 1, min: 0, max: 1, step: 1 },
+      { key: 'sky', label: 'How easily the picture counts as sky', default: 0.5, min: 0, max: 1, step: 0.01 },
+    ],
+  },
 };
 
-export const TITLE_FX_ORDER = ['builtin:fx-title-reveal'] as const;
+export const TITLE_FX_ORDER = ['builtin:fx-title-reveal', 'builtin:fx-text-scenery'] as const;

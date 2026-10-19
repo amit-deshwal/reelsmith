@@ -11,8 +11,10 @@ import { BAR_STEPS, isCloseUp, postcardOrder, scrambleStates } from '../assemble
 import { FINALE, FINALE_GRID_FROM_SEC, FINALE_NEEDS_SEC, FINALE_ROLES, finaleWindows, POSTCARD_GRAPHIC_CODE, stripWindows, type GraphicSource, type GraphicWindow } from '../postcardGraphics';
 import { REVEAL_FRAG, REVEAL_LABELS, revealUniforms, type RevealKind } from '../travelDiaryReveal';
 import { kenBurnsActions, type KenBurnsPreset } from '../kenBurns';
+import { RECIPE_TRANSITIONS } from '../assembler/transitions';
 import { focusForRange } from '../titleClear';
 import type { PlanValue } from '../../../shared/reelsmith/directorPlan';
+import { CLIP_TEXT_STYLES, ENGINE_STYLES } from './textStyles';
 
 export interface MoveParam {
   id: string;
@@ -129,9 +131,19 @@ const cut: MoveDef = {
   id: 'cut', name: 'Beat cuts', looks: 'Full-frame shots, one after another, each cut landing on the beat.',
   use: 'The backbone: travelling, the build-up, any stretch where the footage should speak. 2 beats a shot is lively, 4 is calm, 1 is energetic.',
   clips: { min: 1, max: 32 }, beats: { min: 1, default: 8, max: 64 },
-  params: [{ id: 'every', type: 'number', label: 'Beats per shot', default: 2, min: 0.5, max: 8 }],
+  params: [
+    { id: 'every', type: 'number', label: 'Beats per shot', default: 2, min: 0.5, max: 8 },
+    { id: 'transition', type: 'enum', label: 'Between shots', default: 'none', options: ['none', ...Object.keys(RECIPE_TRANSITIONS)] },
+  ],
   clipCount: (beats, p) => Math.ceil(beats / num(p.every, 2) - 1e-6),
-  build: (ctx) => { shots(ctx, 0, steps(ctx.beats, num(ctx.params.every, 2)), 'cut'); },
+  build: (ctx) => {
+    const ids = shots(ctx, 0, steps(ctx.beats, num(ctx.params.every, 2)), 'cut');
+    const spec = RECIPE_TRANSITIONS[str(ctx.params.transition, 'none')];
+    if (!spec) return;
+    const shot = Math.max(2, ctx.beatFrame(num(ctx.params.every, 2)) - ctx.start);
+    const length = Math.max(2, Math.min(Math.round(spec.seconds * ctx.fps), Math.floor(shot / 2)));
+    ids.slice(1).forEach((itemId, i) => ctx.emit({ type: 'addTransition', id: ctx.id('cut-tr', i), incomingItemId: itemId, transType: spec.type, durationInFrames: length } as AtomicAction));
+  },
 };
 
 const flashCuts: MoveDef = {
@@ -365,7 +377,100 @@ const black: MoveDef = {
   build: (ctx) => { solid(ctx, 0, ['black'], 'Pause', ctx.start, ctx.end, str(ctx.params.color, '#000000')); },
 };
 
-export const MOVES: readonly MoveDef[] = [cut, flashCuts, hold, photoDrift, split, breakIn, stripsReveal, postcardBand, cardsFinale, black];
+const zoomPunch: MoveDef = {
+  id: 'zoom-punch', name: 'Punch-in cuts', looks: 'Beat cuts where every new shot punches in (starts zoomed and snaps back), like a hit on the drum.',
+  use: 'Energetic stretches with a strong beat: the build-up, sport, dance, city at night. Stronger than plain cuts; do not run it long.',
+  clips: { min: 2, max: 24 }, beats: { min: 2, default: 8, max: 32 },
+  params: [
+    { id: 'every', type: 'number', label: 'Beats per shot', default: 1, min: 0.5, max: 4 },
+    { id: 'punch', type: 'number', label: 'Punch size', default: 0.18, min: 0.05, max: 0.5 },
+  ],
+  clipCount: (beats, p) => Math.ceil(beats / num(p.every, 1) - 1e-6),
+  build: (ctx) => {
+    const punch = num(ctx.params.punch, 0.18);
+    const settle = Math.max(3, Math.round(ctx.fps * 0.22));
+    shots(ctx, 0, steps(ctx.beats, num(ctx.params.every, 1)), 'punch', () => ({ keyframes: { scale: [{ frame: 0, value: 1 + punch, easing: 'easeOut' }, { frame: settle, value: 1 }] } }));
+  },
+};
+
+const speedRamp: MoveDef = {
+  id: 'speed-ramp', name: 'Speed ramp', looks: 'One shot plays at normal speed, drops into slow motion for the key moment, then whips forward fast.',
+  use: 'The single most dramatic action shot: a jump, a splash, a turn, a reveal. Needs a video at least 4 s long; one clip.',
+  clips: { min: 1, max: 1 }, beats: { min: 4, default: 8, max: 16 }, wants: ['action', 'people'],
+  params: [{ id: 'slow', type: 'number', label: 'Slow-motion speed', default: 0.35, min: 0.15, max: 0.8 }],
+  build: (ctx) => {
+    const clip = ctx.clips[0]!;
+    const len = ctx.end - ctx.start;
+    const slow = num(ctx.params.slow, 0.35);
+    // three parts: 30% at 1x, 45% slow, 25% at 2.5x; the source keeps running forward without a jump
+    const parts: Array<[number, number]> = [[0.3, 1], [0.45, slow], [0.25, 2.5]];
+    const sourceNeed = Math.round(parts.reduce((s, [share, rate]) => s + share * len * rate, 0));
+    if (clip.kind !== 'video') { clipAt(ctx, 0, ['ramp'], clip, ctx.start, ctx.end, 0); return; }
+    let src = ctx.moment(clip, sourceNeed).inFrame;
+    let at = ctx.start;
+    parts.forEach(([share, rate], i) => {
+      const to = i === parts.length - 1 ? ctx.end : at + Math.round(share * len);
+      clipAt(ctx, 0, ['ramp', i], clip, at, to, Math.min(src, Math.max(0, clip.durationInFrames - 2)), rate === 1 ? {} : { playbackRate: rate });
+      src += Math.round((to - at) * rate);
+      at = to;
+    });
+  },
+};
+
+const photoStack: MoveDef = {
+  id: 'photo-stack', name: 'Photo stack', looks: 'Photos (or clips) drop in one by one as tilted white-bordered prints that pile up on a coloured background.',
+  use: 'Memories, a photo dump, "best of the trip", group photos, food. 3-6 photos; works for stills best.',
+  clips: { min: 2, max: 8 }, beats: { min: 4, default: 8, max: 24 }, wants: ['people', 'food', 'detail'],
+  params: [
+    { id: 'every', type: 'number', label: 'Beats between prints', default: 1, min: 0.5, max: 4 },
+    { id: 'background', type: 'color', label: 'Background', default: '#1b1b1b' },
+  ],
+  clipCount: (beats, p) => Math.min(8, Math.max(2, Math.floor(beats / num(p.every, 1)))),
+  build: (ctx) => {
+    solid(ctx, 0, ['stack-bg'], 'Background', ctx.start, ctx.end, str(ctx.params.background, '#1b1b1b'));
+    const every = num(ctx.params.every, 1);
+    const n = Math.min(ctx.clips.length, 7);
+    const drop = Math.max(4, Math.round(ctx.fps * 0.3));
+    for (let i = 0; i < n; i += 1) {
+      const clip = ctx.clips[i]!;
+      const from = Math.min(ctx.end - 2, ctx.beatFrame(i * every));
+      const rot = ((((ctx.seed + 1) * 9301 + i * 49297) % 233280) / 233280 - 0.5) * 16;
+      const dx = ((((ctx.seed + 7) * 7919 + i * 104729) % 1000) / 1000 - 0.5) * 14;
+      const dy = ((((ctx.seed + 3) * 6007 + i * 15485863) % 1000) / 1000 - 0.5) * 10;
+      const keys = (s: number): Record<string, Keyframe[]> => ({ y: [{ frame: 0, value: dy - 70, easing: 'easeOut' }, { frame: drop, value: dy }], opacity: [{ frame: 0, value: 0 }, { frame: Math.round(drop / 2), value: 1 }], scale: [{ frame: 0, value: s * 1.15, easing: 'easeOut' }, { frame: drop, value: s }] });
+      // a white print behind the picture: the same transform, a little bigger
+      solid(ctx, 1 + i * 2, ['print', i], 'Print', from, ctx.end, '#f7f4ee', { transform: { x: dx, y: dy, scale: 0.7, rotation: rot }, keyframes: keys(0.7) });
+      clipAt(ctx, 2 + i * 2, ['stack', i], clip, from, ctx.end, ctx.moment(clip, ctx.end - from).inFrame, { transform: { x: dx, y: dy, scale: 0.64, rotation: rot }, keyframes: keys(0.64) });
+    }
+  },
+};
+
+const compare: MoveDef = {
+  id: 'compare', name: 'Before / after', looks: 'Two shots of the same frame: the second wipes across the first from the right, stops at the middle, then takes the whole frame.',
+  use: 'Contrast: before and after, day and night, the start of the climb and the top, "expectation vs reality". Two clips, ideally similar framing.',
+  clips: { min: 2, max: 2 }, beats: { min: 4, default: 8, max: 16 },
+  params: [],
+  build: (ctx) => {
+    const sec = (ctx.end - ctx.start) / ctx.fps;
+    const full: [number, number, number, number] = [0, 0, ctx.W, ctx.H];
+    const sources = { a: source(ctx, ctx.clips[0]!, sec, 0), b: source(ctx, ctx.clips[1]!, sec, 0) };
+    const half = ctx.W / 2;
+    const line = Math.max(3, Math.round(ctx.W * 0.004));
+    graphic(ctx, 0, ['compare'], 'Before / after', ctx.start, ctx.end, sources, [
+      { s: 'a', from: 0, to: sec, cover: 'frame', keys: [{ t: 0, win: full }] },
+      { s: 'b', from: sec * 0.15, to: sec, cover: 'frame', keys: [
+        { t: sec * 0.15, win: [ctx.W, 0, 0, ctx.H], anchor: full }, { t: sec * 0.4, win: [half, 0, half, ctx.H], anchor: full },
+        { t: sec * 0.7, win: [half, 0, half, ctx.H], anchor: full }, { t: sec * 0.9, win: full, anchor: full },
+      ] },
+      { s: null, fill: '#ffffff', from: sec * 0.15, to: sec * 0.9, cover: 'frame', keys: [
+        { t: sec * 0.15, win: [ctx.W - line, 0, line, ctx.H] }, { t: sec * 0.4, win: [half - line / 2, 0, line, ctx.H] },
+        { t: sec * 0.7, win: [half - line / 2, 0, line, ctx.H] }, { t: sec * 0.9, win: [-line, 0, line, ctx.H] },
+      ] },
+    ], '#000000');
+  },
+};
+
+export const MOVES: readonly MoveDef[] = [cut, flashCuts, zoomPunch, hold, speedRamp, photoDrift, photoStack, split, breakIn, compare, stripsReveal, postcardBand, cardsFinale, black];
 export const moveById = (id: string) => MOVES.find((m) => m.id === id);
 export const ALL_STRIP_TIMES = STRIP_AT;
 
@@ -477,5 +582,5 @@ const caption: TextStyleDef = {
   },
 };
 
-export const TEXT_STYLES: readonly TextStyleDef[] = [titleShuffle, wordsOnBeat, bigTitle, caption];
+export const TEXT_STYLES: readonly TextStyleDef[] = [titleShuffle, wordsOnBeat, bigTitle, caption, ...ENGINE_STYLES, ...CLIP_TEXT_STYLES];
 export const textStyleById = (id: string) => TEXT_STYLES.find((t) => t.id === id);
