@@ -58,13 +58,16 @@ interface LintItem {
 }
 export interface SafeZoneIssue { itemId: string; startFrame: number; message: string }
 
+/** Average glyph width in em for faces whose real width is well under the 0.55 default (the director styles fit text with the same numbers). */
+const FACE_EM: Record<string, number> = { 'Bebas Neue': 0.42, Anton: 0.5 };
+
 /** Estimated text box: single or multi line, centred on the canvas then offset by transform x/y (percent of canvas). */
 export function textBox(item: LintItem, canvas: { width: number; height: number }): Rect {
   const props = item.props ?? {};
   const text = String(props.text ?? '');
   const size = Number(props.fontSize ?? 96) * (item.transform?.scale ?? 1);
   const lines = text.split('\n');
-  const w = Math.min(canvas.width, Math.max(...lines.map((l) => l.length), 1) * size * 0.55);
+  const w = Math.min(canvas.width, Math.max(...lines.map((l) => l.length), 1) * size * (FACE_EM[String(props.fontFamily)] ?? 0.55));
   const h = lines.length * size * 1.2;
   const cx = canvas.width / 2 + ((item.transform?.x ?? 0) / 100) * canvas.width;
   const cy = canvas.height / 2 + ((item.transform?.y ?? 0) / 100) * canvas.height;
