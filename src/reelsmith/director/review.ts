@@ -1,0 +1,85 @@
+// RS-1211: the director's own review of a built reel, returned with the build so the agent needs no extra turns to
+// check it. Deterministic and local: it reads the plan, the beat clock and the song analysis, and names concrete
+// problems with a concrete fix ("the drop at 11.2 s lands in section 4, a plain cut: time an effect to it"). The agent
+// still sees one frame per section; this catches what a frame cannot show (pacing, timing, the song, reading speed).
+import type { ReelPlan } from '../../../shared/reelsmith/directorPlan';
+
+export interface ReviewFinding { section?: number; issue: string; fix: string }
+
+export interface ReviewInput {
+  plan: ReelPlan;
+  /** section start and end in reel seconds */
+  spans: Array<{ from: number; to: number }>;
+  /** where the song starts in its own seconds, and its analysis */
+  musicStartSec?: number;
+  song?: { seconds: number; dropSec?: number; loudestSec?: number; bpm?: number; suggest?: { musicStart: number } };
+}
+
+/** Moves and settings that give a section a peak: what a drop should land on. */
+const PEAK_MOVES = new Set(['flash-cuts', 'zoom-punch', 'velocity', 'speed-ramp', 'match-cut', 'break-in']);
+const PEAK_TRANSITIONS = new Set(['zoom-through', 'whip-blur', 'spin-zoom', 'flash', 'chroma-glitch', 'flip-3d', 'mirror-flip', 'prism-flash', 'impact-shake', 'radial-blur', 'glitch-cut']);
+const SIGNATURE_MOVES = new Set(['velocity', 'photo-3d', 'freeze-intro', 'match-cut', 'strips-reveal', 'cards-finale', 'break-in', 'speed-ramp']);
+
+const hasPeak = (s: ReelPlan['sections'][number]) => PEAK_MOVES.has(s.move) || s.textStyle === 'slam'
+  || (s.transition !== undefined && PEAK_TRANSITIONS.has(s.transition))
+  || (s.effects ?? []).some((e) => e.timing === 'drop' || e.timing === 'beat');
+
+export function reviewDirectorPlan(r: ReviewInput): ReviewFinding[] {
+  const out: ReviewFinding[] = [];
+  const { plan, spans } = r;
+  const total = spans.at(-1)?.to ?? 0;
+  const start = r.musicStartSec ?? 0;
+  // the song: a long song started in its intro misses its energy; the drop should meet a peak
+  // (judged against the same suggestion the options gave, so the review never contradicts it)
+  const suggested = r.song?.suggest?.musicStart;
+  if (r.song && r.song.seconds > 40 && suggested !== undefined && start + 4 < suggested) {
+    out.push({ issue: `the song plays from ${start.toFixed(1)} s, before where it lifts`, fix: `set musicStart to ${suggested} (the song's suggest) unless the story wants the quiet intro` });
+  }
+  if (r.song?.dropSec !== undefined) {
+    const at = r.song.dropSec - start;
+    if (at > 0.5 && at < total - 0.5) {
+      // a drop up to a third of a second before a section starts belongs to that section (beat rounding)
+      const k = spans.findIndex((s) => at >= s.from - 0.35 && at < s.to - 0.35);
+      const sec = k >= 0 ? plan.sections[k] : undefined;
+      if (sec && !hasPeak(sec) && !(spans[k]!.from - at < 0.3 && plan.sections[k]?.transition)) {
+        out.push({ section: k, issue: `the song's drop is at ${at.toFixed(1)} s of the reel, inside section ${k} (${sec.move}), which has no peak`, fix: `start a section on the drop with flash-cuts, zoom-punch or velocity, or give section ${k} an effect with timing "drop" (zoom-blur, light-rays) or a punchy transition` });
+      }
+    }
+  }
+  // one signature moment makes a reel feel directed; most reels over 10 s should have one
+  if (total > 10 && !plan.sections.some((s) => SIGNATURE_MOVES.has(s.move)) && !plan.sections.some((s) => (s.effects ?? []).some((e) => e.timing && e.timing !== 'steady'))) {
+    out.push({ issue: 'no signature moment: every section is a plain cut, hold or burst and no effect moves with the music', fix: 'add one: velocity on the best action shot, photo-3d on a portrait, a freeze-intro for a person, or one effect timed to the drop' });
+  }
+  // pacing: long holds on a fast song read as dead air
+  const beatSec = r.song?.bpm ? 60 / r.song.bpm : 0.5;
+  plan.sections.forEach((s, k) => {
+    const len = (spans[k]?.to ?? 0) - (spans[k]?.from ?? 0);
+    // a cut changes shot every `every` beats (default 2): only one shot running long is a hold
+    const every = typeof s.params?.every === 'number' ? s.params.every : 2;
+    const longest = s.move === 'hold' ? len : s.move === 'cut' ? Math.min(len, beatSec * every) : 0;
+    const words = s.text ? s.text.split(/\s+/).filter(Boolean).length : 0;
+    // a held shot under a line is a quiet moment: it may last as long as the line takes to read calmly and look at
+    if (longest > Math.max(4, beatSec * 8, words / 2 + 2) && k !== plan.sections.length - 1) {
+      const floor = words ? ` (no shorter than ${(words / 3.2).toFixed(1)} s: its line needs that long to read)` : '';
+      out.push({ section: k, issue: `section ${k} (${s.move}) shows one shot for ${longest.toFixed(1)} s`, fix: `cut it every 2 beats, shorten it${floor}, or give it a slow move (photo-3d, a fade-timed effect)` });
+    }
+    // reading speed: about 3 words a second is the most people read on a moving picture
+    if (s.text) {
+      if (words / Math.max(0.5, len) > 3.2) out.push({ section: k, issue: `"${s.text}" is ${words} words in ${len.toFixed(1)} s, too fast to read`, fix: 'shorten the line (keep the user\'s words, drop some) or give the section more beats' });
+    }
+  });
+  // a line meant to go behind a person needs a style big enough to be seen around them
+  plan.sections.forEach((s, k) => {
+    if (s.textBehind && s.textStyle && ['caption', 'pop-words', 'typewriter', 'location-tag', 'highlight'].includes(s.textStyle)) {
+      out.push({ section: k, issue: `textBehind with ${s.textStyle}: small text hides behind the person and barely shows`, fix: 'use big-title, cinematic-title, slam or rise-lines for a line behind the person' });
+    }
+  });
+  // neighbouring sections with the same clip
+  plan.sections.forEach((s, k) => {
+    if (k === 0) return;
+    const prev = new Set((plan.sections[k - 1]!.clips ?? []).map((c) => c.split('@')[0]));
+    const same = (s.clips ?? []).map((c) => c.split('@')[0]).filter((c) => prev.has(c));
+    if (same.length && s.clips!.length <= 2) out.push({ section: k, issue: `section ${k} repeats a clip from section ${k - 1}`, fix: 'use another clip, or a clearly different moment (@seconds)' });
+  });
+  return out;
+}

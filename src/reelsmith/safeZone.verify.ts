@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { coveredBands, lintSafeZone, safeAreaFor, safeRect } from './safeZone';
+import { coveredBands, fitTextInSafeWidth, lintSafeZone, safeAreaFor, safeRect } from './safeZone';
 
 const canvas = { width: 1080, height: 1920 };
 const r = safeRect(canvas);
@@ -38,4 +38,17 @@ assert.equal(square.kind === 'grid' && square.safe.w, 810);
 const wide = { id: 'w', kind: 'text', startFrame: 0, durationInFrames: 30, props: { text: 'This is a very long caption line', fontSize: 80 }, transform: { y: 0 } };
 assert.equal(lintSafeZone([wide], { width: 1920, height: 1080 }).length, 0, 'no zones in landscape');
 assert.match(lintSafeZone([wide], { width: 1080, height: 1080 })[0]!.message, /3:4 profile-grid/);
+// the build keeps lines clear of the side UI: shifted when they fit, shrunk when they do not; vertical place kept
+const nudge = fitTextInSafeWidth(t('n', 'Yun hi chala chal', 10, { fontSize: 96 }), canvas);
+assert.deepEqual(lintSafeZone([nudge], canvas), [], 'moved left into the safe area');
+assert.equal(nudge.props.fontSize, 96, 'fits without shrinking');
+assert.ok(((nudge.transform as { x?: number }).x ?? 0) < 0);
+assert.equal(nudge.transform.y, 10);
+const long = fitTextInSafeWidth(t('l', 'This is a very long line of caption text', 0), canvas);
+assert.deepEqual(lintSafeZone([long], canvas), [], 'shrunk to the safe width');
+assert.ok(Number(long.props.fontSize) < 80);
+const fine = t('ok', 'Hello', 0);
+assert.equal(fitTextInSafeWidth(fine, canvas), fine, 'a line already inside is untouched');
+assert.equal(fitTextInSafeWidth(wide, { width: 1920, height: 1080 }), wide, 'no zones in landscape');
+
 console.log('safeZone.verify: ok');

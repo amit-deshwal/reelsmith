@@ -24,6 +24,10 @@ import { lookById, lookEffects } from '../looks';
 const effectAsset = (id: string) => directorEffectById(id)?.id ?? (id.startsWith('custom:fx-') && ALL_FX[id] ? id : undefined);
 const isCustomTransition = (id: string) => id.startsWith('custom:tr-') && !!getCustomTransition(id);
 
+/** A line meant to pass behind the person: withTitleClear lays it across them instead of moving it off their face. */
+const markBehind = (a: AtomicAction): AtomicAction => (a.type === 'add' && (a.item.kind === 'text' || a.item.kind === 'motion-graphic')
+  ? { ...a, item: { ...a.item, props: { ...(a.item.props ?? {}), rsBehind: true } } } as AtomicAction : a);
+
 /** Video lanes: V1 holds the black canvas, each section uses V2.. ; text lanes T1..T3 per section, T4.. for overlays. */
 const SECTION_TEXT_LANES = 3;
 
@@ -80,22 +84,8 @@ export function resolveParams(defs: readonly MoveParam[], given: Record<string, 
   return out;
 }
 
-export function assembleDirector(input: AssembleInput): AssembleResult {
-  const { recipe, seed } = input;
-  const plan = input.plan;
-  const fps = fpsOf(recipe);
-  const W = recipe.canvas.width;
-  const H = recipe.canvas.height;
-  const warnings: string[] = [];
-  const run = { recipeId: recipe.id, recipeVersion: recipe.version, assembler: recipe.assembler.strategy, seed, params: input.params, texts: input.texts, assetIds: input.clips.map((c) => c.assetId).sort() };
-  const fail = (msg: string): AssembleResult => ({ action: null, run, report: { shots: 0, usedAssetIds: [], musicStartSec: 0, totalFrames: 0, warnings: [...warnings, msg] } });
-  if (!plan) return fail('director@1 needs a plan');
-
-  // 1. moves, params, texts and lengths
-  const errors: string[] = [];
-  const music = input.music;
-  const startSec = music ? songStart(plan, music) : 0;
-  const clock = beatClock(music, startSec);
+/** Moves, params, texts and lengths checked against the catalogue (no song or clips needed); problems go to `errors`. */
+export function resolvePlanSections(plan: ReelPlan, warnings: string[], errors: string[]) {
   const resolved = plan.sections.map((s, i) => {
     const where = `sections[${i}]`;
     const move = moveById(s.move);
@@ -140,6 +130,26 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
     if (!style) errors.push(`overlay "${o.text}": unknown style "${o.style}"`);
     else if (o.text.length > style.maxChars) errors.push(`overlay "${o.text}" is longer than ${style.maxChars} characters for ${style.id}`);
   }
+  return { sections: resolved, customFx };
+}
+
+export function assembleDirector(input: AssembleInput): AssembleResult {
+  const { recipe, seed } = input;
+  const plan = input.plan;
+  const fps = fpsOf(recipe);
+  const W = recipe.canvas.width;
+  const H = recipe.canvas.height;
+  const warnings: string[] = [];
+  const run = { recipeId: recipe.id, recipeVersion: recipe.version, assembler: recipe.assembler.strategy, seed, params: input.params, texts: input.texts, assetIds: input.clips.map((c) => c.assetId).sort() };
+  const fail = (msg: string): AssembleResult => ({ action: null, run, report: { shots: 0, usedAssetIds: [], musicStartSec: 0, totalFrames: 0, warnings: [...warnings, msg] } });
+  if (!plan) return fail('director@1 needs a plan');
+
+  // 1. moves, params, texts and lengths
+  const errors: string[] = [];
+  const music = input.music;
+  const startSec = music ? songStart(plan, music) : 0;
+  const clock = beatClock(music, startSec);
+  const { sections: resolved, customFx } = resolvePlanSections(plan, warnings, errors);
   if (errors.length) return fail(`The plan has problems: ${errors.join('; ')}`);
 
   // 2. the clock: section start and end frames
@@ -267,7 +277,7 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
       r!.style.build({
         W, H, fps, start, end, beats: b1 - b0, text: s.text, params: r!.textParams, seed: seed + i,
         beatFrame: (b) => Math.min(end, Math.max(start, frame(b0 + b))), id: (...p) => id('text', ...p), lane: (n) => `T${1 + n}`,
-        emit: (a) => actions.push(a), warn: (m) => warnings.push(`sections[${i}] text: ${m}`),
+        emit: (a) => actions.push(s.textBehind ? markBehind(a) : a), warn: (m) => warnings.push(`sections[${i}] text: ${m}`),
       });
     }
     ranges[i] = [firstAction, actions.length];
@@ -335,7 +345,7 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
     style.build({
       W, H, fps, start: a, end: b, beats: spans[o.to]!.b1 - spans[o.from]!.b0, text: o.text, params, seed: seed + 100 + k,
       beatFrame: (x) => Math.min(b, Math.max(a, frame(spans[o.from]!.b0 + x))), id: (...p) => stableId('rs-dir', tag, seed, 'overlay', k, ...p),
-      lane: (n) => `T${1 + SECTION_TEXT_LANES * (k + 1) + n}`, emit: (x) => actions.push(x), warn: (m) => warnings.push(`overlays[${k}]: ${m}`),
+      lane: (n) => `T${1 + SECTION_TEXT_LANES * (k + 1) + n}`, emit: (x) => actions.push(o.behind ? markBehind(x) : x), warn: (m) => warnings.push(`overlays[${k}]: ${m}`),
     });
   });
 

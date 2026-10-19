@@ -62,16 +62,43 @@ export interface SafeZoneIssue { itemId: string; startFrame: number; message: st
 const FACE_EM: Record<string, number> = { 'Bebas Neue': 0.42, Anton: 0.5 };
 
 /** Estimated text box: single or multi line, centred on the canvas then offset by transform x/y (percent of canvas). */
-export function textBox(item: LintItem, canvas: { width: number; height: number }): Rect {
+type TextLike = Pick<LintItem, 'props' | 'transform'>;
+
+function naturalWidth(item: TextLike): number {
   const props = item.props ?? {};
-  const text = String(props.text ?? '');
   const size = Number(props.fontSize ?? 96) * (item.transform?.scale ?? 1);
-  const lines = text.split('\n');
-  const w = Math.min(canvas.width, Math.max(...lines.map((l) => l.length), 1) * size * (FACE_EM[String(props.fontFamily)] ?? 0.55));
-  const h = lines.length * size * 1.2;
+  return Math.max(...String(props.text ?? '').split('\n').map((l) => l.length), 1) * size * (FACE_EM[String(props.fontFamily)] ?? 0.55);
+}
+
+export function textBox(item: TextLike, canvas: { width: number; height: number }): Rect {
+  const props = item.props ?? {};
+  const size = Number(props.fontSize ?? 96) * (item.transform?.scale ?? 1);
+  const w = Math.min(canvas.width, naturalWidth(item));
+  const h = String(props.text ?? '').split('\n').length * size * 1.2;
   const cx = canvas.width / 2 + ((item.transform?.x ?? 0) / 100) * canvas.width;
   const cy = canvas.height / 2 + ((item.transform?.y ?? 0) / 100) * canvas.height;
   return { x: cx - w / 2, y: cy - h / 2, w, h };
+}
+
+/**
+ * A text line that runs into the side UI (or past the grid crop) is moved sideways into the safe area, and shrunk first
+ * when it is wider than the safe area, using the same box estimate as the lint. Its vertical place is left alone.
+ */
+export function fitTextInSafeWidth<T extends TextLike & { kind: string }>(item: T, canvas: { width: number; height: number }, z: SafeZone = DEFAULT_SAFE_ZONE): T {
+  const area = safeAreaFor(canvas, z);
+  if (area.kind === 'none' || item.kind !== 'text') return item;
+  const { safe } = area;
+  const b = textBox(item, canvas);
+  if (b.x >= safe.x && b.x + b.w <= safe.x + safe.w) return item;
+  const shrink = Math.min(1, safe.w / naturalWidth(item));
+  const w = Math.min(b.w, safe.w);
+  const cx = Math.min(safe.x + safe.w - w / 2, Math.max(safe.x + w / 2, b.x + b.w / 2));
+  const fontSize = Number(item.props?.fontSize ?? 96);
+  return {
+    ...item,
+    ...(shrink < 1 ? { props: { ...(item.props ?? {}), fontSize: Math.floor(fontSize * shrink) } } : {}),
+    transform: { ...(item.transform ?? {}), x: ((cx - canvas.width / 2) / canvas.width) * 100 },
+  };
 }
 
 export function lintSafeZone(

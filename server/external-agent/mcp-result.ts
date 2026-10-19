@@ -25,7 +25,10 @@ function embeddedImages(result: unknown): EmbeddedImage[] {
   ));
 }
 
-export function projectMcpReply(value: unknown): unknown {
+/** Reelsmith: a skill is meant to be read whole; load_skill gets the editor's own skill budget instead of the 16k tool cap. */
+const SKILL_RESULT_MAX_CHARS = 64_000;
+
+export function projectMcpReply(value: unknown, toolName?: string): unknown {
   const images = embeddedImages(value);
   const source = images.length && value && typeof value === 'object' && !Array.isArray(value)
     ? Object.fromEntries(Object.entries(value as Record<string, unknown>)
@@ -38,7 +41,7 @@ export function projectMcpReply(value: unknown): unknown {
       'The external result could not be serialized safely.',
     );
   }
-  if (sanitized.originalChars > TOOL_ARTIFACT_THRESHOLD) {
+  if (sanitized.originalChars > (toolName === 'load_skill' ? SKILL_RESULT_MAX_CHARS : TOOL_ARTIFACT_THRESHOLD)) {
     throw new ExternalEditorCallError(
       'failed',
       'The external result was too large and no recoverable artifact reference was available.',

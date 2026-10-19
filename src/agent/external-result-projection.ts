@@ -27,7 +27,10 @@ function assertImagePayloadBudget(images: unknown[]): void {
   }
 }
 
-export function projectExternalReply(value: unknown): unknown {
+/** Reelsmith: a skill is meant to be read whole; load_skill gets the editor's own skill budget instead of the 16k tool cap. */
+const SKILL_RESULT_MAX_CHARS = 64_000;
+
+export function projectExternalReply(value: unknown, toolName?: string): unknown {
   const images = embeddedImages(value);
   if (images.length) assertImagePayloadBudget(images);
   const source = images.length
@@ -41,7 +44,7 @@ export function projectExternalReply(value: unknown): unknown {
       'The external result could not be serialized safely.',
     );
   }
-  if (sanitized.originalChars > TOOL_ARTIFACT_THRESHOLD) {
+  if (sanitized.originalChars > (toolName === 'load_skill' ? SKILL_RESULT_MAX_CHARS : TOOL_ARTIFACT_THRESHOLD)) {
     throw new ExternalEditSessionOutcomeError(
       'failed',
       'The external result was too large and no recoverable artifact reference was available.',

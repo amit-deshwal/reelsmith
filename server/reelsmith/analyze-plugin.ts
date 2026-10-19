@@ -19,7 +19,7 @@ import { extractClipFeatures } from './clipFeatures.ts';
 import { finalizeForInstagram } from './instagramFinalize.ts';
 import { upscaleAvailable, upscalePhoto } from './upscale.ts';
 import { exportParity } from './exportParity.ts';
-import { buildSelectionSheets } from './selectionSheet.ts';
+import { buildSelectionSheets, MAX_SHEET_CELLS } from './selectionSheet.ts';
 import { renderRecipePreview, type PreviewRequest } from './previewRender.ts';
 import { REEL_PRESETS, presetForCanvas } from '../../shared/reelsmith/instagramPreset.ts';
 
@@ -38,7 +38,7 @@ export function localFile(src: unknown): string | { error: string } {
 }
 
 /** Clip analysis is the slow part of Assemble and Preview; cache it per file version. */
-const featureCache = new Map<string, Awaited<ReturnType<typeof extractClipFeatures>>>();
+const featureCache = new Map<string, ReturnType<typeof extractClipFeatures>>();
 
 export function reelsmithAnalyzePlugin(): Plugin {
   return {
@@ -63,16 +63,19 @@ export function reelsmithAnalyzePlugin(): Plugin {
         const fps = Number(body.fps) > 0 ? Number(body.fps) : 30;
         const { mtimeMs, size } = await stat(file);
         const key = `${file}|${mtimeMs}|${size}|${fps}|${body.kind === 'image'}`;
-        let features = featureCache.get(key);
-        if (!features) {
-          features = await extractClipFeatures(file, String(body.assetId ?? ''), fps, { maxSec: 90, stillImage: body.kind === 'image' });
+        // the promise is cached, so a build that arrives while the director's warm-up is still analysing waits for it
+        let work = featureCache.get(key);
+        if (!work) {
+          work = extractClipFeatures(file, String(body.assetId ?? ''), fps, { maxSec: 90, stillImage: body.kind === 'image' });
           if (featureCache.size > 500) featureCache.delete(featureCache.keys().next().value!);
-          featureCache.set(key, features);
+          featureCache.set(key, work);
+          work.catch(() => { if (featureCache.get(key) === work) featureCache.delete(key); });
         }
+        const features = await work;
         return { features: { ...features, assetId: String(body.assetId ?? features.assetId) } };
       });
       route('/api/reelsmith/selection-sheet', async (body) => {
-        const raw = Array.isArray(body.items) ? body.items.slice(0, 60) : [];
+        const raw = Array.isArray(body.items) ? body.items.slice(0, MAX_SHEET_CELLS) : [];
         const items = raw.flatMap((entry) => {
           const e = entry as Record<string, unknown>;
           const file = localFile(e.src);

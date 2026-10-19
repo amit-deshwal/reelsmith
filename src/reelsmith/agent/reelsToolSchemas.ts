@@ -187,9 +187,9 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
   {
     name: 'reels_director_options',
     description: [
-      'Director mode step 1 (the user gives a story, media and a song; you direct the reel): lists the imported media (seconds, orientation;',
-      'songs with bpm and first beat), the moves catalogue (each effect: what it looks like, when to use it, clips and beats it takes, params),',
-      'the text styles and the looks. Call once, then write a plan and call reels_director_build.',
+      'Director mode step 1 (the user gives a story, media and a song; you direct the reel): the numbered clips (#1, #2...) with seconds and',
+      'shape, numbered contact sheets of every clip, and the songs with bpm, dropSec and loudestSec. The catalogue of moves, text styles,',
+      'effects, transitions, looks and sounds is in the reels-director skill. Call once, then write a plan and call reels_director_build.',
     ].join(' '),
     input_schema: { type: 'object', properties: {} },
   },
@@ -197,9 +197,10 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
     name: 'reels_director_build',
     description: [
       'Director mode step 2: build the reel from your plan as one undo step. The plan is sections back to back on the beat, each a move with',
-      'its clips (assetIds in the order the move uses them), an optional on-screen line in a text style, and params; overlays carry a line',
-      'across several sections. Invalid plans are refused with every problem listed; nothing changes then. When the timeline has items, ask',
-      'the user first and pass replaceTimeline true. Build again with a corrected plan to revise.',
+      'its clips ("#7" or "#7@4" from the numbered list, in the order the move uses them), an optional on-screen line in a text style, and params;',
+      'overlays carry a line across several sections. Invalid plans are refused with every problem listed; nothing changes then. When the',
+      'timeline has items, ask the user first and pass replaceTimeline true. The result includes one frame per section, the lint and review',
+      'findings: fix them with one rebuild; no separate frame or lint calls are needed.',
     ].join(' '),
     input_schema: {
       type: 'object',

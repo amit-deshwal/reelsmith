@@ -9,6 +9,29 @@ import { tileContactSheet, type GridCell } from '../frame-grid.ts';
 
 export interface SheetItem { file: string; kind: 'video' | 'image'; atSec: number; label: string }
 export const CELLS_PER_SHEET = 20;
+/** Most cells one request may ask for (the director's sheets use up to 80). */
+export const MAX_SHEET_CELLS = 120;
+const CELL_WIDTH = 240;
+
+/** Width and height from a baseline/progressive JPEG's SOF marker, or null. */
+export function jpegSize(jpeg: Buffer): { width: number; height: number } | null {
+  let i = 2;
+  while (i + 9 < jpeg.length) {
+    if (jpeg[i] !== 0xff) return null;
+    const marker = jpeg[i + 1]!;
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+      return { height: jpeg.readUInt16BE(i + 5), width: jpeg.readUInt16BE(i + 7) };
+    }
+    i += 2 + jpeg.readUInt16BE(i + 2);
+  }
+  return null;
+}
+
+/** Cell height for a group: 9:16 when most frames are portrait (phone footage), else 16:9. */
+export function sheetCellHeight(cells: GridCell[], width = CELL_WIDTH): number {
+  const portrait = cells.filter((c) => { const s = jpegSize(c.jpeg); return !!s && s.height > s.width; }).length;
+  return portrait * 2 > cells.length ? Math.round(width * 16 / 9) : Math.round(width * 9 / 16);
+}
 
 function extractFrame(item: SheetItem, out: string): Promise<void> {
   const input = item.kind === 'image' ? ['-i', item.file] : ['-ss', String(Math.max(0, item.atSec)), '-i', item.file];
@@ -42,7 +65,7 @@ export async function buildSelectionSheets(items: SheetItem[]): Promise<{ sheets
     const sheets: Array<{ base64: string; labels: string[] }> = [];
     for (let i = 0; i < ready.length; i += CELLS_PER_SHEET) {
       const group = ready.slice(i, i + CELLS_PER_SHEET);
-      const jpeg = await tileContactSheet(group, { cellWidth: 240, cols: 5 });
+      const jpeg = await tileContactSheet(group, { cellWidth: CELL_WIDTH, cellHeight: sheetCellHeight(group), cols: 5 });
       sheets.push({ base64: jpeg.toString('base64'), labels: group.map((c) => c.label) });
     }
     return { sheets, skipped };

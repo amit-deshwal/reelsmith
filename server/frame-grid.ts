@@ -24,6 +24,8 @@ export interface GridCell {
 export interface TileOptions {
   /** Target cell width (px). Default 320. */
   cellWidth?: number;
+  /** Cell height (px). Default 16:9 of cellWidth; pass a taller one for portrait frames. */
+  cellHeight?: number;
   /** Max columns. Default auto (ceil sqrt(n)). */
   cols?: number;
   /** JPEG quality 2-31 (ffmpeg -q:v, lower=better). Default 5. */
@@ -268,7 +270,7 @@ export async function tileContactSheet(cells: GridCell[], opts: TileOptions = {}
   const n = cells.length;
   const cols = Math.max(1, Math.min(n, opts.cols ?? Math.ceil(Math.sqrt(n))));
   const rows = Math.ceil(n / cols);
-  const cellH = Math.max(2, Math.round(cellWidth * 9 / 16)) & ~1;
+  const cellH = Math.max(2, Math.min(1280, Math.round(opts.cellHeight ?? cellWidth * 9 / 16))) & ~1;
   const backend = detectLabelBackend();
 
   const dir = await mkdtemp(join(tmpdir(), 'cc-grid-'));

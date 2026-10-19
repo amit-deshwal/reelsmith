@@ -28,6 +28,9 @@ Every OpenChatCut file we change goes in this table, so `git merge upstream/main
 | `server/plugins/asr-models.ts` | Per-download `AbortController`; `POST /api/asr-models/cancel`; the signal is passed to the downloader; GET rows carry `partialBytes` (bytes of the file in flight); three `__...ForVerify` test seams; `startDownload` takes `cacheDir`/`download` for tests | A running model download could not be cancelled and progress only moved per finished file | 2026-10-17 |
 | `shared/asr-models.ts` | `AsrDownloadTask.partialBytes?` | same | 2026-10-17 |
 | `src/components/settings/LocalAsrPane.tsx`, `local-asr-model-mutation.ts` | The "…" label became a **Cancel** button; progress uses `downloadPercent()` (`src/reelsmith/asrDownloadProgress.ts`); mutation type gains `cancel` | same | 2026-10-17 |
+| `server/external-agent/mcp-result.ts`, `src/agent/external-result-projection.ts` | `projectMcpReply` / `projectExternalReply` take an optional `toolName`; `load_skill` results may be up to 64k characters (`SKILL_RESULT_MAX_CHARS`) instead of the 16k `TOOL_ARTIFACT_THRESHOLD` | RS-1201: the 32k director skill was rejected over MCP, so the claude CLI paged it in 2-3k reads (~70 s) | 2026-10-20 |
+| `server/external-agent/mcp.ts`, `src/agent/useExternalAgentBridge.ts` | Pass the tool name to those two projections (one argument each) | same | 2026-10-20 |
+| `server/frame-grid.ts` | `TileOptions.cellHeight` (default stays 16:9 of the width) | RS-1201: portrait clips were 76 px slivers in 16:9 cells; `server/reelsmith/selectionSheet.ts` now asks for 9:16 cells when most frames are portrait | 2026-10-20 |
 
 ## package.json (RS-003, RS-101)
 Added script `test:reelsmith` (our verifies) and appended `&& npm run test:reelsmith` to `test:serial`. Add each new Reelsmith `*.verify.ts` to `test:reelsmith`, not to the upstream chain.

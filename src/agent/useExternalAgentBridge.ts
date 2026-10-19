@@ -116,6 +116,7 @@ export async function executeExternalCall(
     try {
       value = projectExternalReply(
         await runtime.execute(call.name, call.arguments, call.binding, controller.signal),
+        call.name,
       );
       // Flush pending project saves before reporting the result: the settle
       // syncs the registry to the committed store revision, and a follow-up MCP

@@ -220,7 +220,7 @@ function makeServer(baseUrl: string, session: McpSession): Server {
         request.params.name,
         rawResult,
       );
-      const result = projectMcpReply(activatedResult);
+      const result = projectMcpReply(activatedResult, request.params.name);
       return {
         content: toMcpContent(result),
         structuredContent: toStructuredContent(result),

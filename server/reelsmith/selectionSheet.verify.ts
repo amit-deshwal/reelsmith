@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ffmpegBin } from '../media-binaries.ts';
-import { buildSelectionSheets, CELLS_PER_SHEET, type SheetItem } from './selectionSheet.ts';
+import { buildSelectionSheets, CELLS_PER_SHEET, jpegSize, type SheetItem } from './selectionSheet.ts';
 
 const dir = mkdtempSync(join(tmpdir(), 'rs-sheet-verify-'));
 try {
@@ -30,6 +30,13 @@ try {
   assert.deepEqual(sheets[0]!.labels.slice(0, 2), ['1', '2'], 'order kept, skipped cell left out');
   for (const sheet of sheets) assert.ok(Buffer.from(sheet.base64, 'base64').subarray(0, 2).equals(Buffer.from([0xff, 0xd8])), 'a JPEG');
   assert.deepEqual((await buildSelectionSheets([])).sheets, []);
+  assert.deepEqual(jpegSize(Buffer.from(sheets[1]!.base64, 'base64')), { width: 720, height: 134 }, 'landscape clips keep 16:9 cells (3 left over, so 3 columns)');
+
+  // phone footage: portrait cells, so a 9:16 frame fills its cell instead of a 76 px sliver
+  const tall = join(dir, 'tall.mp4');
+  execFileSync(ffmpegBin(), ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc=size=180x320:rate=10:duration=1', '-pix_fmt', 'yuv420p', tall]);
+  const portrait = await buildSelectionSheets(Array.from({ length: 6 }, (_, i) => ({ file: i === 5 ? video : tall, kind: 'video' as const, atSec: 0.2, label: String(i + 1) })));
+  assert.deepEqual(jpegSize(Buffer.from(portrait.sheets[0]!.base64, 'base64')), { width: 1200, height: 852 }, 'two rows of 240x426 cells');
   console.log('selectionSheet.verify: ok');
 } finally {
   rmSync(dir, { recursive: true, force: true });

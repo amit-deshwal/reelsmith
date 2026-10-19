@@ -50,4 +50,16 @@ assert.match(two.warnings.join(' '), /"view" may have nobody/);
 const inPic = build({ sections: [{ move: 'hold', beats: 4, clips: ['me'], text: 'calm', textStyle: 'behind-you', textBehind: true }] });
 assert.equal(inPic.acts.filter((a) => a.type === 'add' && a.item.props?.rsFront).length, 0);
 assert.match(inPic.warnings.join(' '), /already drawn in the picture/);
-console.log('frontCutout: ok');
+// the line itself is laid across the person (head and shoulders) instead of being moved off their face
+Promise.all([import('../titleClear'), import('../runRecipe')]).then(([{ withTitleClear }, { withCropFocus }]) => {
+  const person = { ...clip('me'), sourceAnalysis: { minShotFrames: 15, shotBoundariesFrame: [], windows: [{ startFrame: 0, endFrame: 300, score: 1, focusRect: { x: 0.3, y: 0.55, w: 0.4, h: 0.35 } }] } };
+  const parsed2 = parsePlan({ sections: [{ move: 'hold', beats: 8, clips: ['me'], text: 'made it', textStyle: 'big-title', textBehind: true }] });
+  const plan2 = (parsed2 as { plan: ReelPlan }).plan;
+  const res2 = assemble({ recipe: directorRecipe(plan2), clips: [person], texts: {}, params: {}, seed: 1, plan: plan2 });
+  const placed = withTitleClear(withCropFocus(res2.action!.actions, [person], { width: 1080, height: 1920 }), [person], { width: 1080, height: 1920 }) as any[];
+  const line = placed.find((a) => a.type === 'add' && (a.item.kind === 'text' || a.item.kind === 'motion-graphic') && a.item.props?.rsBehind);
+  assert.ok(line, 'the line is marked as behind');
+  const centre = line.item.kind === 'motion-graphic' ? line.item.props.y : 0.5 + (line.item.transform?.y ?? 0) / 100;
+  assert.ok(Math.abs(centre - (0.55 + 0.35 * 0.4)) < 0.01, `the line crosses the person's upper body (centre ${centre})`);
+  console.log('frontCutout: ok');
+});

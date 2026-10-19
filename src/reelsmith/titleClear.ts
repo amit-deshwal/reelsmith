@@ -3,7 +3,7 @@
 import type { AtomicAction } from '../editor/reducerActions';
 import type { AssemblyClip } from './assembler/types';
 import type { FocusRect } from './cropFocus';
-import { safeRect } from './safeZone';
+import { fitTextInSafeWidth, safeRect } from './safeZone';
 
 type Canvas = { width: number; height: number };
 type Band = [number, number]; // canvas fractions, top to bottom
@@ -35,8 +35,10 @@ export function withTitleClear(actions: AtomicAction[], clips: AssemblyClip[], c
   const safe = safeRect(canvas);
   const safeTop = safe.y / canvas.height;
   const safeBottom = (safe.y + safe.h) / canvas.height;
-  return actions.map((action) => {
-    if (action.type !== 'add' || action.item.kind !== 'text') return action;
+  const placed = actions.map((action) => {
+    if (action.type !== 'add') return action;
+    const behind = !!(action.item.props as { rsBehind?: unknown } | undefined)?.rsBehind;
+    if (action.item.kind !== 'text' && !(behind && action.item.kind === 'motion-graphic')) return action;
     const text = action.item;
     // Layouts that place their words exactly (postcard-collage@1) keep them where they are.
     if ((text.props as { rsFixedPosition?: unknown } | undefined)?.rsFixedPosition) return action;
@@ -53,6 +55,13 @@ export function withTitleClear(actions: AtomicAction[], clips: AssemblyClip[], c
     const focus = focusForRange(clip, from, from + under.item.durationInFrames * rate);
     const band = focus ? focusBand(under.item, canvas, focus) : null;
     if (!band) return action;
+    // a line behind the person crosses their head and shoulders (they are cut out on top), as on a magazine cover
+    if (behind) {
+      const target = Math.min(safeBottom - 0.05, Math.max(safeTop + 0.05, band[0] + (band[1] - band[0]) * 0.4));
+      return text.kind === 'motion-graphic'
+        ? { ...action, item: { ...text, props: { ...(text.props ?? {}), x: 0.5, y: target } } }
+        : { ...action, item: { ...text, transform: { ...(text.transform as object | undefined), y: (target - 0.5) * 100 } } };
+    }
     const lines = String(text.props?.text ?? '').split('\n').length;
     const fontSize = typeof text.props?.fontSize === 'number' ? text.props.fontSize : 96;
     const half = (fontSize * 1.25 * lines) / 2 / canvas.height;
@@ -65,4 +74,8 @@ export function withTitleClear(actions: AtomicAction[], clips: AssemblyClip[], c
     if (!options.length) return action;
     return { ...action, item: { ...text, transform: { ...(text.transform as object | undefined), y: (options[0]! - 0.5) * 100 } } };
   });
+  // and clear of the side UI: a long line centred on the canvas runs under the like/comment/share column
+  return placed.map((action) => action.type === 'add' && action.item.kind === 'text' && !(action.item.props as { rsFixedPosition?: unknown } | undefined)?.rsFixedPosition
+    ? { ...action, item: fitTextInSafeWidth(action.item, canvas) }
+    : action);
 }
