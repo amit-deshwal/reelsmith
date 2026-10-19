@@ -1,5 +1,6 @@
 // Turns what the Recipes panel has (pool assets + setup values) into an AssembleInput, runs the assembler,
 // and returns one batch action ready for `commands.batch`. Analysis calls are injected so this stays testable.
+import type { ReelPlan } from '../../shared/reelsmith/directorPlan';
 import { recipeForRatio, type Recipe } from '../../shared/reelsmith/recipe';
 import type { RatioId } from '../../shared/reelsmith/ratios';
 import type { AtomicAction, BatchAction } from '../editor/reducerActions';
@@ -40,6 +41,8 @@ export interface RunOptions {
   preferredAssetIds?: string[];
   /** the clip the user wants as the first shot */
   openerAssetId?: string;
+  /** RS-1201: the agent's plan for a director@1 run */
+  plan?: ReelPlan;
   preferredBrollAssetIds?: string[];
   onProgress?: (text: string) => void;
 }
@@ -168,6 +171,7 @@ export async function prepareAssembly(api: AnalyzeApi, o: RunOptions): Promise<P
       ...(o.preferredAssetIds?.length ? { preferredAssetIds: o.preferredAssetIds } : {}),
       ...(o.openerAssetId ?? o.values.openerAssetId ? { openerAssetId: (o.openerAssetId ?? o.values.openerAssetId)! } : {}),
       ...(o.preferredBrollAssetIds?.length ? { preferredBrollAssetIds: o.preferredBrollAssetIds } : {}),
+      ...(o.plan ? { plan: o.plan } : {}),
     },
   };
 }

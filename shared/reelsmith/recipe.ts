@@ -49,7 +49,7 @@ export interface Recipe {
     inputId?: string; required?: boolean; startPolicy?: string; endPolicy?: string;
     fadeOutSec?: number; gainDb?: number; clipAudioGainDb?: number; duckUnderSpeech?: boolean;
   };
-  assembler: { strategy: 'beat-montage@1' | 'story-vlog@1' | 'captioned-story@1' | 'collage-grid@1' | 'travel-diary@1' | 'photo-dump@1' | 'postcard-collage@1'; options?: Record<string, unknown>; aiSelection?: 'off' | 'optional' | 'recommended' };
+  assembler: { strategy: 'beat-montage@1' | 'story-vlog@1' | 'captioned-story@1' | 'collage-grid@1' | 'travel-diary@1' | 'photo-dump@1' | 'postcard-collage@1' | 'director@1'; options?: Record<string, unknown>; aiSelection?: 'off' | 'optional' | 'recommended' };
   structure: RecipeSection[];
   styles: Record<string, Record<string, unknown>>;
   look?: { colorLook?: string; reelLook?: string; effects?: RecipeEffect[]; grain?: number; vignette?: number };

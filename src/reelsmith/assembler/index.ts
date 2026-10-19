@@ -8,6 +8,7 @@ import { assembleCaptionedStory } from './captionedStory';
 import { assembleTravelDiary } from './travelDiary';
 import { assemblePhotoDump } from './photoDump';
 import { assemblePostcardCollage } from './postcardCollage';
+import { assembleDirector } from '../director/assembleDirector';
 import { ratioOf } from '../../../shared/reelsmith/ratios';
 import { withMusicOverrides } from '../musicPolicy';
 
@@ -32,6 +33,8 @@ export function assemble(raw: AssembleInput): AssembleResult {
       result = assemblePhotoDump(input); break;
     case 'postcard-collage@1':
       result = assemblePostcardCollage(input); break;
+    case 'director@1':
+      result = assembleDirector(input); break;
     default:
       result = {
         action: null,

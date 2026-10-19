@@ -184,8 +184,61 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
       required: ['selectionKey', 'assetIds'],
     },
   },
+  {
+    name: 'reels_director_options',
+    description: [
+      'Director mode step 1 (the user gives a story, media and a song; you direct the reel): lists the imported media (seconds, orientation;',
+      'songs with bpm and first beat), the moves catalogue (each effect: what it looks like, when to use it, clips and beats it takes, params),',
+      'the text styles and the looks. Call once, then write a plan and call reels_director_build.',
+    ].join(' '),
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'reels_director_build',
+    description: [
+      'Director mode step 2: build the reel from your plan as one undo step. The plan is sections back to back on the beat, each a move with',
+      'its clips (assetIds in the order the move uses them), an optional on-screen line in a text style, and params; overlays carry a line',
+      'across several sections. Invalid plans are refused with every problem listed; nothing changes then. When the timeline has items, ask',
+      'the user first and pass replaceTimeline true. Build again with a corrected plan to revise.',
+    ].join(' '),
+    input_schema: {
+      type: 'object',
+      properties: {
+        plan: {
+          type: 'object',
+          description: 'The reel plan.',
+          properties: {
+            ratio: { type: 'string', description: '9:16 (default), 4:5, 1:1 or 16:9.' },
+            music: { type: 'string', description: 'Song assetId (imported or libraryMusic). Omit for silent.' },
+            musicStart: { description: "'firstDownbeat' (default), 'fromStart' or a second of the song." },
+            look: { type: 'string', description: 'Optional look id from reels_director_options.' },
+            sections: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  move: { type: 'string' }, beats: { type: 'number' }, seconds: { type: 'number' },
+                  clips: { type: 'array', items: { type: 'string' } }, text: { type: 'string' }, textStyle: { type: 'string' },
+                  params: { type: 'object', additionalProperties: {} },
+                },
+                required: ['move'],
+              },
+            },
+            overlays: {
+              type: 'array',
+              items: { type: 'object', properties: { text: { type: 'string' }, style: { type: 'string' }, from: { type: 'number' }, to: { type: 'number' }, params: { type: 'object', additionalProperties: {} } }, required: ['text', 'style', 'from', 'to'] },
+            },
+          },
+          required: ['sections'],
+        },
+        seed: { type: 'number', description: 'Optional seed; same plan and seed give the same reel.' },
+        replaceTimeline: { type: 'boolean', description: 'Pass true only after the user agreed to replace what is on the timeline.' },
+      },
+      required: ['plan'],
+    },
+  },
 ];
 
 export const REELS_TOOL_NAMES = new Set(REELS_TOOL_SCHEMAS.map((t) => t.name));
-export const REELS_READ_TOOL_NAMES = ['reels_lint', 'reels_plan_options', 'reels_run_info', 'reels_selection_candidates', 'reels_selection_sheet'] as const;
-export const REELS_EDIT_TOOL_NAMES = ['reels_plan_assemble', 'reels_apply_look', 'reels_apply_signature', 'reels_recut_section', 'reels_snap_cuts_to_beats', 'reels_strobe', 'propose_selection'] as const;
+export const REELS_READ_TOOL_NAMES = ['reels_lint', 'reels_plan_options', 'reels_director_options', 'reels_run_info', 'reels_selection_candidates', 'reels_selection_sheet'] as const;
+export const REELS_EDIT_TOOL_NAMES = ['reels_plan_assemble', 'reels_director_build', 'reels_apply_look', 'reels_apply_signature', 'reels_recut_section', 'reels_snap_cuts_to_beats', 'reels_strobe', 'propose_selection'] as const;

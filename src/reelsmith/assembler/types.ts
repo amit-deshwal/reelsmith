@@ -3,6 +3,7 @@ import type { ReelsBrief } from '../../../shared/reelsmith/brief';
 import type { BatchAction } from '../../editor/reducerActions';
 import type { ShotTag } from '../shotTags';
 import type { FocusRect } from '../cropFocus';
+import type { ReelPlan } from '../../../shared/reelsmith/directorPlan';
 
 /** A media item the assembler may place. All frame values are at the recipe's fps. */
 export interface AssemblyClip {
@@ -77,6 +78,8 @@ export interface AssembleInput {
   /** 0..1: how much randomness (from the seed) may override score when picking; 0 = pure score */
   variety?: number;
   onlySection?: { name: string; excludeAssetIds: string[] };
+  /** RS-1201: the agent's plan, for director@1 */
+  plan?: ReelPlan;
 }
 
 export interface PlannedShot {

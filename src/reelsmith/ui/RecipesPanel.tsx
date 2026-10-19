@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { parseRecipe, supportedRatios, type Recipe, type RecipeMediaInput } from '../../../shared/reelsmith/recipe';
 import { RATIO_SIZES, type RatioId } from '../../../shared/reelsmith/ratios';
+import { directorPrompt, STORY_MAX } from '../director/directorPrompt';
 import { mapBriefToRecipe, type ReelsBrief } from '../../../shared/reelsmith/brief';
 import type { BatchAction } from '../../editor/reducerActions';
 import type { MediaAsset, TimelineItem } from '../../editor/types';
@@ -78,6 +79,8 @@ export function RecipesPanel({ projectId, assets, itemCount, items, selectedItem
   const [chosenRatio, setChosenRatio] = useState<RatioId | undefined>(initialRatio ?? initialBrief?.target.ratio);
   const [userRecipes, setUserRecipes] = useState<Recipe[]>([]);
   const [draft, setDraft] = useState('');
+  const [story, setStory] = useState('');
+  const [directorRatio, setDirectorRatio] = useState<RatioId>('9:16');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [managerError, setManagerError] = useState('');
   const [managerBusy, setManagerBusy] = useState(false);
@@ -128,10 +131,17 @@ export function RecipesPanel({ projectId, assets, itemCount, items, selectedItem
   if (!recipe) {
     return (
       <div style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'grid', gap: 10, alignContent: 'start' }}>
-        {onAskAgent && <section aria-label="Plan a reel" style={{ display: 'grid', gap: 6, padding: 10, border: `0.5px solid ${theme.border}`, borderRadius: 8 }}>
-          <b style={{ fontSize: 13 }}>Plan a reel</b>
-          <span style={label}>Tell your agent what the reel is about. It looks at your imported media, picks a recipe, writes the text and builds it. Nothing to copy or paste.</span>
-          <button type="button" onClick={() => onAskAgent(PLAN_REEL_STARTER)} style={{ ...input, cursor: 'pointer', justifySelf: 'start' }}>Plan a reel with my agent</button>
+        {onAskAgent && <section aria-label="Direct my reel" style={{ display: 'grid', gap: 6, padding: 10, border: `0.5px solid ${theme.border}`, borderRadius: 8 }}>
+          <b style={{ fontSize: 13 }}>Direct my reel</b>
+          <span style={label}>Import your clips, photos and song, then tell the story. Your agent picks the effects, the clips and the words, and builds it.</span>
+          <textarea aria-label="Your story" value={story} onChange={(e) => setStory(e.target.value.slice(0, STORY_MAX))} rows={3} placeholder="2 days on the toughest trek in Maharashtra: climbed at dawn, cooked on the cliff, made it to the top" style={{ ...input, resize: 'vertical' }} />
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+            <select aria-label="Shape" value={directorRatio} onChange={(e) => setDirectorRatio(e.target.value as RatioId)} style={input}>
+              {(['9:16', '4:5', '1:1', '16:9'] as const).map((r) => <option key={r} value={r}>{r}</option>)}
+            </select>
+            <button type="button" disabled={!story.trim()} onClick={() => onAskAgent(directorPrompt(story, directorRatio), { autoSend: true })} style={{ ...input, cursor: story.trim() ? 'pointer' : 'default' }}>Direct my reel</button>
+            <button type="button" onClick={() => onAskAgent(PLAN_REEL_STARTER)} style={{ ...input, cursor: 'pointer' }}>Or let my agent pick a recipe</button>
+          </div>
         </section>}
         {items && <LooksPanel items={items} selectedItem={selectedItem ?? null} onApply={onApply} />}
         <RecipeGallery recipes={[...catalog.recipes, ...userRecipes]} onSelect={(selected, ratio) => {

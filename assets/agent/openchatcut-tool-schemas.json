@@ -4532,7 +4532,7 @@
     },
     {
       "name": "load_skill",
-      "description": "Load one bundled or selected custom skill under the active model round input budget. Omit selectors for SKILL.md; if it is paged, follow nextOffset until null before support files. Exactly one selector per call: either files=[...] to load whole omitted files, or file with offset and limit to page a single file. Never send file and files in the same call. Bundled skills: ai-cinematic-short-film, asset-import, batch-montage-variants, beat-sync-montage, create-motion-graphics, ecommerce-product-montage, explainer-video, export, image-gen, known-errors, livestream-to-clips, long-video-to-shorts, motion-graphic-placement, multi-clips-to-reels, music, music-intelligence, news-rough-cut, openchatcut-plugin-basics, product-ad-video-script, product-help, reels-editor, reels-trends, shader-gen, skill-creator, storyboard-shot-breakdown, talking-head-guide, transcription, verification, video-gen, video-thumbnail-generator, voice, widget-forms.",
+      "description": "Load one bundled or selected custom skill under the active model round input budget. Omit selectors for SKILL.md; if it is paged, follow nextOffset until null before support files. Exactly one selector per call: either files=[...] to load whole omitted files, or file with offset and limit to page a single file. Never send file and files in the same call. Bundled skills: ai-cinematic-short-film, asset-import, batch-montage-variants, beat-sync-montage, create-motion-graphics, ecommerce-product-montage, explainer-video, export, image-gen, known-errors, livestream-to-clips, long-video-to-shorts, motion-graphic-placement, multi-clips-to-reels, music, music-intelligence, news-rough-cut, openchatcut-plugin-basics, product-ad-video-script, product-help, reels-director, reels-editor, reels-trends, shader-gen, skill-creator, storyboard-shot-breakdown, talking-head-guide, transcription, verification, video-gen, video-thumbnail-generator, voice, widget-forms.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -5820,6 +5820,124 @@
       }
     },
     {
+      "name": "reels_director_options",
+      "description": "Director mode step 1 (the user gives a story, media and a song; you direct the reel): lists the imported media (seconds, orientation; songs with bpm and first beat), the moves catalogue (each effect: what it looks like, when to use it, clips and beats it takes, params), the text styles and the looks. Call once, then write a plan and call reels_director_build.",
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "reels_director_build",
+      "description": "Director mode step 2: build the reel from your plan as one undo step. The plan is sections back to back on the beat, each a move with its clips (assetIds in the order the move uses them), an optional on-screen line in a text style, and params; overlays carry a line across several sections. Invalid plans are refused with every problem listed; nothing changes then. When the timeline has items, ask the user first and pass replaceTimeline true. Build again with a corrected plan to revise.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "plan": {
+            "type": "object",
+            "description": "The reel plan.",
+            "properties": {
+              "ratio": {
+                "type": "string",
+                "description": "9:16 (default), 4:5, 1:1 or 16:9."
+              },
+              "music": {
+                "type": "string",
+                "description": "Song assetId (imported or libraryMusic). Omit for silent."
+              },
+              "musicStart": {
+                "description": "'firstDownbeat' (default), 'fromStart' or a second of the song."
+              },
+              "look": {
+                "type": "string",
+                "description": "Optional look id from reels_director_options."
+              },
+              "sections": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "move": {
+                      "type": "string"
+                    },
+                    "beats": {
+                      "type": "number"
+                    },
+                    "seconds": {
+                      "type": "number"
+                    },
+                    "clips": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "textStyle": {
+                      "type": "string"
+                    },
+                    "params": {
+                      "type": "object",
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "move"
+                  ]
+                }
+              },
+              "overlays": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "text": {
+                      "type": "string"
+                    },
+                    "style": {
+                      "type": "string"
+                    },
+                    "from": {
+                      "type": "number"
+                    },
+                    "to": {
+                      "type": "number"
+                    },
+                    "params": {
+                      "type": "object",
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "text",
+                    "style",
+                    "from",
+                    "to"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "sections"
+            ]
+          },
+          "seed": {
+            "type": "number",
+            "description": "Optional seed; same plan and seed give the same reel."
+          },
+          "replaceTimeline": {
+            "type": "boolean",
+            "description": "Pass true only after the user agreed to replace what is on the timeline."
+          }
+        },
+        "required": [
+          "plan"
+        ]
+      }
+    },
+    {
       "name": "ToolSearch",
       "description": "Search the deferred agent-tool catalog by keyword and activate matching schemas. Use this before an uncommon operation instead of guessing a tool name. Results become callable on the next model step; essential tools are already active.",
       "input_schema": {
@@ -6330,7 +6448,7 @@
     },
     {
       "name": "load_skill",
-      "description": "Load one bundled or selected custom skill under the active model round input budget. Omit selectors for SKILL.md; if it is paged, follow nextOffset until null before support files. Exactly one selector per call: either files=[...] to load whole omitted files, or file with offset and limit to page a single file. Never send file and files in the same call. Bundled skills: ai-cinematic-short-film, asset-import, batch-montage-variants, beat-sync-montage, create-motion-graphics, ecommerce-product-montage, explainer-video, export, image-gen, known-errors, livestream-to-clips, long-video-to-shorts, motion-graphic-placement, multi-clips-to-reels, music, music-intelligence, news-rough-cut, openchatcut-plugin-basics, product-ad-video-script, product-help, reels-editor, reels-trends, shader-gen, skill-creator, storyboard-shot-breakdown, talking-head-guide, transcription, verification, video-gen, video-thumbnail-generator, voice, widget-forms.",
+      "description": "Load one bundled or selected custom skill under the active model round input budget. Omit selectors for SKILL.md; if it is paged, follow nextOffset until null before support files. Exactly one selector per call: either files=[...] to load whole omitted files, or file with offset and limit to page a single file. Never send file and files in the same call. Bundled skills: ai-cinematic-short-film, asset-import, batch-montage-variants, beat-sync-montage, create-motion-graphics, ecommerce-product-montage, explainer-video, export, image-gen, known-errors, livestream-to-clips, long-video-to-shorts, motion-graphic-placement, multi-clips-to-reels, music, music-intelligence, news-rough-cut, openchatcut-plugin-basics, product-ad-video-script, product-help, reels-director, reels-editor, reels-trends, shader-gen, skill-creator, storyboard-shot-breakdown, talking-head-guide, transcription, verification, video-gen, video-thumbnail-generator, voice, widget-forms.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -6612,6 +6730,14 @@
     {
       "name": "reels_selection_sheet",
       "description": "One look at the candidates: returns numbered contact sheet image(s) of the best ~40 candidate clips (one frame each, at its best window) plus a legend mapping each cell number to assetId, name and score. Call it once after reels_selection_candidates instead of inspecting clips one by one (that is slow), judge every cell in this single look, then call propose_selection with the same selectionKey. Needs frame sharing on; otherwise choose from the candidate table.",
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "reels_director_options",
+      "description": "Director mode step 1 (the user gives a story, media and a song; you direct the reel): lists the imported media (seconds, orientation; songs with bpm and first beat), the moves catalogue (each effect: what it looks like, when to use it, clips and beats it takes, params), the text styles and the looks. Call once, then write a plan and call reels_director_build.",
       "input_schema": {
         "type": "object",
         "properties": {}

@@ -16,7 +16,7 @@ const EXPECTED = [
   'motion-graphic-placement',
   'multi-clips-to-reels', 'music', 'music-intelligence', 'news-rough-cut',
   'openchatcut-plugin-basics', 'product-ad-video-script',
-  'product-help', 'reels-editor', 'reels-trends', 'shader-gen', 'skill-creator', 'storyboard-shot-breakdown', 'talking-head-guide',
+  'product-help', 'reels-director', 'reels-editor', 'reels-trends', 'shader-gen', 'skill-creator', 'storyboard-shot-breakdown', 'talking-head-guide',
   'transcription', 'verification', 'video-gen', 'video-thumbnail-generator', 'voice',
   'widget-forms',
 ];

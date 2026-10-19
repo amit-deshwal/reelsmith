@@ -19,6 +19,7 @@ import { loadRun, recutSection, saveRun, type Kv } from '../runStore';
 import type { SetupValues } from '../setupForm';
 import { bindTracks } from '../trackBinding';
 import { planAssemble, planOptions } from './planTools';
+import { directorBuild, directorOptions } from './directorTools';
 import { applySignatureTool } from './signatureTools';
 import { applyLookTool } from './lookTools';
 export { REELS_TOOL_NAMES, REELS_TOOL_SCHEMAS } from './reelsToolSchemas';
@@ -101,6 +102,12 @@ export async function execReelsTool(name: string, args: Args, ctx: AgentContext,
 
     case 'reels_plan_assemble':
       return planAssemble(args, ctx, deps);
+
+    case 'reels_director_options':
+      return directorOptions(ctx, deps);
+
+    case 'reels_director_build':
+      return directorBuild(args, ctx, deps);
 
     case 'reels_run_info': {
       const run = await loadRun(deps.kv, projectId(ctx));
