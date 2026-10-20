@@ -35,9 +35,16 @@ export function mergeSubjectFeatures(features: ClipFeatures, geometry: VisualGeo
 }
 
 /** Reuse bundled MediaPipe models; failures/timeouts leave the model-free scores usable. */
+/**
+ * Time for one asset's faces and people. 4 s always ran out on 4K phone clips (12 seeks of a 2160x3840 video and the
+ * model take ~11 s), so every face-aware feature silently fell back to the frame's middle. The director warms this while
+ * the agent plans (analyzeSubjects caches successes), so the build rarely waits for it.
+ */
+export const SUBJECT_TIMEOUT_MS = 25_000;
+
 async function computeSubjects(asset: MediaAsset): Promise<VisualGeometryAsset | null> {
   if (typeof document === 'undefined' || !asset.src.startsWith('/media/uploads/')) return null;
-  const signal = AbortSignal.timeout(4_000);
+  const signal = AbortSignal.timeout(SUBJECT_TIMEOUT_MS);
   try {
     if (asset.kind === 'video') {
       const { analyzeAssetGeometry } = await import('../geometry/visual-geometry');

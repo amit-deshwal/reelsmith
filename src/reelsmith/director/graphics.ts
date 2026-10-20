@@ -243,11 +243,15 @@ export function buildGraphics(list: readonly PlanGraphic[], b: GraphicsBuild): v
  * the shot is scaled to fill the frame and centred, so the rect moves by the crop.
  */
 export function coverFocus(rect: { x: number; y: number; w: number; h: number }, src: { width: number; height: number }, W: number, H: number) {
+  // no face found: the rect is the whole person (taller than wide in pixels), so aim at their head near its top
+  if (rect.w * rect.h > 0.8) return undefined;
+  const body = rect.h * src.height > rect.w * src.width * 1.3;
+  const head = body ? { x: rect.x + rect.w * 0.3, y: rect.y, w: rect.w * 0.4, h: Math.min(rect.h * 0.18, (rect.w * 0.4 * src.width) / src.height) } : rect;
   const scale = Math.max(W / src.width, H / src.height);
   const dw = src.width * scale, dh = src.height * scale;
-  const x = ((rect.x + rect.w / 2) * dw - (dw - W) / 2) / W;
-  const y = ((rect.y + rect.h / 2) * dh - (dh - H) / 2) / H;
-  const r = (Math.max(rect.w * dw, rect.h * dh) / 2) / Math.min(W, H);
+  const x = ((head.x + head.w / 2) * dw - (dw - W) / 2) / W;
+  const y = ((head.y + head.h / 2) * dh - (dh - H) / 2) / H;
+  const r = (Math.max(head.w * dw, head.h * dh) / 2) / Math.min(W, H);
   if (x < 0 || x > 1 || y < 0 || y > 1) return undefined;
   return { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000, r: Math.round(Math.min(0.3, Math.max(0.05, r)) * 1000) / 1000 };
 }

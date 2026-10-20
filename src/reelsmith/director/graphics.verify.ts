@@ -93,6 +93,12 @@ assert.match(check({ ...raw, graphics: Array.from({ length: 9 }, () => ({ graphi
 assert.equal(coverFocus({ x: 0.1, y: 0.4, w: 0.1, h: 0.2 }, { width: 1920, height: 1080 }, 1080, 1920), undefined);
 assert.deepEqual(coverFocus({ x: 0.45, y: 0.4, w: 0.1, h: 0.2 }, { width: 1920, height: 1080 }, 1080, 1920), { x: 0.5, y: 0.5, r: 0.178 });
 
+// no face, only the person: aim at the head near the top of their outline (bro on the AMK rope, 4K clip at 20 s)
+const bro = coverFocus({ x: 0.22, y: 0.34, w: 0.44, h: 0.44 }, { width: 2160, height: 3840 }, 1080, 1920)!;
+assert.ok(bro.x > 0.4 && bro.x < 0.48 && bro.y > 0.34 && bro.y < 0.42, JSON.stringify(bro));
+assert.ok(bro.r < 0.12, 'a head-sized mark, not the whole body');
+assert.equal(coverFocus({ x: 0, y: 0, w: 1, h: 1 }, { width: 2160, height: 3840 }, 1080, 1920), undefined, 'a whole-frame "subject" is no aim');
+
 // the agent's own graphic: checked in the sandbox, compiled, registered, then placed like a catalogue one
 __clearCustomGraphics();
 __resetCustomGraphicCount();
