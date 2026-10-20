@@ -296,6 +296,7 @@ function TimelineContent({ state, project, transparent, browserRenderer = false,
     return runs.filter((run) => run.length > 1);
   });
   const sharedVisualIds = new Set(sharedVisualGroups.flatMap((group) => group.map((item) => item.id)));
+  const sharedGroupAt = new Map(sharedVisualGroups.map((group) => [group[0]!.id, group] as const));
 
   // Reelsmith: each GL transition window is painted at its incoming clip's layer, so tracks above it (titles, text
   // graphics, overlays) stay on top during the transition instead of vanishing under it.
@@ -325,19 +326,22 @@ function TimelineContent({ state, project, transparent, browserRenderer = false,
           listener={onSelectedPreviewStatus}
         />
       ))}
-      {sharedVisualGroups.map((group) => (
-        <SharedVideoVisualGroup
-          key={`sv:${group[0]!.id}`}
-          group={group}
-          fit={fit}
-          muted={isMuted(group[0]!.track)}
-          canvasW={state.width}
-          canvasH={state.height}
-          premountFor={premountFrames}
-          browserRenderer={browserRenderer}
-        />
-      ))}
       {ordered.flatMap((item) => [(() => {
+        // Reelsmith: a shared group paints at its first clip's layer. Painted first (under everything), a director
+        // reel's black canvas covered any run of contiguous moments of one clip, in preview and in the export.
+        const group = sharedGroupAt.get(item.id);
+        if (group) return (
+          <SharedVideoVisualGroup
+            key={`sv:${group[0]!.id}`}
+            group={group}
+            fit={fit}
+            muted={isMuted(group[0]!.track)}
+            canvasW={state.width}
+            canvasH={state.height}
+            premountFor={premountFrames}
+            browserRenderer={browserRenderer}
+          />
+        );
         if (sharedVisualIds.has(item.id)) return null;
         const eb = extendBefore.get(item.id) ?? 0;
         const ea = extendAfter.get(item.id) ?? 0;
