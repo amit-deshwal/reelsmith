@@ -138,7 +138,7 @@ export function RecipesPanel({ projectId, assets, itemCount, items, selectedItem
             const n = (k: string) => assets.filter((a) => a.kind === k).length;
             const songs = n('audio');
             return <span style={{ ...label, color: songs ? theme.textDim : theme.danger }}>
-              Imported: {n('video')} clips, {n('image')} photos, {songs} song{songs === 1 ? '' : 's'}.{songs ? '' : ' No song yet: import yours, or your agent picks one from the library.'}
+              Imported: {n('video')} clips, {n('image')} photos, {songs} song{songs === 1 ? '' : 's'}.{songs ? '' : ' No song yet: import yours, or the reel keeps the clips\' own sound.'}
             </span>;
           })()}
           <textarea aria-label="Your story" value={story} onChange={(e) => setStory(e.target.value.slice(0, STORY_MAX))} rows={3} placeholder="2 days on the toughest trek in Maharashtra: climbed at dawn, cooked on the cliff, made it to the top" style={{ ...input, resize: 'vertical' }} />
@@ -146,7 +146,7 @@ export function RecipesPanel({ projectId, assets, itemCount, items, selectedItem
             <select aria-label="Shape" value={directorRatio} onChange={(e) => setDirectorRatio(e.target.value as RatioId)} style={input}>
               {(['9:16', '4:5', '1:1', '16:9'] as const).map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
-            <button type="button" disabled={!story.trim()} onClick={() => onAskAgent(directorPrompt(story, directorRatio), { autoSend: true })} style={{ ...input, cursor: story.trim() ? 'pointer' : 'default' }}>Direct my reel</button>
+            <button type="button" disabled={!story.trim()} onClick={() => onAskAgent(directorPrompt(story, directorRatio, assets.filter((a) => a.kind === 'audio').length), { autoSend: true })} style={{ ...input, cursor: story.trim() ? 'pointer' : 'default' }}>Direct my reel</button>
             <button type="button" onClick={() => onAskAgent(PLAN_REEL_STARTER)} style={{ ...input, cursor: 'pointer' }}>Or let my agent pick a recipe</button>
           </div>
         </section>}

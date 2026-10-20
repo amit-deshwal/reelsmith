@@ -67,4 +67,13 @@ assert.equal(sheetSamples(21, 0).length, 3);
 assert.deepEqual(sheetSamples(40, 0), [0.1, 0.9]);
 assert.deepEqual(sheetSamples(60, 0), [0.5]);
 assert.equal(sheetSamples(19, 10).length, 3, 'photos take cells too');
+// the Director box's sound line follows what is imported: an unconditional "with no song imported, keep the clips'
+// own sound" made the agent leave out the user's imported song
+{
+  const { directorPrompt } = await import('./directorPrompt');
+  assert.match(directorPrompt('trek', '9:16', 1), /put it to the song I imported\./);
+  assert.doesNotMatch(directorPrompt('trek', '9:16', 1), /clips' own sound/);
+  assert.match(directorPrompt('trek', '9:16', 0), /no song is imported, so keep the clips' own sound/);
+  assert.match(directorPrompt('trek', '9:16', 2), /pick the one that fits the story/);
+}
 console.log('catalogText: ok');
