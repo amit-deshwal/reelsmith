@@ -39,6 +39,25 @@ function textAt(ctx: TextContext, lane: number, key: Array<string | number>, val
 }
 /** Font size so the longest line fits `share` of the width, given the face's average glyph width in em. */
 const fit = (text: string, want: number, W: number, share: number, em: number) => Math.round(Math.max(28, Math.min(want, (W * share) / (Math.max(1, ...text.split('\n').map((l) => [...l].length)) * em))));
+/** The text broken into 1-3 balanced lines, whichever lets it be biggest (a long title on one line ends up subtitle-sized). */
+export function wrapToFit(text: string, want: number, W: number, share: number, em: number): { text: string; fontSize: number } {
+  if (text.includes('\n')) return { text, fontSize: fit(text, want, W, share, em) };
+  const words = text.split(/\s+/).filter(Boolean);
+  let best = { text, fontSize: fit(text, want, W, share, em) };
+  for (let n = 2; n <= Math.min(3, words.length); n++) {
+    const target = text.length / n;
+    const lines: string[] = [];
+    let line = '';
+    for (const w of words) {
+      if (line && lines.length < n - 1 && (line + ' ' + w).length > target + w.length / 2) { lines.push(line); line = w; } else line = line ? `${line} ${w}` : w;
+    }
+    lines.push(line);
+    const wrapped = lines.join('\n');
+    const fontSize = fit(wrapped, want, W, share, em);
+    if (fontSize > best.fontSize) best = { text: wrapped, fontSize };
+  }
+  return best;
+}
 
 export const titleShuffle: TextStyleDef = {
   id: 'title-shuffle', name: 'Shuffling place title', maxChars: 20,
@@ -95,8 +114,10 @@ export const bigTitle: TextStyleDef = {
   use: 'The name of the reel at the start, or a closing line.',
   params: [{ id: 'color', type: 'color', label: 'Colour', default: '#ffffff' }],
   build: (ctx) => {
-    textAt(ctx, 0, ['title'], ctx.text, ctx.start, ctx.end, {
-      fontFamily: 'Anton', fontWeight: 400, fontSize: fit(ctx.text, Math.round(Math.min(ctx.W, ctx.H) * 0.13), ctx.W, 0.8, 0.5), color: str(ctx.params.color, '#ffffff'), textTransform: 'uppercase',
+    // uppercase in the text itself: the timeline's text items ignore textTransform (only captions apply it)
+    const title = wrapToFit(ctx.text.toUpperCase(), Math.round(Math.min(ctx.W, ctx.H) * 0.13), ctx.W, 0.8, 0.5);
+    textAt(ctx, 0, ['title'], title.text, ctx.start, ctx.end, {
+      fontFamily: 'Anton', fontWeight: 400, fontSize: title.fontSize, color: str(ctx.params.color, '#ffffff'),
     }, 0, 0, { fadeInFrames: Math.round(0.3 * ctx.fps) });
   },
 };
@@ -107,8 +128,9 @@ export const caption: TextStyleDef = {
   use: 'Telling the story in the user\'s words: "we almost turned back here".',
   params: [],
   build: (ctx) => {
-    textAt(ctx, 0, ['caption'], ctx.text, ctx.start, ctx.end, {
-      fontFamily: 'Inter', fontWeight: 600, fontSize: fit(ctx.text, Math.round(Math.min(ctx.W, ctx.H) * 0.055), ctx.W, 0.78, 0.55), color: '#ffffff',
+    const line = wrapToFit(ctx.text, Math.round(Math.min(ctx.W, ctx.H) * 0.055), ctx.W, 0.78, 0.55);
+    textAt(ctx, 0, ['caption'], line.text, ctx.start, ctx.end, {
+      fontFamily: 'Inter', fontWeight: 600, fontSize: line.fontSize, color: '#ffffff',
       shadow: { color: '#000000a0', blurPx: 18, dx: 0, dy: 3 },
     }, 0, ctx.H > ctx.W ? 22 : 30, { fadeInFrames: Math.round(0.2 * ctx.fps) });
   },

@@ -35,9 +35,10 @@ export const REEL_LOOKS: ReelLook[] = [
     id: 'neon-night', name: 'Neon night', mood: 'city nights, parties, gaming, energetic',
     description: 'Cyber teal and magenta grade, blue anamorphic streaks off the lights, bloom and a darker frame.',
     steps: [
-      { assetId: 'builtin:look-cyber', overrides: { intensity: 0.75 } },
-      { assetId: 'builtin:fx-anamorphic-flare', overrides: { intensity: 2 } },
-      { assetId: 'builtin:fx-bloom', overrides: { intensity: 0.6, threshold: 0.65 } },
+      // gentle on purpose: stronger turned skin magenta and bloomed light clothes (mela ride footage, 2026-10-20)
+      { assetId: 'builtin:look-cyber', overrides: { intensity: 0.45 } },
+      { assetId: 'builtin:fx-anamorphic-flare', overrides: { intensity: 1.1, threshold: 0.88 } },
+      { assetId: 'builtin:fx-bloom', overrides: { intensity: 0.35, threshold: 0.82 } },
       { assetId: 'builtin:fx-soft-vignette', overrides: { strength: 0.45 } },
     ],
   },

@@ -81,7 +81,7 @@ assert.equal(adds.filter((a) => a.item.kind === 'motion-graphic').length, 2, 'st
 const texts = adds.filter((a) => a.item.kind === 'text');
 assert.ok(texts.some((t) => t.item.props.text === 'we almost turned back here'));
 assert.deepEqual(texts.filter((t) => t.item.props.fontFamily === 'Libre Baskerville').map((t) => t.item.props.text), ['2', 'DAYS', '6000', 'CALORIES']);
-assert.ok(texts.some((t) => t.item.props.text === 'worth it' && t.item.props.fontFamily === 'Anton'));
+assert.ok(texts.some((t) => t.item.props.text === 'WORTH IT' && t.item.props.fontFamily === 'Anton'));
 const place = texts.filter((t) => t.item.props.text === 'HARISHCHANDRAGAD' && t.item.durationInFrames > 1);
 assert.equal(place.length, 1);
 assert.equal(place[0].startFrame + place[0].item.durationInFrames, Math.round(clock(8 + 14 + 8) * fps), 'the overlay ends with section 3');

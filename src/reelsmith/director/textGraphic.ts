@@ -76,11 +76,15 @@ export const TEXT_GRAPHIC_CODE = String.raw`const DirectorText = ({ item }) => {
   const stagger = P.stagger != null ? P.stagger : Math.min(0.08, (enter * 0.7) / count);
   const startOf = (u) => (P.beats && P.beats[u.k] != null ? P.beats[u.k] : u.k * stagger);
 
+  // a marker needs dark letters on a bright stroke (and no shadow): white on yellow can't be read
+  const lum = (c) => { const m = /^#?([0-9a-f]{6})/i.exec(String(c || '')); if (!m) return 1; const n = parseInt(m[1], 16); return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255; };
+  const marker = preset === 'highlight';
+  const color = marker && lum(P.color || '#fff') > 0.5 && lum(P.accent) > 0.5 ? '#111111' : (P.color || '#fff');
   const fontBase = {
-    fontFamily: P.fontFamily, fontWeight: P.fontWeight || 700, fontSize: size, lineHeight: 1.08, color: P.color || '#fff',
+    fontFamily: P.fontFamily, fontWeight: P.fontWeight || 700, fontSize: size, lineHeight: 1.08, color,
     letterSpacing: (P.spacing || 0) + 'em', whiteSpace: 'pre',
     ...(P.stroke ? { WebkitTextStroke: P.stroke.width + 'px ' + P.stroke.color } : {}),
-    ...(P.shadow ? { textShadow: '0 ' + Math.round(size * 0.04) + 'px ' + Math.round(size * 0.18) + 'px rgba(0,0,0,0.55)' } : {}),
+    ...(P.shadow && !marker ? { textShadow: '0 ' + Math.round(size * 0.04) + 'px ' + Math.round(size * 0.18) + 'px rgba(0,0,0,0.55)' } : {}),
   };
 
   // per-unit style for the entrance; q = 0..1 progress of this unit
@@ -183,10 +187,11 @@ export const TEXT_GRAPHIC_CODE = String.raw`const DirectorText = ({ item }) => {
       const own = units.filter((u) => u.line === li);
       const spans = own.map((u, i) => {
         const st = unitStyle(u, units.indexOf(u));
-        if (preset === 'highlight' && !u.space) {
+        if (marker) {
+          // spaces get the stroke too (one band per line, not a box per word), tall enough for capitals
           const q = clamp((t - startOf(u)) / enter, 0, 1);
           return React.createElement('span', { key: i, style: { position: 'relative', display: 'inline-block' } },
-            React.createElement('span', { style: { position: 'absolute', left: '-0.08em', right: '-0.08em', top: '18%', bottom: '8%', background: P.accent, transformOrigin: 'left center', transform: 'scaleX(' + outCubic(q).toFixed(3) + ')', zIndex: 0, borderRadius: size * 0.06 } }),
+            React.createElement('span', { style: { position: 'absolute', left: u.space ? '-0.02em' : '-0.1em', right: u.space ? '-0.02em' : '-0.1em', top: '4%', bottom: '2%', background: P.accent, transformOrigin: 'left center', transform: 'scaleX(' + outCubic(q).toFixed(3) + ')', zIndex: 0, borderRadius: size * 0.06 } }),
             React.createElement('span', { style: { position: 'relative', zIndex: 1 } }, u.s));
         }
         return React.createElement('span', { key: i, style: st }, u.s);
