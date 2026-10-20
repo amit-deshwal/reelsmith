@@ -285,7 +285,7 @@ const postcardBand: MoveDef = {
 
 const cardsFinale: MoveDef = {
   id: 'cards-finale', name: 'Cards, grid and panorama', looks: 'A wide shot fills the frame, two more wipe in as bands over its top and bottom thirds, the bands become three cards, the cards split into a six-window grid that swaps pictures, then one window grows into a panorama that shuts into a thin line.',
-  use: 'The ending of a trip film. Clips in order: middle (a wide shot with movement: people walking, a pan), top band (wide, moving), closer (the most beautiful wide shot, it ends the film), then three details for the grid. The first 2-3 s show only the middle and the two bands, so avoid still footage (people sitting, talking, a held selfie) in those three roles.',
+  use: 'The ending of a trip film. Clips in order: middle (a wide shot with movement: people walking, a pan), top band (wide, moving), closer (the most beautiful wide shot with movement in it: a pan, a drone, people walking; it is on screen about 6 s and ends the film, so a locked-off or tiny-planet shot reads as frozen), then three details for the grid. The first 2-3 s show only the middle and the two bands, so avoid still footage (people sitting, talking, a held selfie) in those three roles.',
   clips: { min: 3, max: 6 }, beats: { min: 14, default: 18, max: 32 }, wants: ['scenery', 'water', 'city', 'food', 'detail', 'people'],
   params: [],
   clipCount: () => 6,
@@ -294,7 +294,8 @@ const cardsFinale: MoveDef = {
     // The shared choreography idles on three still frames of bands before the cards (about 1.5-3.2 s); the director runs that stretch at 60% so the grid arrives sooner.
     const slowFrom = FINALE.closerWipe[1];
     const warp = (t: number) => (t <= slowFrom ? t : t <= FINALE.grid ? slowFrom + (t - slowFrom) * 0.6 : t - (FINALE.grid - slowFrom) * 0.4);
-    const k = sec / warp(FINALE.end);
+    // ends a moment after the panorama shuts: the shared choreography's black tail (FINALE.end) read as a frozen ending
+    const k = sec / warp(FINALE.shut[1] + 0.2);
     const cover = ctx.previous?.bandCover ?? 0;
     const windows = finaleWindows(ctx.W, ctx.H, 0, () => cover).map((w) => ({ ...w, from: warp(w.from) * k, to: warp(w.to) * k, keys: w.keys.map((key) => ({ ...key, t: warp(key.t) * k })) }));
     const sources = Object.fromEntries(FINALE_ROLES.map((role, i) => [role,

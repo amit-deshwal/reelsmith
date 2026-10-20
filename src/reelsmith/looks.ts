@@ -5,7 +5,8 @@ import type { AtomicAction } from '../editor/reducerActions';
 import type { ClipEffect, TimelineItem } from '../editor/types';
 
 export interface ReelLookStep { assetId: string; overrides?: Record<string, number | number[]> }
-export interface ReelLook { id: string; name: string; mood: string; description: string; steps: ReelLookStep[] }
+/** `avoid`: footage the look spoils, shown to the director so it picks by the shots rather than by the topic. */
+export interface ReelLook { id: string; name: string; mood: string; description: string; avoid?: string; steps: ReelLookStep[] }
 
 export const LOOK_EFFECT_PREFIX = 'look_';
 
@@ -13,10 +14,12 @@ export const REEL_LOOKS: ReelLook[] = [
   {
     id: 'cinematic-travel', name: 'Cinematic travel', mood: 'travel, trips, landscapes',
     description: 'Teal and orange grade, warm halation on the highlights, a soft mist glow, a gentle vignette and a touch of grain.',
+    avoid: 'Midday shots with the sun or a bright blue sky in frame: the sky turns beige and the sun blooms into an orange haze.',
     steps: [
-      { assetId: 'builtin:look-teal-orange', overrides: { intensity: 0.6, contrast: 1.1 } },
-      { assetId: 'builtin:fx-halation', overrides: { intensity: 0.6 } },
-      { assetId: 'builtin:fx-pro-mist', overrides: { intensity: 0.25 } },
+      // lighter since an AMK trek reel (2026-10-21): 0.6 halation + 0.25 mist washed sunny daylight into a golden haze
+      { assetId: 'builtin:look-teal-orange', overrides: { intensity: 0.5, contrast: 1.1 } },
+      { assetId: 'builtin:fx-halation', overrides: { intensity: 0.35 } },
+      { assetId: 'builtin:fx-pro-mist', overrides: { intensity: 0.12 } },
       { assetId: 'builtin:fx-soft-vignette', overrides: { strength: 0.35 } },
       { assetId: 'builtin:fx-fine-grain', overrides: { strength: 0.05 } },
     ],
@@ -24,6 +27,7 @@ export const REEL_LOOKS: ReelLook[] = [
   {
     id: 'golden-hour', name: 'Golden hour', mood: 'warm, sunset, calm, couples',
     description: 'Warm sunset grade with a soft pro-mist glow, drifting light leaks and a light vignette.',
+    avoid: 'Blue-sky daylight and green landscapes (they go muddy orange); suits footage already warm or at sunset.',
     steps: [
       { assetId: 'builtin:look-sunset', overrides: { intensity: 0.7 } },
       { assetId: 'builtin:fx-pro-mist', overrides: { intensity: 0.5, lift: 0.02 } },
@@ -117,6 +121,7 @@ export const REEL_LOOKS: ReelLook[] = [
   {
     id: 'watercolor-dream', name: 'Watercolor dream', mood: 'dreamy, nature, soft, romantic',
     description: 'Soft pigment washes with pooled edges and paper grain, a gentle mist glow and a light vignette.',
+    avoid: 'Fast action and hard, contrasty shots.',
     steps: [
       { assetId: 'builtin:fx-watercolor' },
       { assetId: 'builtin:fx-pro-mist', overrides: { intensity: 0.3 } },

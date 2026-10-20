@@ -64,7 +64,9 @@ export function directorCatalogMarkdown(): string {
   out.push(DIRECTOR_TRANSITIONS.map((t) => `\`${t.id}\`: ${t.use}`).join(' · '));
   out.push('');
   out.push('### Looks (plan `look`, or a section `look`)');
-  out.push(REEL_LOOKS.map((l) => `\`${l.id}\` (${l.mood})`).join(' · '));
+  out.push('Pick by what the contact sheets show (the light, the sky, the colours), not by the topic: most trips are "travel". No look is the default for clean, well-lit phone footage.');
+  out.push(['- `none` (leave it out) — The footage as shot. Bright daylight, blue skies and true colours; most reels.',
+    ...REEL_LOOKS.map((l) => `- \`${l.id}\` (${l.mood}) — ${l.description}${l.avoid ? ` Avoid: ${l.avoid}` : ''}`)].join('\n'));
   out.push('');
   out.push('### Sounds (only for a section `sounds` entry; the usual ones are added automatically)');
   out.push(DIRECTOR_SOUNDS.map((s) => `\`${s.id}\``).join(' '));
