@@ -27,6 +27,13 @@ assert.ok(b.some((x) => x.section === 1 && /one shot for 7/.test(x.issue)));
 assert.ok(b.some((x) => x.section === 0 && /too fast to read/.test(x.issue)));
 assert.ok(b.some((x) => x.section === 0 && /small text/.test(x.issue)));
 assert.ok(b.some((x) => x.section === 1 && /repeats a clip/.test(x.issue)));
+// one-clip reel (mela run): different moments of the same clip are different shots; the same moment is still a repeat
+const oneClip: any = { version: 1, ratio: '9:16', sections: [
+  { move: 'hold', clips: ['a@0.3'] }, { move: 'cut', clips: ['a@3.0', 'a@4.0'] }, { move: 'velocity', clips: ['a@7.2'] },
+  { move: 'cut', clips: ['a@5.0', 'a@6.2', 'a@9.3'] }, { move: 'hold', clips: ['a@10.3'] }, { move: 'hold', clips: ['a@10.6'] },
+] };
+const repeats = reviewDirectorPlan({ plan: oneClip, spans: spans([3, 2, 2.5, 2.5, 2, 1]) }).filter((x) => /repeats a clip/.test(x.issue));
+assert.deepEqual(repeats.map((x) => x.section), [5], 'only the section starting 0.3 s after the previous one repeats it');
 // run 6: a 5.6 s hold under a 9-word line was flagged, shortened, then flagged as too fast to read
 const calm: any = { ...plain, sections: [{ move: 'cut', clips: ['a', 'b'] }, { move: 'hold', clips: ['d'], text: 'sat on the edge and took in the view' }, { move: 'hold', clips: ['e'] }] };
 assert.ok(!reviewDirectorPlan({ plan: calm, spans: spans([4, 5.6, 3]), musicStartSec: 0, song: { seconds: 20, bpm: 107 } }).some((x) => /one shot/.test(x.issue)), 'a calm hold may last as long as its line needs');

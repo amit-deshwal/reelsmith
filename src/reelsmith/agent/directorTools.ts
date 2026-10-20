@@ -102,6 +102,18 @@ function warmClipAnalysis(assets: MediaAsset[], fps: number, deps: ReelsDeps): v
   }
 }
 
+/** Shot tags being read while the agent plans, by project; the build waits for them instead of loading the model again. */
+const warmingTags = new Map<string, Promise<unknown>>();
+
+/** The first build's shot tags load the visual model and read every clip (about 10 s): start that during planning too. */
+function warmShotTags(assets: MediaAsset[], ctx: AgentContext, deps: ReelsDeps): void {
+  const load = deps.shotTags?.(projectId(ctx));
+  if (!load || !assets.length || warmingTags.has(projectId(ctx))) return;
+  const id = projectId(ctx);
+  const work: Promise<unknown> = load(assets).catch(() => undefined).finally(() => { if (warmingTags.get(id) === work) warmingTags.delete(id); });
+  warmingTags.set(id, work);
+}
+
 export async function directorOptions(ctx: AgentContext, deps: ReelsDeps): Promise<unknown> {
   const fps = ctx.getState().fps;
   const assets = (ctx.getDoc().assets ?? []).filter((a) => VISUAL.has(a.kind) || a.kind === 'audio');
@@ -110,6 +122,7 @@ export async function directorOptions(ctx: AgentContext, deps: ReelsDeps): Promi
   const beats = new Map(await Promise.all(songs.map(async (a) => [a.id, await tempo(a, deps)] as const)));
   const sheets = await contactSheets(visual, fps, ctx, deps);
   warmClipAnalysis(visual, fps, deps);
+  warmShotTags(visual, ctx, deps);
   const song = (a: MediaAsset) => ({ assetId: a.id, name: a.name, seconds: secs(a.durationInFrames, fps), ...(beats.get(a.id) ?? {}) });
   const custom = Object.values(CUSTOM_FX).map((d) => d.id).concat(listCustomTransitions().map((t) => t.id));
   // RS-1210: only what is particular to this project. The catalogue (moves, styles, effects, transitions, looks, sounds)
@@ -173,6 +186,8 @@ export async function directorBuild(args: Record<string, unknown>, ctx: AgentCon
   values.media.clips = assets.filter((a) => VISUAL.has(a.kind)).map((a) => ({ assetId: a.id, kind: a.kind as 'video' | 'image' }));
   if (plan.music) values.media.music = [{ assetId: plan.music, kind: 'audio' }];
   let out;
+  const tagsWarming = warmingTags.get(projectId(ctx));
+  if (tagsWarming) { ctx.onToolProgress?.('Reading what the shots show'); await tagsWarming; }
   try {
     out = await runRecipe({ ...deps.api, ...(deps.shotTags ? { shotTags: deps.shotTags(projectId(ctx)) } : {}) }, {
       recipe, values, assets, fps: state.fps, replaceTimeline: true, plan,

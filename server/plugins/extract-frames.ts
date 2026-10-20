@@ -188,6 +188,9 @@ export function frameSeekArgs(timeMs: number): string[] {
   return seconds > 0 ? ['-ss', String(seconds)] : [];
 }
 
+/** Frames extracted at once for one sheet. */
+const EXTRACT_CONCURRENCY = 4;
+
 async function extractOneFrame(input: string, timeMs: number, outPath: string): Promise<void> {
   await run(ffmpegBin(), [
     '-nostdin', '-hide_banner', '-loglevel', 'error', '-y',
@@ -255,22 +258,28 @@ export function extractFramesPlugin(): Plugin {
             return;
           }
 
-          const cells: { jpeg: Buffer; label: string }[] = [];
-          for (let i = 0; i < times.length; i += 1) {
-            const t = times[i]!;
-            const framePath = join(work, `f-${i}.jpg`);
-            try {
-              await extractOneFrame(inputPath, t, framePath);
-              cells.push({
-                jpeg: await readFile(framePath),
-                label: formatTimeLabel(t),
-              });
-            } catch (err) {
-              server.config.logger.info(
-                `[extract-frames] skip t=${t}ms: ${err instanceof Error ? err.message : String(err)}`,
-              );
+          // Reelsmith: a few frames at once (each is one seek and decode), kept in time order
+          const slots: Array<{ jpeg: Buffer; label: string } | null> = new Array(times.length).fill(null);
+          let nextFrame = 0;
+          await Promise.all(Array.from({ length: Math.min(EXTRACT_CONCURRENCY, times.length) }, async () => {
+            while (nextFrame < times.length) {
+              const i = nextFrame++;
+              const t = times[i]!;
+              const framePath = join(work, `f-${i}.jpg`);
+              try {
+                await extractOneFrame(inputPath, t, framePath);
+                slots[i] = {
+                  jpeg: await readFile(framePath),
+                  label: formatTimeLabel(t),
+                };
+              } catch (err) {
+                server.config.logger.info(
+                  `[extract-frames] skip t=${t}ms: ${err instanceof Error ? err.message : String(err)}`,
+                );
+              }
             }
-          }
+          }));
+          const cells = slots.filter((cell): cell is { jpeg: Buffer; label: string } => cell !== null);
           if (!cells.length) {
             sendJson(res, 422, { error: 'could not extract any frames (codec/corrupt?)' });
             return;

@@ -74,12 +74,17 @@ export function reviewDirectorPlan(r: ReviewInput): ReviewFinding[] {
       out.push({ section: k, issue: `textBehind with ${s.textStyle}: small text hides behind the person and barely shows`, fix: 'use big-title, cinematic-title, slam or rise-lines for a line behind the person' });
     }
   });
-  // neighbouring sections with the same clip
+  // neighbouring sections showing the same moment of a clip ("#1@3" and "#1@7" are different shots, not a repeat;
+  // flagging them sent every one-clip reel into a rebuild that could not clear the finding)
   plan.sections.forEach((s, k) => {
     if (k === 0) return;
-    const prev = new Set((plan.sections[k - 1]!.clips ?? []).map((c) => c.split('@')[0]));
-    const same = (s.clips ?? []).map((c) => c.split('@')[0]).filter((c) => prev.has(c));
+    const prev = (plan.sections[k - 1]!.clips ?? []).map(clipMoment);
+    const same = (s.clips ?? []).map(clipMoment).filter((c) => prev.some((p) => p.id === c.id && Math.abs(p.at - c.at) < SAME_MOMENT_SEC));
     if (same.length && s.clips!.length <= 2) out.push({ section: k, issue: `section ${k} repeats a clip from section ${k - 1}`, fix: 'use another clip, or a clearly different moment (@seconds)' });
   });
   return out;
 }
+
+/** Starts closer than this (in source seconds) show the same moment. */
+const SAME_MOMENT_SEC = 1;
+const clipMoment = (ref: string) => { const [id, at] = ref.split('@'); return { id: id!, at: Number(at) || 0 }; };

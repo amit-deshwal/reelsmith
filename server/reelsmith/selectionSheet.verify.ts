@@ -1,11 +1,12 @@
 // The contact-sheet builder, with real ffmpeg on generated clips: one JPEG per 20 cells, bad files skipped.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ffmpegBin } from '../media-binaries.ts';
 import { buildSelectionSheets, CELLS_PER_SHEET, jpegSize, type SheetItem } from './selectionSheet.ts';
+import { tileContactSheet } from '../frame-grid.ts';
 
 const dir = mkdtempSync(join(tmpdir(), 'rs-sheet-verify-'));
 try {
@@ -37,6 +38,12 @@ try {
   execFileSync(ffmpegBin(), ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc=size=180x320:rate=10:duration=1', '-pix_fmt', 'yuv420p', tall]);
   const portrait = await buildSelectionSheets(Array.from({ length: 6 }, (_, i) => ({ file: i === 5 ? video : tall, kind: 'video' as const, atSec: 0.2, label: String(i + 1) })));
   assert.deepEqual(jpegSize(Buffer.from(portrait.sheets[0]!.base64, 'base64')), { width: 1200, height: 852 }, 'two rows of 240x426 cells');
+
+  // view_timeline_frames on a 9:16 reel passes no cell height: portrait frames get portrait cells, labels and all
+  const tallFrame = join(dir, 'tall.jpg');
+  execFileSync(ffmpegBin(), ['-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc=size=180x320', '-frames:v', '1', tallFrame]);
+  const two = await tileContactSheet([0, 1].map((i) => ({ jpeg: readFileSync(tallFrame), label: `f${i}` })), { cellWidth: 320 });
+  assert.deepEqual(jpegSize(two), { width: 640, height: 568 }, 'two 320x568 cells, not 320x180 slivers');
   console.log('selectionSheet.verify: ok');
 } finally {
   rmSync(dir, { recursive: true, force: true });
