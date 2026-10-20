@@ -5,6 +5,7 @@
 // --parity also runs the RS-302 V8 sample (editor stills vs the rendered frames) on each recipe's render.
 // --user: build previews for the AI-made recipes in the user's recipe folder instead (--user-dir <dir> to override),
 // writing <dir>/previews/<id>.jpg|mp4 and setting `preview` in the recipe file (served by the user-recipes plugin).
+// --clips <dir>: use your own footage (videos and photos in <dir>) instead of the synthetic clips, so the previews show real clips.
 // Output: assets/recipe-previews/<id>.jpg (poster) and <id>.mp4 (muted 360x640 loop, ~4 s), served at /recipe-previews/.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -37,6 +38,7 @@ const USER_DIR = flag('user-dir')[0] ?? userRecipeDir();
 const OUT = flag('out')[0] ?? (USER_MODE ? join(USER_DIR, 'previews') : join(process.cwd(), 'assets', 'recipe-previews'));
 const PARAM_OVERRIDES = Object.fromEntries(flag('param').map((kv) => [kv.split('=')[0]!, kv.split('=').slice(1).join('=')]));
 const only = argv.filter((a, i) => !a.startsWith('--') && !argv[i - 1]?.startsWith('--'));
+const CLIPS_DIR = flag('clips')[0];
 const RECIPE_DIR = USER_MODE ? USER_DIR : 'recipes';
 const work = mkdtempSync(join(tmpdir(), 'rs-previews-'));
 const media = join(work, 'media');
@@ -71,6 +73,29 @@ function clip(i: number, kind: 'video' | 'image'): MediaAsset {
   else ff('-f', 'lavfi', '-i', src, '-frames:v', '1', '-vf', boxes, file);
   return { id: `syn-${kind}-${i}`, name: `Clip ${i + 1}`, kind, src: `/media/uploads/${name}`, durationInFrames: 5 * FPS, width: 540, height: 960 };
 }
+// Real footage: every clip is cut to 5 s and cover-cropped to 540x960, so the rest of the build is unchanged.
+const REAL_VIDEO = /\.(mp4|mov|m4v|webm)$/i;
+const REAL_IMAGE = /\.(jpe?g|png|webp)$/i;
+const realFiles = CLIPS_DIR ? readdirSync(CLIPS_DIR).filter((f) => !f.startsWith('.')).sort().map((f) => join(CLIPS_DIR, f)) : [];
+const realVideos = realFiles.filter((f) => REAL_VIDEO.test(f));
+const realImages = realFiles.filter((f) => REAL_IMAGE.test(f));
+if (CLIPS_DIR && !realVideos.length) throw new Error(`--clips ${CLIPS_DIR}: no videos found`);
+const COVER = 'scale=540:960:force_original_aspect_ratio=increase,crop=540:960,setsar=1';
+function realClip(i: number, kind: 'video' | 'image'): MediaAsset {
+  const name = `real-${kind}-${i}.${kind === 'video' ? 'mp4' : 'png'}`;
+  const file = join(media, name);
+  if (kind === 'video') {
+    const src = realVideos[i % realVideos.length]!;
+    ff('-ss', '1', '-i', src, '-t', '5', '-an', '-vf', `${COVER},fps=${FPS}`, '-pix_fmt', 'yuv420p', '-c:v', 'libx264', '-preset', 'veryfast', file);
+  } else if (realImages.length) {
+    ff('-i', realImages[i % realImages.length]!, '-frames:v', '1', '-vf', COVER, file);
+  } else {
+    // no photos in the folder: use a still from a video
+    ff('-ss', String(2 + (i % 3)), '-i', realVideos[i % realVideos.length]!, '-frames:v', '1', '-vf', COVER, file);
+  }
+  return { id: `real-${kind}-${i}`, name: `Clip ${i + 1}`, kind, src: `/media/uploads/${name}`, durationInFrames: 5 * FPS, width: 540, height: 960 };
+}
+const mk = CLIPS_DIR ? realClip : clip;
 function song(): MediaAsset {
   const name = 'synthetic-beat-120bpm.wav';
   // 120 bpm: kick on every beat, a louder accent on each bar, hats in between, a bass drone
@@ -79,17 +104,17 @@ function song(): MediaAsset {
   return { id: 'syn-song', name: 'Synthetic beat', kind: 'audio', src: `/media/uploads/${name}`, durationInFrames: 40 * FPS };
 }
 function talking(i: number): MediaAsset {
-  const a = clip(100 + i, 'video');
+  const a = mk(100 + i, 'video');
   const lines = 'this weekend we finally made it up the mountain and the view was worth every step of the climb'.split(' ');
   const words: TranscriptWord[] = lines.map((text, k) => ({ text, start: 200 + k * 230, end: 200 + k * 230 + 190 }));
   return { ...a, name: `Talking ${i + 1}`, transcript: words } as MediaAsset;
 }
 
-const clips = Array.from({ length: 24 }, (_, i) => clip(i, i % 5 === 4 ? 'image' : 'video'));
+const clips = Array.from({ length: 24 }, (_, i) => mk(i, i % 5 === 4 ? 'image' : 'video'));
 const music = song();
 const talk = [talking(0), talking(1)];
 // photo-only recipes (Photo Dump) need their own stills; the shared pool above has too few images and stays unchanged
-const photoPool = Array.from({ length: 12 }, (_, i) => clip(200 + i, 'image'));
+const photoPool = Array.from({ length: 12 }, (_, i) => mk(200 + i, 'image'));
 const assets = [...clips, music, ...talk, ...photoPool];
 const byFile = (a: MediaAsset) => join(media, a.src.replace('/media/uploads/', ''));
 
