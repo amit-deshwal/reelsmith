@@ -239,6 +239,8 @@ export function buildCommands(dispatch: ProjectDispatch, getDoc: () => ProjectDo
       addTextClip: (at) => {
         const id = uid('item');
         const align = at?.align === 'left' || at?.align === 'right' ? at.align : 'center';
+        // reelsmith: the box matches the canvas, so a 9:16 title is not scaled 1.78x by cover fit and cut off
+        const canvas = activeTimeline(getDoc());
         dispatchWithTracks({
           type: 'add',
           startFrame: at?.startFrame,
@@ -249,8 +251,8 @@ export function buildCommands(dispatch: ProjectDispatch, getDoc: () => ProjectDo
             durationInFrames: at?.durationInFrames ?? 90,
             kind: 'text',
             name: at?.name?.trim() || 'Text',
-            width: 1920,
-            height: 1080,
+            width: canvas?.width ?? 1920,
+            height: canvas?.height ?? 1080,
             props: {
               text: at?.text?.trim() || 'Double-click to edit',
               fontSize: typeof at?.fontSize === 'number' && Number.isFinite(at.fontSize) ? at.fontSize : 96,

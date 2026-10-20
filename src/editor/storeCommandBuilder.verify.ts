@@ -42,4 +42,14 @@ for (const overwrite of [false, true]) {
     assert.deepEqual(historyReduce(history, { type: 'undo' }).present, initial);
   }
 }
+{
+  // reelsmith: a title's box is the canvas, so cover fit does not scale a 9:16 title past the frame
+  const portrait = project('video');
+  Object.assign(portrait.timelines[0], { width: 1080, height: 1920 });
+  let doc = portrait;
+  const commands = buildCommands((action) => { doc = historyReduce({ past: [], present: doc, future: [] }, action).present; }, () => doc);
+  const id = commands.addTextClip({ text: 'our bus AMK trek, coming back' });
+  const text = doc.timelines[0].items.find((item) => item.id === id);
+  assert.deepEqual([text?.width, text?.height], [1080, 1920], 'a new title matches the canvas');
+}
 console.log('storeCommandBuilder.verify: overwrite and normal placement retain tracks, order, assets, and single-step undo');

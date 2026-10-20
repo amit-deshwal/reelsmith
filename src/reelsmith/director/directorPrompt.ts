@@ -7,7 +7,7 @@ export const STORY_MAX = 600;
 export function directorPrompt(story: string, ratio: RatioId): string {
   const text = story.replace(/\s+/g, ' ').trim().slice(0, STORY_MAX);
   return [
-    `Direct a ${ratio} reel from my imported clips, photos and song (director mode).`,
+    `Direct a ${ratio} reel from the media I imported (director mode). Use what is there; with no song imported, keep the clips' own sound.`,
     text ? `My story, in my words: "${text}"` : 'I have not written a story: ask me for one line about it first.',
     'Use the reels-director skill: reels_director_options (it includes contact sheets of every clip), then one plan and reels_director_build. Keep my words on screen; describe only what the clips show.',
   ].join('\n');

@@ -248,4 +248,12 @@ assert.ok(pos('Bar (top)') < pos('walker') && pos('walker') < pos('Black canvas'
 assert.ok(pos('HARISHCHANDRAGAD') < pos('Bands, cards, grid and panorama'), 'titles on top');
 assert.equal(JSON.stringify(res), JSON.stringify(assemble({ recipe, clips, music, texts: {}, params: {}, seed: 5, plan })), 'deterministic');
 
+// with no song the clips keep their own sound (the song playing in the footage); under a song they are muted
+const rawPlan = parsePlan({ ratio: '9:16', sections: [{ move: 'cut', beats: 8, clips: ['walker', 'trail'] }, { move: 'hold', beats: 4, clips: ['ridge'] }] });
+assert.ok(rawPlan.ok);
+const volumes = (m: AssemblyMusic | undefined) => ((assemble({ recipe: directorRecipe(rawPlan.plan), clips, ...(m ? { music: m } : {}), texts: {}, params: {}, seed: 5, plan: rawPlan.plan }).action?.actions ?? []) as any[])
+  .filter((a) => a.item?.kind === 'video').map((a) => a.item.volume);
+assert.ok(volumes(undefined).length && volumes(undefined).every((v) => v === 1), `no song: clips keep their sound (${volumes(undefined)})`);
+assert.ok(volumes(music).every((v) => v === 0), 'under a song the clips are muted');
+
 console.log('assembleDirector.verify: ok');

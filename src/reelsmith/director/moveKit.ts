@@ -34,6 +34,8 @@ export interface MoveContext {
   moment: (clip: AssemblyClip, frames: number) => { inFrame: number; loop: boolean };
   emit: (action: AtomicAction) => void;
   warn: (message: string) => void;
+  /** gain of the bottom layer's clip audio: 0 under a song, 1 when the reel has no song and keeps the clips' own sound */
+  clipVolume?: number;
   /** what the previous section left on screen: the band's cover fraction when it was a postcard band */
   previous?: { move: string; bandCover?: number };
 }
@@ -68,7 +70,7 @@ export function clipAt(ctx: MoveContext, layer: number, key: Array<string | numb
     type: 'add', startFrame: from,
     item: {
       id, track: ctx.layer(layer), kind: clip.kind, name: clip.name, src: clip.src, sourceAssetId: clip.assetId, durationInFrames: Math.max(1, to - from),
-      ...(clip.kind === 'video' ? { srcInFrame: inFrame, volume: 0 } : {}), ...extra,
+      ...(clip.kind === 'video' ? { srcInFrame: inFrame, volume: layer === 0 ? ctx.clipVolume ?? 0 : 0 } : {}), ...extra,
     } as never,
   });
   return id;

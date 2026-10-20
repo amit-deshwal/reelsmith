@@ -207,8 +207,10 @@ export async function directorBuild(args: Record<string, unknown>, ctx: AgentCon
       findings,
       lint: { errors: lint.errors, warnings: lint.warnings, issues: lint.issues.slice(0, 8).map((x) => x.message) },
     },
-    next: findings.length || lint.errors
-      ? 'Fix the review findings and anything clearly wrong in the frames with ONE rebuild (replaceTimeline true), then report. Do not call view_timeline_frames or reels_lint separately.'
-      : 'Check the frames; if nothing is clearly wrong, report to the user in three short lines. Do not call view_timeline_frames or reels_lint separately.',
+    // an external agent's build is a draft until review_edit_session applies it; a bare "report" made it skip that
+    next: (findings.length || lint.errors
+      ? 'Fix the review findings and anything clearly wrong in the frames with ONE rebuild (replaceTimeline true), then finish.'
+      : 'Check the frames; if nothing is clearly wrong, finish.')
+      + ' To finish: call review_edit_session if you opened an edit session (nothing reaches the timeline until it returns applied), then report to the user in three short lines. Do not call view_timeline_frames or reels_lint separately.',
   };
 }

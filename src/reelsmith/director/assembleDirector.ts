@@ -250,7 +250,7 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
     const id = (...parts: Array<string | number>) => stableId('rs-dir', tag, seed, i, ...parts);
     const firstAction = actions.length;
     move.build({
-      W, H, fps, start, end, beats: b1 - b0, clips, params, seed: seed + i,
+      W, H, fps, start, end, beats: b1 - b0, clips, params, seed: seed + i, clipVolume: music ? 0 : 1,
       beatFrame: (b) => Math.min(end, Math.max(start, frame(b0 + b))),
       id, layer: (n) => `V${2 + n}`,
       moment: (clip, frames) => {
