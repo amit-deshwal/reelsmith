@@ -16,7 +16,7 @@ for (const id of Object.keys(SOUND_LEVELS)) assert.ok(SOUND_EFFECTS.some((x) => 
 assert.ok(soundVolume('short-shutter-click', -21) > 1 && soundVolume('short-shutter-click', -21) <= 2);
 assert.ok(soundVolume('deep-impact-hit', -16) < 1);
 assert.ok(soundVolume('deep-impact-hit', 0) <= 10 ** (-1 / 20) + 1e-3, 'peak stays under -1 dBFS');
-assert.equal(soundVolume('clean-ding', -20), 0.8);
+assert.equal(soundVolume('vine-boom-impact', -20), 0.8);
 // a whoosh peaks on the cut
 const [w] = run([{ frame: 300, cue: 'whoosh' }]);
 assert.equal(w!.startFrame + Math.round(soundPeakSec('simple-whoosh') * fps), 300);

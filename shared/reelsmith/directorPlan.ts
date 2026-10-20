@@ -58,6 +58,22 @@ export interface PlanOverlay {
   behind?: boolean;
 }
 
+/**
+ * A drawn graphic over the reel (RS-1213): a route map, chat bubbles, stickers, confetti... It starts `beat` beats into
+ * section `from` and lasts `beats` beats, or to the end of section `to`.
+ */
+export interface PlanGraphic {
+  /** graphic id from the catalogue, or custom:gfx-* from reels_custom_graphic */
+  graphic: string;
+  from: number;
+  to: number;
+  beat?: number;
+  beats?: number;
+  /** its words; items split with "/" */
+  text?: string;
+  params?: Record<string, PlanValue>;
+}
+
 export interface ReelPlan {
   version: 1;
   ratio: RatioId;
@@ -69,6 +85,7 @@ export interface ReelPlan {
   look?: string;
   sections: PlanSection[];
   overlays?: PlanOverlay[];
+  graphics?: PlanGraphic[];
   /** sound effects on cuts, drops and builds: 'auto' (default), 'subtle' (quieter) or 'off' */
   sfx?: 'auto' | 'subtle' | 'off';
 }
@@ -167,13 +184,28 @@ export function parsePlan(raw: unknown): { ok: true; plan: ReelPlan } | { ok: fa
       overlays.push({ text: t, style: o.style, from, to, params: params(o.params, w), ...(o.behind === true ? { behind: true } : {}) });
     });
   }
+  const graphics: PlanGraphic[] = [];
+  if (raw.graphics !== undefined) {
+    if (!Array.isArray(raw.graphics)) errors.push('graphics must be an array');
+    else raw.graphics.forEach((g, i) => {
+      const w = `graphics[${i}]`;
+      if (!obj(g) || typeof g.graphic !== 'string' || !g.graphic) { errors.push(`${w} needs a graphic id`); return; }
+      const from = Number(g.from ?? 0);
+      const to = Number(g.to ?? from);
+      if (!Number.isInteger(from) || !Number.isInteger(to) || from < 0 || to < from || to >= sections.length) { errors.push(`${w}: from/to must be section indexes, from <= to`); return; }
+      const beat = g.beat === undefined ? undefined : typeof g.beat === 'number' && g.beat >= 0 && g.beat <= 600 ? g.beat : (errors.push(`${w}.beat must be beats from the section start`), undefined);
+      const beats = g.beats === undefined ? undefined : typeof g.beats === 'number' && g.beats > 0 && g.beats <= 600 ? g.beats : (errors.push(`${w}.beats must be a positive number of beats`), undefined);
+      const t = text(g.text, `${w}.text`);
+      graphics.push({ graphic: g.graphic, from, to, ...(beat !== undefined ? { beat } : {}), ...(beats !== undefined ? { beats } : {}), ...(t ? { text: t } : {}), ...(g.params !== undefined ? { params: params(g.params, w) } : {}) });
+    });
+  }
   if (errors.length) return { ok: false, errors };
   return {
     ok: true,
     plan: {
       version: 1, ratio: ratio as RatioId, sections,
       ...(typeof raw.music === 'string' ? { music: raw.music } : {}), ...(ms !== undefined ? { musicStart: ms as ReelPlan['musicStart'] } : {}),
-      ...(typeof raw.look === 'string' ? { look: raw.look } : {}), ...(overlays.length ? { overlays } : {}),
+      ...(typeof raw.look === 'string' ? { look: raw.look } : {}), ...(overlays.length ? { overlays } : {}), ...(graphics.length ? { graphics } : {}),
       ...(raw.sfx === 'auto' || raw.sfx === 'subtle' || raw.sfx === 'off' ? { sfx: raw.sfx } : {}),
     },
   };

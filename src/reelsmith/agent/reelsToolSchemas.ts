@@ -250,6 +250,19 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
               type: 'array',
               items: { type: 'object', properties: { text: { type: 'string' }, style: { type: 'string' }, from: { type: 'number' }, to: { type: 'number' }, params: { type: 'object', additionalProperties: {} }, behind: { type: 'boolean', description: 'Behind the person in the shots it crosses.' } }, required: ['text', 'style', 'from', 'to'] },
             },
+            graphics: {
+              type: 'array',
+              description: 'Drawn graphics over the reel (route-map, chat-bubbles, sticker, confetti, countdown...; catalogue in the reels-director skill), or custom:gfx-* from reels_custom_graphic. Up to 8.',
+              items: {
+                type: 'object',
+                properties: {
+                  graphic: { type: 'string' }, from: { type: 'number', description: 'Section index where it starts.' }, to: { type: 'number', description: 'Last section it spans (default from).' },
+                  beat: { type: 'number', description: 'Beats into section `from` where it starts (default 0).' }, beats: { type: 'number', description: 'Length in beats (default: to the end of section `to`).' },
+                  text: { type: 'string', description: 'Its words; items split with "/".' }, params: { type: 'object', additionalProperties: {} },
+                },
+                required: ['graphic', 'from'],
+              },
+            },
           },
           required: ['sections'],
         },
@@ -308,6 +321,29 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
     },
   },
   {
+    name: 'reels_custom_graphic',
+    description: [
+      'Director mode, optional: write your own animated graphic (a Remotion component, every frame drawn in code) when no catalogue graphic',
+      'fits the story: an altitude profile that draws itself, a scoreboard, a hand-drawn sun rising with the title. One per reel. It is',
+      'checked against the sandbox, compiled and registered for this session; place the returned id in the plan\'s graphics like a catalogue',
+      'graphic. Shape: const Name = ({ item }) => { ... return React.createElement(AbsoluteFill, null, ...) }; globals only (React,',
+      'useCurrentFrame, useVideoConfig, interpolate, interpolateColors, spring, Easing, random, AbsoluteFill, Sequence), no imports.',
+      'item.width/height is the frame; item.props has items (text split on "/"), beats (seconds of each song beat from its start),',
+      'sections (seconds where each spanned section starts), total (seconds) and your params. Deterministic from the frame; no timers,',
+      'network, window or document. Keep words inside x 6-84% and y 12-75% of the frame.',
+    ].join(' '),
+    input_schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'What it is, two or three words.' },
+        looks: { type: 'string', description: 'One sentence on what it looks like.' },
+        code: { type: 'string', description: 'The full component source.' },
+        params: { type: 'array', items: { type: 'object', properties: { key: { type: 'string' }, label: { type: 'string' }, default: {}, min: { type: 'number' }, max: { type: 'number' } }, required: ['key', 'default'] }, description: 'Adjustable props: a number (with min/max), a #rrggbb colour, text or a boolean; read as item.props.<key>.' },
+      },
+      required: ['name', 'code'],
+    },
+  },
+  {
     name: 'reels_freeze_frame',
     description: [
       'Freeze one moment of a video clip as a real still for holdSec, then play on, as one undo step ("freeze on the jump",',
@@ -350,4 +386,4 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
 
 export const REELS_TOOL_NAMES = new Set(REELS_TOOL_SCHEMAS.map((t) => t.name));
 export const REELS_READ_TOOL_NAMES = ['reels_lint', 'reels_plan_options', 'reels_director_options', 'reels_run_info', 'reels_selection_candidates', 'reels_selection_sheet'] as const;
-export const REELS_EDIT_TOOL_NAMES = ['reels_plan_assemble', 'reels_director_build', 'reels_custom_shader', 'reels_time_effect', 'reels_freeze_frame', 'reels_restyle_text', 'reels_apply_look', 'reels_apply_signature', 'reels_recut_section', 'reels_snap_cuts_to_beats', 'reels_strobe', 'propose_selection'] as const;
+export const REELS_EDIT_TOOL_NAMES = ['reels_plan_assemble', 'reels_director_build', 'reels_custom_shader', 'reels_custom_graphic', 'reels_time_effect', 'reels_freeze_frame', 'reels_restyle_text', 'reels_apply_look', 'reels_apply_signature', 'reels_recut_section', 'reels_snap_cuts_to_beats', 'reels_strobe', 'propose_selection'] as const;

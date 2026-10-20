@@ -19,6 +19,8 @@ import { ALL_FX, serializableDefsFor } from '../../gl/fx/effects';
 import { customTransitionUniforms, getCustomTransition } from '../../gl/customTransitions';
 import { RECIPE_TRANSITIONS } from '../assembler/transitions';
 import { lookById, lookEffects } from '../looks';
+import { focusForRange } from '../titleClear';
+import { buildGraphics, checkGraphics, coverFocus } from './graphics';
 
 /** A section effect's asset: a catalogue effect, or a custom one the agent registered this session (custom:fx-*). */
 const effectAsset = (id: string) => directorEffectById(id)?.id ?? (id.startsWith('custom:fx-') && ALL_FX[id] ? id : undefined);
@@ -133,6 +135,7 @@ export function resolvePlanSections(plan: ReelPlan, warnings: string[], errors: 
     if (!style) errors.push(`overlay "${o.text}": unknown style "${o.style}"`);
     else if (o.text.length > style.maxChars) errors.push(`overlay "${o.text}" is longer than ${style.maxChars} characters for ${style.id}`);
   }
+  checkGraphics(plan, errors, resolveParams);
   return { sections: resolved, customFx };
 }
 
@@ -350,6 +353,20 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
       beatFrame: (x) => Math.min(b, Math.max(a, frame(spans[o.from]!.b0 + x))), id: (...p) => stableId('rs-dir', tag, seed, 'overlay', k, ...p),
       lane: (n) => `T${1 + SECTION_TEXT_LANES * (k + 1) + n}`, emit: (x) => actions.push(tagLine(o.behind ? markBehind(x) : x, `o${k + 1}`, o.text, style.id)), warn: (m) => warnings.push(`overlays[${k}]: ${m}`),
     });
+  });
+
+  // 4b. drawn graphics over the reel (RS-1213), on lanes above every line, with their own sounds
+  buildGraphics(plan.graphics ?? [], {
+    W, H, fps, clock, sectionBeats: spans, resolveParams, id: (...p) => stableId('rs-dir', tag, seed, ...p), emit: (a) => actions.push(a),
+    sound: (f, cue) => sfx.push({ frame: f, cue }), warn: (m) => warnings.push(m),
+    focusAt: (section, f) => {
+      const base = bases(section).filter((a) => a.startFrame <= f).at(-1) ?? firstBase(section);
+      const c = base && input.clips.find((x) => x.assetId === (base.item as { sourceAssetId?: string }).sourceAssetId);
+      if (!base || !c?.width || !c.height) return undefined;
+      const src = ((base.item as { srcInFrame?: number }).srcInFrame ?? 0) + Math.max(0, f - base.startFrame);
+      const rect = focusForRange(c, src, src + fps);
+      return rect ? coverFocus(rect, { width: c.width, height: c.height }, W, H) : undefined;
+    },
   });
 
   // lines behind the person: a cut-out copy of each shot under the line goes on a lane above every text lane

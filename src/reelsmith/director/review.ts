@@ -82,7 +82,33 @@ export function reviewDirectorPlan(r: ReviewInput): ReviewFinding[] {
     const same = (s.clips ?? []).map(clipMoment).filter((c) => prev.some((p) => p.id === c.id && Math.abs(p.at - c.at) < SAME_MOMENT_SEC));
     if (same.length && s.clips!.length <= 2) out.push({ section: k, issue: `section ${k} repeats a clip from section ${k - 1}`, fix: 'use another clip, or a clearly different moment (@seconds)' });
   });
+  reviewGraphics(plan, spans, beatSec, out);
   return out;
+}
+
+/** Graphics that frame the whole reel and may sit under another one. */
+const FRAME_GRAPHICS = new Set(['chapter-bar', 'camcorder']);
+/** Graphics people read: they need a calm shot, not a burst of cuts. */
+const READ_GRAPHICS = new Set(['route-map', 'boarding-pass', 'chat-bubbles', 'notification', 'hud-stats', 'loading-bar']);
+const FAST_MOVES = new Set(['flash-cuts', 'zoom-punch', 'postcard-band', 'break-in', 'match-cut']);
+
+/** RS-1213: two graphics fighting for the same seconds, and a graphic to read over cuts too fast to read it on. */
+function reviewGraphics(plan: ReelPlan, spans: ReviewInput['spans'], beatSec: number, out: ReviewFinding[]): void {
+  const when = (plan.graphics ?? []).map((g) => {
+    const from = (spans[g.from]?.from ?? 0) + (g.beat ?? 0) * beatSec;
+    return { g, from, to: g.beats !== undefined ? from + g.beats * beatSec : spans[g.to]?.to ?? from };
+  });
+  when.forEach((a, i) => {
+    for (const b of when.slice(i + 1)) {
+      if (FRAME_GRAPHICS.has(a.g.graphic) || FRAME_GRAPHICS.has(b.g.graphic)) continue;
+      const overlap = Math.min(a.to, b.to) - Math.max(a.from, b.from);
+      if (overlap > 0.3) out.push({ section: b.g.from, issue: `graphics ${a.g.graphic} and ${b.g.graphic} are on screen together for ${overlap.toFixed(1)} s`, fix: `end ${a.g.graphic} before ${b.g.graphic} starts (its beats or to), or drop one` });
+    }
+    if (READ_GRAPHICS.has(a.g.graphic)) {
+      const fast = plan.sections.slice(a.g.from, a.g.to + 1).find((s) => FAST_MOVES.has(s.move) || (s.move === 'cut' && typeof s.params?.every === 'number' && s.params.every < 2));
+      if (fast) out.push({ section: a.g.from, issue: `${a.g.graphic} has to be read, but runs over ${fast.move} cuts`, fix: 'put it over a hold or a cut of 2+ beats a shot' });
+    }
+  });
 }
 
 /** Starts closer than this (in source seconds) show the same moment. */

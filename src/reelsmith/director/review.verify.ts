@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { reviewDirectorPlan } from './review';
+import type { ReelPlan } from '../../../shared/reelsmith/directorPlan';
 
 const spans = (lens: number[]) => { let t = 0; return lens.map((l) => { const s = { from: t, to: t + l }; t += l; return s; }); };
 const plain: any = { version: 1, ratio: '9:16', sections: [{ move: 'cut', clips: ['a', 'b'] }, { move: 'cut', clips: ['c'] }, { move: 'hold', clips: ['d'], text: 'yun hi chala chal' }] };
@@ -39,4 +40,15 @@ const calm: any = { ...plain, sections: [{ move: 'cut', clips: ['a', 'b'] }, { m
 assert.ok(!reviewDirectorPlan({ plan: calm, spans: spans([4, 5.6, 3]), musicStartSec: 0, song: { seconds: 20, bpm: 107 } }).some((x) => /one shot/.test(x.issue)), 'a calm hold may last as long as its line needs');
 const tooLong = reviewDirectorPlan({ plan: calm, spans: spans([4, 8, 3]), musicStartSec: 0, song: { seconds: 20, bpm: 107 } }).find((x) => /one shot/.test(x.issue));
 assert.match(tooLong!.fix, /no shorter than 2\.8 s/, 'the fix never asks for a hold too short to read');
+// graphics: two at once, and a chat over a burst of cuts
+{
+  const sections = [{ move: 'hold', beats: 8 }, { move: 'flash-cuts', beats: 4 }, { move: 'hold', beats: 8 }] as ReelPlan['sections'];
+  const gspans = [{ from: 0, to: 4 }, { from: 4, to: 6 }, { from: 6, to: 10 }];
+  const gf = (graphics: ReelPlan['graphics']) => reviewDirectorPlan({ plan: { version: 1, ratio: '9:16', sections, graphics }, spans: gspans }).map((x) => x.issue).join('; ');
+  assert.match(gf([{ graphic: 'chat-bubbles', from: 0, to: 0, text: 'hi' }, { graphic: 'countdown', from: 0, to: 0, beat: 4 }]), /chat-bubbles and countdown are on screen together for 2.0 s/);
+  assert.doesNotMatch(gf([{ graphic: 'chat-bubbles', from: 0, to: 0, beats: 4, text: 'hi' }, { graphic: 'countdown', from: 0, to: 0, beat: 4 }]), /together/);
+  assert.doesNotMatch(gf([{ graphic: 'chapter-bar', from: 0, to: 2 }, { graphic: 'sticker', from: 1, to: 1, text: 'x' }]), /together/, 'chapter bars frame the reel');
+  assert.match(gf([{ graphic: 'route-map', from: 1, to: 1, text: 'a / b' }]), /route-map has to be read, but runs over flash-cuts/);
+  assert.equal(gf([{ graphic: 'sticker', from: 1, to: 1, text: 'x' }]), '');
+}
 console.log('review: ok');

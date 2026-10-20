@@ -410,3 +410,8 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 ## Freeze frames and restyling one line
 - `src/agent/external-tool-policy.ts`: `reels_freeze_frame` and `reels_restyle_text` added to the Reelsmith edit tools. `assets/agent/openchatcut-tool-schemas.json`: regenerated. `package.json`: registers the new verifies in `test:reelsmith`.
 - Our own: `server/reelsmith/stillFrame.ts` and the `/api/reelsmith/still-frame` route (a still of one moment, saved next to the video), `src/reelsmith/agent/{freezeFrameTool,restyleTextTool}.ts`, `stillFrame` on `AnalyzeApi`, `tagLine` in `assembleDirector.ts` (every item of a line carries `rsLine`, `rsLineText`, `rsTextStyle`), the reels-director skill and reels prompt.
+
+## Graphics drawn in code (RS-1213)
+- `src/agent/external-tool-policy.ts`: `reels_custom_graphic` added to the Reelsmith edit tools. `assets/agent/openchatcut-tool-schemas.json`: regenerated. `package.json`: registers `director/graphics.verify.ts` in `test:reelsmith`.
+- Our own: `src/reelsmith/director/{graphics,graphicsKit,graphicsTravel,graphicsSocial,customGraphics}.ts`, `src/reelsmith/agent/customGraphicTool.ts`, `graphics` in `shared/reelsmith/directorPlan.ts`, new sound cues in `director/sfx.ts`, graphic findings in `director/review.ts`, `server/reelsmith/{graphics-sheet,director-reel}.mts`, the reels-director skill.
+

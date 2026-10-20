@@ -21,6 +21,7 @@ import { bindTracks } from '../trackBinding';
 import { planAssemble, planOptions } from './planTools';
 import { directorBuild, directorOptions } from './directorTools';
 import { customShaderTool } from './customShaderTool';
+import { customGraphicTool } from './customGraphicTool';
 import { parseTimeEffectArgs, planTimedEffect } from './timeEffectTool';
 import { freezeFrameTool } from './freezeFrameTool';
 import { parseRestyleArgs, planRestyle } from './restyleTextTool';
@@ -115,6 +116,8 @@ export async function execReelsTool(name: string, args: Args, ctx: AgentContext,
 
     case 'reels_custom_shader':
       return customShaderTool(args);
+    case 'reels_custom_graphic':
+      return customGraphicTool(args);
 
     case 'reels_freeze_frame': {
       const out = await freezeFrameTool(args, state, deps.api, () => crypto.randomUUID());

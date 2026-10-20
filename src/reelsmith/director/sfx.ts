@@ -6,7 +6,8 @@ import type { AtomicAction } from '../../editor/reducerActions';
 import { SOUND_EFFECTS, soundEffectSrc } from '../../audio/soundLibrary';
 
 /** What happens at a frame: a cut that moves (whoosh), a flash or photo landing (shutter), a hit, a glitch, or a build that ends here (riser). */
-export type SfxCue = 'whoosh' | 'whoosh-heavy' | 'whoosh-soft' | 'shutter' | 'hit' | 'glitch' | 'riser' | 'pop' | 'scratch';
+export type SfxCue = 'whoosh' | 'whoosh-heavy' | 'whoosh-soft' | 'shutter' | 'hit' | 'glitch' | 'riser' | 'pop' | 'scratch'
+  | 'ping' | 'message' | 'chime' | 'ding' | 'click';
 export type SfxLevel = 'auto' | 'subtle' | 'off';
 export const SFX_LEVELS: readonly SfxLevel[] = ['auto', 'subtle', 'off'];
 
@@ -27,6 +28,12 @@ const CUES: Record<SfxCue, { sound: string; meanDb: number; rank: number }> = {
   scratch: { sound: 'record-scratch-stop', meanDb: -18, rank: 2 },
   shutter: { sound: 'short-shutter-click', meanDb: -21, rank: 1 },
   pop: { sound: 'tiny-bubble-pop', meanDb: -23, rank: 1 },
+  // RS-1213: the director's graphics (a notification lands, a chat bubble arrives, a countdown ticks, a bar completes)
+  chime: { sound: 'success-chime', meanDb: -20, rank: 3 },
+  ping: { sound: 'phone-notification-ping', meanDb: -20, rank: 2 },
+  ding: { sound: 'clean-ding', meanDb: -21, rank: 2 },
+  message: { sound: 'sent-message-ping', meanDb: -21, rank: 1 },
+  click: { sound: 'crisp-ui-click', meanDb: -25, rank: 1 },
 };
 
 /** Measured mean and peak (dBFS) of the cue sounds (ffmpeg volumedetect on assets/sound-effects). */
@@ -40,6 +47,11 @@ export const SOUND_LEVELS: Record<string, { mean: number; peak: number }> = {
   'record-scratch-stop': { mean: -18.5, peak: -2.3 },
   'short-shutter-click': { mean: -29, peak: -6.5 },
   'tiny-bubble-pop': { mean: -19.4, peak: -1.3 },
+  'success-chime': { mean: -15.2, peak: -0.6 },
+  'phone-notification-ping': { mean: -17.5, peak: -5.6 },
+  'clean-ding': { mean: -24.4, peak: -9 },
+  'sent-message-ping': { mean: -20.8, peak: -9.8 },
+  'crisp-ui-click': { mean: -15.3, peak: 0 },
 };
 /** the editor's clip volume tops out at 2 (+6 dB) */
 const MAX_GAIN_DB = 6;

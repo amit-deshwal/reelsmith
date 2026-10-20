@@ -10,6 +10,7 @@ import { defaultValues } from '../setupForm';
 import { directorRecipe, resolvePlanSections } from '../director/assembleDirector';
 import { CUSTOM_FX } from '../../gl/fx/effects';
 import { listCustomTransitions } from '../../gl/customTransitions';
+import { adoptCustomGraphics, listCustomGraphics } from '../director/customGraphics';
 import { commit, projectId, type ReelsDeps } from './reelsTools';
 import { reviewDirectorPlan } from '../director/review';
 import { lintReel } from '../reelLint';
@@ -124,7 +125,8 @@ export async function directorOptions(ctx: AgentContext, deps: ReelsDeps): Promi
   warmClipAnalysis(visual, fps, deps);
   warmShotTags(visual, ctx, deps);
   const song = (a: MediaAsset) => ({ assetId: a.id, name: a.name, seconds: secs(a.durationInFrames, fps), ...(beats.get(a.id) ?? {}) });
-  const custom = Object.values(CUSTOM_FX).map((d) => d.id).concat(listCustomTransitions().map((t) => t.id));
+  adoptCustomGraphics(ctx.getState().items as never);
+  const custom = Object.values(CUSTOM_FX).map((d) => d.id).concat(listCustomTransitions().map((t) => t.id), listCustomGraphics().map((g) => g.id));
   // RS-1210: only what is particular to this project. The catalogue (moves, styles, effects, transitions, looks, sounds)
   // is in the reels-director skill; a result over 16k characters would reach an external agent only as an artifact.
   return {
@@ -159,6 +161,8 @@ export async function directorBuild(args: Record<string, unknown>, ctx: AgentCon
   if (!parsed.ok) return { error: `The plan is not valid: ${parsed.errors.join('; ')}` };
   const plan = parsed.plan;
   // catalogue mistakes come back at once, before the clip analysis the build waits on
+  // (a custom graphic already on the timeline from an earlier session is picked up again)
+  adoptCustomGraphics(ctx.getState().items as never);
   const problems: string[] = [];
   resolvePlanSections(plan, [], problems);
   if (problems.length) return { error: `The plan has problems: ${problems.join('; ')}` };

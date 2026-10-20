@@ -5,6 +5,7 @@ import { MOVES, TEXT_STYLES } from './moves';
 import { DIRECTOR_EFFECTS, DIRECTOR_TRANSITIONS } from './catalog';
 import { DIRECTOR_SOUNDS } from './sfx';
 import { REEL_LOOKS } from '../looks';
+import { GRAPHICS } from './graphics';
 import { resolvePlanSections } from './assembleDirector';
 import { parsePlan } from '../../../shared/reelsmith/directorPlan';
 import { directorOptions, resolveClipRef, sheetSamples, songSuggestion } from '../agent/directorTools';
@@ -13,13 +14,13 @@ import { directorOptions, resolveClipRef, sheetSamples, songSuggestion } from '.
 const skill = readFileSync(new URL('../../agent/skills/reels-director/SKILL.md', import.meta.url), 'utf8');
 assert.equal(withCatalog(skill), skill, 'the reels-director catalogue is stale: npx tsx src/reelsmith/director/sync-director-catalog.mts');
 const cat = skill.slice(skill.indexOf(CATALOG_START));
-for (const id of [...MOVES.map((m) => m.id), ...TEXT_STYLES.map((t) => t.id), ...DIRECTOR_EFFECTS.map((e) => e.id.replace('builtin:fx-', '')), ...DIRECTOR_TRANSITIONS.map((t) => t.id)]) {
+for (const id of [...MOVES.map((m) => m.id), ...TEXT_STYLES.map((t) => t.id), ...DIRECTOR_EFFECTS.map((e) => e.id.replace('builtin:fx-', '')), ...DIRECTOR_TRANSITIONS.map((t) => t.id), ...GRAPHICS.map((g) => g.id)]) {
   assert.ok(cat.includes(`\`${id}\``), `catalogue lists ${id}`);
 }
 // the hand-written part never drifts from the code: its example plan and overlay snippet pass the plan check, and every
 // kebab-case id it names is in the catalogue (a renamed move or style would otherwise send the agent into a refused build)
 const hand = skill.slice(0, skill.indexOf(CATALOG_START));
-const known = new Set([...MOVES.map((m) => m.id), ...TEXT_STYLES.map((t) => t.id), ...DIRECTOR_EFFECTS.map((e) => e.id.replace('builtin:fx-', '')), ...DIRECTOR_TRANSITIONS.map((t) => t.id), ...DIRECTOR_SOUNDS.map((x) => x.id), ...REEL_LOOKS.map((l) => l.id)]);
+const known = new Set([...MOVES.map((m) => m.id), ...TEXT_STYLES.map((t) => t.id), ...DIRECTOR_EFFECTS.map((e) => e.id.replace('builtin:fx-', '')), ...DIRECTOR_TRANSITIONS.map((t) => t.id), ...DIRECTOR_SOUNDS.map((x) => x.id), ...REEL_LOOKS.map((l) => l.id), ...GRAPHICS.map((g) => g.id)]);
 const named = [...hand.replace(/```[\s\S]*?```/g, '').matchAll(/`([a-z0-9]+(?:-[a-z0-9]+)+)`/g)].map((m) => m[1]!);
 assert.deepEqual(named.filter((id) => !known.has(id)), [], 'ids the skill names that the catalogue lacks');
 const checkPlan = (raw: unknown, what: string) => {

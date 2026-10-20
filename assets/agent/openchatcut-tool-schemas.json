@@ -6015,6 +6015,46 @@
                     "to"
                   ]
                 }
+              },
+              "graphics": {
+                "type": "array",
+                "description": "Drawn graphics over the reel (route-map, chat-bubbles, sticker, confetti, countdown...; catalogue in the reels-director skill), or custom:gfx-* from reels_custom_graphic. Up to 8.",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "graphic": {
+                      "type": "string"
+                    },
+                    "from": {
+                      "type": "number",
+                      "description": "Section index where it starts."
+                    },
+                    "to": {
+                      "type": "number",
+                      "description": "Last section it spans (default from)."
+                    },
+                    "beat": {
+                      "type": "number",
+                      "description": "Beats into section `from` where it starts (default 0)."
+                    },
+                    "beats": {
+                      "type": "number",
+                      "description": "Length in beats (default: to the end of section `to`)."
+                    },
+                    "text": {
+                      "type": "string",
+                      "description": "Its words; items split with \"/\"."
+                    },
+                    "params": {
+                      "type": "object",
+                      "additionalProperties": {}
+                    }
+                  },
+                  "required": [
+                    "graphic",
+                    "from"
+                  ]
+                }
               }
             },
             "required": [
@@ -6156,6 +6196,57 @@
           "type",
           "name",
           "glsl"
+        ]
+      }
+    },
+    {
+      "name": "reels_custom_graphic",
+      "description": "Director mode, optional: write your own animated graphic (a Remotion component, every frame drawn in code) when no catalogue graphic fits the story: an altitude profile that draws itself, a scoreboard, a hand-drawn sun rising with the title. One per reel. It is checked against the sandbox, compiled and registered for this session; place the returned id in the plan's graphics like a catalogue graphic. Shape: const Name = ({ item }) => { ... return React.createElement(AbsoluteFill, null, ...) }; globals only (React, useCurrentFrame, useVideoConfig, interpolate, interpolateColors, spring, Easing, random, AbsoluteFill, Sequence), no imports. item.width/height is the frame; item.props has items (text split on \"/\"), beats (seconds of each song beat from its start), sections (seconds where each spanned section starts), total (seconds) and your params. Deterministic from the frame; no timers, network, window or document. Keep words inside x 6-84% and y 12-75% of the frame.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "What it is, two or three words."
+          },
+          "looks": {
+            "type": "string",
+            "description": "One sentence on what it looks like."
+          },
+          "code": {
+            "type": "string",
+            "description": "The full component source."
+          },
+          "params": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "default": {},
+                "min": {
+                  "type": "number"
+                },
+                "max": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "key",
+                "default"
+              ]
+            },
+            "description": "Adjustable props: a number (with min/max), a #rrggbb colour, text or a boolean; read as item.props.<key>."
+          }
+        },
+        "required": [
+          "name",
+          "code"
         ]
       }
     },
