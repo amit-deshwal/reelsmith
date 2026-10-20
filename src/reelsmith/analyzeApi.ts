@@ -28,6 +28,10 @@ export function createAnalyzeApi(fetcher: typeof fetch = fetch, subjects: typeof
       const r = await post<{ available: boolean; src?: string; width?: number; height?: number }>('/api/reelsmith/upscale', { src: asset.src, width: asset.width, height: asset.height });
       return r?.available && r.src && r.width && r.height ? { src: r.src, width: r.width, height: r.height } : null;
     },
+    stillFrame: async (asset, atSec) => {
+      const r = await post<{ src: string; width: number; height: number }>('/api/reelsmith/still-frame', { src: asset.src, atSec });
+      return r?.src && r.width && r.height ? r : null;
+    },
     musicGrid: async (asset) => (await post<{ grid: never }>('/api/reelsmith/music-grid', { src: asset.src }))?.grid ?? null,
   };
 }

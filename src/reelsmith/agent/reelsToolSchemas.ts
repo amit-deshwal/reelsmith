@@ -307,8 +307,47 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
       required: ['type', 'name', 'glsl'],
     },
   },
+  {
+    name: 'reels_freeze_frame',
+    description: [
+      'Freeze one moment of a video clip as a real still for holdSec, then play on, as one undo step ("freeze on the jump",',
+      '"hold that face for a second"). The still keeps the clip\'s framing, look and effects; cuts after it stay where they are.',
+      'resume frozen (default) plays on from the frozen moment; skip continues as if the clip had kept playing under the still.',
+      'The clip\'s own sound pauses during the freeze. Never fake a freeze with a slow playback rate: it crawls and reads as slow motion.',
+    ].join(' '),
+    input_schema: {
+      type: 'object',
+      properties: {
+        atSec: { type: 'number', description: 'Timeline second of the moment to freeze.' },
+        holdSec: { type: 'number', description: 'How long the still holds, 0.1-10 s (default 1); it ends at the clip\'s end at the latest.' },
+        itemId: { type: 'string', description: 'The clip, when more than one video plays at atSec.' },
+        resume: { type: 'string', enum: ['frozen', 'skip'] },
+      },
+      required: ['atSec'],
+    },
+  },
+  {
+    name: 'reels_restyle_text',
+    description: [
+      'Give one on-screen line another text style from the reels-director catalogue, keeping when it shows, as one undo step',
+      '("make \'priorities sorted\' a marker highlight", "slam the punchline"). Name the line by its words as they read now (any case,',
+      'part of it is enough) or by itemIds; every item of the line is replaced, rebuilt by the style itself on the song\'s beats. newText',
+      'changes the words too; params are the style\'s own (only those listed for it in the catalogue).',
+    ].join(' '),
+    input_schema: {
+      type: 'object',
+      properties: {
+        text: { type: 'string', description: 'The line\'s words as they read now.' },
+        itemIds: { type: 'array', items: { type: 'string' } },
+        style: { type: 'string', description: 'A text style id, e.g. highlight, slam, caption, big-title, pop-words.' },
+        newText: { type: 'string', description: 'New words for the line (optional).' },
+        params: { type: 'object', additionalProperties: {}, description: 'The style\'s own params.' },
+      },
+      required: ['style'],
+    },
+  },
 ];
 
 export const REELS_TOOL_NAMES = new Set(REELS_TOOL_SCHEMAS.map((t) => t.name));
 export const REELS_READ_TOOL_NAMES = ['reels_lint', 'reels_plan_options', 'reels_director_options', 'reels_run_info', 'reels_selection_candidates', 'reels_selection_sheet'] as const;
-export const REELS_EDIT_TOOL_NAMES = ['reels_plan_assemble', 'reels_director_build', 'reels_custom_shader', 'reels_time_effect', 'reels_apply_look', 'reels_apply_signature', 'reels_recut_section', 'reels_snap_cuts_to_beats', 'reels_strobe', 'propose_selection'] as const;
+export const REELS_EDIT_TOOL_NAMES = ['reels_plan_assemble', 'reels_director_build', 'reels_custom_shader', 'reels_time_effect', 'reels_freeze_frame', 'reels_restyle_text', 'reels_apply_look', 'reels_apply_signature', 'reels_recut_section', 'reels_snap_cuts_to_beats', 'reels_strobe', 'propose_selection'] as const;

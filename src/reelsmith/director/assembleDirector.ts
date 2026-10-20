@@ -27,6 +27,9 @@ const isCustomTransition = (id: string) => id.startsWith('custom:tr-') && !!getC
 /** A line meant to pass behind the person: withTitleClear lays it across them instead of moving it off their face. */
 const markBehind = (a: AtomicAction): AtomicAction => (a.type === 'add' && (a.item.kind === 'text' || a.item.kind === 'motion-graphic')
   ? { ...a, item: { ...a.item, props: { ...(a.item.props ?? {}), rsBehind: true } } } as AtomicAction : a);
+/** Every item of one on-screen line carries the line's key and words, so reels_restyle_text can find all of it later. */
+export const tagLine = (a: AtomicAction, line: string, text: string, style: string): AtomicAction => (a.type === 'add' && (a.item.kind === 'text' || a.item.kind === 'motion-graphic')
+  ? { ...a, item: { ...a.item, props: { ...(a.item.props ?? {}), rsLine: line, rsLineText: text, rsTextStyle: style } } } as AtomicAction : a);
 
 /** Video lanes: V1 holds the black canvas, each section uses V2.. ; text lanes T1..T3 per section, T4.. for overlays. */
 const SECTION_TEXT_LANES = 3;
@@ -277,7 +280,7 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
       r!.style.build({
         W, H, fps, start, end, beats: b1 - b0, text: s.text, params: r!.textParams, seed: seed + i,
         beatFrame: (b) => Math.min(end, Math.max(start, frame(b0 + b))), id: (...p) => id('text', ...p), lane: (n) => `T${1 + n}`,
-        emit: (a) => actions.push(s.textBehind ? markBehind(a) : a), warn: (m) => warnings.push(`sections[${i}] text: ${m}`),
+        emit: (a) => actions.push(tagLine(s.textBehind ? markBehind(a) : a, `s${i + 1}`, s.text!, r!.style!.id)), warn: (m) => warnings.push(`sections[${i}] text: ${m}`),
       });
     }
     ranges[i] = [firstAction, actions.length];
@@ -345,7 +348,7 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
     style.build({
       W, H, fps, start: a, end: b, beats: spans[o.to]!.b1 - spans[o.from]!.b0, text: o.text, params, seed: seed + 100 + k,
       beatFrame: (x) => Math.min(b, Math.max(a, frame(spans[o.from]!.b0 + x))), id: (...p) => stableId('rs-dir', tag, seed, 'overlay', k, ...p),
-      lane: (n) => `T${1 + SECTION_TEXT_LANES * (k + 1) + n}`, emit: (x) => actions.push(o.behind ? markBehind(x) : x), warn: (m) => warnings.push(`overlays[${k}]: ${m}`),
+      lane: (n) => `T${1 + SECTION_TEXT_LANES * (k + 1) + n}`, emit: (x) => actions.push(tagLine(o.behind ? markBehind(x) : x, `o${k + 1}`, o.text, style.id)), warn: (m) => warnings.push(`overlays[${k}]: ${m}`),
     });
   });
 

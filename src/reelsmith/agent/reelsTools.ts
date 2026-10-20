@@ -22,6 +22,8 @@ import { planAssemble, planOptions } from './planTools';
 import { directorBuild, directorOptions } from './directorTools';
 import { customShaderTool } from './customShaderTool';
 import { parseTimeEffectArgs, planTimedEffect } from './timeEffectTool';
+import { freezeFrameTool } from './freezeFrameTool';
+import { parseRestyleArgs, planRestyle } from './restyleTextTool';
 import { applySignatureTool } from './signatureTools';
 import { applyLookTool } from './lookTools';
 export { REELS_TOOL_NAMES, REELS_TOOL_SCHEMAS } from './reelsToolSchemas';
@@ -113,6 +115,25 @@ export async function execReelsTool(name: string, args: Args, ctx: AgentContext,
 
     case 'reels_custom_shader':
       return customShaderTool(args);
+
+    case 'reels_freeze_frame': {
+      const out = await freezeFrameTool(args, state, deps.api, () => crypto.randomUUID());
+      if ('error' in out) return out;
+      commit(ctx, out.plan.actions, `Freeze frame at ${(out.plan.atFrame / state.fps).toFixed(2)} s`);
+      return {
+        ok: true, stillItemId: out.plan.stillId, atSec: out.plan.atFrame / state.fps, heldSec: out.plan.holdFrames / state.fps, sourceSec: out.plan.sourceSec,
+        ...(out.clamped ? { note: `held only ${(out.plan.holdFrames / state.fps).toFixed(2)} s: the clip ends there` } : {}),
+      };
+    }
+
+    case 'reels_restyle_text': {
+      const parsed = parseRestyleArgs(args);
+      if ('error' in parsed) return parsed;
+      const out = planRestyle(state, parsed, () => crypto.randomUUID().slice(0, 8));
+      if ('error' in out) return out;
+      commit(ctx, out.actions, `Restyle "${out.text}" as ${parsed.style}`);
+      return { ok: true, text: out.text, style: parsed.style, fromSec: out.from / state.fps, toSec: out.to / state.fps, replacedItems: out.removed, ...(out.warnings.length ? { warnings: out.warnings } : {}) };
+    }
 
     case 'reels_time_effect': {
       const parsed = parseTimeEffectArgs(args);

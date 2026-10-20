@@ -406,3 +406,7 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 
 ## Black section in director reels (shared decoder runs painted under everything)
 - `src/editor/TimelineComposition.tsx`: a `SharedVideoVisualGroup` (consecutive same-source clips sharing one decoder, upstream a3c6d66d) is painted at its first clip's place in the bottom-to-top order instead of before every other item. Painted first, it sat under the director's black canvas on the lowest track, so any run of contiguous moments of one clip (`#1@3.2` then `#1@4.2` in a 1-beat cut) rendered black in the Player, the agent's review frames and the export. Still present upstream as of 2026-10-20. Check: `server/reelsmith/sharedGroupLayer.verify.ts` (a real render; registered in `test:reelsmith`).
+
+## Freeze frames and restyling one line
+- `src/agent/external-tool-policy.ts`: `reels_freeze_frame` and `reels_restyle_text` added to the Reelsmith edit tools. `assets/agent/openchatcut-tool-schemas.json`: regenerated. `package.json`: registers the new verifies in `test:reelsmith`.
+- Our own: `server/reelsmith/stillFrame.ts` and the `/api/reelsmith/still-frame` route (a still of one moment, saved next to the video), `src/reelsmith/agent/{freezeFrameTool,restyleTextTool}.ts`, `stillFrame` on `AnalyzeApi`, `tagLine` in `assembleDirector.ts` (every item of a line carries `rsLine`, `rsLineText`, `rsTextStyle`), the reels-director skill and reels prompt.

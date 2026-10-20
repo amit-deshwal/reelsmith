@@ -24,6 +24,8 @@ export interface AnalyzeApi {
   /** 2x enhanced copy of a small photo (null when enhancement is not installed or fails); the original is left alone */
   upscale?(asset: MediaAsset): Promise<{ src: string; width: number; height: number } | null>;
   musicGrid(asset: MediaAsset): Promise<Omit<AssemblyMusic, 'assetId' | 'name' | 'src'> | null>;
+  /** A still image of one moment of a video, saved as a new upload (freeze frames); null when it cannot be read */
+  stillFrame?(asset: Pick<MediaAsset, 'src'>, atSec: number): Promise<{ src: string; width: number; height: number } | null>;
   /** One numbered contact sheet per 20 candidates (agent shot selection); null when the server cannot build it */
   selectionSheet?(items: Array<{ asset: MediaAsset; atSec: number; label: string }>): Promise<{ sheets: Array<{ base64: string; labels: string[] }>; skipped: string[] } | null>;
 }
