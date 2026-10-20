@@ -76,7 +76,8 @@ export const GRAPHICS: readonly GraphicDef[] = [
     looks: 'A hand-drawn marker circle, arrow, box, underline or cross draws itself on the person\'s face (found in the shot), with a handwritten label.',
     use: '"that\'s me", "the one who planned this", pointing at someone in a group. One person clear in a video or photo; 3-6 beats.',
     text: { required: false, max: 24, items: [0, 1], hint: 'the handwritten label' },
-    params: [choice('shape', 'Mark', ['circle', 'arrow', 'box', 'underline', 'cross']), color('color', 'Marker colour', '#ff3b30'), { id: 'size', type: 'number', label: 'Label size', default: 1, min: 0.5, max: 2 }, X, Y],
+    params: [choice('shape', 'Mark', ['circle', 'arrow', 'box', 'underline', 'cross']), color('color', 'Marker colour', '#ff3b30'), { id: 'size', type: 'number', label: 'Label size', default: 1, min: 0.5, max: 2 },
+      choice('who', 'Which person (auto: the one the label names; "me" is the nearest, anyone else the next one)', ['auto', 'front', 'back', 'left', 'right', 'middle']), X, Y],
   },
   {
     id: 'sticker', name: 'Stickers', code: STICKER_CODE,
@@ -184,12 +185,17 @@ export interface GraphicsBuild {
   sectionBeats: Array<{ b0: number; b1: number }>;
   /** the person's face in the shot under (section, reel frame), as fractions of the frame and a radius */
   focusAt: (section: number, frame: number) => { x: number; y: number; r: number } | undefined;
+  /** the shot under (section, reel frame): which picture and moment, for finding every person in it after the build */
+  shotAt?: (section: number, frame: number) => AimShot | undefined;
   resolveParams: (defs: readonly MoveParam[], given: Record<string, PlanValue> | undefined, where: string, errors: string[]) => Record<string, PlanValue>;
   id: (...p: Array<string | number>) => string;
   emit: (a: AtomicAction) => void;
   sound: (frame: number, cue: SfxCue) => void;
   warn: (m: string) => void;
 }
+
+/** The picture under a marker at the moment it draws: a source file, its second, and its size in pixels. */
+export interface AimShot { src: string; kind: 'video' | 'image'; sec: number; width: number; height: number }
 
 /** Graphic lanes sit above every text lane (T1..T29 are sections' and overlays' lines). */
 const LANE_BASE = 30;
@@ -222,8 +228,11 @@ export function buildGraphics(list: readonly PlanGraphic[], b: GraphicsBuild): v
     if (def.focus) {
       const f = b.focusAt(g.from, start + Math.round(b.fps * 0.3));
       const x = n(params.x, -1), y = n(params.y, -1);
+      // aimed after the build at the person it names (aimMarkers.ts); the face found here is the fallback
+      const shot = x < 0 && y < 0 ? b.shotAt?.(g.from, start + Math.round(b.fps * 0.3)) : undefined;
+      if (shot) props.rsAim = { ...shot, who: typeof params.who === 'string' ? params.who : 'auto', label: items[0] ?? '', faced: !!f };
       if (x >= 0 || y >= 0 || !f) {
-        if (!f && x < 0 && y < 0) b.warn(`graphics[${k}] (${def.id}): no face found in the shot under it; it points at the middle. Set params x and y, or put it on a shot with one clear person.`);
+        if (!f && !shot && x < 0 && y < 0) b.warn(`graphics[${k}] (${def.id}): no face found in the shot under it; it points at the middle. Set params x and y, or put it on a shot with one clear person.`);
         Object.assign(props, { tx: x >= 0 ? x : f?.x ?? 0.5, ty: y >= 0 ? y : f?.y ?? 0.4, tr: x >= 0 || y >= 0 ? 0.07 : f?.r ?? 0.12 });
       } else Object.assign(props, { tx: f.x, ty: f.y, tr: f.r });
     }

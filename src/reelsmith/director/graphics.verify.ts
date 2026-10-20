@@ -75,10 +75,18 @@ for (const cue of ['ping', 'chime', 'whoosh-soft']) assert.ok(sfx.includes(cue),
 const quiet = assemble({ recipe: directorRecipe(plan), clips, music, texts: {}, params: {}, seed: 3, plan: { ...plan, sfx: 'off' } });
 assert.equal((quiet.action!.actions as any[]).filter((a) => a.type === 'add' && a.item.props?.rsSfx).length, 0);
 
-// no face under it: points at the middle, with a note
+// no face under it: points at the middle for now and records its shot, so aimMarkers finds the people there (and notes it if nobody)
 const blind = { ...plan, graphics: [{ graphic: 'annotate', from: 0, to: 0, text: 'here' }] };
 const r2 = assemble({ recipe: directorRecipe(blind), clips, music, texts: {}, params: {}, seed: 3, plan: blind });
-assert.ok(r2.report.warnings.some((w) => /no face found/.test(w)));
+const blindMark = (r2.action!.actions as any[]).find((a) => a.type === 'add' && a.item.props?.rsGraphic === 'annotate')!.item.props;
+assert.deepEqual([blindMark.tx, blindMark.ty, blindMark.rsAim?.faced, blindMark.rsAim?.label, blindMark.rsAim?.who], [0.5, 0.4, false, 'here', 'auto']);
+assert.equal(typeof blindMark.rsAim.sec, 'number');
+assert.ok(!r2.report.warnings.some((w) => /no face found/.test(w)), 'the note waits for aimMarkers');
+// explicit x/y: no aiming
+const placed = { ...plan, graphics: [{ graphic: 'annotate', from: 0, to: 0, text: 'here', params: { x: 0.3, y: 0.6 } }] };
+const rPlaced = assemble({ recipe: directorRecipe(placed), clips, music, texts: {}, params: {}, seed: 3, plan: placed });
+const placedMark = (rPlaced.action!.actions as any[]).find((a) => a.type === 'add' && a.item.props?.rsGraphic === 'annotate')!.item.props;
+assert.deepEqual([placedMark.tx, placedMark.ty, placedMark.rsAim], [0.3, 0.6, undefined]);
 
 // plan problems come back with the fix
 const errs = (g: unknown) => check({ ...raw, graphics: [g] }).join('; ');

@@ -419,3 +419,7 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 ## Claude Opus 5.5 in the Claude Code model picker
 - `server/plugins/claude-code-agent.ts`: `claude-opus-5-5` added to `CURATED_MODELS` (the picker list is hardcoded, not read from the CLI).
 - `shared/model-capabilities.ts`: `claude-opus-5-5` gets the Claude Code 64k output cap like the other Claude models.
+
+## Marker arrows aim at the person they name; a tighter cards-finale
+- `scripts/sync-mediapipe.mjs`: pins `efficientdet_lite0.tflite` (MediaPipe object detector, "person" boxes), sha256-checked like the other models. `package.json`: registers `director/aimMarkers.verify.ts` in `test:reelsmith`.
+- Our own: `src/reelsmith/peopleFinder.ts` (every person in a frame: a box per body plus the face when seen), `director/aimMarkers.ts` (after the build, each `annotate` with no x/y goes on the head of the person its `who` or label names; "bro" in a selfie is the person behind, not the selfie-taker), `shotAt` in `assembleDirector.ts`, the `who` param in `graphics.ts`. `cards-finale` (`moves.ts`): moves at 75%, idles mostly cut, extra section time holds the panorama; 10-12-24 beats.

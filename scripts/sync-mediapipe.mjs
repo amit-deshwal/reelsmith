@@ -37,6 +37,13 @@ const MODELS = [
     bytes: 2_780_176,
     sha256: 'ff36e24d40547fe9e645e2f4e8745d1876d6e38b332d39a82f0bf0f5d1d561b3',
   },
+  {
+    // Reelsmith: one box per person (masked faces, people who overlap); the director's marker arrow picks one (src/reelsmith/peopleFinder.ts)
+    file: 'efficientdet_lite0.tflite',
+    url: 'https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float16/1/efficientdet_lite0.tflite',
+    bytes: 7_254_339,
+    sha256: '4b59100025bea1235a84c1038879a6cccc9f6c49f5e41144e91e74d99e780993',
+  },
 ];
 
 const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');

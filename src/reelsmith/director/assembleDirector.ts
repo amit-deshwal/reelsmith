@@ -367,6 +367,13 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
       const rect = focusForRange(c, src, src + fps);
       return rect ? coverFocus(rect, { width: c.width, height: c.height }, W, H) : undefined;
     },
+    shotAt: (section, f) => {
+      const base = bases(section).filter((a) => a.startFrame <= f).at(-1) ?? firstBase(section);
+      const c = base && input.clips.find((x) => x.assetId === (base.item as { sourceAssetId?: string }).sourceAssetId);
+      if (!base || !c?.width || !c.height || !c.src) return undefined;
+      const src = ((base.item as { srcInFrame?: number }).srcInFrame ?? 0) + Math.max(0, f - base.startFrame);
+      return { src: c.src, kind: c.kind === 'image' ? 'image' : 'video', sec: c.kind === 'image' ? 0 : src / fps, width: c.width, height: c.height };
+    },
   });
 
   // lines behind the person: a cut-out copy of each shot under the line goes on a lane above every text lane
