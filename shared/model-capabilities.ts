@@ -76,7 +76,7 @@ const UNKNOWN_OUTPUT_TOKENS = 65_536;
 // overrides still win — these are consulted only when the user has none.
 const CLAUDE_CODE_MAX_OUTPUT_TOKENS = 64_000;
 const CLAUDE_CODE_BUILTIN_OVERRIDES: readonly ModelCapabilityOverride[] = [
-  'claude-sonnet-5', 'claude-opus-5', 'claude-haiku-4-5',
+  'claude-sonnet-5', 'claude-opus-5-5', 'claude-opus-5', 'claude-haiku-4-5',
 ].map((modelId) => ({
   backend: 'claude-code' as const,
   provider: 'anthropic' as LlmProvider,

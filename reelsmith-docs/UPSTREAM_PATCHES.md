@@ -415,3 +415,7 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 - `src/agent/external-tool-policy.ts`: `reels_custom_graphic` added to the Reelsmith edit tools. `assets/agent/openchatcut-tool-schemas.json`: regenerated. `package.json`: registers `director/graphics.verify.ts` in `test:reelsmith`.
 - Our own: `src/reelsmith/director/{graphics,graphicsKit,graphicsTravel,graphicsSocial,customGraphics}.ts`, `src/reelsmith/agent/customGraphicTool.ts`, `graphics` in `shared/reelsmith/directorPlan.ts`, new sound cues in `director/sfx.ts`, graphic findings in `director/review.ts`, `server/reelsmith/{graphics-sheet,director-reel}.mts`, the reels-director skill.
 
+
+## Claude Opus 5.5 in the Claude Code model picker
+- `server/plugins/claude-code-agent.ts`: `claude-opus-5-5` added to `CURATED_MODELS` (the picker list is hardcoded, not read from the CLI).
+- `shared/model-capabilities.ts`: `claude-opus-5-5` gets the Claude Code 64k output cap like the other Claude models.
