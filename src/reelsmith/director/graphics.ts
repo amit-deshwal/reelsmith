@@ -224,7 +224,7 @@ export function buildGraphics(list: readonly PlanGraphic[], b: GraphicsBuild): v
       const x = n(params.x, -1), y = n(params.y, -1);
       if (x >= 0 || y >= 0 || !f) {
         if (!f && x < 0 && y < 0) b.warn(`graphics[${k}] (${def.id}): no face found in the shot under it; it points at the middle. Set params x and y, or put it on a shot with one clear person.`);
-        Object.assign(props, { tx: x >= 0 ? x : f?.x ?? 0.5, ty: y >= 0 ? y : f?.y ?? 0.4, tr: f?.r ?? 0.12 });
+        Object.assign(props, { tx: x >= 0 ? x : f?.x ?? 0.5, ty: y >= 0 ? y : f?.y ?? 0.4, tr: x >= 0 || y >= 0 ? 0.07 : f?.r ?? 0.12 });
       } else Object.assign(props, { tx: f.x, ty: f.y, tr: f.r });
     }
     let lane = lanes.findIndex((e) => e <= start);

@@ -24,4 +24,13 @@ assert.equal(short.fontSize, 140);
 assert.equal(wrapToFit('one\ntwo', 100, 1080, 0.8, 0.5).text, 'one\ntwo', 'the plan\'s own line breaks are kept');
 const line = build(caption, 'we almost turned back here, but the view at the top was worth every step');
 assert.ok(String(line.text).includes('\n') && (line.fontSize as number) > 28, 'a long caption wraps instead of shrinking');
+// the landscape title spans most of the width whatever the word's length: "AMK" was a fifth of a 9:16 frame and unreadable
+{
+  const { sceneryTitleSize } = await import('./textStyles');
+  const width = (text: string, W: number, H: number) => sceneryTitleSize(text, W, H) * (([...text].length * 183 + 120) / 320) * (H / W);
+  assert.ok(width('AMK', 1080, 1920) > 0.55, `AMK spans ${width('AMK', 1080, 1920).toFixed(2)} of the width`);
+  assert.ok(Math.abs(width('HARISHCHANDRAGAD', 1080, 1920) - 0.72) < 0.01);
+  assert.equal(sceneryTitleSize('A', 1080, 1920), 0.2, 'one letter stops at the cap, not a frame-high letter');
+  assert.ok(width('HARISHCHANDRAGAD', 1920, 1080) <= 0.51);
+}
 console.log('basicTextStyles verify ok');

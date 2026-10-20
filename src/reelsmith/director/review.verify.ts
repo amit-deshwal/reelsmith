@@ -51,4 +51,17 @@ assert.match(tooLong!.fix, /no shorter than 2\.8 s/, 'the fix never asks for a h
   assert.match(gf([{ graphic: 'route-map', from: 1, to: 1, text: 'a / b' }]), /route-map has to be read, but runs over flash-cuts/);
   assert.equal(gf([{ graphic: 'sticker', from: 1, to: 1, text: 'x' }]), '');
 }
+// a person the story names gets pointed out (the first real run left "bro" unseen)
+{
+  const sections = [{ move: 'cut', beats: 8, text: 'bro lied to me about taking me to simple trek' }, { move: 'hold', beats: 8 }] as ReelPlan['sections'];
+  const spans2 = [{ from: 0, to: 4 }, { from: 4, to: 8 }];
+  const find = (plan: Partial<ReelPlan>) => reviewDirectorPlan({ plan: { version: 1, ratio: '9:16', sections, ...plan }, spans: spans2 }).map((x) => x.issue).join('; ');
+  assert.match(find({}), /the story names "bro" but nothing shows who that is/);
+  assert.doesNotMatch(find({ graphics: [{ graphic: 'annotate', from: 1, to: 1, text: 'bro' }] }), /names "bro"/);
+  // the marker on a velocity shot points at blur: it wants a hold
+  const whip = reviewDirectorPlan({ plan: { version: 1, ratio: '9:16', sections: [sections[0]!, { move: 'velocity', beats: 8 }], graphics: [{ graphic: 'annotate', from: 1, to: 1, text: 'bro' }] }, spans: spans2 }).map((x) => x.issue).join('; ');
+  assert.match(whip, /annotate mark needs its person still in frame, but runs over velocity/);
+  assert.doesNotMatch(find({ sections: [sections[0]!, { move: 'hold', beats: 8, text: 'bro', textStyle: 'follow-tag' }] }), /names "bro"/);
+  assert.doesNotMatch(reviewDirectorPlan({ plan: { version: 1, ratio: '9:16', sections: [{ move: 'cut', beats: 8, text: 'brother-in-arms, browsing' }] }, spans: [{ from: 0, to: 4 }] }).map((x) => x.issue).join(), /names/);
+}
 console.log('review: ok');

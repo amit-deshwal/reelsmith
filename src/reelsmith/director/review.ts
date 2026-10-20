@@ -86,14 +86,29 @@ export function reviewDirectorPlan(r: ReviewInput): ReviewFinding[] {
   return out;
 }
 
+/** Words for a person in the user's story: a line that names one should show who it is. */
+const PERSON = /\b(bro|bhai|bhaiya|dude|buddy|homie|my (?:friend|friends|best friend|brother|sister|bf|gf|boyfriend|girlfriend|wife|husband|mom|dad|boss|partner|cousin)|mom|mum|mummy|maa|dad|papa|boss)\b/i;
+/** What points a person out: a marker on them, a tag riding on them, or a freeze that introduces them. */
+const showsPerson = (plan: ReelPlan) => (plan.graphics ?? []).some((g) => g.graphic === 'annotate')
+  || plan.sections.some((s) => s.textStyle === 'follow-tag' || s.move === 'freeze-intro') || (plan.overlays ?? []).some((o) => o.style === 'follow-tag');
+
 /** Graphics that frame the whole reel and may sit under another one. */
 const FRAME_GRAPHICS = new Set(['chapter-bar', 'camcorder']);
 /** Graphics people read: they need a calm shot, not a burst of cuts. */
 const READ_GRAPHICS = new Set(['route-map', 'boarding-pass', 'chat-bubbles', 'notification', 'hud-stats', 'loading-bar']);
 const FAST_MOVES = new Set(['flash-cuts', 'zoom-punch', 'postcard-band', 'break-in', 'match-cut']);
+/** A marker on a person needs them still in frame: a velocity or speed ramp whips them past (seen in the AMK run). */
+const AIMED_GRAPHICS = new Set(['annotate']);
+const WHIP_MOVES = new Set(['velocity', 'speed-ramp']);
 
 /** RS-1213: two graphics fighting for the same seconds, and a graphic to read over cuts too fast to read it on. */
 function reviewGraphics(plan: ReelPlan, spans: ReviewInput['spans'], beatSec: number, out: ReviewFinding[]): void {
+  // the story names someone ("bro lied to me") and nothing shows who: the first real run left "bro" unseen
+  const named = [...plan.sections.map((s, k) => ({ text: s.text, k })), ...(plan.overlays ?? []).map((o) => ({ text: o.text, k: o.from }))]
+    .map((x) => ({ ...x, who: x.text ? PERSON.exec(x.text)?.[1] : undefined })).find((x) => x.who);
+  if (named && !showsPerson(plan)) {
+    out.push({ section: named.k, issue: `the story names "${named.who}" but nothing shows who that is`, fix: `add an annotate graphic (arrow, text "${(named.who ?? '').toLowerCase()}") on the hold or slow cut where that person is clearest, or a follow-tag line; leave it out only if no shot shows one person clearly` });
+  }
   const when = (plan.graphics ?? []).map((g) => {
     const from = (spans[g.from]?.from ?? 0) + (g.beat ?? 0) * beatSec;
     return { g, from, to: g.beats !== undefined ? from + g.beats * beatSec : spans[g.to]?.to ?? from };
@@ -104,9 +119,10 @@ function reviewGraphics(plan: ReelPlan, spans: ReviewInput['spans'], beatSec: nu
       const overlap = Math.min(a.to, b.to) - Math.max(a.from, b.from);
       if (overlap > 0.3) out.push({ section: b.g.from, issue: `graphics ${a.g.graphic} and ${b.g.graphic} are on screen together for ${overlap.toFixed(1)} s`, fix: `end ${a.g.graphic} before ${b.g.graphic} starts (its beats or to), or drop one` });
     }
-    if (READ_GRAPHICS.has(a.g.graphic)) {
-      const fast = plan.sections.slice(a.g.from, a.g.to + 1).find((s) => FAST_MOVES.has(s.move) || (s.move === 'cut' && typeof s.params?.every === 'number' && s.params.every < 2));
-      if (fast) out.push({ section: a.g.from, issue: `${a.g.graphic} has to be read, but runs over ${fast.move} cuts`, fix: 'put it over a hold or a cut of 2+ beats a shot' });
+    if (READ_GRAPHICS.has(a.g.graphic) || AIMED_GRAPHICS.has(a.g.graphic)) {
+      const aimed = AIMED_GRAPHICS.has(a.g.graphic);
+      const fast = plan.sections.slice(a.g.from, a.g.to + 1).find((s) => FAST_MOVES.has(s.move) || (aimed && WHIP_MOVES.has(s.move)) || (s.move === 'cut' && typeof s.params?.every === 'number' && s.params.every < 2));
+      if (fast) out.push({ section: a.g.from, issue: aimed ? `the ${a.g.graphic} mark needs its person still in frame, but runs over ${fast.move}, which whips past them` : `${a.g.graphic} has to be read, but runs over ${fast.move} cuts`, fix: aimed ? 'put it on a hold (or a cut of 2+ beats) of their clearest shot; a hold of the same clip right after the move works' : 'put it over a hold or a cut of 2+ beats a shot' });
     }
   });
 }

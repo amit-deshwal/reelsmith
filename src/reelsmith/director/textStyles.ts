@@ -129,6 +129,19 @@ const behindYou: ClipTextStyle = {
   clipEffect: (ctx) => ({ assetId: 'builtin:fx-text-behind', overrides: { speed: num(ctx.params.speed, 1) } }),
 };
 
+/**
+ * Letter height (share of the frame height) that makes a landscape title span about 72% of a tall frame (50% of a wide
+ * one): the sky title is drawn from a cell of thin capitals spaced wide (gl/textLayer.ts sceneryCellFor, about 183 px a
+ * letter plus a 120 px margin on a 320 px line), so its width follows the word's length. A fixed height left a short
+ * word ("AMK") a fifth of the frame wide and barely visible.
+ */
+export function sceneryTitleSize(text: string, W: number, H: number): number {
+  const aspect = ([...text.trim()].length * 183 + 120) / 320;
+  const tall = H > W;
+  const size = (tall ? 0.72 : 0.5) / (aspect * (H / W));
+  return Math.round(Math.min(tall ? 0.2 : 0.25, Math.max(0.03, size)) * 1000) / 1000;
+}
+
 const landscape: ClipTextStyle = {
   id: 'landscape-title', name: 'Landscape title', maxChars: 16,
   looks: 'Thin, widely spaced outlined capitals rise from behind the mountains into the sky and stay there; the ridges stay in front.',
@@ -139,7 +152,7 @@ const landscape: ClipTextStyle = {
     { id: 'solid', type: 'boolean', label: 'Solid letters instead of outlines', default: false },
   ],
   build: () => {},
-  clipEffect: (ctx) => ({ assetId: 'builtin:fx-text-scenery', overrides: { y: num(ctx.params.y, 0.2), rise: num(ctx.params.rise, 1.8), outline: ctx.params.solid === true ? 0 : 1, size: ctx.H > ctx.W ? 0.05 : 0.09 } }),
+  clipEffect: (ctx) => ({ assetId: 'builtin:fx-text-scenery', overrides: { y: num(ctx.params.y, 0.2), rise: num(ctx.params.rise, 1.8), outline: ctx.params.solid === true ? 0 : 1, size: sceneryTitleSize(ctx.text, ctx.W, ctx.H) } }),
 };
 
 const followTag: ClipTextStyle = {
