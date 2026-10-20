@@ -444,12 +444,11 @@ export class ExternalBridgeRuntime {
     status: ExternalEditSessionTerminalStatus,
     appliedOperationCount?: number,
   ): Promise<void> {
-    const stored = storedExternalSession(
-      session, status, appliedOperationCount, this.runs.get(session.id)?.runId,
-    );
-    await this.persistence.saveExternalProposal(this.projectId, stored);
-    await this.recordRunTerminal(session, status);
-    this.finishInMemory(session, status, appliedOperationCount);
+    const stored = storedExternalSession(session, status, appliedOperationCount, this.runs.get(session.id)?.runId);
+    try { // a failed store or run-ledger write (another tab took the run's lease) must still end the session, or it keeps the edit lock
+      await this.persistence.saveExternalProposal(this.projectId, stored);
+      await this.recordRunTerminal(session, status);
+    } finally { this.finishInMemory(session, status, appliedOperationCount); }
   }
 
   private async recordRunTerminal(

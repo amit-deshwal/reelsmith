@@ -394,3 +394,6 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 - `reelsmith-docs/plan/schemas/recipe.schema.json` and the generated `shared/reelsmith/recipe-schema.ts`: the new transition names. `src/agent/skills/reels-editor/SKILL.md`: lists them.
 - Our own: `src/reelsmith/director/{creatorMoves,moveKit}.ts` (the move contract and item helpers moved out of `moves.ts`), catalogue/sound cues/text style entries, `fillPlacement` in `runRecipe.ts`.
 - RS-1209: `src/agent/external-tool-policy.ts` adds `reels_time_effect`; `src/agent/skills/reels-editor/SKILL.md` covers timed effects and the creator effects. Our own: `src/reelsmith/agent/timeEffectTool.ts`.
+
+## Stuck edit lock after a refresh in another tab
+- `src/agent/external-bridge-runtime.ts`: `markTerminal` ends the session in memory in a `finally`, so a failed proposal-store or run-ledger write (another tab took the run's lease) no longer leaves it `drafting`. Before, the agent's `discard_edit_session` threw and every `begin_edit_session` was refused ("an edit session is already active") until the editor tab was reloaded. Check: `src/reelsmith/agent/externalSessionLock.verify.ts` (registered in `test:reelsmith`).
