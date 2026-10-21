@@ -14,6 +14,7 @@ import { adoptCustomGraphics, listCustomGraphics } from '../director/customGraph
 import { commit, projectId, type ReelsDeps } from './reelsTools';
 import { reviewDirectorPlan } from '../director/review';
 import { aimMarkers } from '../director/aimMarkers';
+import { clearCaptionsOfPeople } from '../director/clearOfPeople';
 import { findPeople } from '../peopleFinder';
 import { lintReel } from '../reelLint';
 import { execFramesTool } from '../../agent/tools/frames-tool';
@@ -204,6 +205,8 @@ export async function directorBuild(args: Record<string, unknown>, ctx: AgentCon
   if (!out.action) return { error: out.messages.join('; ') || 'could not build the plan' };
   if (out.action.actions.some((a) => a.type === 'add' && (a.item as { props?: { rsAim?: unknown } }).props?.rsAim)) ctx.onToolProgress?.('Finding who the markers point at');
   out.messages.push(...await aimMarkers(out.action.actions, findPeople));
+  const canvas = out.action.actions.find((a): a is Extract<AtomicAction, { type: 'setCanvas' }> => a.type === 'setCanvas');
+  if (canvas) { ctx.onToolProgress?.('Keeping captions off faces'); await clearCaptionsOfPeople(out.action.actions, assets, canvas, state.fps, findPeople); }
   commit(ctx, [...(added ? [{ type: 'addAsset', asset: added } as AtomicAction] : []), ...out.action.actions], 'Director: build reel');
   const report = out.result.report;
   // RS-1211: the review comes with the build: one frame per section, the lint, and the plan review
