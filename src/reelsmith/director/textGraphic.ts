@@ -84,7 +84,8 @@ export const TEXT_GRAPHIC_CODE = String.raw`const DirectorText = ({ item }) => {
     fontFamily: P.fontFamily, fontWeight: P.fontWeight || 700, fontSize: size, lineHeight: 1.08, color,
     letterSpacing: (P.spacing || 0) + 'em', whiteSpace: 'pre',
     ...(P.stroke ? { WebkitTextStroke: P.stroke.width + 'px ' + P.stroke.color } : {}),
-    ...(P.shadow && !marker ? { textShadow: '0 ' + Math.round(size * 0.04) + 'px ' + Math.round(size * 0.18) + 'px rgba(0,0,0,0.55)' } : {}),
+    // a tight dark halo under the soft drop shadow: the soft one alone vanished on bright, hazy sky
+    ...(P.shadow && !marker ? { textShadow: '0 0 ' + Math.max(2, Math.round(size * 0.06)) + 'px rgba(0,0,0,0.7), 0 ' + Math.round(size * 0.04) + 'px ' + Math.round(size * 0.18) + 'px rgba(0,0,0,0.55)' } : {}),
   };
 
   // per-unit style for the entrance; q = 0..1 progress of this unit

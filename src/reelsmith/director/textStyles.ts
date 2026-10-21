@@ -3,6 +3,7 @@
 import type { AtomicAction } from '../../editor/reducerActions';
 import type { PlanValue } from '../../../shared/reelsmith/directorPlan';
 import { TEXT_GRAPHIC_CODE, type TextGraphicProps, type TextPreset } from './textGraphic';
+import { wrapToFit } from './basicTextStyles';
 import type { MoveParam, TextContext, TextStyleDef } from './moves';
 
 const num = (v: PlanValue | undefined, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
@@ -40,13 +41,12 @@ interface Look {
 /** The engine graphic for one line of text, sized to fit and placed for the frame's shape. */
 function engine(ctx: TextContext, look: Look, extra: Partial<TextGraphicProps> = {}, key = 'text', lane = 0): void {
   const tall = ctx.H > ctx.W;
-  const text = ctx.text.replace(/\s*\/\s*/g, '\n');
   const base = Math.min(ctx.W, ctx.H) * num(ctx.params.size, 1) * look.size;
-  const longest = Math.max(1, ...text.split('\n').map((l) => [...l].length));
   // capitals run about 20% wider than mixed case; tracking-in also starts wider than it ends
   const em = (EM[look.fontFamily] ?? 0.6) * (look.uppercase ? 1.2 : 1) + (look.spacing ?? 0) + (look.preset === 'tracking-in' ? 0.12 : 0);
   const maxWidth = look.maxWidth ?? 0.84;
-  const fontSize = Math.round(Math.max(24, Math.min(base, (ctx.W * maxWidth) / (longest * em))));
+  // a long line wraps into balanced lines before it shrinks: a 41-letter typewriter hook on one line came out 37px
+  const { text, fontSize } = wrapToFit(ctx.text.replace(/\s*\/\s*/g, '\n'), Math.round(base), ctx.W, maxWidth, em);
   const [x, y] = tall ? look.tall : look.wide;
   const total = (ctx.end - ctx.start) / ctx.fps;
   const props: TextGraphicProps = {
@@ -86,7 +86,7 @@ export const ENGINE_STYLES: readonly TextStyleDef[] = [
   style('tracking-in', 'Tracking in', 'Elegant serif capitals whose letter spacing closes in as they appear.', 'Luxury, weddings, slow travel, a refined ending line.', 28,
     { preset: 'tracking-in', fontFamily: 'Cormorant Garamond', fontWeight: 600, size: 0.09, color: '#ffffff', accent: '#ffffff', spacing: 0.18, uppercase: true, tall: [0.5, 0.42], wide: [0.5, 0.45], enter: 1.1, shadow: true }),
   style('typewriter', 'Typewriter', 'Monospaced text typed letter by letter with a blinking cursor.', 'Notes, times and facts ("Day 1 · 5:40 am"), diary entries, a hook question.', 60,
-    { preset: 'typewriter', fontFamily: 'Space Mono', fontWeight: 400, size: 0.062, color: '#ffffff', accent: '#ffd23f', align: 'left', tall: [0.08, 0.7], wide: [0.06, 0.8], stagger: 0.055, shadow: true }),
+    { preset: 'typewriter', fontFamily: 'Space Mono', fontWeight: 700, size: 0.062, color: '#ffffff', accent: '#ffd23f', align: 'left', tall: [0.08, 0.7], wide: [0.06, 0.8], stagger: 0.055, shadow: true }),
   style('location-tag', 'Location tag', 'A map pin pops in, the place name types out, and a small detail line (altitude, coordinates, date) fades in under it.', 'Arriving somewhere: the first shot of a new place. Put the details in params.sub.', 30,
     { preset: 'location', fontFamily: 'Montserrat', fontWeight: 700, size: 0.06, color: '#ffffff', accent: '#ff4d4d', align: 'left', tall: [0.08, 0.72], wide: [0.06, 0.8], stagger: 0.05, shadow: true, subFontFamily: 'Inter' },
     [{ id: 'sub', type: 'text', label: 'Detail line', default: '' }], (ctx) => ({ sub: str(ctx.params.sub, '').toUpperCase() })),

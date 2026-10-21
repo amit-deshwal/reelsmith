@@ -33,4 +33,12 @@ assert.ok(String(line.text).includes('\n') && (line.fontSize as number) > 28, 'a
   assert.equal(sceneryTitleSize('A', 1080, 1920), 0.2, 'one letter stops at the cap, not a frame-high letter');
   assert.ok(width('HARISHCHANDRAGAD', 1920, 1080) <= 0.51);
 }
+// engine styles wrap too: the typewriter hook "bro lied to me that it would be easy hike" was shrunk to 37px on one line
+{
+  const { ENGINE_STYLES } = await import('./textStyles');
+  const typewriter = ENGINE_STYLES.find((s) => s.id === 'typewriter')!;
+  const hook = build(typewriter as typeof bigTitle, 'bro lied to me that it would be easy hike');
+  assert.equal(hook.text, 'bro lied to me that\nit would be easy hike');
+  assert.ok((hook.fontSize as number) >= 60, `the hook stays readable (got ${String(hook.fontSize)})`);
+}
 console.log('basicTextStyles verify ok');
