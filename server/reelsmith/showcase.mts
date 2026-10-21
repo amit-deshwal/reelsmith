@@ -12,12 +12,13 @@ import { SIGNATURES } from '../../src/reelsmith/signatures.ts';
 import { REEL_PRESETS, presetForCanvas } from '../../shared/reelsmith/instagramPreset.ts';
 import { emptyProjectDoc } from '../../src/app/appShell.ts';
 import { historyReduce, type History } from '../../src/editor/reduce.ts';
-import { activeTimeline, REEL_TRANSITION_SECONDS, TRANSITION_LABELS, type MediaAsset, type TransitionType } from '../../src/editor/types.ts';
+import { activeTimeline, defaultTransitionSeconds, REEL_TRANSITION_SECONDS, TRANSITION_LABELS, type MediaAsset, type TransitionType } from '../../src/editor/types.ts';
 import { acceptExportSubmission } from '../plugins/export-submission.ts';
 import { h264RenderOptions, renderTimeline, setUploadsDirProvider } from '../plugins/export-rendering.ts';
 import { withExportPermit } from '../plugins/export-runtime.ts';
 import { seedKeystore } from '../keystore.ts';
 import { finalizeForInstagram } from './instagramFinalize.ts';
+import { GLT_TRANSITIONS } from '../../src/reelsmith/glTransitionsMeta.ts';
 import { bindTracks } from '../../src/reelsmith/trackBinding.ts';
 
 const FPS = 30;
@@ -73,7 +74,7 @@ function build(segments: Segment[]): History {
     adds.push({ type: 'add', startFrame: start, item: { id, track: 'V1', kind: 'video', name: a.name, src: a.src, durationInFrames: seg.frames, sourceAssetId: a.id, srcInFrame: 45 + (i % 3) * 20, volume: 0 } });
     if (seg.effects) later.push({ type: 'setEffects', id, effects: seg.effects, defs: [] });
     if (seg.transition && i > 0) later.push({ type: 'addTransition', id: `t${i}`, incomingItemId: id, transType: seg.transition });
-    const textStart = start + (seg.transition ? Math.round((REEL_TRANSITION_SECONDS[seg.transition] ?? 0.4) * FPS) : 0);
+    const textStart = start + (seg.transition ? Math.round((defaultTransitionSeconds(seg.transition) ?? 0.4) * FPS) : 0);
     const textFrames = Math.max(15, seg.frames - (textStart - start) - 6);
     const label = (itemId: string, lane: string, text: string, size: number, color: string, weight: number, y: number) => adds.push({
       type: 'add', startFrame: textStart,
@@ -177,8 +178,9 @@ const jobs: Record<string, () => Segment[]> = {
     ...(j > 0 && sig.transition ? { transition: sig.transition } : {}),
   }))),
   transitions: () => (Object.keys(REEL_TRANSITION_SECONDS) as TransitionType[]).reduce<Segment[]>((acc, type) => [...acc, { label: TRANSITION_LABELS[type], sub: 'transition into this shot', frames: 66, transition: type }], [{ label: 'Transitions', sub: '10 new Reels transitions', frames: 60 }]),
+  'gl-transitions': () => GLT_TRANSITIONS.reduce<Segment[]>((acc, t) => [...acc, { label: t.label, sub: 'transition into this shot', frames: 66, transition: t.id }], [{ label: 'GL transitions', sub: `${GLT_TRANSITIONS.length} imported transitions`, frames: 60 }]),
 };
-const names: Record<string, string> = { signatures: 'reelsmith_signature_styles', 'effects-1': 'reelsmith_effects_1_glow_and_lens', 'effects-2': 'reelsmith_effects_2_texture_and_style', 'effects-3': 'reelsmith_effects_3_mixed_media', 'effects-4': 'reelsmith_effects_4_person_cutout', looks: 'reelsmith_looks', titles: 'reelsmith_movie_title_reveal', transitions: 'reelsmith_transitions' };
+const names: Record<string, string> = { 'gl-transitions': 'reelsmith_gl_transitions', signatures: 'reelsmith_signature_styles', 'effects-1': 'reelsmith_effects_1_glow_and_lens', 'effects-2': 'reelsmith_effects_2_texture_and_style', 'effects-3': 'reelsmith_effects_3_mixed_media', 'effects-4': 'reelsmith_effects_4_person_cutout', looks: 'reelsmith_looks', titles: 'reelsmith_movie_title_reveal', transitions: 'reelsmith_transitions' };
 const todo = which.length ? which : Object.keys(jobs);
 const done: string[] = [];
 for (const key of todo) {
