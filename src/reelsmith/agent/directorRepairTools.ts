@@ -141,11 +141,9 @@ export async function directorFix(args: Record<string, unknown>, ctx: AgentConte
   // a section rebuilt with new beats moves the ones after it; they keep their shots
   const keep = sections.map((_, k) => (changed.has(k) || !built.clips?.[k] ? null : { clips: built.clips[k]!, moments: built.moments?.[k] ?? [] }));
   ctx.onToolProgress?.(`Fixing section${changed.size === 1 ? '' : 's'} ${[...changed].join(', ')}`);
-  const out = await runBuild({ plan, keep, replaceTimeline: true }, ctx, deps);
+  const out = await runBuild({ plan, keep, replaceTimeline: true, fixRound: rounds, defects: defects?.ok ? defects.defects : [] }, ctx, deps);
   if ('error' in out) return out;
   const fps = ctx.getState().fps;
-  const now = directorSession(id)!;
-  updateDirectorSession(id, { lastBuild: { ...now.lastBuild!, fixes: rounds, defects: defects?.ok ? defects.defects : [] } });
   const picks = critiqueFrames(out.plan, out.spans, fps).filter((p) => [...changed].some((k) => p.label.startsWith(`s${k} `) || (p.frame >= out.spans[k]!.from * fps && p.frame < out.spans[k]!.to * fps)));
   const { images, sheets } = await frameSheets(picks, fps, ctx);
   const last1 = rounds >= MAX_FIX_ROUNDS;

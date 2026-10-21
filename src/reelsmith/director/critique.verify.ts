@@ -50,6 +50,12 @@ const third = build(longer);
 const srcOf = (actions: unknown[], k: number) => shots(actions, k).map((x) => x.split('+')[0]);
 assert.deepEqual(srcOf(third.action!.actions, 3), srcOf(first.action!.actions, 3), 'a moved section keeps its sources and moments');
 
+// RS-1217: the pace check measures cuts, not items: a velocity shot split into rate segments is one shot, a hold is one
+const paced = build(parse({ ratio: '9:16', music: 'song', sections: [{ move: 'velocity', beats: 8, clips: ['c'] }, { move: 'hold', beats: 6, clips: ['d'] }, { move: 'cut', beats: 4, params: { every: 1 } }] }));
+const shotSec = paced.report.shotSec!;
+assert.equal(shotSec.length, 6, `1 velocity shot + 1 hold + 4 one-beat cuts: ${shotSec.map((x) => x.toFixed(2)).join(' ')}`);
+assert.ok(Math.abs(shotSec[0]! - 4) < 0.05 && Math.abs(shotSec[1]! - 3) < 0.05 && shotSec.slice(2).every((x) => Math.abs(x - 0.5) < 0.05));
+
 // defects: section, time inside it, evidence and fix; three at most
 const spans = [{ from: 0, to: 4 }, { from: 4, to: 6 }, { from: 6, to: 9 }, { from: 9, to: 13 }];
 const ok = parseDefects([{ section: 0, at: 0.4, evidence: 'image 1 [1]: the line runs off the right edge', fix: 'two lines at x 0.08' }], 4, spans);

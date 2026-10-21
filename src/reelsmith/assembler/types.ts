@@ -106,6 +106,8 @@ export interface AssembleReport {
   /** director@1 (RS-1216): each section's clips as cast and the source frame of each shot, so a fix can rebuild them unchanged */
   sectionClips?: string[][];
   sectionMoments?: number[][];
+  /** seconds of each shot (cuts on the base lane), for the pace check against a reference reel */
+  shotSec?: number[];
 }
 
 /** Stored with the project (RS-108) so the run can be repeated. */

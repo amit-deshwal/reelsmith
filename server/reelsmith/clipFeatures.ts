@@ -98,6 +98,27 @@ export function shotBoundaries(frames: Buffer[]): number[] {
 }
 
 /**
+ * RS-1217: cuts in an edited reel (a reference), more sensitive than shotBoundaries: a frame whose histogram jumps
+ * (> 0.2) and at least 2.5x more than the frames either side of it. Inside a shot the jump stays under ~0.1 even on
+ * handheld footage; between two shots of similar trek footage it is 0.24-0.43, which the clip rule (0.45 and motion)
+ * misses. Motion is no help here: handheld footage saturates it inside a shot.
+ */
+export function peakCuts(frames: Buffer[]): number[] {
+  const h = frames.map((f, i) => (i ? histDistance(frames[i - 1]!, f) : 0));
+  const out: number[] = [];
+  for (let i = 1; i < frames.length; i += 1) {
+    if (h[i]! > 0.2 && h[i]! >= 2.5 * Math.max(h[i - 1] ?? 0, h[i + 1] ?? 0, 0.02)) out.push(i);
+  }
+  return out;
+}
+
+/** A reference reel's cuts (in frames at `fps`) and its mean colour over the whole reel, not just its opening. */
+export async function extractReferenceCuts(file: string, fps: number, maxSec = 90): Promise<{ cutsFrame: number[]; color?: { r: number; g: number; b: number } }> {
+  const [frames, color] = await Promise.all([readGrayFrames(file, maxSec), readMeanColor(file, maxSec)]);
+  return { cutsFrame: peakCuts(frames).map((i) => Math.round((i / SAMPLE_FPS) * fps)), ...(color ? { color } : {}) };
+}
+
+/**
  * Saliency proxy for "is there a subject": edge density in the centre half of the frame relative to the
  * border. A clear subject in the middle on a calmer background scores high; a uniform texture scores ~0.
  * (Real face detection runs in the browser later; this keeps the server model-free.)

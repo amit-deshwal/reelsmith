@@ -27,6 +27,8 @@ export interface AnalyzeApi {
   /** A still image of one moment of a video, saved as a new upload (freeze frames); null when it cannot be read */
   stillFrame?(asset: Pick<MediaAsset, 'src'>, atSec: number): Promise<{ src: string; width: number; height: number } | null>;
   /** One numbered contact sheet per 20 candidates (agent shot selection); null when the server cannot build it */
+  /** RS-1217: a reference reel's cuts and whole-reel colour (more sensitive than clipFeatures' in-clip cuts) */
+  referenceCuts?(asset: MediaAsset, fps: number): Promise<{ cutsFrame: number[]; color?: { r: number; g: number; b: number } } | null>;
   selectionSheet?(items: Array<{ asset: MediaAsset; atSec: number; label: string }>): Promise<{ sheets: Array<{ base64: string; labels: string[] }>; skipped: string[] } | null>;
 }
 

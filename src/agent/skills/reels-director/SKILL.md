@@ -73,7 +73,7 @@ How to shape it:
 }
 ```
 
-The tool returns **findings** (a slow hook, a plain arc, parts with no purpose, styles that fight the tone, a drop on nothing, words they did not write, a person nobody points at), the **full catalogue entries** with params for your kit, the tone's **motion rules** (the build applies them: how lines and graphics move, how far holds push, how long transitions run), and the plan brief. **When it returns `questions`** (the story names something no clip shows, like "the waterfall"), stop and ask the user in one short message; never put that line over a shot of something else. Fix the findings as you write the plan; resend the treatment only if the concept changes. Need an item outside the kit later? Call it with just `lookup: ["id", ...]`.
+The tool returns **findings** (a slow hook, a plain arc, parts with no purpose, styles that fight the tone, a drop on nothing, words they did not write, a person nobody points at), the **full catalogue entries** with params for your kit, the tone's **motion rules** (the build applies them: how lines and graphics move, how far holds push, how long transitions run), and the plan brief. **When it returns `questions`** (the story names something no clip shows, like "the waterfall"), ask the user in one short message and wait, or leave that part out and say so in your report; never put that line over a shot of something else (the build refuses it). Fix the findings as you write the plan; resend the treatment only if the concept changes. Need an item outside the kit later? Call it with just `lookup: ["id", ...]`.
 
 ## Stage 3: plan and build (`reels_director_build`)
 

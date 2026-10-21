@@ -27,6 +27,8 @@ import { catalogKind, catalogSlice } from '../director/catalogText';
 import { soundCheck } from '../director/soundCheck';
 import { referenceLine, referenceProfile } from '../director/reference';
 import { motionRuleText } from '../director/motionRules';
+import { missingThings } from '../director/storyThings';
+import type { Defect } from '../director/critique';
 
 const VISUAL = new Set(['video', 'image']);
 const secs = (frames: number, fps: number) => Math.round((frames / fps) * 10) / 10;
@@ -200,9 +202,11 @@ export async function directorOptions(args: Record<string, unknown>, ctx: AgentC
 /** RS-1217: measure the reference with the clip analysis and lay out one cell a shot. */
 async function watchReference(asset: MediaAsset, fps: number, footage: ShotLogClip[], bpm: number | undefined, ctx: AgentContext, deps: ReelsDeps) {
   ctx.onToolProgress?.('Watching the reference reel');
-  const features = await deps.api.clipFeatures(asset, fps).catch(() => null);
+  const [features, cuts] = await Promise.all([deps.api.clipFeatures(asset, fps).catch(() => null), deps.api.referenceCuts?.(asset, fps).catch(() => null)]);
   const seconds = asset.durationInFrames / fps;
-  const profile = referenceProfile(asset.name, seconds, features ?? { assetId: asset.id, dHash: '0', windows: [] }, fps, footage);
+  // the reference's own cut rule and whole-reel colour, over the clip analysis (tuned for cuts inside raw footage)
+  const measured = { ...(features ?? { assetId: asset.id, dHash: '0', windows: [] }), ...(cuts ? { shotBoundariesFrame: cuts.cutsFrame, ...(cuts.color ? { color: cuts.color } : {}) } : {}) };
+  const profile = referenceProfile(asset.name, seconds, measured, fps, footage);
   let image: { frame: number; base64: string } | undefined;
   if (deps.api.selectionSheet && framesAllowed(projectId(ctx))) {
     const starts = profile.shotStarts;
@@ -212,7 +216,7 @@ async function watchReference(asset: MediaAsset, fps: number, footage: ShotLogCl
     const made = await deps.api.selectionSheet(cells).catch(() => null);
     if (made?.sheets[0]) image = { frame: 0, base64: made.sheets[0].base64 };
   }
-  return { profile, line: `${referenceLine(profile, bpm)}${features ? '' : ' (the analysis could not read it: pace and colour are guesses; judge from the sheet)'}`, image };
+  return { profile, line: `${referenceLine(profile, bpm)}${features || cuts ? '' : ' (the analysis could not read it: pace and colour are guesses; judge from the sheet)'}`, image };
 }
 
 /** The pictures the director sees, numbered #1.. in this order (options and build must agree); never the reference reel. */
@@ -240,14 +244,6 @@ export interface BuildOutcome {
   findings: ReturnType<typeof reviewDirectorPlan>;
   lint: ReturnType<typeof lintReel>;
   builds: number;
-}
-
-/** Seconds between picture changes on the timeline (every footage start, the reel's end closing the last). */
-export function shotLengths(actions: readonly AtomicAction[], fps: number, totalFrames: number): number[] {
-  const starts = [...new Set(actions.filter((a): a is Extract<AtomicAction, { type: 'add' }> => a.type === 'add' && (a.item.kind === 'video' || a.item.kind === 'image')
-    && !(a.item.props as { rsFront?: unknown } | undefined)?.rsFront && String((a.item.props as { rsSection?: unknown } | undefined)?.rsSection ?? '') !== 'canvas')
-    .map((a) => a.startFrame ?? 0))].sort((a, b) => a - b);
-  return starts.map((f, i) => ((starts[i + 1] ?? totalFrames) - f) / fps).filter((x) => x > 0);
 }
 
 /**
@@ -288,6 +284,11 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
   const named = new Set(plan.sections.flatMap((s) => s.clips ?? []).map((ref) => ref.split('@')[0]!));
   const unknown = [...named].filter((x) => !assets.some((a) => a.id === x && VISUAL.has(a.kind)));
   if (unknown.length) return { error: `unknown clip assetIds: ${unknown.join(', ')} (use assetIds from reels_director_options media)` };
+  // RS-1221: a line about something no clip shows is refused (the agent asks, or leaves that part out and says so)
+  const missing = session?.treatment ? missingThings(session.treatment.story, session.clips).map((m) => m.word) : [];
+  const faked = [...plan.sections.map((x) => x.text), ...(plan.overlays ?? []).map((o) => o.text)]
+    .filter((t): t is string => !!t).filter((t) => missing.some((w) => new RegExp(`\\b${w}\\b`, 'i').test(t)));
+  if (faked.length) return { error: `no clip shows what ${faked.map((t) => `"${t}"`).join(', ')} names: ask the user which clip shows it, or leave that line out and say so in your report` };
   const referenceId = session?.reference?.assetId;
   if (referenceId && named.has(referenceId)) return { error: 'the reference reel is not footage: cast the user\'s clips only' };
   const recipe = directorRecipe(plan);
@@ -329,8 +330,9 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
   });
   const builds = (session?.lastBuild?.builds ?? 0) + 1;
   const record = {
-    plan, spans, builds, clips: report.sectionClips ?? [], moments: report.sectionMoments ?? [], shotSec: shotLengths(out.action.actions, fps, report.totalFrames), sound,
-    ...(Array.isArray(args.keep) ? { fixes: session?.lastBuild?.fixes ?? 0, ...(session?.lastBuild?.defects ? { defects: session.lastBuild.defects } : {}) } : {}),
+    plan, spans, builds, clips: report.sectionClips ?? [], moments: report.sectionMoments ?? [], shotSec: report.shotSec ?? [], sound,
+    // a fix round is saved with its number and defects (they go with the reel, RS-1222)
+    ...(Array.isArray(args.keep) ? { fixes: typeof args.fixRound === 'number' ? args.fixRound : session?.lastBuild?.fixes ?? 0, defects: Array.isArray(args.defects) ? args.defects as Defect[] : session?.lastBuild?.defects ?? [] } : {}),
   };
   const next = updateDirectorSession(id, { fps, lastBuild: record });
   // RS-1222: the run goes with the reel, on its black canvas
@@ -419,7 +421,7 @@ export function directorTreatment(args: Record<string, unknown>, ctx: AgentConte
     catalog: catalogSlice(ids),
     planBrief: PLAN_BRIEF,
     next: questions.length
-      ? 'Stop here: ask the user these questions in one short message and wait. When they answer, send the treatment again with what they said (or without that part), then plan.'
+      ? 'Ask the user these questions in one short message and wait for the answer; or, if the reel works without that part, leave its line out and say so in your report. The build refuses a line that names it.'
       : findings.length
         ? 'Fix every finding as you write the plan (no need to send the treatment again unless the concept changes), then call reels_director_build.'
         : 'Write the plan from this treatment and call reels_director_build.',

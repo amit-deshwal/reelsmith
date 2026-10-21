@@ -17,6 +17,7 @@ export function createAnalyzeApi(fetcher: typeof fetch = fetch, subjects: typeof
       ]);
       return result?.features ? mergeSubjectFeatures(result.features, geometry, fps) : null;
     },
+    referenceCuts: async (asset, fps) => post<{ cutsFrame: number[]; color?: { r: number; g: number; b: number } }>('/api/reelsmith/reference-cuts', { src: asset.src, fps }),
     selectionSheet: async (items) => {
       const result = await post<{ sheets: Array<{ base64: string; labels: string[] }>; skipped: string[] }>('/api/reelsmith/selection-sheet', {
         items: items.map(({ asset, atSec, label }) => ({ src: asset.src, kind: asset.kind === 'image' ? 'image' : 'video', atSec, label })),

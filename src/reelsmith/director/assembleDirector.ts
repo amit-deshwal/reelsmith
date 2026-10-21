@@ -454,10 +454,22 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
       } as never,
     });
   }
+  // RS-1217: how long each shot runs, for the pace check against a reference. A cut is a new shot on the base lane (V2);
+  // a velocity or speed ramp splits one shot into rate segments that carry on in the same clip, which is not a cut.
+  const base = actions.filter((a): a is AtomicAction & Add => isFootage(a) && a.item.track === 'V2' && !a.item.props?.rsFront).sort((x, y) => x.startFrame - y.startFrame);
+  const cuts: number[] = [];
+  base.forEach((a, k) => {
+    const prev = base[k - 1]?.item as { sourceAssetId?: string; srcInFrame?: number; durationInFrames: number; playbackRate?: number } | undefined;
+    const item = a.item as { sourceAssetId?: string; srcInFrame?: number };
+    const carriesOn = prev && base[k - 1]!.startFrame + prev.durationInFrames === a.startFrame && prev.sourceAssetId === item.sourceAssetId
+      && Math.abs((prev.srcInFrame ?? 0) + prev.durationInFrames * (prev.playbackRate ?? 1) - (item.srcInFrame ?? 0)) < fps * 0.5;
+    if (!carriesOn && cuts.at(-1) !== a.startFrame) cuts.push(a.startFrame);
+  });
+  const shotSec = cuts.map((f, k) => ((cuts[k + 1] ?? total) - f) / fps).filter((x) => x > 0);
   const unusedClips = input.clips.filter((c) => !usedIds.has(c.baseAssetId ?? c.assetId)).length;
   if (unusedClips) warnings.push(`${unusedClips} clip${unusedClips === 1 ? ' was' : 's were'} not used.`);
   return {
     action: { type: 'batch', actions: plan.tone ? applyMotionRules(actions, plan.tone, fps) : actions, label: 'Director: build reel' }, run,
-    report: { shots: shotsCount, usedAssetIds: [...usedIds], musicStartSec: startSec, totalFrames: total, warnings, sectionClips: Array.from({ length: resolved.length }, (_, k) => sectionClips[k] ?? []), sectionMoments: Array.from({ length: resolved.length }, (_, k) => sectionMoments[k] ?? []) },
+    report: { shots: shotsCount, usedAssetIds: [...usedIds], musicStartSec: startSec, totalFrames: total, warnings, sectionClips: Array.from({ length: resolved.length }, (_, k) => sectionClips[k] ?? []), sectionMoments: Array.from({ length: resolved.length }, (_, k) => sectionMoments[k] ?? []), shotSec },
   };
 }

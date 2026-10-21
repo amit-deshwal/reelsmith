@@ -16,7 +16,7 @@ import { resolveUploadFile, uploadNameOfSource } from '../media-dir.ts';
 import { readJsonBody, sendJson } from '../plugins/export-http.ts';
 import { detectDropBeat } from '../../src/reelsmith/assembler/drop.ts';
 import { analyzeBeatsFile } from './beatDetect.ts';
-import { extractClipFeatures } from './clipFeatures.ts';
+import { extractClipFeatures, extractReferenceCuts } from './clipFeatures.ts';
 import { finalizeForInstagram } from './instagramFinalize.ts';
 import { upscaleAvailable, upscalePhoto } from './upscale.ts';
 import { extractStill } from './stillFrame.ts';
@@ -75,6 +75,11 @@ export function reelsmithAnalyzePlugin(): Plugin {
         }
         const features = await work;
         return { features: { ...features, assetId: String(body.assetId ?? features.assetId) } };
+      });
+      route('/api/reelsmith/reference-cuts', async (body) => {
+        const file = localFile(body.src);
+        if (typeof file !== 'string') throw new Error(file.error);
+        return extractReferenceCuts(file, Number(body.fps) > 0 ? Number(body.fps) : 30);
       });
       route('/api/reelsmith/selection-sheet', async (body) => {
         const raw = Array.isArray(body.items) ? body.items.slice(0, MAX_SHEET_CELLS) : [];

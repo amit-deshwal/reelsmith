@@ -48,4 +48,12 @@ const why = await directorFix({ sections: { 0: { move: 'hold', beats: 8 } } }, c
 assert.match(why.error, /defects.*or `request`/);
 const where = await directorFix({ request: 'slower ending', sections: { 7: { move: 'hold', beats: 8 } } }, ctx('p4', items), {} as never) as Record<string, any>;
 assert.match(where.error, /not a section index \(0-1\)/);
+
+// RS-1221: the build refuses a line about something no clip shows; leaving it out is fine
+const { directorBuild } = await import('../agent/directorTools');
+const scenery = { top: 'scenery', confidence: 0.6, samples: 4, scores: { scenery: 0.5, food: 0.01 } } as never;
+updateDirectorSession('p6', { fps: 30, clips: [1, 2].map((n) => ({ n, kind: 'video' as const, seconds: 10, tags: scenery })), treatment: { ...treatment, story: 'climbed at dawn, cooked on the cliff' } as Treatment });
+const media = { getProjectId: () => 'p6', getState: () => ({ fps: 30, items: [] }), getDoc: () => ({ assets: [{ id: 'v1', name: 'v1.mov', kind: 'video', src: '/x', durationInFrames: 300 }, { id: 'v2', name: 'v2.mov', kind: 'video', src: '/y', durationInFrames: 300 }] }), audio: [] } as never;
+const faked = await directorBuild({ plan: { ratio: '9:16', sections: [{ move: 'hold', beats: 8, clips: ['#1'], text: 'cooked on the cliff', textStyle: 'rise-lines' }] } }, media, {} as never) as Record<string, any>;
+assert.match(faked.error, /no clip shows what "cooked on the cliff" names/);
 console.log('directorSession.verify ok');
