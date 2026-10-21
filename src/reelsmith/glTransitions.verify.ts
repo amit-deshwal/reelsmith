@@ -1,4 +1,4 @@
-// Imported GL Transitions (shaders/glt, server/reelsmith/import-gl-transitions.mts): every one is registered wherever the
+// Imported GL Transitions and the remotion-transitions ports (shaders/glt, server/reelsmith/import-gl-transitions.mts): every one is registered wherever the
 // editor, the director and the agent list transitions, and its shader matches our two-input contract. Compiling and the
 // untouched ends are checked in a browser by server/reelsmith/transitions-sheet.mts (a shader that fails to compile falls
 // back to a dissolve, so read its log for "shader compile failed").
@@ -21,7 +21,7 @@ for (const t of GLT_TRANSITIONS) {
   assert.ok(GLSL_TRANSITION_TYPES.has(t.id) && TRANSITION_ORDER.includes(t.id as never), `${t.id} registered in the editor`);
   assert.equal(TRANSITION_LABELS[t.id as never], t.label);
   assert.ok(t.label && !/[一-鿿]/.test(t.label), `${t.id} has an English label`);
-  assert.ok(t.seconds >= 0.3 && t.seconds <= 0.7, `${t.id} default ${t.seconds}s`);
+  assert.ok(t.seconds >= 0.3 && t.seconds <= 1.2, `${t.id} default ${t.seconds}s`);   // colour covers hold the screen, so up to 1.2 s
   assert.equal(defaultTransitionSeconds(t.id), t.seconds);
   assert.ok(t.looks.length > 15 && t.use.length > 10, `${t.id}: the director is told what it looks like and when to use it`);
   assert.ok(DIRECTOR_TRANSITIONS.some((d) => d.id === t.id), `${t.id} is in the director catalogue`);
@@ -42,7 +42,11 @@ for (const t of GLT_TRANSITIONS) {
   assert.doesNotMatch(src, /texture2D|\bvarying\b|gl_FragColor/, `${t.id}: no GLSL ES 1.0 leftovers`);
   // GLSL ES will not convert an int literal to a float constant (the first import lost 18 shaders to this)
   for (const m of src.matchAll(/^const float \w+ = (-?\d+);/gm)) assert.fail(`${t.id}: float constant with an int literal: ${m[0]}`);
-  assert.match(src, /Adapted from GL Transitions/, `${t.id}: credits the source`);
+  assert.match(src, /Adapted from (GL Transitions|GTKottman\/remotion-transitions)/, `${t.id}: credits the source`);
 }
 
+// the dated slideshow shapes are gone; the kept imports carry the polish (ease, motion blur) unless they bring their own
+for (const id of ['heart-wipe', 'star-wipe', 'polka-dots', 'pinwheel', 'bounce-drop']) assert.ok(!GLSL_TRANSITION_TYPES.has(id), `${id} dropped`);
+assert.match(GLT_FRAGS['swirl'], /Reelsmith polish/);
+assert.doesNotMatch(GLT_FRAGS['cross-zoom'], /Reelsmith polish/, 'cross-zoom has its own blur and easing');
 console.log(`glTransitions.verify: ${GLT_TRANSITIONS.length} imported transitions registered and contract-clean`);

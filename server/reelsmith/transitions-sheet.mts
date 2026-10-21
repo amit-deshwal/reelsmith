@@ -1,5 +1,5 @@
 // Contact sheet of Reels transitions on real clips: each row is one transition at progress 0, 25, 50, 75 and 100 %.
-//   npx tsx server/reelsmith/transitions-sheet.mts <clipA> <clipB> <out.jpg> [type ...] [--dir=left|right|up|down] [--seconds=N]
+//   npx tsx server/reelsmith/transitions-sheet.mts <clipA> <clipB> <out.jpg> [type ...] [--dir=left|right|up|down] [--seconds=N] [--points=0.25,0.5,0.75]
 // It renders through the app's own export renderer (remotion), and checks that progress 0 and 100 % are the untouched
 // pictures (the same frame of the same timeline with a hard cut instead of the transition).
 import { execFileSync } from 'node:child_process';
@@ -68,7 +68,7 @@ async function stills(type: TransitionType | null, seconds: number, frames: numb
 const mad = (a: Buffer, b: Buffer, name: string) => {
   const ja = join(work, `${name}-a.jpg`), jb = join(work, `${name}-b.jpg`);
   writeFileSync(ja, a); writeFileSync(jb, b);
-  const o = execFileSync('ffmpeg', ['-v', 'error', '-i', ja, '-i', jb, '-filter_complex', '[0][1]blend=all_mode=difference,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-', '-f', 'null', '-'], { stdio: ['ignore', 'pipe', 'pipe'] }).toString();
+  const o = execFileSync('ffmpeg', ['-v', 'error', '-i', ja, '-i', jb, '-filter_complex', '[1][0]scale2ref[b][a];[a][b]blend=all_mode=difference,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-', '-f', 'null', '-'], { stdio: ['ignore', 'pipe', 'pipe'] }).toString();
   return Number(/YAVG=([\d.]+)/.exec(o)?.[1] ?? NaN);
 };
 
@@ -78,11 +78,12 @@ for (const type of types) {
   const seconds = flags.seconds ? Number(flags.seconds) : defaultTransitionSeconds(type) ?? 0.4;
   const len = Math.round(seconds * FPS);
   const from = CUT - Math.floor(len / 2);
-  const frames = [0, 0.25, 0.5, 0.75, 1].map((p) => from + Math.min(len - 1, Math.round(p * len)));
+  const points = flags.points ? flags.points.split(',').map(Number) : [0.25, 0.5, 0.75];
+  const frames = [0, ...points, 1].map((p) => from + Math.min(len - 1, Math.round(p * len)));
   const first = from, last = from + len;
-  const withT = await stills(type, seconds, [first, ...frames.slice(1, 4), last]);
+  const withT = await stills(type, seconds, [first, ...frames.slice(1, -1), last]);
   const plain = await stills(null, seconds, [first, last]);
-  const d0 = mad(withT[0]!, plain[0]!, `${type}-0`), d1 = mad(withT[4]!, plain[1]!, `${type}-1`);
+  const d0 = mad(withT[0]!, plain[0]!, `${type}-0`), d1 = mad(withT.at(-1)!, plain[1]!, `${type}-1`);
   const ok = d0 < 3 && d1 < 3; // the first frame sits a hair inside the transition: cross-dissolve reads 1.79 here
   if (!ok) failed += 1;
   console.log(`${ok ? 'ok  ' : 'FAIL'} ${type.padEnd(16)} ${seconds}s  start diff ${d0.toFixed(2)}  end diff ${d1.toFixed(2)}`);

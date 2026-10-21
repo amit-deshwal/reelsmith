@@ -9,33 +9,32 @@ import dreamyWave from './dreamy-wave.frag.ts';
 import dreamyZoom from './dreamy-zoom.frag.ts';
 import hexagonalize from './hexagonalize.frag.ts';
 import kaleidoSpin from './kaleido-spin.frag.ts';
-import polkaDots from './polka-dots.frag.ts';
-import radialSweep from './radial-sweep.frag.ts';
 import waterDrop from './water-drop.frag.ts';
 import windowSlice from './window-slice.frag.ts';
-import squaresWire from './squares-wire.frag.ts';
-import bookFlip from './book-flip.frag.ts';
-import doorway from './doorway.frag.ts';
-import fold from './fold.frag.ts';
 import morph from './morph.frag.ts';
 import wind from './wind.frag.ts';
 import tvStatic from './tv-static.frag.ts';
 import lostSignal from './lost-signal.frag.ts';
 import colourBurn from './colour-burn.frag.ts';
 import burnOut from './burn-out.frag.ts';
-import heartWipe from './heart-wipe.frag.ts';
-import starWipe from './star-wipe.frag.ts';
 import linearBlur from './linear-blur.frag.ts';
 import doomMelt from './doom-melt.frag.ts';
 import irisOpen from './iris-open.frag.ts';
 import flyEye from './fly-eye.frag.ts';
 import noiseDissolve from './noise-dissolve.frag.ts';
-import angularWipe from './angular-wipe.frag.ts';
 import rotateFade from './rotate-fade.frag.ts';
-import bounceDrop from './bounce-drop.frag.ts';
-import pinwheel from './pinwheel.frag.ts';
 import squeeze from './squeeze.frag.ts';
-import crosshatch from './crosshatch.frag.ts';
+import burnHoles from './burn-holes.frag.ts';
+import flareSweep from './flare-sweep.frag.ts';
+import paperTear from './paper-tear.frag.ts';
+import liquidWarp from './liquid-warp.frag.ts';
+import splitSlices from './split-slices.frag.ts';
+import inkBleed from './ink-bleed.frag.ts';
+import paintDrip from './paint-drip.frag.ts';
+import liquidFill from './liquid-fill.frag.ts';
+import swooshLines from './swoosh-lines.frag.ts';
+import portalZoom from './portal-zoom.frag.ts';
+import strobeCut from './strobe-cut.frag.ts';
 
 export const GLT_FRAGS = {
   'cross-zoom': crossZoom,
@@ -48,31 +47,30 @@ export const GLT_FRAGS = {
   'dreamy-zoom': dreamyZoom,
   'hexagonalize': hexagonalize,
   'kaleido-spin': kaleidoSpin,
-  'polka-dots': polkaDots,
-  'radial-sweep': radialSweep,
   'water-drop': waterDrop,
   'window-slice': windowSlice,
-  'squares-wire': squaresWire,
-  'book-flip': bookFlip,
-  'doorway': doorway,
-  'fold': fold,
   'morph': morph,
   'wind': wind,
   'tv-static': tvStatic,
   'lost-signal': lostSignal,
   'colour-burn': colourBurn,
   'burn-out': burnOut,
-  'heart-wipe': heartWipe,
-  'star-wipe': starWipe,
   'linear-blur': linearBlur,
   'doom-melt': doomMelt,
   'iris-open': irisOpen,
   'fly-eye': flyEye,
   'noise-dissolve': noiseDissolve,
-  'angular-wipe': angularWipe,
   'rotate-fade': rotateFade,
-  'bounce-drop': bounceDrop,
-  'pinwheel': pinwheel,
   'squeeze': squeeze,
-  'crosshatch': crosshatch,
+  'burn-holes': burnHoles,
+  'flare-sweep': flareSweep,
+  'paper-tear': paperTear,
+  'liquid-warp': liquidWarp,
+  'split-slices': splitSlices,
+  'ink-bleed': inkBleed,
+  'paint-drip': paintDrip,
+  'liquid-fill': liquidFill,
+  'swoosh-lines': swooshLines,
+  'portal-zoom': portalZoom,
+  'strobe-cut': strobeCut,
 } as const;
