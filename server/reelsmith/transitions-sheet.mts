@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os';
 import { extname, join, resolve } from 'node:path';
 import { emptyProjectDoc } from '../../src/app/appShell.ts';
 import { historyReduce, type History } from '../../src/editor/reduce.ts';
-import { activeTimeline, REEL_TRANSITION_SECONDS, type MediaAsset, type TransitionDirection, type TransitionType } from '../../src/editor/types.ts';
+import { activeTimeline, defaultTransitionSeconds, REEL_TRANSITION_SECONDS, type MediaAsset, type TransitionDirection, type TransitionType } from '../../src/editor/types.ts';
 import { acceptExportSubmission } from '../plugins/export-submission.ts';
 import { setUploadsDirProvider } from '../plugins/export-rendering.ts';
 import { seedKeystore } from '../keystore.ts';
@@ -75,7 +75,7 @@ const mad = (a: Buffer, b: Buffer, name: string) => {
 const rows: string[] = [];
 let failed = 0;
 for (const type of types) {
-  const seconds = flags.seconds ? Number(flags.seconds) : REEL_TRANSITION_SECONDS[type] ?? 0.4;
+  const seconds = flags.seconds ? Number(flags.seconds) : defaultTransitionSeconds(type) ?? 0.4;
   const len = Math.round(seconds * FPS);
   const from = CUT - Math.floor(len / 2);
   const frames = [0, 0.25, 0.5, 0.75, 1].map((p) => from + Math.min(len - 1, Math.round(p * len)));

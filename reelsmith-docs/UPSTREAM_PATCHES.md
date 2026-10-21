@@ -442,3 +442,8 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 - `scripts/run-tests.mjs`, `scripts/run-affected-verifies.mjs`: use discovery. `scripts/verify-registration.verify.mjs`, `scripts/verify-gate-coverage.verify.mjs`, `scripts/run-affected-verifies.verify.mjs`: rewritten for it.
 - Expect conflicts in `package.json` on the next upstream sync: take ours, then add any new upstream verify to nothing (it is found automatically) unless it needs a `LAUNCHERS` entry.
 
+## Imported GL Transitions (2026-10-21, RS-1215)
+
+- `src/editor/transitionTypes.ts`: `GltTransitionId` joins `GlslTransitionType`; the ids, labels and order are spread in from `src/reelsmith/glTransitionsMeta.ts`; `defaultTransitionSeconds` falls back to the imported lengths.
+- `src/gl/transitions.ts`: one spread entry that builds the imported transitions from `shaders/glt/frags.ts`.
+- Ours, generated: `src/gl/shaders/glt/*`, `src/reelsmith/glTransitionsMeta.ts` (regenerate with `server/reelsmith/import-gl-transitions.mts`).

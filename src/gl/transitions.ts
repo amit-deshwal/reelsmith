@@ -38,6 +38,8 @@ import flip3d from './shaders/flip-3d.frag.ts';
 import mirrorFlip from './shaders/mirror-flip.frag.ts';
 import prismFlash from './shaders/prism-flash.frag.ts';
 import brushWipe from './shaders/brush-wipe.frag.ts';
+import { GLT_FRAGS } from './shaders/glt/frags.ts';
+import { GLT_TRANSITIONS, type GltTransitionId } from '../reelsmith/glTransitionsMeta';
 
 export interface GlslTransitionDef {
   frag: string;
@@ -252,6 +254,8 @@ export const GLSL_TRANSITIONS: Record<GlslTransitionType, GlslTransitionDef> = {
     frag: brushWipe,
     uniforms: () => ({ u_strokes: 4 }),
   },
+  // Reelsmith: imported GL Transitions (shaders/glt), tuned values are constants in the shader
+  ...(Object.fromEntries(GLT_TRANSITIONS.map((t) => [t.id, { frag: GLT_FRAGS[t.id], uniforms: ({ aspect }: { aspect: number }) => ({ u_aspect: aspect }) }])) as unknown as Record<GltTransitionId, GlslTransitionDef>),
 };
 
 /** The way the strip moves for a direction, the same sense as whip-pan: left = the next shot comes in from the right. */

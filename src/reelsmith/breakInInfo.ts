@@ -1,5 +1,6 @@
 // RS-413: what the agent is told about the break-in transitions (browse_library) and their default length.
 import { defaultTransitionSeconds } from '../editor/transitionTypes';
+import { GLT_TRANSITIONS } from './glTransitionsMeta';
 
 export const BREAK_IN_INFO: Record<string, string> = {
   bars: 'Break-in: the next shot slides in through 6 vertical bars, alternating from top and bottom with a stagger, then settles on the full frame. Fixed props: 6 bars, alternate direction, stagger 0.5, smooth easing; only durationInFrames is adjustable (default 0.35 s). One style per reel; cut on the beat.',
@@ -21,6 +22,7 @@ export const BREAK_IN_INFO: Record<string, string> = {
   'mirror-flip': "Reels transition (0.3 s): the frame flips like a flat coin on the beat, squeezing to a bright line and opening out as the next shot. Before/after reveals, outfit changes, a drop. up/down flips top over bottom.",
   'prism-flash': "Reels transition (0.4 s): a bright band of light sweeps across, splitting into rainbow prism fringes, with the next shot behind it. Fashion, nights out, a polished cut. direction sets the sweep.",
   'brush-wipe': "Reels transition (0.55 s): the next shot is painted on in four thick brush strokes, alternating direction, with ragged bristle edges and an ink line at each front. Art, journals, handmade and scrapbook stories.",
+  ...Object.fromEntries(GLT_TRANSITIONS.map((t) => [t.id, `Reels transition (${t.seconds} s): ${t.looks} ${t.use} direction is ignored.`])),
 };
 
 /** Default transition length in frames: break-ins are 0.35 s, the Reels transitions have their own (0.3 to 0.6 s), everything else keeps the editor's own default (null). */

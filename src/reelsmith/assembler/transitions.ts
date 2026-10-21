@@ -3,6 +3,7 @@
 // An optional recipe param (assembler.options.transitionParam) lets the user override the whole reel in the setup form.
 import type { AtomicAction } from '../../editor/reducerActions';
 import type { TransitionType } from '../../editor/types';
+import { GLT_TRANSITIONS } from '../glTransitionsMeta';
 import { stableId } from './rng';
 import type { PlannedShot } from './types';
 
@@ -38,6 +39,7 @@ export const RECIPE_TRANSITIONS: Record<string, Spec> = {
   'mirror-flip': { type: 'mirror-flip', seconds: 0.3 },
   'prism-flash': { type: 'prism-flash', seconds: 0.4 },
   'brush-wipe': { type: 'brush-wipe', seconds: 0.55 },
+  ...Object.fromEntries(GLT_TRANSITIONS.map((t) => [t.id, { type: t.id, seconds: t.seconds }])),
   // the editor's own transitions, for the director
   'blur-focus': { type: 'rack-focus', seconds: 0.45 },
   'radial-blur': { type: 'radial-blur', seconds: 0.4 },

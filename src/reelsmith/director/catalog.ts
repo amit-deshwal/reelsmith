@@ -3,6 +3,7 @@
 // (src/gl/fx); this file only describes them for directing. Params are the effect's own (checked against its def).
 import { ALL_FX } from '../../gl/fx/effects';
 import { RECIPE_TRANSITIONS } from '../assembler/transitions';
+import { GLT_TRANSITIONS } from '../glTransitionsMeta';
 
 export type EffectGroup = 'grade' | 'texture' | 'lens' | 'motion' | 'stylise' | 'person' | 'retro' | 'frame';
 
@@ -112,6 +113,7 @@ export const DIRECTOR_TRANSITIONS: readonly DirectorTransition[] = [
   { id: 'mirror-flip', looks: 'The frame flips like a flat coin on the beat.', use: 'Before/after, outfit or place swaps, the drop.' },
   { id: 'prism-flash', looks: 'A bright band of light with rainbow fringes sweeps across.', use: 'Fashion, nights out, a polished hero cut.' },
   { id: 'brush-wipe', looks: 'Next shot painted on in thick brush strokes.', use: 'Art, journals, handmade or scrapbook stories.' },
+  ...GLT_TRANSITIONS.map(({ id, looks, use }) => ({ id, looks, use })),
   { id: 'blur-focus', looks: 'Shot blurs out of focus and the next blurs in.', use: 'Flashbacks, memories, a soft change of mood.' },
   { id: 'radial-blur', looks: 'Radial streaks burst from the middle.', use: 'Speed, arrivals, a punchy cut without a zoom.' },
   { id: 'page-curl', looks: 'The shot peels away like a page.', use: 'Diaries, day 1 → day 2, storybook trips.' },

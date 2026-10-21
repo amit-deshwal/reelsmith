@@ -4,6 +4,7 @@
 // the reel never turns into a sound board, and lays them on audio lanes under the song.
 import type { AtomicAction } from '../../editor/reducerActions';
 import { SOUND_EFFECTS, soundEffectSrc } from '../../audio/soundLibrary';
+import { GLT_TRANSITIONS } from '../glTransitionsMeta';
 
 /** What happens at a frame: a cut that moves (whoosh), a flash or photo landing (shutter), a hit, a glitch, or a build that ends here (riser). */
 export type SfxCue = 'whoosh' | 'whoosh-heavy' | 'whoosh-soft' | 'shutter' | 'hit' | 'glitch' | 'riser' | 'pop' | 'scratch'
@@ -74,6 +75,7 @@ export const TRANSITION_CUES: Record<string, SfxCue | null> = {
   pixelate: 'glitch', 'film-burn': 'whoosh-soft', 'flip-3d': 'whoosh', 'mirror-flip': 'whoosh-soft', 'prism-flash': 'whoosh-soft', 'brush-wipe': 'whoosh-soft',
   'blur-focus': null, 'radial-blur': 'whoosh-heavy', 'page-curl': 'whoosh-soft', 'circle-wipe': 'pop', 'light-dissolve': null, 'impact-shake': 'hit',
   'glitch-cut': 'glitch', 'line-wipe': 'whoosh-soft', 'luma-blend': null,
+  ...Object.fromEntries(GLT_TRANSITIONS.map((t) => [t.id, t.cue])),
 };
 
 
