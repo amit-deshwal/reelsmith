@@ -428,3 +428,9 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 - `src/agent/external-tool-policy.ts`: `reels_director_treatment` and `reels_director_critique` (director stages 2 and 4, RS-1214) added to the read-only tool names.
 - `server/claude-code/turn-runner.ts`: passes the turn's prompt to `resolveClaudeEffort`, so a Director box request runs at `high` effort.
 - `package.json`: registers `director/shotLog.verify.ts` and `director/treatment.verify.ts` in `test:reelsmith`.
+
+## Upstream sync 2026-10-21 (cherry-picked, not merged)
+- Taken: `ae3a8c6d` (a split motion graphic continues its animation), `709947a9` (the Claude Code model picker lists what the CLI reports; `CURATED_MODELS` in `server/plugins/claude-code-agent.ts` gave way to `server/claude-code/models.ts`).
+- `server/claude-code/models.ts` (ours on top of upstream's new file): the fallback list keeps `claude-sonnet-5-5` and `claude-opus-5-5`, which we had hand-added to the old list.
+- Taken and reverted: `5cac33fa` (AAC encoder delay at render). RS-304's `server/reelsmith/audioPriming.ts` already removes the same priming after export; with both, exports ran 43 ms early (avsync fixtures).
+- Skipped: Windows-only fixes (`526dbfb4`, `ee45a703`), Portuguese transcription (`d9b517ae`), bundled ffmpeg for generated media and skills (`097f87ae`, `15deadc9`; features Reelsmith does not use), README edits.
