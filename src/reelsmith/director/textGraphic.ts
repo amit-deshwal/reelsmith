@@ -38,6 +38,8 @@ export interface TextGraphicProps {
   stroke?: { width: number; color: string };
   shadow?: boolean;
   opacity?: number;
+  /** bounce of popping units, 1 = the preset's own (the tone's motion rule sets it, RS-1219) */
+  overshoot?: number;
 }
 
 export const TEXT_GRAPHIC_CODE = String.raw`const DirectorText = ({ item }) => {
@@ -50,7 +52,7 @@ export const TEXT_GRAPHIC_CODE = String.raw`const DirectorText = ({ item }) => {
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const smooth = (q) => { q = clamp(q, 0, 1); return q * q * (3 - 2 * q); };
   const outCubic = (q) => { q = clamp(q, 0, 1); return 1 - Math.pow(1 - q, 3); };
-  const backOut = (q) => { q = clamp(q, 0, 1); const c = 1.9; return 1 + (c + 1) * Math.pow(q - 1, 3) + c * Math.pow(q - 1, 2); };
+  const backOut = (q) => { q = clamp(q, 0, 1); const c = 1.9 * (typeof P.overshoot === 'number' ? P.overshoot : 1); return 1 + (c + 1) * Math.pow(q - 1, 3) + c * Math.pow(q - 1, 2); };
   const hash = (n) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
   const preset = P.preset || 'blur-in';
   const raw = String(P.text || '');

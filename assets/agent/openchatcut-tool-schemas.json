@@ -5825,10 +5825,15 @@
     },
     {
       "name": "reels_director_options",
-      "description": "Director stage 1 (the user gives a story, media and a song; you direct the reel): watches the footage (up to about a minute and a half) and returns the shot log (each clip numbered #1, #2... with its best moments, where it moves, talks or goes soft), contact sheets taken at those moments, and the songs with bpm, drop and a timing suggestion. Call once, then write the treatment (reels_director_treatment).",
+      "description": "Director stage 1 (the user gives a story, media and a song; you direct the reel): watches the footage (up to about a minute and a half) and returns the shot log (each clip numbered #1, #2... with its best moments, where it moves, talks or goes soft), contact sheets taken at those moments, and the songs with bpm, drop and a timing suggestion. Call once, then write the treatment (reels_director_treatment). With `reference` (an imported reel the user wants theirs to feel like) it also measures that reel (pace, colour, motion), shows one cell a shot of it, and leaves it out of the clips.",
       "input_schema": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "reference": {
+            "type": "string",
+            "description": "Optional: assetId or file name of an imported reel to match in pace and look (never cast as footage)."
+          }
+        }
       }
     },
     {
@@ -5923,6 +5928,10 @@
                 },
                 "idea": {
                   "type": "string"
+                },
+                "purpose": {
+                  "type": "string",
+                  "description": "Why the part exists: what the viewer knows or feels after it that they did not before."
                 }
               },
               "required": [
@@ -5972,6 +5981,42 @@
             "type": "boolean",
             "description": "True only when the user asked for lines of your own."
           },
+          "styleGuide": {
+            "type": "object",
+            "description": "Required with a reference reel: what you learned from it, in concrete words.",
+            "properties": {
+              "pacing": {
+                "type": "string",
+                "description": "Seconds or beats between cuts, where it holds."
+              },
+              "palette": {
+                "type": "string",
+                "description": "Its actual colours, not \"premium\"."
+              },
+              "type": {
+                "type": "string",
+                "description": "Typeface feel, weight, size, where lines sit."
+              },
+              "motion": {
+                "type": "string",
+                "description": "Snap, glide, overshoot, hold."
+              },
+              "texture": {
+                "type": "string",
+                "description": "Grain, glow, clean..."
+              },
+              "doNotCopy": {
+                "type": "string",
+                "description": "Its subjects, words and logos you will not copy."
+              }
+            },
+            "required": [
+              "pacing",
+              "palette",
+              "motion",
+              "doNotCopy"
+            ]
+          },
           "lookup": {
             "type": "array",
             "items": {
@@ -5984,10 +6029,63 @@
     },
     {
       "name": "reels_director_critique",
-      "description": "Director stage 4, after the first build: a closer look at the built reel (about three frames a section and every line at its fullest, in sheets of eight), checks against the treatment (tone, a plain arc, no transition or timed effect, a slow hook) and a critic's checklist. Answer it from the frames, then rebuild once with your upgrades. Changes nothing.",
+      "description": "Director stage 4, after the first build: a closer look at the built reel (about three frames a section and every line at its fullest, in sheets of eight), checks against the treatment (tone, a plain arc, no transition or timed effect, a slow hook), the sound with eyes closed, the reference reel's pace and colour, and a critic's checklist. Name the three largest defects from the frames and repair them with reels_director_fix. Changes nothing.",
       "input_schema": {
         "type": "object",
         "properties": {}
+      }
+    },
+    {
+      "name": "reels_director_fix",
+      "description": "Repair a directed reel in place, as one undo step: the sections you give are rebuilt and every other section comes back with the same clips and moments; returns frames of the changed sections only and the checks again. Use it for the critique's defects (up to three, each with section, at, evidence, fix) and for the user's later changes to a director reel (`request`), also in a new chat. With no changes it returns the saved treatment and plan of the reel on the timeline.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "defects": {
+            "type": "array",
+            "description": "The defects this round fixes, worst first (at most three).",
+            "items": {
+              "type": "object",
+              "properties": {
+                "section": {
+                  "type": "number"
+                },
+                "at": {
+                  "type": "number",
+                  "description": "Reel second where it shows."
+                },
+                "evidence": {
+                  "type": "string",
+                  "description": "The image and what it shows, or the finding."
+                },
+                "fix": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "section",
+                "at",
+                "evidence",
+                "fix"
+              ]
+            }
+          },
+          "request": {
+            "type": "string",
+            "description": "For a change the user asked for: their words."
+          },
+          "sections": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object"
+            },
+            "description": "Section index (\"2\") to the whole new section, in the build's section shape (move, beats, clips \"#n@t\", text, textStyle, params, transition, effects...)."
+          },
+          "plan": {
+            "type": "object",
+            "description": "Reel-wide changes: look, sfx, musicStart, overlays, graphics or tone (each replaces the old value)."
+          }
+        }
       }
     },
     {
@@ -7275,10 +7373,15 @@
     },
     {
       "name": "reels_director_options",
-      "description": "Director stage 1 (the user gives a story, media and a song; you direct the reel): watches the footage (up to about a minute and a half) and returns the shot log (each clip numbered #1, #2... with its best moments, where it moves, talks or goes soft), contact sheets taken at those moments, and the songs with bpm, drop and a timing suggestion. Call once, then write the treatment (reels_director_treatment).",
+      "description": "Director stage 1 (the user gives a story, media and a song; you direct the reel): watches the footage (up to about a minute and a half) and returns the shot log (each clip numbered #1, #2... with its best moments, where it moves, talks or goes soft), contact sheets taken at those moments, and the songs with bpm, drop and a timing suggestion. Call once, then write the treatment (reels_director_treatment). With `reference` (an imported reel the user wants theirs to feel like) it also measures that reel (pace, colour, motion), shows one cell a shot of it, and leaves it out of the clips.",
       "input_schema": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "reference": {
+            "type": "string",
+            "description": "Optional: assetId or file name of an imported reel to match in pace and look (never cast as footage)."
+          }
+        }
       }
     },
     {
@@ -7373,6 +7476,10 @@
                 },
                 "idea": {
                   "type": "string"
+                },
+                "purpose": {
+                  "type": "string",
+                  "description": "Why the part exists: what the viewer knows or feels after it that they did not before."
                 }
               },
               "required": [
@@ -7422,6 +7529,42 @@
             "type": "boolean",
             "description": "True only when the user asked for lines of your own."
           },
+          "styleGuide": {
+            "type": "object",
+            "description": "Required with a reference reel: what you learned from it, in concrete words.",
+            "properties": {
+              "pacing": {
+                "type": "string",
+                "description": "Seconds or beats between cuts, where it holds."
+              },
+              "palette": {
+                "type": "string",
+                "description": "Its actual colours, not \"premium\"."
+              },
+              "type": {
+                "type": "string",
+                "description": "Typeface feel, weight, size, where lines sit."
+              },
+              "motion": {
+                "type": "string",
+                "description": "Snap, glide, overshoot, hold."
+              },
+              "texture": {
+                "type": "string",
+                "description": "Grain, glow, clean..."
+              },
+              "doNotCopy": {
+                "type": "string",
+                "description": "Its subjects, words and logos you will not copy."
+              }
+            },
+            "required": [
+              "pacing",
+              "palette",
+              "motion",
+              "doNotCopy"
+            ]
+          },
           "lookup": {
             "type": "array",
             "items": {
@@ -7434,7 +7577,7 @@
     },
     {
       "name": "reels_director_critique",
-      "description": "Director stage 4, after the first build: a closer look at the built reel (about three frames a section and every line at its fullest, in sheets of eight), checks against the treatment (tone, a plain arc, no transition or timed effect, a slow hook) and a critic's checklist. Answer it from the frames, then rebuild once with your upgrades. Changes nothing.",
+      "description": "Director stage 4, after the first build: a closer look at the built reel (about three frames a section and every line at its fullest, in sheets of eight), checks against the treatment (tone, a plain arc, no transition or timed effect, a slow hook), the sound with eyes closed, the reference reel's pace and colour, and a critic's checklist. Name the three largest defects from the frames and repair them with reels_director_fix. Changes nothing.",
       "input_schema": {
         "type": "object",
         "properties": {}

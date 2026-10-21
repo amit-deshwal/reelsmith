@@ -190,8 +190,10 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
       'Director stage 1 (the user gives a story, media and a song; you direct the reel): watches the footage (up to about a minute and a half)',
       'and returns the shot log (each clip numbered #1, #2... with its best moments, where it moves, talks or goes soft), contact sheets taken',
       'at those moments, and the songs with bpm, drop and a timing suggestion. Call once, then write the treatment (reels_director_treatment).',
+      'With `reference` (an imported reel the user wants theirs to feel like) it also measures that reel (pace, colour, motion), shows one',
+      'cell a shot of it, and leaves it out of the clips.',
     ].join(' '),
-    input_schema: { type: 'object', properties: {} },
+    input_schema: { type: 'object', properties: { reference: { type: 'string', description: 'Optional: assetId or file name of an imported reel to match in pace and look (never cast as footage).' } } },
   },
   {
     name: 'reels_director_treatment',
@@ -218,6 +220,7 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
             properties: {
               role: { type: 'string', enum: ['hook', 'build', 'journey', 'drop', 'peak', 'payoff', 'ending'] }, beats: { type: 'number' }, move: { type: 'string' },
               clips: { type: 'array', items: { type: 'string' } }, line: { type: 'string', description: 'The words on screen in this part, if any.' }, idea: { type: 'string' },
+              purpose: { type: 'string', description: 'Why the part exists: what the viewer knows or feels after it that they did not before.' },
             },
             required: ['role', 'beats', 'move'],
           },
@@ -229,6 +232,15 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
         graphics: { type: 'array', items: { type: 'string' }, description: 'Graphic ids for what the story names.' },
         look: { type: 'string', description: 'A look id, or leave it out for the footage as shot.' },
         ownWords: { type: 'boolean', description: 'True only when the user asked for lines of your own.' },
+        styleGuide: {
+          type: 'object', description: 'Required with a reference reel: what you learned from it, in concrete words.',
+          properties: {
+            pacing: { type: 'string', description: 'Seconds or beats between cuts, where it holds.' }, palette: { type: 'string', description: 'Its actual colours, not "premium".' },
+            type: { type: 'string', description: 'Typeface feel, weight, size, where lines sit.' }, motion: { type: 'string', description: 'Snap, glide, overshoot, hold.' },
+            texture: { type: 'string', description: 'Grain, glow, clean...' }, doNotCopy: { type: 'string', description: 'Its subjects, words and logos you will not copy.' },
+          },
+          required: ['pacing', 'palette', 'motion', 'doNotCopy'],
+        },
         lookup: { type: 'array', items: { type: 'string' }, description: 'Alone: just return the catalogue entries for these ids.' },
       },
     },
@@ -237,10 +249,32 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
     name: 'reels_director_critique',
     description: [
       'Director stage 4, after the first build: a closer look at the built reel (about three frames a section and every line at its fullest, in',
-      'sheets of eight), checks against the treatment (tone, a plain arc, no transition or timed effect, a slow hook) and a critic\'s checklist.',
-      'Answer it from the frames, then rebuild once with your upgrades. Changes nothing.',
+      'sheets of eight), checks against the treatment (tone, a plain arc, no transition or timed effect, a slow hook), the sound with eyes',
+      'closed, the reference reel\'s pace and colour, and a critic\'s checklist. Name the three largest defects from the frames and repair them',
+      'with reels_director_fix. Changes nothing.',
     ].join(' '),
     input_schema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'reels_director_fix',
+    description: [
+      'Repair a directed reel in place, as one undo step: the sections you give are rebuilt and every other section comes back with the same',
+      'clips and moments; returns frames of the changed sections only and the checks again. Use it for the critique\'s defects (up to three, each',
+      'with section, at, evidence, fix) and for the user\'s later changes to a director reel (`request`), also in a new chat. With no changes it',
+      'returns the saved treatment and plan of the reel on the timeline.',
+    ].join(' '),
+    input_schema: {
+      type: 'object',
+      properties: {
+        defects: {
+          type: 'array', description: 'The defects this round fixes, worst first (at most three).',
+          items: { type: 'object', properties: { section: { type: 'number' }, at: { type: 'number', description: 'Reel second where it shows.' }, evidence: { type: 'string', description: 'The image and what it shows, or the finding.' }, fix: { type: 'string' } }, required: ['section', 'at', 'evidence', 'fix'] },
+        },
+        request: { type: 'string', description: 'For a change the user asked for: their words.' },
+        sections: { type: 'object', additionalProperties: { type: 'object' }, description: 'Section index ("2") to the whole new section, in the build\'s section shape (move, beats, clips "#n@t", text, textStyle, params, transition, effects...).' },
+        plan: { type: 'object', description: 'Reel-wide changes: look, sfx, musicStart, overlays, graphics or tone (each replaces the old value).' },
+      },
+    },
   },
   {
     name: 'reels_director_build',
@@ -435,4 +469,4 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
 
 export const REELS_TOOL_NAMES = new Set(REELS_TOOL_SCHEMAS.map((t) => t.name));
 export const REELS_READ_TOOL_NAMES = ['reels_lint', 'reels_plan_options', 'reels_director_options', 'reels_director_treatment', 'reels_director_critique', 'reels_run_info', 'reels_selection_candidates', 'reels_selection_sheet'] as const;
-export const REELS_EDIT_TOOL_NAMES = ['reels_plan_assemble', 'reels_director_build', 'reels_custom_shader', 'reels_custom_graphic', 'reels_time_effect', 'reels_freeze_frame', 'reels_restyle_text', 'reels_apply_look', 'reels_apply_signature', 'reels_recut_section', 'reels_snap_cuts_to_beats', 'reels_strobe', 'propose_selection'] as const;
+export const REELS_EDIT_TOOL_NAMES = ['reels_plan_assemble', 'reels_director_build', 'reels_director_fix', 'reels_custom_shader', 'reels_custom_graphic', 'reels_time_effect', 'reels_freeze_frame', 'reels_restyle_text', 'reels_apply_look', 'reels_apply_signature', 'reels_recut_section', 'reels_snap_cuts_to_beats', 'reels_strobe', 'propose_selection'] as const;

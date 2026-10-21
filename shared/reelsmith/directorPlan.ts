@@ -5,6 +5,10 @@ import { isRatioId, type RatioId } from './ratios';
 
 export type PlanValue = string | number | boolean;
 
+/** The reel's voice (the treatment's tone): it sets how things move (motionRules.ts) and which styles suit it. */
+export const TONES = ['epic', 'royal', 'hype', 'playful', 'funny', 'emotional', 'calm', 'nostalgic', 'romantic', 'moody'] as const;
+export type Tone = (typeof TONES)[number];
+
 export interface PlanSection {
   /** move id from the catalogue (reels_director_options) */
   move: string;
@@ -88,6 +92,13 @@ export interface ReelPlan {
   graphics?: PlanGraphic[];
   /** sound effects on cuts, drops and builds: 'auto' (default), 'subtle' (quieter) or 'off' */
   sfx?: 'auto' | 'subtle' | 'off';
+  /** how things move (RS-1219); the build fills it from the treatment when the plan leaves it out */
+  tone?: Tone;
+  /**
+   * Set by reels_director_fix, never parsed from the agent (RS-1216): sections to rebuild exactly as last time, with the
+   * clips they were cast and the source frame each shot started at, in order. null = build that section afresh.
+   */
+  keep?: Array<{ clips: string[]; moments: number[] } | null>;
 }
 
 export const MAX_SECTIONS = 24;
@@ -105,6 +116,7 @@ export function parsePlan(raw: unknown): { ok: true; plan: ReelPlan } | { ok: fa
   if (ms !== undefined && ms !== 'firstDownbeat' && ms !== 'fromStart' && !(typeof ms === 'number' && ms >= 0)) errors.push('musicStart must be firstDownbeat, fromStart or a number of seconds');
   if (raw.look !== undefined && typeof raw.look !== 'string') errors.push('look must be a look id');
   if (raw.sfx !== undefined && raw.sfx !== 'auto' && raw.sfx !== 'subtle' && raw.sfx !== 'off') errors.push('sfx must be auto, subtle or off');
+  if (raw.tone !== undefined && !(TONES as readonly unknown[]).includes(raw.tone)) errors.push(`tone must be one of ${TONES.join(', ')}`);
   const params = (v: unknown, where: string) => {
     if (v === undefined) return undefined;
     if (!obj(v)) { errors.push(`${where}.params must be an object`); return undefined; }
@@ -207,6 +219,7 @@ export function parsePlan(raw: unknown): { ok: true; plan: ReelPlan } | { ok: fa
       ...(typeof raw.music === 'string' ? { music: raw.music } : {}), ...(ms !== undefined ? { musicStart: ms as ReelPlan['musicStart'] } : {}),
       ...(typeof raw.look === 'string' ? { look: raw.look } : {}), ...(overlays.length ? { overlays } : {}), ...(graphics.length ? { graphics } : {}),
       ...(raw.sfx === 'auto' || raw.sfx === 'subtle' || raw.sfx === 'off' ? { sfx: raw.sfx } : {}),
+      ...((TONES as readonly unknown[]).includes(raw.tone) ? { tone: raw.tone as Tone } : {}),
     },
   };
 }

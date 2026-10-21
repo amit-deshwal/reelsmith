@@ -1,7 +1,7 @@
 ---
 name: reels-director
 description: |
-  Direct a reel from the user's story, media and song (director mode) as a four-stage pipeline: watch the footage (reels_director_options), write a treatment (reels_director_treatment), plan and build (reels_director_build), then critique and rebuild once (reels_director_critique). Use for any new reel the user describes ("make a reel of my trek", "here are my clips and song, the story is…") unless they name a recipe.
+  Direct a reel from the user's story, media and song (director mode) as a four-stage pipeline: watch the footage (reels_director_options), write a treatment (reels_director_treatment), plan and build (reels_director_build), then critique (reels_director_critique) and repair the largest defects section by section (reels_director_fix). Also for later changes to a reel the director built (reels_director_fix). Use for any new reel the user describes ("make a reel of my trek", "here are my clips and song, the story is…") unless they name a recipe.
 ---
 
 # Reels director
@@ -17,10 +17,12 @@ Work in four stages, each with its own tool. Do the thinking each stage asks for
 
 ## Stage 1: watch the footage (`reels_director_options`)
 
-Call it once. It takes up to a minute and a half (it watches every clip) and returns:
+Call it once (with `reference` when the user gave a reel to match). It takes up to a minute and a half (it watches every clip) and returns:
 - **the shot log**: each clip as `#n`, its length and shape, what it shows, its **best moments** (`best @12 @3`: sharp, lit, a subject, some life; best first), where it **moves**, where someone **talks**, the **soft/dark** seconds to avoid, and cuts inside it;
 - **contact sheets** taken at those best moments (cells "n·seconds");
 - **the songs** with bpm, drop and `suggest` (`musicStart`, `beatsFor18s`, `dropAtBeat`). Use them as given; do not redo the arithmetic. Without a song a beat is 0.5 s and every clip keeps its sound.
+
+- **the reference**, when given: its measured pace (seconds and beats a shot), motion against the footage and colour, and one sheet with a cell a shot. It is never footage: it is not in the clip list.
 
 Read the sheets with the log: who is in each shot (and where in the frame), which shots are wide views with open sky, which are selfies or people sitting, which have real action. Use `view_asset_frames` only when two clips are truly impossible to tell apart.
 
@@ -30,10 +32,11 @@ Decide what this reel *is* before any plan. Send:
 - **two concepts** that are genuinely different (not the same arc with other fonts): e.g. for "bro lied that it would be easy... hardest hike... 2 days of adventure": *"The betrayal"* (comic: the lie, the arrow on bro, the brutal climb, the earned summit) and *"Earned"* (royal: quiet setup, the climb as a test, a grand title over the summit). Pick the one that fits the user's words and footage, and say which with `chosen`;
 - **the tone** (epic, royal, hype, playful, funny, emotional, calm, nostalgic, romantic, moody). It sets the voice of every style and effect: a big achievement is royal or epic, never cute; a joke is playful or funny, never solemn. When the user names a feel ("royal", "funny", "cinematic"), that is the tone;
 - **hero shots**: the 3-6 best moments in the footage (`"#5@12"`), from the log and sheets;
-- **the arc as parts** on the song: `{ role, beats, move, clips, line, idea }`: hook, build/journey, drop/peak, payoff, ending, adding up to about `beatsFor18s`, with the drop part starting on `dropAtBeat`;
+- **the arc as parts** on the song: `{ role, beats, move, clips, line, idea, purpose }`: hook, build/journey, drop/peak, payoff, ending, adding up to about `beatsFor18s`, with the drop part starting on `dropAtBeat`. `purpose` is why the part exists: what the viewer knows or feels after it that they did not before ("they learn bro lied"). A part with no purpose of its own, or the same one as its neighbour, is filler: merge or cut it;
 - **the signature**: the one moment people will remember, and where;
 - **the kit**, from the menu at the end of this skill: 1-3 text styles, one transition family (1-3), the few effects, the graphics the story asks for, a look or none;
-- `story` (their words, verbatim) and `ownWords: true` only when they asked for lines of your own.
+- `story` (their words, verbatim) and `ownWords: true` only when they asked for lines of your own;
+- **with a reference, the `styleGuide`**: `pacing` (seconds or beats a shot, where it holds), `palette` (its actual colours, not "premium"), `type` (typeface feel, size, where lines sit), `motion` (snap, glide, overshoot, hold), `texture`, and `doNotCopy` (its subjects, words, logos). Follow it in the kit and the arc: its pace sets your beats a shot, its colour your look.
 
 How to shape it:
 - **The hook (first 1-2 s) decides if people stay.** Open on movement, a face reacting or a reveal, with 2-5 words: the sharpest part of their sentence. Never 4 s of a still selfie under a full sentence. `strips-reveal` when there is a steady wide shot of the person; `flash-cuts` for a hype start; a moving hero shot with a big title; `freeze-intro` to introduce a person.
@@ -55,12 +58,12 @@ How to shape it:
   "chosen": 1, "tone": "royal",
   "heroes": ["#2@6", "#8@3", "#4@10", "#3@1"],
   "parts": [
-    { "role": "hook", "beats": 4, "move": "strips-reveal", "clips": ["#4@10", "#2", "#6", "#1"], "line": "bro lied to me" },
-    { "role": "build", "beats": 6, "move": "hold", "clips": ["#9@1.5"], "line": "it would be easy hike", "idea": "the arrow on bro" },
-    { "role": "drop", "beats": 8, "move": "velocity", "clips": ["#2@6"], "line": "hardest hike in Maharashtra" },
-    { "role": "peak", "beats": 6, "move": "break-in", "clips": ["#5@12", "#7@3"] },
-    { "role": "payoff", "beats": 4, "move": "hold", "clips": ["#3@1"], "line": "AMK" },
-    { "role": "ending", "beats": 12, "move": "cards-finale", "clips": ["#8@3", "#4", "#6", "#1", "#5", "#7"], "line": "2 days full of adventure" }
+    { "role": "hook", "beats": 4, "move": "strips-reveal", "clips": ["#4@10", "#2", "#6", "#1"], "line": "bro lied to me", "purpose": "the setup: we were promised an easy hike" },
+    { "role": "build", "beats": 6, "move": "hold", "clips": ["#9@1.5"], "line": "it would be easy hike", "idea": "the arrow on bro", "purpose": "who lied: bro, marked" },
+    { "role": "drop", "beats": 8, "move": "velocity", "clips": ["#2@6"], "line": "hardest hike in Maharashtra", "purpose": "the turn: it is brutal" },
+    { "role": "peak", "beats": 6, "move": "break-in", "clips": ["#5@12", "#7@3"], "purpose": "the scale of the climb" },
+    { "role": "payoff", "beats": 4, "move": "hold", "clips": ["#3@1"], "line": "AMK", "purpose": "the payoff: we made it to AMK" },
+    { "role": "ending", "beats": 12, "move": "cards-finale", "clips": ["#8@3", "#4", "#6", "#1", "#5", "#7"], "line": "2 days full of adventure", "purpose": "the whole trip in one look" }
   ],
   "signature": "velocity slam on the rope climb (#2@6) on the drop, with a zoom-blur hit",
   "textStyles": ["rise-lines", "landscape-title", "shine"],
@@ -70,7 +73,7 @@ How to shape it:
 }
 ```
 
-The tool returns **findings** (a slow hook, a plain arc, styles that fight the tone, a drop on nothing, words they did not write, a person nobody points at), the **full catalogue entries** with params for your kit, and the plan brief. Fix the findings as you write the plan; resend the treatment only if the concept changes. Need an item outside the kit later? Call it with just `lookup: ["id", ...]`.
+The tool returns **findings** (a slow hook, a plain arc, parts with no purpose, styles that fight the tone, a drop on nothing, words they did not write, a person nobody points at), the **full catalogue entries** with params for your kit, the tone's **motion rules** (the build applies them: how lines and graphics move, how far holds push, how long transitions run), and the plan brief. **When it returns `questions`** (the story names something no clip shows, like "the waterfall"), stop and ask the user in one short message; never put that line over a shot of something else. Fix the findings as you write the plan; resend the treatment only if the concept changes. Need an item outside the kit later? Call it with just `lookup: ["id", ...]`.
 
 ## Stage 3: plan and build (`reels_director_build`)
 
@@ -87,9 +90,11 @@ Turn each part into one or two sections and build once. (Ask before replacing a 
 
 The build returns one frame per section, the lint and review findings. Do not rebuild yet.
 
-## Stage 4: critique, then one rebuild (`reels_director_critique`)
+## Stage 4: critique, then repair the defects (`reels_director_critique`, `reels_director_fix`)
 
-Call it right after the first build. It returns about three frames a section and every line at its fullest, checks against your treatment, and a critic's checklist. Look at the frames as a picky creative director seeing the reel cold: the hook, every word fully in frame and readable, soft or dull shots, the drop, anything that looks like a free template or childish next to the story, the ending, each graphic on the right person. Write at least three concrete upgrades, then make them and the build's findings in ONE rebuild (`replaceTimeline` true). After it, check its frames: rebuild once more only for something clearly broken (a word cut off, an arrow on the wrong person, a refused item; when an arrow found nobody, set `x`/`y` on their head). Treat lint text-position warnings as notes. Never call `view_timeline_frames` or `reels_lint` separately.
+Call the critique right after the first build. It returns about three frames a section and every line at its fullest, the plan checked against your treatment, the **sound findings** (the reel with eyes closed: a sound on no cut, a drop on nothing, a line between beats, an ending mid-bar), the **reference findings** (its pace and colour against yours) and a critic's checklist. Judge only the rendered frames, as a picky creative director seeing the reel cold, not what you meant to make.
+
+Then name the **three largest defects**, worst first, each `{ section, at, evidence, fix }`: `{ "section": 0, "at": 0.4, "evidence": "image 1 [1]: the line runs off the right edge", "fix": "rise-lines at x 0.08, two lines" }`. Call `reels_director_fix` with them and the **changed sections only** (`"sections": { "0": <the whole new section> }`, reel-wide changes in `plan`). Every other section comes back with the same clips and moments; the result shows the changed sections again. If a defect remains or a new one shows, name what remains and fix again (three rounds at most); when the frames show no defect, finish. When an arrow found nobody, set `x`/`y` on their head. Treat lint text-position warnings as notes. Never call `view_timeline_frames` or `reels_lint` separately.
 
 ## Finish
 
@@ -98,7 +103,7 @@ Call it right after the first build. It returns about three frames a section and
 
 ## Changing a built reel
 
-When the user asks for a change to the reel you built (another line, a different style, a slower ending, swap a clip, a new opener, "more royal"), change your last plan and call `reels_director_build` again with `replaceTimeline` true: one call, and everything you did not change comes back the same. No new treatment unless they want a different reel; if they name a new feel ("this looks basic", "make it royal"), rethink the kit and the arc for that tone first and change all of it, not one item. The request is the go-ahead, unless they say they edited the timeline by hand since; then ask. Two changes need no rebuild: a freeze (`reels_freeze_frame`; never a slow playback rate) and another style for one line (`reels_restyle_text`). Use the editor tools only for what a plan cannot say (a clip's volume, nudging one item): `read_timeline` once, then every change in one `edit_item` call; a later rebuild drops those edits, so repeat them or tell the user. Finish with `review_edit_session`.
+When the user asks for a change to the reel you built (another line, a different style, a slower ending, swap a clip, a new opener, "more royal"), call `reels_director_fix` with their words as `request` and only the sections or reel-wide fields that change; everything else comes back the same. In a new chat, or when you do not have the plan, call `reels_director_fix` with nothing first: it returns the treatment and plan saved with the reel. Adding or removing sections needs a full `reels_director_build` (`replaceTimeline` true) from the saved plan. No new treatment unless they want a different reel; if they name a new feel ("this looks basic", "make it royal"), rethink the kit and the arc for that tone first and change all of it, not one item. The request is the go-ahead, unless they say they edited the timeline by hand since; then ask. Two changes need no rebuild: a freeze (`reels_freeze_frame`; never a slow playback rate) and another style for one line (`reels_restyle_text`). Use the editor tools only for what a plan cannot say (a clip's volume, nudging one item): `read_timeline` once, then every change in one `edit_item` call; a later rebuild drops those edits, so repeat them or tell the user. Finish with `review_edit_session`.
 
 ## Example plan
 

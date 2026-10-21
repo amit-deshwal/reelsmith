@@ -103,6 +103,9 @@ export interface AssembleReport {
   needsMoreMedia?: { have: number; need: number };
   /** RS-109: how shots were cast by content, when they were */
   castingNote?: string;
+  /** director@1 (RS-1216): each section's clips as cast and the source frame of each shot, so a fix can rebuild them unchanged */
+  sectionClips?: string[][];
+  sectionMoments?: number[][];
 }
 
 /** Stored with the project (RS-108) so the run can be repeated. */

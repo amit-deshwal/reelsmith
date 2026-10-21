@@ -22,7 +22,7 @@ export const GRAPHIC_PRELUDE = String.raw`
   const smooth = (q) => { q = clamp(q, 0, 1); return q * q * (3 - 2 * q); };
   const outCubic = (q) => { q = clamp(q, 0, 1); return 1 - Math.pow(1 - q, 3); };
   const inOut = (q) => { q = clamp(q, 0, 1); return q < 0.5 ? 4 * q * q * q : 1 - Math.pow(-2 * q + 2, 3) / 2; };
-  const backOut = (q) => { q = clamp(q, 0, 1); const c = 1.7; return 1 + (c + 1) * Math.pow(q - 1, 3) + c * Math.pow(q - 1, 2); };
+  const backOut = (q) => { q = clamp(q, 0, 1); const c = 1.7 * (typeof P.overshoot === 'number' ? P.overshoot : 1); return 1 + (c + 1) * Math.pow(q - 1, 3) + c * Math.pow(q - 1, 2); };
   const hash = (n) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
   const items = Array.isArray(P.items) ? P.items.map(String) : [];
   const beatList = Array.isArray(P.beats) && P.beats.length ? P.beats : null;

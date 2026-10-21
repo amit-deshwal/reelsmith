@@ -47,7 +47,7 @@ export async function aimMarkers(actions: AtomicAction[], find: PeopleFinder): P
     delete props.rsAim;
     const people = await find(aim).catch(() => []);
     const person = pickPerson(people, aim.who, aim.label);
-    const focus = person && coverFocus(headOf(person, aim), aim, a.item.width, a.item.height);
+    const focus = person && a.item.width && a.item.height ? coverFocus(headOf(person, aim), aim, a.item.width, a.item.height) : undefined;
     if (focus) Object.assign(props, { tx: focus.x, ty: focus.y, tr: focus.r });
     else if (!aim.faced) notes.push(`the marker "${aim.label}" found nobody in its shot and points at the middle; set its x and y, or put it on a shot where the person is clear.`);
     else notes.push(`the marker "${aim.label}" found no person in its shot and kept the face found there; check it in the frame.`);

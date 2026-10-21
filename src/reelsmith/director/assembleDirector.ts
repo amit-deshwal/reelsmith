@@ -21,6 +21,7 @@ import { RECIPE_TRANSITIONS } from '../assembler/transitions';
 import { lookById, lookEffects } from '../looks';
 import { focusForRange } from '../titleClear';
 import { buildGraphics, checkGraphics, coverFocus } from './graphics';
+import { MOTION_RULES, applyMotionRules } from './motionRules';
 
 /** A section effect's asset: a catalogue effect, or a custom one the agent registered this session (custom:fx-*). */
 const effectAsset = (id: string) => directorEffectById(id)?.id ?? (id.startsWith('custom:fx-') && ALL_FX[id] ? id : undefined);
@@ -157,6 +158,7 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
   const clock = beatClock(music, startSec);
   const { sections: resolved, customFx } = resolvePlanSections(plan, warnings, errors);
   if (errors.length) return fail(`The plan has problems: ${errors.join('; ')}`);
+  const rule = plan.tone ? MOTION_RULES[plan.tone] : undefined;
 
   // 2. the clock: section start and end frames
   const frame = (b: number) => Math.round(clock(b) * fps);
@@ -235,44 +237,64 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
   };
   let lastClips = new Set<string>();
   const sfx: SfxEvent[] = [];
+  const sectionClips: string[][] = [];
+  const sectionMoments: number[][] = [];
   resolved.forEach((r, i) => {
-    const { s, move, params } = r!;
+    const { s, move } = r!;
+    // RS-1219: a held shot pushes as the tone moves, unless the plan set its push
+    const params = rule && move.id === 'hold' && s.params?.push === undefined && typeof r!.params.push === 'number' ? { ...r!.params, push: r!.params.push * rule.push } : r!.params;
     const { b0, b1 } = spans[i]!;
     const start = frame(b0);
     const end = Math.max(start + 1, frame(b1));
     // clips
     let clips: AssemblyClip[] = [];
-    if (s.clips?.length) {
-      for (const id of s.clips) {
+    // a section kept by a fix comes back with the clips it was cast last time
+    const kept = plan.keep?.[i] ?? undefined;
+    const picks = kept ? kept.clips : s.clips;
+    if (picks?.length) {
+      for (const id of picks) {
         const c = byId(id);
         if (c) { clips.push(c); uses.set(c.baseAssetId ?? c.assetId, (uses.get(c.baseAssetId ?? c.assetId) ?? 0) + 1); } else warnings.push(`sections[${i}]: unknown clip ${id}, left out`);
       }
     }
     const want = move.clips.max === 0 ? 0 : Math.min(move.clips.max, Math.max(move.clips.min, move.clipCount?.(b1 - b0, params, W, H) ?? move.clips.min));
-    if (clips.length < Math.min(want, move.clips.min) || (!s.clips?.length && want > 0)) clips = [...clips, ...cast(move, Math.max(0, want - clips.length), lastClips)];
+    if (clips.length < Math.min(want, move.clips.min) || (!picks?.length && want > 0)) clips = [...clips, ...cast(move, Math.max(0, want - clips.length), lastClips)];
     if (move.clips.min > 0 && clips.length < move.clips.min) { warnings.push(`sections[${i}] (${move.id}) needs ${move.clips.min} clips; skipped.`); return; }
     clips.forEach((c) => usedIds.add(c.baseAssetId ?? c.assetId));
     shotsCount += clips.length;
     const id = (...parts: Array<string | number>) => stableId('rs-dir', tag, seed, i, ...parts);
     const firstAction = actions.length;
+    // every shot's source frame in order, so a fix can replay this section exactly (RS-1216)
+    const moments: number[] = [];
+    const momentOf = (clip: AssemblyClip, frames: number): { inFrame: number; loop: boolean } => {
+      if (clip.kind === 'image') return { inFrame: 0, loop: false };
+      if (clip.pinnedStartFrame !== undefined) {
+        // a start too close to the end would leave the shot frozen for the rest of the section: start earlier so it keeps playing
+        const room = Math.max(0, clip.durationInFrames - frames);
+        if (clip.pinnedStartFrame > room && clip.durationInFrames >= frames) warnings.push(`sections[${i}]: "${clip.name}" starts ${(clip.pinnedStartFrame / fps).toFixed(1)} s but has only ${((clip.durationInFrames - clip.pinnedStartFrame) / fps).toFixed(1)} s left for a ${(frames / fps).toFixed(1)} s shot; started at ${(room / fps).toFixed(1)} s so it does not freeze.`);
+        const inFrame = Math.min(clip.pinnedStartFrame, room);
+        return { inFrame, loop: clip.durationInFrames - inFrame < frames };
+      }
+      const len = Math.max(1, Math.min(frames, clip.durationInFrames));
+      const key = clip.baseAssetId ?? clip.assetId;
+      const s0 = pickMoment(clip, len, used.get(key) ?? [], Math.round(fps * 0.5)) ?? 0;
+      used.set(key, [...(used.get(key) ?? []), [s0, s0 + len]]);
+      return { inFrame: s0, loop: clip.durationInFrames - s0 < frames };
+    };
     move.build({
       W, H, fps, start, end, beats: b1 - b0, clips, params, seed: seed + i, clipVolume: music ? 0 : 1,
       beatFrame: (b) => Math.min(end, Math.max(start, frame(b0 + b))),
       id, layer: (n) => `V${2 + n}`,
       moment: (clip, frames) => {
-        if (clip.kind === 'image') return { inFrame: 0, loop: false };
-        if (clip.pinnedStartFrame !== undefined) {
-          // a start too close to the end would leave the shot frozen for the rest of the section: start earlier so it keeps playing
-          const room = Math.max(0, clip.durationInFrames - frames);
-          if (clip.pinnedStartFrame > room && clip.durationInFrames >= frames) warnings.push(`sections[${i}]: "${clip.name}" starts ${(clip.pinnedStartFrame / fps).toFixed(1)} s but has only ${((clip.durationInFrames - clip.pinnedStartFrame) / fps).toFixed(1)} s left for a ${(frames / fps).toFixed(1)} s shot; started at ${(room / fps).toFixed(1)} s so it does not freeze.`);
-          const inFrame = Math.min(clip.pinnedStartFrame, room);
-          return { inFrame, loop: clip.durationInFrames - inFrame < frames };
-        }
-        const len = Math.max(1, Math.min(frames, clip.durationInFrames));
-        const key = clip.baseAssetId ?? clip.assetId;
-        const s0 = pickMoment(clip, len, used.get(key) ?? [], Math.round(fps * 0.5)) ?? 0;
-        used.set(key, [...(used.get(key) ?? []), [s0, s0 + len]]);
-        return { inFrame: s0, loop: clip.durationInFrames - s0 < frames };
+        const again = kept?.moments[moments.length];
+        let m: { inFrame: number; loop: boolean };
+        if (again !== undefined && clip.kind !== 'image') {
+          const key = clip.baseAssetId ?? clip.assetId;
+          used.set(key, [...(used.get(key) ?? []), [again, again + frames]]);
+          m = { inFrame: again, loop: clip.durationInFrames - again < frames };
+        } else m = momentOf(clip, frames);
+        moments.push(m.inFrame);
+        return m;
       },
       emit: (a) => actions.push(a.type === 'add' ? { ...a, item: { ...a.item, props: { ...(a.item.props ?? {}), rsSection: `${i + 1}-${move.id}` } } } as AtomicAction : a),
       warn: (m) => warnings.push(`sections[${i}] (${move.id}): ${m}`),
@@ -308,7 +330,7 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
       const custom = getCustomTransition(s.transition);
       const spec = RECIPE_TRANSITIONS[s.transition] ?? { type: 'custom-shader' as const, seconds: 0.5 };
       if (lastPrev && firstHere && lastPrev.startFrame + lastPrev.item.durationInFrames === firstHere.startFrame) {
-        const length = Math.max(2, Math.min(Math.round(spec.seconds * fps), Math.floor(Math.min(lastPrev.item.durationInFrames, firstHere.item.durationInFrames) / 2)));
+        const length = Math.max(2, Math.min(Math.round(spec.seconds * (rule?.transition ?? 1) * fps), Math.floor(Math.min(lastPrev.item.durationInFrames, firstHere.item.durationInFrames) / 2)));
         actions.push({
           type: 'addTransition', id: id('tr-in'), incomingItemId: firstHere.item.id, transType: spec.type, durationInFrames: length,
           ...(custom ? { custom: { frag: custom.frag, uniforms: customTransitionUniforms(custom), label: custom.label } } : {}),
@@ -329,6 +351,8 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
     for (const snd of s.sounds ?? []) sfx.push({ frame: frame(b0 + (snd.beat ?? 0)), cue: 'hit', soundId: snd.id });
     previous = { move: move.id, ...(move.leaves?.({ params }) ?? {}) };
     lastClips = new Set(clips.map((c) => c.assetId));
+    sectionClips[i] = clips.map((c) => c.assetId);
+    sectionMoments[i] = moments;
   });
 
   // 4. overlays across sections
@@ -433,7 +457,7 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
   const unusedClips = input.clips.filter((c) => !usedIds.has(c.baseAssetId ?? c.assetId)).length;
   if (unusedClips) warnings.push(`${unusedClips} clip${unusedClips === 1 ? ' was' : 's were'} not used.`);
   return {
-    action: { type: 'batch', actions, label: 'Director: build reel' }, run,
-    report: { shots: shotsCount, usedAssetIds: [...usedIds], musicStartSec: startSec, totalFrames: total, warnings },
+    action: { type: 'batch', actions: plan.tone ? applyMotionRules(actions, plan.tone, fps) : actions, label: 'Director: build reel' }, run,
+    report: { shots: shotsCount, usedAssetIds: [...usedIds], musicStartSec: startSec, totalFrames: total, warnings, sectionClips: Array.from({ length: resolved.length }, (_, k) => sectionClips[k] ?? []), sectionMoments: Array.from({ length: resolved.length }, (_, k) => sectionMoments[k] ?? []) },
   };
 }

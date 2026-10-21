@@ -138,7 +138,7 @@ export function sfxActions(events: SfxEvent[], opts: { fps: number; total: numbe
       type: 'add', startFrame: start,
       item: {
         id: opts.id('sfx', n), track: `A${2 + lane}`, kind: 'audio', name: sound.name, src: soundEffectSrc(soundId), durationInFrames: dur,
-        ...(srcIn ? { srcInFrame: srcIn } : {}), volume, props: { rsSfx: e.cue },
+        ...(srcIn ? { srcInFrame: srcIn } : {}), volume, props: { rsSfx: e.cue, rsAt: e.frame },
       },
     } as AtomicAction);
   });

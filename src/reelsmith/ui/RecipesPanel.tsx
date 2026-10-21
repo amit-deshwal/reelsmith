@@ -80,6 +80,7 @@ export function RecipesPanel({ projectId, assets, itemCount, items, selectedItem
   const [userRecipes, setUserRecipes] = useState<Recipe[]>([]);
   const [draft, setDraft] = useState('');
   const [story, setStory] = useState('');
+  const [referenceId, setReferenceId] = useState('');
   const [directorRatio, setDirectorRatio] = useState<RatioId>('9:16');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [managerError, setManagerError] = useState('');
@@ -146,7 +147,14 @@ export function RecipesPanel({ projectId, assets, itemCount, items, selectedItem
             <select aria-label="Shape" value={directorRatio} onChange={(e) => setDirectorRatio(e.target.value as RatioId)} style={input}>
               {(['9:16', '4:5', '1:1', '16:9'] as const).map((r) => <option key={r} value={r}>{r}</option>)}
             </select>
-            <button type="button" disabled={!story.trim()} onClick={() => onAskAgent(directorPrompt(story, directorRatio, assets.filter((a) => a.kind === 'audio').length), { autoSend: true })} style={{ ...input, cursor: story.trim() ? 'pointer' : 'default' }}>Direct my reel</button>
+            {assets.some((a) => a.kind === 'video') && <select aria-label="Reference reel" title="A reel you want yours to feel like (its pace and look). It is not used as footage." value={referenceId} onChange={(e) => setReferenceId(e.target.value)} style={input}>
+              <option value="">No reference reel</option>
+              {assets.filter((a) => a.kind === 'video').map((a) => <option key={a.id} value={a.id}>Feel like: {a.name}</option>)}
+            </select>}
+            <button type="button" disabled={!story.trim()} onClick={() => {
+              const reference = assets.find((a) => a.id === referenceId);
+              onAskAgent(directorPrompt(story, directorRatio, assets.filter((a) => a.kind === 'audio').length, reference ? { id: reference.id, name: reference.name } : undefined), { autoSend: true });
+            }} style={{ ...input, cursor: story.trim() ? 'pointer' : 'default' }}>Direct my reel</button>
             <button type="button" onClick={() => onAskAgent(PLAN_REEL_STARTER)} style={{ ...input, cursor: 'pointer' }}>Or let my agent pick a recipe</button>
           </div>
         </section>}

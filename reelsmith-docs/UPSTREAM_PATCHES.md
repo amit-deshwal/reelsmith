@@ -447,3 +447,9 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 - `src/editor/transitionTypes.ts`: `GltTransitionId` joins `GlslTransitionType`; the ids, labels and order are spread in from `src/reelsmith/glTransitionsMeta.ts`; `defaultTransitionSeconds` falls back to the imported lengths.
 - `src/gl/transitions.ts`: one spread entry that builds the imported transitions from `shaders/glt/frags.ts`.
 - Ours, generated: `src/gl/shaders/glt/*`, `src/reelsmith/glTransitionsMeta.ts` (regenerate with `server/reelsmith/import-gl-transitions.mts`).
+
+## Director: defects fixed in place, reference reel, motion rules, sound check (2026-10-22, RS-1216-1222)
+
+- `src/agent/external-tool-policy.ts`: `reels_director_fix` added to the Reelsmith edit tools.
+- `assets/agent/openchatcut-tool-schemas.json`: regenerated (`reels_director_fix`; `reference` on `reels_director_options`; `purpose` and `styleGuide` on `reels_director_treatment`).
+- Ours: `src/reelsmith/agent/directorRepairTools.ts` (critique and fix, split out of `directorTools.ts`), `director/motionRules.ts`, `director/reference.ts`, `director/soundCheck.ts`, `director/storyThings.ts`; `director/directorSession.ts` saves the run on the canvas item (`rsDirector`).

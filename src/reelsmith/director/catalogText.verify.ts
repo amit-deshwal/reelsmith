@@ -8,7 +8,8 @@ import { REEL_LOOKS } from '../looks';
 import { GRAPHICS } from './graphics';
 import { resolvePlanSections } from './assembleDirector';
 import { parsePlan } from '../../../shared/reelsmith/directorPlan';
-import { directorCritique, directorOptions, directorTreatment, resolveClipRef, sheetSamples, songSuggestion } from '../agent/directorTools';
+import { directorOptions, directorTreatment, resolveClipRef, sheetSamples, songSuggestion } from '../agent/directorTools';
+import { directorCritique } from '../agent/directorRepairTools';
 import { directorSession, updateDirectorSession } from './directorSession';
 
 // the skill carries the current catalogue (run sync-director-catalog.mts after changing the library)
@@ -42,7 +43,7 @@ assert.ok(skill.length < 56_000, `skill is ${skill.length} characters`);
 const assets = Array.from({ length: 60 }, (_, i) => ({ id: `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`, name: `IMG_${7800 + i}.MOV`, kind: 'video', src: '/x', durationInFrames: 300, width: 1080, height: 1920 }));
 const ctx: any = { getState: () => ({ fps: 30, items: [] }), getDoc: () => ({ assets }), audio: [] };
 const warmed: string[] = [];
-const out: any = await directorOptions(ctx, { api: { musicGrid: async () => null, clipFeatures: async (a: any) => { warmed.push(a.id); return null; } } } as any);
+const out: any = await directorOptions({}, ctx, { api: { musicGrid: async () => null, clipFeatures: async (a: any) => { warmed.push(a.id); return null; } } } as any);
 await new Promise((r) => setTimeout(r, 20));
 assert.equal(new Set(warmed).size, assets.filter((a: any) => a.kind !== 'audio').length, 'clip analysis warmed for every clip while the agent plans');
 assert.equal(warmed.length, new Set(warmed).size, 'each clip once');
@@ -56,7 +57,7 @@ assert.match(out.next, /reels_director_treatment/);
 const story = 'bro lied to me that it would be easy hike';
 const treated: any = directorTreatment({
   story, concepts: [{ name: 'a', idea: 'x' }, { name: 'b', idea: 'y' }], chosen: 1, tone: 'funny', signature: 'freeze-intro on bro',
-  parts: [{ role: 'hook', beats: 4, move: 'freeze-intro', clips: ['#7'], line: 'bro lied to me' }, { role: 'build', beats: 8, move: 'cut', clips: ['#1', '#2'] }, { role: 'ending', beats: 8, move: 'hold', clips: ['#3'], line: 'easy hike' }],
+  parts: [{ role: 'hook', beats: 4, move: 'freeze-intro', clips: ['#7'], line: 'bro lied to me', purpose: 'who lied' }, { role: 'build', beats: 8, move: 'cut', clips: ['#1', '#2'], purpose: 'the climb is not easy' }, { role: 'ending', beats: 8, move: 'hold', clips: ['#3'], line: 'easy hike', purpose: 'the joke lands' }],
   textStyles: ['pop-words'], transitions: ['whip-blur'], effects: ['zoom-blur'], graphics: ['annotate'],
 }, ctx);
 assert.equal(treated.ok, true, JSON.stringify(treated));

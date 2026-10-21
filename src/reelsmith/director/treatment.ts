@@ -7,13 +7,23 @@
 import { catalogKind } from './catalogText';
 import { motionAt, type ShotLogClip } from './shotLog';
 import { PERSON } from './review';
+import { missingThingQuestion, missingThings } from './storyThings';
+import type { ReferenceProfile } from './reference';
 
-export const TONES = ['epic', 'royal', 'hype', 'playful', 'funny', 'emotional', 'calm', 'nostalgic', 'romantic', 'moody'] as const;
-export type Tone = (typeof TONES)[number];
+import { TONES, type Tone } from '../../../shared/reelsmith/directorPlan';
+
+export { TONES, type Tone };
 
 export const ROLES = ['hook', 'build', 'journey', 'drop', 'peak', 'payoff', 'ending'] as const;
 
-export interface TreatmentPart { role: string; beats: number; move: string; clips?: string[]; line?: string; idea?: string }
+export interface TreatmentPart {
+  role: string; beats: number; move: string; clips?: string[]; line?: string; idea?: string;
+  /** RS-1218: why the part exists, what the viewer knows or feels after it that they did not before */
+  purpose?: string;
+}
+
+/** RS-1217: what the agent learned from the reference reel; the build and critique hold the reel to it. */
+export interface StyleGuide { pacing: string; palette: string; type?: string; motion: string; texture?: string; doNotCopy: string }
 
 export interface Treatment {
   story: string;
@@ -30,9 +40,10 @@ export interface Treatment {
   look?: string;
   /** the user asked for lines of the agent's own (a joke, a meme caption) */
   ownWords?: boolean;
+  styleGuide?: StyleGuide;
 }
 
-export interface TreatmentFinding { issue: string; fix: string }
+export interface TreatmentFinding { issue: string; fix: string; /** a question for the user: stop and ask it before planning */ ask?: string }
 
 // What each tone wants and what breaks it. Words and effects carry a voice: a bouncing pop caption on a summit the
 // user called "a big feat for us" read as childish, sparkles as cheap.
@@ -106,7 +117,10 @@ export function parseTreatment(raw: unknown): { ok: true; treatment: Treatment }
   if (!TONES.includes(tone)) errors.push(`tone: one of ${TONES.join(', ')}`);
   const parts = (Array.isArray(r.parts) ? r.parts : []).map((p) => {
     const o = (p ?? {}) as Record<string, unknown>;
-    return { role: str(o.role), beats: Number(o.beats), move: str(o.move), ...(strs(o.clips).length ? { clips: strs(o.clips) } : {}), ...(str(o.line) ? { line: str(o.line) } : {}), ...(str(o.idea) ? { idea: str(o.idea) } : {}) };
+    return {
+      role: str(o.role), beats: Number(o.beats), move: str(o.move), ...(strs(o.clips).length ? { clips: strs(o.clips) } : {}),
+      ...(str(o.line) ? { line: str(o.line) } : {}), ...(str(o.idea) ? { idea: str(o.idea) } : {}), ...(str(o.purpose) ? { purpose: str(o.purpose) } : {}),
+    };
   });
   if (parts.length < 3) errors.push('parts: the arc as at least three parts ({ role, beats, move, clips, line?, idea })');
   parts.forEach((p, i) => {
@@ -115,13 +129,19 @@ export function parseTreatment(raw: unknown): { ok: true; treatment: Treatment }
   });
   if (!str(r.signature)) errors.push('signature: the one moment people will remember, and where it is');
   if (!str(r.story)) errors.push('story: the user\'s story, in their words');
+  const sg = (r.styleGuide && typeof r.styleGuide === 'object' ? r.styleGuide : undefined) as Record<string, unknown> | undefined;
+  const styleGuide: StyleGuide | undefined = sg ? {
+    pacing: str(sg.pacing), palette: str(sg.palette), motion: str(sg.motion), doNotCopy: str(sg.doNotCopy),
+    ...(str(sg.type) ? { type: str(sg.type) } : {}), ...(str(sg.texture) ? { texture: str(sg.texture) } : {}),
+  } : undefined;
+  if (styleGuide && (!styleGuide.pacing || !styleGuide.palette || !styleGuide.motion || !styleGuide.doNotCopy)) errors.push('styleGuide: pacing, palette, motion and doNotCopy, each in concrete words');
   if (errors.length) return { ok: false, errors };
   return {
     ok: true,
     treatment: {
       story: str(r.story), concepts, chosen, tone, heroes: strs(r.heroes), parts, signature: str(r.signature),
       textStyles: strs(r.textStyles), transitions: strs(r.transitions), effects: strs(r.effects), graphics: strs(r.graphics),
-      ...(str(r.look) ? { look: str(r.look) } : {}), ...(r.ownWords === true ? { ownWords: true } : {}),
+      ...(str(r.look) ? { look: str(r.look) } : {}), ...(r.ownWords === true ? { ownWords: true } : {}), ...(styleGuide ? { styleGuide } : {}),
     },
   };
 }
@@ -143,6 +163,16 @@ export interface TreatmentContext {
   clips: readonly ShotLogClip[];
   fps: number;
   song?: { bpm?: number; beatsFor18s?: number; dropAtBeat?: number };
+  reference?: ReferenceProfile;
+}
+
+const STOP = new Set(['the', 'a', 'an', 'and', 'of', 'to', 'it', 'is', 'in', 'on', 'we', 'they', 'that', 'this', 'their', 'our', 'viewer', 'viewers', 'see', 'sees', 'now', 'knows', 'know', 'feel', 'feels']);
+/** Two purposes say the same thing when most of their words match. */
+export function samePurpose(a: string, b: string): boolean {
+  const wa = new Set(words(a).filter((w) => !STOP.has(w))), wb = new Set(words(b).filter((w) => !STOP.has(w)));
+  if (!wa.size || !wb.size) return a.trim().toLowerCase() === b.trim().toLowerCase();
+  const shared = [...wa].filter((w) => wb.has(w)).length;
+  return shared / Math.min(wa.size, wb.size) >= 0.7;
 }
 
 const clipOf = (ref: string, clips: readonly ShotLogClip[]) => {
@@ -212,6 +242,17 @@ export function checkTreatment(t: Treatment, ctx: TreatmentContext): TreatmentFi
     const added = t.parts.flatMap((p) => (p.line ? words(p.line).filter((w) => !said.has(w)) : []));
     if (added.length) out.push({ issue: `words the user did not write: ${[...new Set(added)].join(', ')}`, fix: 'quote their phrases as written (trim, never reword); set ownWords only when they asked for lines of your own' });
   }
+  // RS-1218: every part earns its place; a part that only repeats the one before is filler
+  const aimless = t.parts.map((p, i) => (p.purpose ? -1 : i)).filter((i) => i >= 0);
+  if (aimless.length) out.push({ issue: `part${aimless.length > 1 ? 's' : ''} ${aimless.join(', ')} ha${aimless.length > 1 ? 've' : 's'} no purpose`, fix: 'give each part a purpose: what the viewer knows or feels after it that they did not before ("they see the climb is brutal"); a part you cannot say that for does not belong in the reel' });
+  t.parts.forEach((p, i) => {
+    const prev = t.parts[i - 1];
+    if (i > 0 && p.purpose && prev?.purpose && samePurpose(p.purpose, prev.purpose)) out.push({ issue: `parts ${i - 1} and ${i} have the same purpose ("${p.purpose}")`, fix: 'merge them into one part, or give the second something new to show (a turn, a payoff, a new place)' });
+  });
+  // RS-1221: what the story names and the footage does not show is a question, not a stand-in shot
+  for (const m of missingThings(t.story, ctx.clips)) out.push({ issue: `the story names "${m.word}" and no clip seems to show it`, fix: 'ask the user before planning; never put that line over a shot of something else', ask: missingThingQuestion(m) });
+  // RS-1217: a reference the agent was given is studied before it is followed
+  if (ctx.reference && !t.styleGuide) out.push({ issue: `there is a reference reel (${ctx.reference.name}) and no styleGuide`, fix: 'write styleGuide from its measurements and sheet: pacing (seconds or beats a shot), palette (its colours in words), type, motion (snap, glide, hold), texture, and doNotCopy (its subjects, words and logos)' });
   // who the story names
   if (PERSON.test(t.story) && !t.graphics.includes('annotate') && !t.textStyles.includes('follow-tag') && !t.parts.some((p) => p.move === 'freeze-intro')) {
     out.push({ issue: `the story names "${PERSON.exec(t.story)![1]}" and nothing shows who that is`, fix: 'an annotate arrow labelled with their word on a calm shot of them, a follow-tag, or a freeze-intro' });

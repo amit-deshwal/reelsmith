@@ -94,3 +94,20 @@ const many = critiqueFrames(long, Array.from({ length: 14 }, (_, i) => ({ from: 
 assert.ok(many.length <= 24 && many.filter((x) => /line/.test(x.label)).length === 7, 'over budget: lines and middles kept');
 assert.match(criticBrief(ex), /royal/);
 console.log('treatment: ok');
+
+// RS-1218: a part with no purpose, or the same purpose as the part before, is filler
+const noPurpose = checkTreatment({ ...ex, parts: ex.parts.map((p, i) => (i === 3 ? { ...p, purpose: undefined } : p)) }, { clips, fps, song });
+assert.ok(noPurpose.some((x) => /part 3 has no purpose/.test(x.issue)), noPurpose.map((x) => x.issue).join(' | '));
+const twin = checkTreatment({ ...ex, parts: ex.parts.map((p, i) => (i === 4 ? { ...p, purpose: 'the scale of the climb, again' } : p)) }, { clips, fps, song });
+assert.ok(twin.some((x) => /parts 3 and 4 have the same purpose/.test(x.issue)), twin.map((x) => x.issue).join(' | '));
+assert.ok(!checkTreatment(ex, { clips, fps, song }).some((x) => /purpose/.test(x.issue)), 'the example gives every part its own purpose');
+
+// RS-1221: the story names a waterfall; the tagged clips show hills and people, so the agent asks instead of faking it
+const tags = (top: string, water = 0.01) => ({ top, confidence: 0.6, samples: 4, scores: { scenery: 0.4, people: 0.3, water } as never }) as never;
+const tagged = clips.map((c) => ({ ...c, tags: tags('scenery') }));
+const falls = checkTreatment({ ...ex, story: `${ex.story} and swam under a waterfall` }, { clips: tagged, fps, song });
+const ask = falls.find((x) => /names "waterfall" and no clip seems to show it/.test(x.issue));
+assert.ok(ask?.ask && /waterfall.*Is it in one of them/.test(ask.ask), falls.map((x) => x.issue).join(' | '));
+// one clip with water in it is enough; untagged footage is not judged
+assert.ok(!checkTreatment({ ...ex, story: `${ex.story} waterfall` }, { clips: tagged.map((c, i) => (i === 2 ? { ...c, tags: tags('water', 0.5) } : c)), fps, song }).some((x) => x.ask));
+assert.ok(!checkTreatment({ ...ex, story: `${ex.story} waterfall` }, { clips, fps, song }).some((x) => x.ask));

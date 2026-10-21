@@ -2,6 +2,8 @@
 // and each line at its fullest, against a checklist written for a picky viewer, plus checks the frames cannot show
 // (a kit that drifted from the treatment's tone, a reel made of plain cuts, a slow hook). The one frame a section the
 // build returns was enough to catch a wrong arrow, never a reel that looked basic or a word cut off at the edge.
+// RS-1216: the critic names the three largest defects with their evidence and repairs only those sections
+// (reels_director_fix), round after round, until the frames show no defect; not "three upgrades and one full rebuild".
 import type { ReelPlan } from '../../../shared/reelsmith/directorPlan';
 import { PLAIN_MOVES, TONE_KIT, toneClashes, type Treatment } from './treatment';
 
@@ -70,17 +72,41 @@ export function critiqueFrames(plan: ReelPlan, spans: readonly Span[], fps: numb
   return [...must.slice(0, max), ...kept].sort((a, b) => a.frame - b.frame);
 }
 
-/** The critic's checklist: what to look for in the frames before the one rebuild. */
+/** The critic's checklist: what to look for in the frames before naming the defects. */
 export function criticBrief(treatment?: Treatment): string {
   return [
-    'Stage 4: critique. You are now a picky creative director seeing this reel cold. Go through the frames and answer each:',
+    'Stage 4: critique. You are now a picky creative director seeing this reel cold. Judge only the rendered frames and the findings, not what you meant to make:',
     '1. Hook: would the first second stop someone scrolling (movement, a face, a reveal), or is it a static selfie with a caption?',
-    '2. Words: every letter inside the frame (no word cut off at an edge or wrapped badly), off faces, readable against the shot; does each style fit the tone' + (treatment ? ` (${treatment.tone})` : '') + '?',
+    '2. Words: every letter inside the frame (no word cut off at an edge or wrapped badly), off faces, readable at phone size against the shot; does each style fit the tone' + (treatment ? ` (${treatment.tone})` : '') + '?',
     '3. Shots: any soft, dark, shaky or dull frame where a better moment exists in the shot log? the same shot twice in a row?',
     '4. The drop: does the move, the effect and the cut land together, or does the peak pass unnoticed?',
     '5. Craft: does anything look like a free template (a stock caption box, a transition on every cut, an effect for its own sake) or childish next to the story?',
     '6. Ending: does it end on the best shot with the closing line and a clear last beat, or just stop?',
     '7. Graphics: does each one point at the right person or thing, and stay readable?',
-    'Then write the upgrades (at least three concrete changes: "s0: open on #4@6 moving, line in rise-lines"), and make them all in ONE rebuild with replaceTimeline true. If the frames truly show nothing to improve, say so in one line and finish.',
+    '8. Sound: the soundFindings are the reel with eyes closed (a sound on nothing, a drop on nothing, a line between beats, an ending mid-bar).',
+    'Then name the THREE LARGEST defects, worst first, each with its section, its time, the evidence (which image and what it shows, or which finding) and a local fix, and send them with the changed sections to reels_director_fix. If the frames show no defect, say so in one line and finish.',
   ].join('\n');
+}
+
+/** RS-1216: a defect the critic names: where, what shows it, and the local fix. */
+export interface Defect { section: number; at: number; evidence: string; fix: string }
+
+export function parseDefects(raw: unknown, sections: number, spans: readonly Span[]): { ok: true; defects: Defect[] } | { ok: false; errors: string[] } {
+  const errors: string[] = [];
+  const list = Array.isArray(raw) ? raw : [];
+  if (!list.length) errors.push('defects: name the defects you are fixing (1-3, worst first), each { section, at, evidence, fix }');
+  if (list.length > 3) errors.push('defects: three at most, the largest ones; fix the rest in a later round');
+  const defects: Defect[] = [];
+  list.slice(0, 3).forEach((d, i) => {
+    const o = (d ?? {}) as Record<string, unknown>;
+    const section = Number(o.section), at = Number(o.at);
+    const evidence = typeof o.evidence === 'string' ? o.evidence.trim() : '', fix = typeof o.fix === 'string' ? o.fix.trim() : '';
+    if (!Number.isInteger(section) || section < 0 || section >= sections) { errors.push(`defects[${i}].section must be a section index 0-${sections - 1}`); return; }
+    if (!Number.isFinite(at)) errors.push(`defects[${i}].at: the reel second where it shows`);
+    else { const sp = spans[section]; if (sp && (at < sp.from - 0.5 || at > sp.to + 0.5)) errors.push(`defects[${i}].at ${at} s is outside section ${section} (${sp.from.toFixed(1)}-${sp.to.toFixed(1)} s)`); }
+    if (!evidence) errors.push(`defects[${i}].evidence: the image and what it shows, or the finding`);
+    if (!fix) errors.push(`defects[${i}].fix: the local change`);
+    defects.push({ section, at, evidence, fix });
+  });
+  return errors.length ? { ok: false, errors } : { ok: true, defects };
 }
