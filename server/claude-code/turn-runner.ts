@@ -304,7 +304,7 @@ export async function runClaudeCodeTurn(
       '--append-system-prompt-file', systemPromptPath,
     ];
     if (request.model) args.push('--model', request.model);
-    const effort = resolveClaudeEffort(); // Reelsmith: cap hidden reasoning (RS speed)
+    const effort = resolveClaudeEffort(process.env, request.prompt); // Reelsmith: cap hidden reasoning (RS speed); more for director runs
     if (effort) args.push('--effort', effort);
     if (request.sessionId) args.push('--resume', request.sessionId);
     const command = claudeCodeCommand(claudePath, args);

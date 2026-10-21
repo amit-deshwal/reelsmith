@@ -8,7 +8,8 @@ import { REEL_LOOKS } from '../looks';
 import { GRAPHICS } from './graphics';
 import { resolvePlanSections } from './assembleDirector';
 import { parsePlan } from '../../../shared/reelsmith/directorPlan';
-import { directorOptions, resolveClipRef, sheetSamples, songSuggestion } from '../agent/directorTools';
+import { directorCritique, directorOptions, directorTreatment, resolveClipRef, sheetSamples, songSuggestion } from '../agent/directorTools';
+import { directorSession, updateDirectorSession } from './directorSession';
 
 // the skill carries the current catalogue (run sync-director-catalog.mts after changing the library)
 const skill = readFileSync(new URL('../../agent/skills/reels-director/SKILL.md', import.meta.url), 'utf8');
@@ -48,6 +49,29 @@ assert.equal(warmed.length, new Set(warmed).size, 'each clip once');
 const { __images: _i, ...text } = out;
 assert.ok(JSON.stringify(text).length < 12_000, `options are ${JSON.stringify(text).length} characters`);
 assert.equal(out.clips[6].startsWith('#7 IMG_7806.MOV'), true);
+// RS-1214 stages: the options log the footage for the later stages and point at the treatment
+assert.match(out.clips[6], /not analysed/, 'a clip the analysis could not read says so');
+assert.equal(directorSession('current')?.clips.length, 60);
+assert.match(out.next, /reels_director_treatment/);
+const story = 'bro lied to me that it would be easy hike';
+const treated: any = directorTreatment({
+  story, concepts: [{ name: 'a', idea: 'x' }, { name: 'b', idea: 'y' }], chosen: 1, tone: 'funny', signature: 'freeze-intro on bro',
+  parts: [{ role: 'hook', beats: 4, move: 'freeze-intro', clips: ['#7'], line: 'bro lied to me' }, { role: 'build', beats: 8, move: 'cut', clips: ['#1', '#2'] }, { role: 'ending', beats: 8, move: 'hold', clips: ['#3'], line: 'easy hike' }],
+  textStyles: ['pop-words'], transitions: ['whip-blur'], effects: ['zoom-blur'], graphics: ['annotate'],
+}, ctx);
+assert.equal(treated.ok, true, JSON.stringify(treated));
+assert.deepEqual(treated.findings, []);
+assert.ok(treated.catalog.includes('`freeze-intro`') && treated.catalog.includes('`pop-words`') && !treated.catalog.includes('`velocity`'));
+assert.ok(JSON.stringify(treated).length < 12_000);
+assert.equal(directorSession('current')?.treatment?.tone, 'funny');
+assert.match((directorTreatment({ concepts: [] }, ctx) as any).error, /two different concepts/);
+assert.match((directorTreatment({ lookup: ['velocity', 'nope'] }, ctx) as any).catalog, /`velocity`/);
+// the critique reads the last build: none yet is a clear error; with one it returns findings and the checklist
+assert.match((await directorCritique(ctx) as any).error, /build the reel/);
+updateDirectorSession('current', { lastBuild: { plan: { version: 1, ratio: '9:16', sections: [{ move: 'hold', clips: ['a'], text: story, textStyle: 'caption' }, { move: 'cut', clips: ['b'] }, { move: 'cut', clips: ['c'] }, { move: 'hold', clips: ['d'] }] } as any, spans: [{ from: 0, to: 4 }, { from: 4, to: 8 }, { from: 8, to: 12 }, { from: 12, to: 15 }], builds: 1 } });
+const critique: any = await directorCritique({ ...ctx, getState: () => ({ fps: 30, items: [], tracks: [] }) });
+assert.ok(!JSON.stringify(critique).includes('"signature"'), 'no key the external projection redacts');
+assert.ok(critique.findings.some((x: any) => /hard cut/.test(x.issue)) && /picky creative director/.test(critique.checklist) && /funny/.test(critique.checklist));
 // "#n" references
 assert.equal(resolveClipRef('#7', assets), assets[6]!.id);
 assert.equal(resolveClipRef('#7@4.5', assets), `${assets[6]!.id}@4.5`);

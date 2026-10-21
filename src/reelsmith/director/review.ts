@@ -87,7 +87,7 @@ export function reviewDirectorPlan(r: ReviewInput): ReviewFinding[] {
 }
 
 /** Words for a person in the user's story: a line that names one should show who it is. */
-const PERSON = /\b(bro|bhai|bhaiya|dude|buddy|homie|my (?:friend|friends|best friend|brother|sister|bf|gf|boyfriend|girlfriend|wife|husband|mom|dad|boss|partner|cousin)|mom|mum|mummy|maa|dad|papa|boss)\b/i;
+export const PERSON = /\b(bro|bhai|bhaiya|dude|buddy|homie|my (?:friend|friends|best friend|brother|sister|bf|gf|boyfriend|girlfriend|wife|husband|mom|dad|boss|partner|cousin)|mom|mum|mummy|maa|dad|papa|boss)\b/i;
 /** What points a person out: a marker on them, a tag riding on them, or a freeze that introduces them. */
 const showsPerson = (plan: ReelPlan) => (plan.graphics ?? []).some((g) => g.graphic === 'annotate')
   || plan.sections.some((s) => s.textStyle === 'follow-tag' || s.move === 'freeze-intro') || (plan.overlays ?? []).some((o) => o.style === 'follow-tag');

@@ -187,20 +187,69 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
   {
     name: 'reels_director_options',
     description: [
-      'Director mode step 1 (the user gives a story, media and a song; you direct the reel): the numbered clips (#1, #2...) with seconds and',
-      'shape, numbered contact sheets of every clip, and the songs with bpm, dropSec and loudestSec. The catalogue of moves, text styles,',
-      'effects, transitions, looks and sounds is in the reels-director skill. Call once, then write a plan and call reels_director_build.',
+      'Director stage 1 (the user gives a story, media and a song; you direct the reel): watches the footage (up to about a minute and a half)',
+      'and returns the shot log (each clip numbered #1, #2... with its best moments, where it moves, talks or goes soft), contact sheets taken',
+      'at those moments, and the songs with bpm, drop and a timing suggestion. Call once, then write the treatment (reels_director_treatment).',
+    ].join(' '),
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'reels_director_treatment',
+    description: [
+      'Director stage 2, before any plan: decide what the reel is. Give two different concepts and pick one, the tone, the hero shots, the arc',
+      'on the song (parts with role, beats, move, clips and the line each carries), one signature moment and a small kit from the menu in the',
+      'reels-director skill (text styles, transitions, effects, graphics, look). Returns findings (a slow hook, a plain arc, a style that fights',
+      'the tone, a drop that lands on nothing, words the user did not write), the full catalogue entries with params for the kit, and how to',
+      'write the plan. Changes nothing. With only `lookup` (ids), returns those catalogue entries.',
+    ].join(' '),
+    input_schema: {
+      type: 'object',
+      properties: {
+        story: { type: 'string', description: "The user's story, in their words." },
+        concepts: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, idea: { type: 'string', description: 'One or two sentences: the angle, the feel, how it opens and lands.' } }, required: ['name', 'idea'] }, description: 'At least two genuinely different concepts.' },
+        chosen: { type: 'number', description: 'Index of the concept you direct.' },
+        tone: { type: 'string', enum: ['epic', 'royal', 'hype', 'playful', 'funny', 'emotional', 'calm', 'nostalgic', 'romantic', 'moody'] },
+        heroes: { type: 'array', items: { type: 'string' }, description: 'The 3-6 best shots from the shot log and sheets ("#5@12").' },
+        parts: {
+          type: 'array',
+          description: 'The arc in order, adding up to about the song\'s beatsFor18s.',
+          items: {
+            type: 'object',
+            properties: {
+              role: { type: 'string', enum: ['hook', 'build', 'journey', 'drop', 'peak', 'payoff', 'ending'] }, beats: { type: 'number' }, move: { type: 'string' },
+              clips: { type: 'array', items: { type: 'string' } }, line: { type: 'string', description: 'The words on screen in this part, if any.' }, idea: { type: 'string' },
+            },
+            required: ['role', 'beats', 'move'],
+          },
+        },
+        signature: { type: 'string', description: 'The one moment people will remember, and where (e.g. "velocity slam on #8@6 on the drop").' },
+        textStyles: { type: 'array', items: { type: 'string' }, description: '1-3 text style ids.' },
+        transitions: { type: 'array', items: { type: 'string' }, description: 'One family of 1-3 transition ids.' },
+        effects: { type: 'array', items: { type: 'string' }, description: 'Effect ids you mean to use (few).' },
+        graphics: { type: 'array', items: { type: 'string' }, description: 'Graphic ids for what the story names.' },
+        look: { type: 'string', description: 'A look id, or leave it out for the footage as shot.' },
+        ownWords: { type: 'boolean', description: 'True only when the user asked for lines of your own.' },
+        lookup: { type: 'array', items: { type: 'string' }, description: 'Alone: just return the catalogue entries for these ids.' },
+      },
+    },
+  },
+  {
+    name: 'reels_director_critique',
+    description: [
+      'Director stage 4, after the first build: a closer look at the built reel (about three frames a section and every line at its fullest, in',
+      'sheets of eight), checks against the treatment (tone, a plain arc, no transition or timed effect, a slow hook) and a critic\'s checklist.',
+      'Answer it from the frames, then rebuild once with your upgrades. Changes nothing.',
     ].join(' '),
     input_schema: { type: 'object', properties: {} },
   },
   {
     name: 'reels_director_build',
     description: [
-      'Director mode step 2: build the reel from your plan as one undo step. The plan is sections back to back on the beat, each a move with',
+      'Director stage 3: build the reel from your plan as one undo step. The plan is sections back to back on the beat, each a move with',
       'its clips ("#7" or "#7@4" from the numbered list, in the order the move uses them), an optional on-screen line in a text style, and params;',
       'overlays carry a line across several sections. Invalid plans are refused with every problem listed; nothing changes then. When the',
       'timeline has items, ask the user first and pass replaceTimeline true. The result includes one frame per section, the lint and review',
-      'findings: fix them with one rebuild; no separate frame or lint calls are needed.',
+      'findings; after the first build of a directed reel call reels_director_critique, then rebuild once with its upgrades.',
     ].join(' '),
     input_schema: {
       type: 'object',
@@ -385,5 +434,5 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
 ];
 
 export const REELS_TOOL_NAMES = new Set(REELS_TOOL_SCHEMAS.map((t) => t.name));
-export const REELS_READ_TOOL_NAMES = ['reels_lint', 'reels_plan_options', 'reels_director_options', 'reels_run_info', 'reels_selection_candidates', 'reels_selection_sheet'] as const;
+export const REELS_READ_TOOL_NAMES = ['reels_lint', 'reels_plan_options', 'reels_director_options', 'reels_director_treatment', 'reels_director_critique', 'reels_run_info', 'reels_selection_candidates', 'reels_selection_sheet'] as const;
 export const REELS_EDIT_TOOL_NAMES = ['reels_plan_assemble', 'reels_director_build', 'reels_custom_shader', 'reels_custom_graphic', 'reels_time_effect', 'reels_freeze_frame', 'reels_restyle_text', 'reels_apply_look', 'reels_apply_signature', 'reels_recut_section', 'reels_snap_cuts_to_beats', 'reels_strobe', 'propose_selection'] as const;

@@ -13,6 +13,6 @@ export function directorPrompt(story: string, ratio: RatioId, songs = 0): string
   return [
     `Direct a ${ratio} reel from the media I imported (director mode). Use what is there; ${songs ? `put it to the song I imported${songs > 1 ? ' (pick the one that fits the story)' : ''}.` : 'no song is imported, so keep the clips\' own sound.'}`,
     text ? `My story, in my words: "${text}"` : 'I have not written a story: ask me for one line about it first.',
-    'Use the reels-director skill: reels_director_options (it includes contact sheets of every clip), then one plan and reels_director_build. Keep my words on screen; describe only what the clips show.',
+    'Use the reels-director skill and its four stages: reels_director_options (the shot log and contact sheets), reels_director_treatment, reels_director_build, then reels_director_critique and one rebuild. I want the best cut possible, not a template; take the time it needs. Keep my words on screen; describe only what the clips show.',
   ].join('\n');
 }

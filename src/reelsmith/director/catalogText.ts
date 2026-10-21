@@ -23,60 +23,102 @@ const param = (p: MoveParam) => (p.type === 'number' && p.min !== undefined ? `$
 /** The placement params most engine text styles share, listed once instead of on every style. */
 const PLACEMENT = ['color', 'accent', 'size', 'x', 'y'];
 
+const moveLine = (m: typeof MOVES[number]) => {
+  const ps = m.params.length ? ` · ${m.params.map(param).join(', ')}` : '';
+  return `- \`${m.id}\` · ${m.clips.min}-${m.clips.max} clips · ${m.beats.min}-${m.beats.default}-${m.beats.max} beats${ps} — ${m.looks} ${m.use}`;
+};
+const styleLine = (t: typeof TEXT_STYLES[number]) => {
+  const placed = PLACEMENT.every((id) => t.params.some((p) => p.id === id));
+  const ps = [...(placed ? ['placement'] : []), ...t.params.filter((p) => !placed || !PLACEMENT.includes(p.id)).map(param)];
+  return `- \`${t.id}\` (≤${t.maxChars} chars${isClipTextStyle(t) ? ', drawn in the picture' : ''}; ${ps.length ? ps.join(', ') : 'no params'}) — ${t.use}`;
+};
+const graphicLine = (g: typeof GRAPHICS[number]) => {
+  const placed = g.params.filter((p) => p.id === 'x' || p.id === 'y').map((p) => p.id);
+  const ps = [...g.params.filter((p) => !placed.includes(p.id)).map(param), ...(placed.length ? [placed.join('/')] : [])].join(', ');
+  const text = g.text ? `${g.text.required ? '' : 'optional '}text: ${g.text.hint}, ≤${g.text.max} chars` : 'no text';
+  return `- \`${g.id}\` (${text})${ps ? ` · ${ps}` : ''} — ${g.looks} ${g.use}`;
+};
+const effectLine = (e: typeof DIRECTOR_EFFECTS[number]) => {
+  const ps = effectParams(e.id).map((p) => `${p.id}=${JSON.stringify(p.default)}${p.min !== undefined ? ` (${p.min}-${p.max})` : ''}`).join(', ');
+  return `- \`${e.id.replace('builtin:fx-', '')}\` (${e.group}${e.person ? ', needs a person' : ''})${ps ? ` · ${ps}` : ''} — ${e.looks} ${e.use}`;
+};
+const STYLE_NOTE = 'A style takes only the params listed with it, in the section\'s `params` (or the overlay\'s); any other key refuses the plan. "placement" = color, accent, size (0.4-2, 1 = normal), x and y (0-1, from the top left).';
+const GRAPHIC_NOTE = 'Every graphic moves on the song\'s beats and adds its own sounds. x/y = where it sits (0-1 from the top left; leave them out for its own place).';
+
+/** The full catalogue with every param (the verify checks it covers the library; the agent gets slices of it). */
 export function directorCatalogMarkdown(): string {
-  const out: string[] = [];
-  out.push('## Catalogue');
-  out.push('');
-  out.push('### Moves (one per section)');
-  out.push('`id` · clips min-max · beats min-default-max · params — what it looks like. When to use it.');
-  for (const m of MOVES) {
-    const ps = m.params.length ? ` · ${m.params.map(param).join(', ')}` : '';
-    out.push(`- \`${m.id}\` · ${m.clips.min}-${m.clips.max} clips · ${m.beats.min}-${m.beats.default}-${m.beats.max} beats${ps} — ${m.looks} ${m.use}`);
-  }
-  out.push('');
-  out.push('### Text styles (a section\'s `text` + `textStyle`, or an overlay\'s `style`)');
-  out.push('A style takes only the params listed with it, in the section\'s `params` (or the overlay\'s); any other key refuses the plan. "placement" = color, accent, size (0.4-2, 1 = normal), x and y (0-1, from the top left).');
-  for (const t of TEXT_STYLES) {
-    const placed = PLACEMENT.every((id) => t.params.some((p) => p.id === id));
-    const ps = [...(placed ? ['placement'] : []), ...t.params.filter((p) => !placed || !PLACEMENT.includes(p.id)).map(param)];
-    out.push(`- \`${t.id}\` (≤${t.maxChars} chars${isClipTextStyle(t) ? ', drawn in the picture' : ''}; ${ps.length ? ps.join(', ') : 'no params'}) — ${t.use}`);
-  }
-  out.push('');
-  out.push('### Graphics (plan `graphics`: drawn over the footage, placed by section; up to 8, usually 1-3)');
-  out.push('`id` (its text) · params — what it looks like. When to use it. Every graphic moves on the song\'s beats and adds its own sounds. x/y = where it sits (0-1 from the top left; leave them out for its own place).');
-  for (const g of GRAPHICS) {
-    const placed = g.params.filter((p) => p.id === 'x' || p.id === 'y').map((p) => p.id);
-    const ps = [...g.params.filter((p) => !placed.includes(p.id)).map(param), ...(placed.length ? [placed.join('/')] : [])].join(', ');
-    const text = g.text ? `${g.text.required ? '' : 'optional '}text: ${g.text.hint}, ≤${g.text.max} chars` : 'no text';
-    out.push(`- \`${g.id}\` (${text})${ps ? ` · ${ps}` : ''} — ${g.looks} ${g.use}`);
-  }
-  out.push('');
-  out.push('### Effects (a section\'s `effects`, up to 3; each with optional strength, region, timing, every, params)');
+  return [
+    '## Catalogue', '',
+    '### Moves (one per section)', '`id` · clips min-max · beats min-default-max · params — what it looks like. When to use it.', ...MOVES.map(moveLine), '',
+    '### Text styles (a section\'s `text` + `textStyle`, or an overlay\'s `style`)', STYLE_NOTE, ...TEXT_STYLES.map(styleLine), '',
+    '### Graphics (plan `graphics`: drawn over the footage, placed by section; up to 8, usually 1-3)', GRAPHIC_NOTE, ...GRAPHICS.map(graphicLine), '',
+    '### Effects (a section\'s `effects`, up to 3; each with optional strength, region, timing, every, params)', ...DIRECTOR_EFFECTS.map(effectLine), '',
+    '### Transitions (a section\'s `transition`: how it comes in)', DIRECTOR_TRANSITIONS.map((t) => `\`${t.id}\`: ${t.use}`).join(' · '), '',
+    ...looksAndSounds(),
+  ].join('\n');
+}
+
+function looksAndSounds(): string[] {
+  return [
+    '### Looks (plan `look`, or a section `look`)',
+    'Pick by what the contact sheets show (the light, the sky, the colours), not by the topic: most trips are "travel". No look is the default for clean, well-lit phone footage.',
+    ['- `none` (leave it out) — The footage as shot. Bright daylight, blue skies and true colours; most reels.',
+      ...REEL_LOOKS.map((l) => `- \`${l.id}\` (${l.mood}) — ${l.description}${l.avoid ? ` Avoid: ${l.avoid}` : ''}`)].join('\n'),
+    '',
+    '### Sounds (only for a section `sounds` entry; the usual ones are added automatically)',
+    DIRECTOR_SOUNDS.map((s) => `\`${s.id}\``).join(' '),
+  ];
+}
+
+/**
+ * RS-1214: the menu in the skill: every id with what it looks like and when to use it, without params. The treatment
+ * stage picks from it, and reels_director_treatment returns the full entries (params, clip counts) for what it picked.
+ */
+export function directorMenuMarkdown(): string {
   const groups = new Map<string, string[]>();
-  for (const e of DIRECTOR_EFFECTS) {
-    const id = e.id.replace('builtin:fx-', '');
-    const ps = effectParams(e.id).map((p) => p.id).join('/');
-    groups.set(e.group, [...(groups.get(e.group) ?? []), `\`${id}\`${e.person ? ' (needs a person)' : ''}${ps ? ` [${ps}]` : ''}: ${e.use}`]);
-  }
-  for (const [g, list] of groups) out.push(`- **${g}**: ${list.join(' · ')}`);
-  out.push('');
-  out.push('### Transitions (a section\'s `transition`: how it comes in)');
-  out.push(DIRECTOR_TRANSITIONS.map((t) => `\`${t.id}\`: ${t.use}`).join(' · '));
-  out.push('');
-  out.push('### Looks (plan `look`, or a section `look`)');
-  out.push('Pick by what the contact sheets show (the light, the sky, the colours), not by the topic: most trips are "travel". No look is the default for clean, well-lit phone footage.');
-  out.push(['- `none` (leave it out) — The footage as shot. Bright daylight, blue skies and true colours; most reels.',
-    ...REEL_LOOKS.map((l) => `- \`${l.id}\` (${l.mood}) — ${l.description}${l.avoid ? ` Avoid: ${l.avoid}` : ''}`)].join('\n'));
-  out.push('');
-  out.push('### Sounds (only for a section `sounds` entry; the usual ones are added automatically)');
-  out.push(DIRECTOR_SOUNDS.map((s) => `\`${s.id}\``).join(' '));
-  return out.join('\n');
+  for (const e of DIRECTOR_EFFECTS) groups.set(e.group, [...(groups.get(e.group) ?? []), `\`${e.id.replace('builtin:fx-', '')}\`${e.person ? ' (person)' : ''}: ${e.use}`]);
+  return [
+    '## Catalogue (the menu; reels_director_treatment returns the full entries with params for what you pick)', '',
+    '### Moves (one per section)', ...MOVES.map((m) => `- \`${m.id}\` (${m.clips.min}-${m.clips.max} clips) — ${m.looks} ${m.use}`), '',
+    '### Text styles', ...TEXT_STYLES.map((t) => `- \`${t.id}\` (≤${t.maxChars} chars) — ${t.use}`), '',
+    '### Graphics', ...GRAPHICS.map((g) => `- \`${g.id}\` — ${g.looks} ${g.use}`), '',
+    '### Effects', ...[...groups].map(([g, list]) => `- **${g}**: ${list.join(' · ')}`), '',
+    '### Transitions (how a section comes in)', DIRECTOR_TRANSITIONS.map((t) => `\`${t.id}\`: ${t.use}`).join(' · '), '',
+    ...looksAndSounds(),
+  ].join('\n');
+}
+
+export type CatalogKind = 'move' | 'style' | 'graphic' | 'effect' | 'transition' | 'look';
+
+/** Which list an id belongs to (custom ids included), or undefined when it is in none. */
+export function catalogKind(id: string): CatalogKind | undefined {
+  if (MOVES.some((m) => m.id === id)) return 'move';
+  if (TEXT_STYLES.some((t) => t.id === id)) return 'style';
+  if (GRAPHICS.some((g) => g.id === id) || id.startsWith('custom:gfx-')) return 'graphic';
+  if (DIRECTOR_EFFECTS.some((e) => e.id === `builtin:fx-${id}`) || id.startsWith('custom:fx-')) return 'effect';
+  if (DIRECTOR_TRANSITIONS.some((t) => t.id === id) || id.startsWith('custom:tr-')) return 'transition';
+  if (id === 'none' || REEL_LOOKS.some((l) => l.id === id)) return 'look';
+  return undefined;
+}
+
+/** The full catalogue entries for the given ids, grouped, with the notes their params need. */
+export function catalogSlice(ids: Iterable<string>): string {
+  const want = new Set(ids);
+  const out: string[] = [];
+  const add = (title: string, lines: string[], note?: string) => { if (lines.length) out.push(`### ${title}`, ...(note ? [note] : []), ...lines, ''); };
+  add('Moves', MOVES.filter((m) => want.has(m.id)).map(moveLine), '`id` · clips min-max · beats min-default-max · params — what it looks like. When to use it.');
+  add('Text styles', TEXT_STYLES.filter((t) => want.has(t.id)).map(styleLine), STYLE_NOTE);
+  add('Graphics', GRAPHICS.filter((g) => want.has(g.id)).map(graphicLine), GRAPHIC_NOTE);
+  add('Effects (each with optional strength, region, timing, every, params)', DIRECTOR_EFFECTS.filter((e) => want.has(e.id.replace('builtin:fx-', ''))).map(effectLine));
+  add('Transitions', DIRECTOR_TRANSITIONS.filter((t) => want.has(t.id)).map((t) => `- \`${t.id}\` — ${t.looks} ${t.use}`));
+  add('Look', REEL_LOOKS.filter((l) => want.has(l.id)).map((l) => `- \`${l.id}\` — ${l.description}${l.avoid ? ` Avoid: ${l.avoid}` : ''}`));
+  return out.join('\n').trim();
 }
 
 /** SKILL.md with its catalogue section replaced by the current one. */
 export function withCatalog(skill: string): string {
   const a = skill.indexOf(CATALOG_START), b = skill.indexOf(CATALOG_END);
-  const block = `${CATALOG_START}\n${directorCatalogMarkdown()}\n${CATALOG_END}`;
+  const block = `${CATALOG_START}\n${directorMenuMarkdown()}\n${CATALOG_END}`;
   if (a < 0 || b < a) return `${skill.trimEnd()}\n\n${block}\n`;
   return `${skill.slice(0, a)}${block}${skill.slice(b + CATALOG_END.length)}`;
 }

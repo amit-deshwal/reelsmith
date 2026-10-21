@@ -19,7 +19,7 @@ import { loadRun, recutSection, saveRun, type Kv } from '../runStore';
 import type { SetupValues } from '../setupForm';
 import { bindTracks } from '../trackBinding';
 import { planAssemble, planOptions } from './planTools';
-import { directorBuild, directorOptions } from './directorTools';
+import { directorBuild, directorCritique, directorOptions, directorTreatment } from './directorTools';
 import { customShaderTool } from './customShaderTool';
 import { customGraphicTool } from './customGraphicTool';
 import { parseTimeEffectArgs, planTimedEffect } from './timeEffectTool';
@@ -113,6 +113,12 @@ export async function execReelsTool(name: string, args: Args, ctx: AgentContext,
 
     case 'reels_director_build':
       return directorBuild(args, ctx, deps);
+
+    case 'reels_director_treatment':
+      return directorTreatment(args, ctx);
+
+    case 'reels_director_critique':
+      return directorCritique(ctx);
 
     case 'reels_custom_shader':
       return customShaderTool(args);
