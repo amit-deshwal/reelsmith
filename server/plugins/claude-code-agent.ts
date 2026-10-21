@@ -28,6 +28,7 @@ const AUTH_STATUS_TIMEOUT_MS = 8_000;
 // claims tools/images are unsupported. Canonical ids resolve from the catalog.
 const CURATED_MODELS: readonly ClaudeCodeAgentModel[] = [
   { id: 'claude-sonnet-5', label: 'Claude Sonnet 5', isDefault: true },
+  { id: 'claude-sonnet-5-5', label: 'Claude Sonnet 5.5', isDefault: false },
   { id: 'claude-opus-5-5', label: 'Claude Opus 5.5', isDefault: false },
   { id: 'claude-opus-5', label: 'Claude Opus 5', isDefault: false },
   { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5', isDefault: false },

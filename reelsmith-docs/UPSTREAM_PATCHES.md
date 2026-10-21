@@ -416,9 +416,9 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 - Our own: `src/reelsmith/director/{graphics,graphicsKit,graphicsTravel,graphicsSocial,customGraphics}.ts`, `src/reelsmith/agent/customGraphicTool.ts`, `graphics` in `shared/reelsmith/directorPlan.ts`, new sound cues in `director/sfx.ts`, graphic findings in `director/review.ts`, `server/reelsmith/{graphics-sheet,director-reel}.mts`, the reels-director skill.
 
 
-## Claude Opus 5.5 in the Claude Code model picker
-- `server/plugins/claude-code-agent.ts`: `claude-opus-5-5` added to `CURATED_MODELS` (the picker list is hardcoded, not read from the CLI).
-- `shared/model-capabilities.ts`: `claude-opus-5-5` gets the Claude Code 64k output cap like the other Claude models.
+## Claude Opus 5.5 and Sonnet 5.5 in the Claude Code model picker
+- `server/plugins/claude-code-agent.ts`: `claude-opus-5-5` and `claude-sonnet-5-5` added to `CURATED_MODELS` (the picker list is hardcoded, not read from the CLI).
+- `shared/model-capabilities.ts`: `claude-opus-5-5` and `claude-sonnet-5-5` get the Claude Code 64k output cap like the other Claude models.
 
 ## Marker arrows aim at the person they name; a tighter cards-finale
 - `scripts/sync-mediapipe.mjs`: pins `efficientdet_lite0.tflite` (MediaPipe object detector, "person" boxes), sha256-checked like the other models. `package.json`: registers `director/aimMarkers.verify.ts` in `test:reelsmith`.
