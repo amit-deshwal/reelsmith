@@ -15,64 +15,36 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import yaml from 'js-yaml';
+import { VERIFY_FILE, discoverVerifies } from './verify-discovery.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const scripts = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).scripts ?? {};
 
-// `npm test` runs run-tests.mjs over the `test:pre`, `test:serial` and `test:post` segments (one pool).
-const expandNpmRun = (command, depth = 0) => (
-  depth > 8 || !command
-    ? ''
-    : command.replace(/npm run ([a-z0-9:-]+)/g, (whole, name) => (
-      scripts[name] ? expandNpmRun(scripts[name], depth + 1) : whole
-    ))
-);
-const gate = expandNpmRun(
-  [scripts['test:pre'], scripts['test:serial'], scripts['test:post']].filter(Boolean).join(' && '),
-);
+// `npm test` runs every file scripts/verify-discovery.mjs finds, so coverage means: the test script
+// goes through run-tests.mjs, and discovery sees every verify file on disk (a git-ignored one would
+// pass locally and be absent from CI).
+assert.match(scripts.test, /scripts\/run-tests\.mjs/, 'npm test must run the discovering runner');
+assert.ok(!scripts['test:serial'], 'test:serial is gone: a hand-maintained chain brings back unregistered tests');
 
-// Longest-first alternation: a plain `ts|tsx` order truncates "Foo.verify.tsx" to
-// "Foo.verify.ts" and silently reports a covered file as an orphan.
-const VERIFY_EXTENSIONS = ['tsx', 'mts', 'cjs', 'mjs', 'ts', 'js'];
-const extensionPattern = VERIFY_EXTENSIONS.join('|');
-const referenced = new Set(
-  [...gate.matchAll(new RegExp(`([A-Za-z0-9_./-]+\\.verify\\.(?:${extensionPattern}))(?![A-Za-z0-9])`, 'g'))]
-    .map((match) => match[1].replace(/^\.\//, '')),
-);
-
-const isVerifyFile = new RegExp(`\\.verify\\.(?:${extensionPattern})$`);
-// package.json names files with "/", so a walked path must be posix-shaped before
-// it can be compared with one. On Windows `relative()` returns "a\b\c", which
-// matched nothing: every file on disk looked like an orphan and the check failed
-// with the entire corpus listed. Split on `sep` rather than replacing "\\" — a
-// backslash is a legal character in a POSIX filename.
-const posix = (path) => path.split(sep).join('/');
+const discovered = new Set(discoverVerifies(root));
 const onDisk = [];
 const walk = (dir) => {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
     const full = join(dir, entry.name);
     if (entry.isDirectory()) walk(full);
-    else if (isVerifyFile.test(entry.name)) onDisk.push(posix(relative(root, full)));
+    else if (VERIFY_FILE.test(entry.name)) onDisk.push(relative(root, full).split(sep).join('/'));
   }
 };
 walk(root);
-
 assert.ok(onDisk.length > 400, `expected the full verify corpus, found ${onDisk.length}`);
 
-const orphans = onDisk.filter((file) => !referenced.has(file)).sort();
+const orphans = onDisk.filter((file) => !discovered.has(file)).sort();
 assert.deepEqual(
   orphans,
   [],
-  `${orphans.length} verify file(s) never run in \`npm test\`. Add each to the test:serial chain `
-  + `in package.json:\n${orphans.map((file) => `  - ${file}`).join('\n')}`,
-);
-
-// Guard the guard: if the path regex ever stops matching, every file would look covered
-// and this check would pass while asserting nothing.
-assert.ok(
-  referenced.has('scripts/verify-gate-coverage.verify.mjs'),
-  'this file must appear in the gate chain, or the reference scan is broken',
+  `${orphans.length} verify file(s) are ignored by git, so \`npm test\` never runs them (check .gitignore; `
+  + `scripts/ needs \`git add -f\`):\n${orphans.map((file) => `  - ${file}`).join('\n')}`,
 );
 
 // Linux intentionally skips exact frame mapping. At least one required CI job
@@ -113,4 +85,4 @@ const oversizedSources = sourceFiles.flatMap((file) => {
 assert.deepEqual(oversizedSources, [],
   `Source files must stay at or below 500 lines. Split by responsibility:\n${oversizedSources.join('\n')}`);
 
-console.log(`gate coverage checks passed (${onDisk.length} verify files, all reachable from npm test)`);
+console.log(`gate coverage checks passed (${onDisk.length} verify files, all discovered by npm test)`);

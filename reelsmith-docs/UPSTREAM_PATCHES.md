@@ -434,3 +434,11 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 - `server/claude-code/models.ts` (ours on top of upstream's new file): the fallback list keeps `claude-sonnet-5-5` and `claude-opus-5-5`, which we had hand-added to the old list.
 - Taken and reverted: `5cac33fa` (AAC encoder delay at render). RS-304's `server/reelsmith/audioPriming.ts` already removes the same priming after export; with both, exports ran 43 ms early (avsync fixtures).
 - Skipped: Windows-only fixes (`526dbfb4`, `ee45a703`), Portuguese transcription (`d9b517ae`), bundled ffmpeg for generated media and skills (`097f87ae`, `15deadc9`; features Reelsmith does not use), README edits.
+
+## Test discovery (2026-10-21)
+
+- `package.json`: removed `test:pre`, `test:serial`, `test:post`, `test:reelsmith`, `test:contrib-timeline-preview` and the `verify:*` group scripts (kept: `verify:affected`, `verify:server-tool-catalog`, `verify:agent-skill`, `verify:model-persistence-restart`). Hand-listing verify files is gone.
+- `scripts/verify-discovery.mjs` (new, force-added past the `/scripts/*` ignore): finds every `*.verify.*` file and picks its launcher.
+- `scripts/run-tests.mjs`, `scripts/run-affected-verifies.mjs`: use discovery. `scripts/verify-registration.verify.mjs`, `scripts/verify-gate-coverage.verify.mjs`, `scripts/run-affected-verifies.verify.mjs`: rewritten for it.
+- Expect conflicts in `package.json` on the next upstream sync: take ours, then add any new upstream verify to nothing (it is found automatically) unless it needs a `LAUNCHERS` entry.
+

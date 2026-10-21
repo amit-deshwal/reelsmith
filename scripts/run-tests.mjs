@@ -1,11 +1,10 @@
-// Parallel test runner: executes every segment of the `test:serial` script
+// Parallel test runner: executes every discovered verify file
 // with bounded concurrency (one child process per segment — verifies are isolated
 // by their own HOME/temp dirs, so processes never share state).
 //
 // Falls back to serial execution on failure collection so a broken verify
 // shows its output next to its name. Usage: npm test.
 import { exec } from 'node:child_process';
-import { readFileSync } from 'node:fs';
 
 // Concurrency budget: many verifies are heavyweight (model loads, vite
 // builds, ffmpeg, rendering) and a full parallel suite can exhaust RAM on
@@ -13,19 +12,18 @@ import { readFileSync } from 'node:fs';
 // 32 GB Mac and froze the system). Default 4 is safe; raise explicitly with
 // TEST_CONCURRENCY=8 on machines with headroom (and a page file).
 
-const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
-const testScript = pkg.scripts['test:serial'];
-if (typeof testScript !== 'string' || !testScript.trim()) {
-  throw new Error('package.json is missing a test:serial script');
-}
-// Reelsmith: the old npm pretest/posttest hooks ran ~210 s of verifies one after another around this
-// pool (83% of a full run). They are now `test:pre` / `test:post` and join the same pool.
-const chain = (name) => (pkg.scripts[name] ?? '').split('&&').map((s) => s.trim()).filter(Boolean);
+// Segments come from discovery (scripts/verify-discovery.mjs): every tracked *.verify.* file is a
+// test, so adding one needs no package.json edit. Optional filter: `npm test -- <substring>…`.
+import { EXTRA_COMMANDS, discoverVerifies, verifyCommand } from './verify-discovery.mjs';
+
+const filters = process.argv.slice(2).filter((arg) => !arg.startsWith('-'));
+const files = discoverVerifies().filter((f) => filters.length === 0 || filters.some((p) => f.includes(p)));
 // Longest-first scheduling: these dominate wall time (see the "slowest segments" printout), so start them
 // before the pool fills with short ones. Order does not change what runs.
-const SLOW_FIRST = ['npm run verify:server-runs', 'npm run verify:production-contracts', 'npm run verify:mcp', 'tsx cli/cli.verify.ts', 'tsx server/external-agent/broker.verify.ts', 'npm run test:reelsmith'];
-const rank = (c) => { const i = SLOW_FIRST.findIndex((p) => c.startsWith(p)); return i === -1 ? SLOW_FIRST.length : i; };
-const segments = [...chain('test:pre'), ...chain('test:serial'), ...chain('test:post')].sort((a, b) => rank(a) - rank(b));
+const SLOW_FIRST = ['server/plugins/server-runs', 'server/production-contracts', 'server/external-agent/mcp.verify', 'cli/cli.verify', 'server/external-agent/broker.verify'];
+const rank = (c) => { const i = SLOW_FIRST.findIndex((p) => c.includes(p)); return i === -1 ? SLOW_FIRST.length : i; };
+const segments = [...files.map(verifyCommand), ...(filters.length ? [] : EXTRA_COMMANDS)].sort((a, b) => rank(a) - rank(b));
+if (segments.length === 0) throw new Error(`no verify files match: ${filters.join(', ')}`);
 const CONCURRENCY = Math.max(1, Math.min(8, Math.floor(Number(process.env.TEST_CONCURRENCY)) || 4));
 
 const run = (command) => new Promise((resolve) => {

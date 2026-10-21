@@ -11,10 +11,11 @@
 //   npm run verify:affected -- <file>… — explicit files
 //   npm run verify:affected -- --list <file>… — inspect without executing tests
 import { exec, execFile } from 'node:child_process';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
+import { verifyCommand } from './verify-discovery.mjs';
 
 const CONCURRENCY = Math.max(1, Math.min(8, Math.floor(Number(process.env.TEST_CONCURRENCY)) || 4));
 const SOURCE_EXTENSION = /\.(?:tsx|mts|cjs|mjs|ts|js|frag|vert|glsl)$/;
@@ -75,31 +76,9 @@ export function matchingVerifies(changedFiles) {
   return affectedSelection(changedFiles).verifies;
 }
 
-// How each verify is invoked is already decided in package.json, and not every
-// one is `tsx <file>`: the suites whose import graph reaches a Vite-only `?raw`
-// or `.frag` import run through scripts/run-check.mjs, and .mjs suites run on
-// bare node. Reading those commands back means this runner cannot drift from
-// the suite — guessing `npx tsx` failed effect-tools and library-edit-item.
-const CANONICAL_COMMANDS = (() => {
-  const scripts = JSON.parse(
-    readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
-  ).scripts;
-  const byFile = new Map();
-  for (const script of Object.values(scripts)) {
-    if (typeof script !== 'string') continue;
-    for (const segment of script.split('&&').map((s) => s.trim())) {
-      const path = /(\S+\.verify\.(?:tsx|mts|cjs|mjs|ts|js))\s*$/.exec(segment)?.[1];
-      if (path && !byFile.has(path)) byFile.set(path, segment);
-    }
-  }
-  return byFile;
-})();
-
-/** The command the suite itself uses, falling back to the usual runner. */
-export function verifyCommand(file) {
-  return CANONICAL_COMMANDS.get(file)
-    ?? (/\.(?:mjs|cjs|js)$/.test(file) ? `node ${file}` : `npx tsx ${file}`);
-}
+// How each verify is invoked (tsx, node, run-check.mjs, tsconfig flags) lives in
+// scripts/verify-discovery.mjs, shared with `npm test`, so the two cannot drift.
+export { verifyCommand };
 
 async function main() {
   const explicit = process.argv.slice(2).filter((arg) => !arg.startsWith('-'));

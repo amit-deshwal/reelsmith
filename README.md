@@ -25,7 +25,7 @@ Agents use your own subscriptions; the app never touches credentials:
 - **Claude:** the built-in agent spawns your own `claude -p` (see `server/claude-code/turn-runner.ts`). You can also connect Claude Code from a terminal: `claude mcp add --transport http openchatcut http://localhost:5199/api/external-mcp/mcp`
 - **Codex:** Settings → Agent model → OpenAI · Codex. This uses the official Codex CLI ≥ 0.146 and its own credential storage.
 
-Tests: `npm test` (runs `scripts/run-tests.mjs`; *.verify.ts files) and `npm run verify:affected`.
+Tests: `npm test` runs every `*.verify.*` file in the repo, discovered automatically (`scripts/verify-discovery.mjs`); there is nothing to register in `package.json`. `npm test -- <substring>` runs just the matching files, and `npm run verify:affected` runs the ones near your changes. A suite that needs a non-default launcher (tsconfig flags, `?raw` imports) goes in the `LAUNCHERS` table in that file.
 
 ## Keeping in sync with upstream
 

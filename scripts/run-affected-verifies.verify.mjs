@@ -78,22 +78,22 @@ const countIn = (dir, re = /\.verify\.(ts|tsx|mjs)$/) => readdirSync(dir).filter
   }
   assert.match(verifyCommand('src/export/browserExport.verify.ts'), /tsx/,
     'ordinary suites run under tsx');
-  // A registered suite always uses package.json's own command, whatever it is —
-  // remotion/render-timeout.verify.mjs is registered under tsx, not node, and
+  // A suite listed in LAUNCHERS always uses that launcher, whatever its extension —
+  // remotion/render-timeout.verify.mjs runs under tsx, not node, and
   // this runner must not "correct" it.
   assert.equal(
     verifyCommand('remotion/render-timeout.verify.mjs'),
     'tsx remotion/render-timeout.verify.mjs',
-    'the registered command wins over any extension-based guess',
+    'the launcher table wins over any extension-based guess',
   );
-  // Only unregistered files fall back, and then the extension decides.
-  assert.match(verifyCommand('src/does/not/exist.verify.ts'), /^npx tsx /,
+  // Only unlisted files fall back, and then the extension decides.
+  assert.match(verifyCommand('src/does/not/exist.verify.ts'), /^tsx /,
     'an unregistered .ts suite still gets a usable default');
   assert.match(verifyCommand('src/does/not/exist.verify.mjs'), /^node /,
     'an unregistered .mjs suite falls back to bare node');
   assert.match(verifyCommand('src/does/not/exist.verify.cjs'), /^node /);
   assert.match(verifyCommand('src/does/not/exist.verify.js'), /^node /);
-  assert.match(verifyCommand('src/does/not/exist.verify.mts'), /^npx tsx /);
+  assert.match(verifyCommand('src/does/not/exist.verify.mts'), /^tsx /);
 }
 
 const temporary = realpathSync(mkdtempSync(join(tmpdir(), 'openchatcut-affected-')));
@@ -119,15 +119,14 @@ try {
   ]);
 
   // Execute only tiny fixture suites, never the real expensive selected suite.
-  for (const runner of ['run-tests.mjs', 'run-affected-verifies.mjs']) {
+  for (const runner of ['run-tests.mjs', 'run-affected-verifies.mjs', 'verify-discovery.mjs']) {
     copyFileSync(new URL(runner, import.meta.url), join(temporary, 'scripts', runner));
   }
-  const script = `node -e "console.log('fixture passed')"`;
-  writeFileSync(join(temporary, 'package.json'), JSON.stringify({ scripts: { 'test:serial': script } }));
+  writeFileSync(join(temporary, 'src/example.verify.cjs'), `console.log('fixture passed');`);
   const run = (runner, args = []) => spawnSync(process.execPath, [join(temporary, 'scripts', runner), ...args], {
     cwd: temporary, encoding: 'utf8', env: { ...process.env, TEST_CONCURRENCY: '1' },
   });
-  const serial = run('run-tests.mjs');
+  const serial = run('run-tests.mjs', ['example.verify.cjs']); // a filter keeps the repo-wide extras out
   assert.equal(serial.status, 0, serial.stderr);
   assert.match(serial.stdout, /\(1 parallel\)/);
   const affected = run('run-affected-verifies.mjs', ['src/example.verify.cjs']);
@@ -139,11 +138,8 @@ try {
 
   writeFileSync(join(temporary, 'src/example.verify.cjs'),
     `console.log('stdout failure detail'); console.error('stderr failure detail'); process.exit(1);`);
-  writeFileSync(join(temporary, 'package.json'), JSON.stringify({
-    scripts: { 'test:serial': 'node src/example.verify.cjs' },
-  }));
   for (const runner of ['run-tests.mjs', 'run-affected-verifies.mjs']) {
-    const failure = run(runner, runner.startsWith('run-affected') ? ['src/example.verify.cjs'] : []);
+    const failure = run(runner, ['src/example.verify.cjs']);
     assert.equal(failure.status, 1);
     assert.match(failure.stdout, /stdout failure detail/);
     assert.match(failure.stdout, /stderr failure detail/);
