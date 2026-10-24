@@ -7,6 +7,7 @@
 //   POST /api/reelsmith/upscale        { src, width, height } -> 2x enhanced copy of a small photo (`{ available:false }` when not installed)
 //   POST /api/reelsmith/preview        { project, seconds } -> 360x640 muted loop of an assembled recipe
 //   POST /api/reelsmith/still-frame    { src, atSec } -> a still of that moment saved next to the video (freeze frames)
+//   POST /api/reelsmith/reverse-clip   { src, startSec, frames, fps } -> that span played backwards, saved next to the video
 import { existsSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -20,6 +21,7 @@ import { extractClipFeatures, extractReferenceCuts } from './clipFeatures.ts';
 import { finalizeForInstagram } from './instagramFinalize.ts';
 import { upscaleAvailable, upscalePhoto } from './upscale.ts';
 import { extractStill } from './stillFrame.ts';
+import { reverseSpan } from './reverseClip.ts';
 import { exportParity } from './exportParity.ts';
 import { buildSelectionSheets, MAX_SHEET_CELLS } from './selectionSheet.ts';
 import { renderRecipePreview, type PreviewRequest } from './previewRender.ts';
@@ -98,6 +100,12 @@ export function reelsmithAnalyzePlugin(): Plugin {
         if (!(atSec >= 0)) throw new Error('atSec must be a number of seconds');
         const still = await extractStill(file, atSec);
         return { src: `/media/uploads/${encodeURIComponent(still.name)}`, width: still.width, height: still.height };
+      });
+      route('/api/reelsmith/reverse-clip', async (body) => {
+        const file = localFile(body.src);
+        if (typeof file !== 'string') throw new Error(file.error);
+        const r = await reverseSpan(file, Number(body.startSec), Math.round(Number(body.frames)), Number(body.fps));
+        return { src: `/media/uploads/${encodeURIComponent(r.name)}`, width: r.width, height: r.height, frames: r.frames, hasAudio: r.hasAudio, cached: r.cached };
       });
       route('/api/reelsmith/upscale', async (body) => {
         if (!upscaleAvailable()) return { available: false };

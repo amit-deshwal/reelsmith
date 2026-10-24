@@ -453,3 +453,12 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 - `src/agent/external-tool-policy.ts`: `reels_director_fix` added to the Reelsmith edit tools.
 - `assets/agent/openchatcut-tool-schemas.json`: regenerated (`reels_director_fix`; `reference` on `reels_director_options`; `purpose` and `styleGuide` on `reels_director_treatment`).
 - Ours: `src/reelsmith/agent/directorRepairTools.ts` (critique and fix, split out of `directorTools.ts`), `director/motionRules.ts`, `director/reference.ts`, `director/soundCheck.ts`, `director/storyThings.ts`; `director/directorSession.ts` saves the run on the canvas item (`rsDirector`).
+
+## Reverse clip (2026-10-25, RS-1223)
+
+- `src/components/timeline/ClipContextMenu.tsx`: one import line and a "Reverse" / "Play forwards" item next to "Detach audio" (calls `reversedSource` + `reverseActions` / `forwardsActions` from `src/reelsmith/clipOps.ts`).
+- Ours: `server/reelsmith/reverseClip.ts` (route in `analyze-plugin.ts`), `server/reelsmith/reverseClip.verify.ts`, `server/reelsmith/reverseRender.verify.ts`.
+
+## Upstream check 2026-10-25
+
+- Not taken: `2ba98fbf` (AI SDK 7.0.148 and dependency upgrade), `0366d521` (tool calls on non-standard finish reasons; the bug starts at ai 7.0.70, we are on 7.0.52), `3d2e053e` (every URL in a download batch; only safe from ai 7.0.136, whose watchdog ignores tool time), `7fa4b790` (TypeScript 7, Remotion 4.0.537), `5b542cf7` (Doubao speaker IDs). Take the first four together as one dependency upgrade.
