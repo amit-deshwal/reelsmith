@@ -12,6 +12,7 @@ import { beginCaptionStylePointerDrag } from './captionStyleDrag';
 import { captionTemplatePatch } from './captionTemplatePatch';
 import { CaptionMotionControls } from './CaptionMotionControls';
 import { ReelsCaptionStyles } from '../reelsmith/ui/ReelsCaptionStyles';
+import { canvasOfRatio } from '../reelsmith/captionBehindPlace';
 
 interface CaptionsControlsProps {
   captionTrackId?: TrackId;
@@ -21,6 +22,8 @@ interface CaptionsControlsProps {
   /** The sentence-by-sentence editing list needs to recalculate the same paging as the rendering layer, which requires timeline items + fps */
   items: TimelineItem[];
   fps: number;
+  /** Reelsmith: the canvas shape, for placing "Behind the speaker" captions on the speaker */
+  canvasRatio?: string;
   /** Sentence-by-sentence editing: click-to-sentence preview (timeline ms) */
   onSeekMs?: (ms: number) => void;
   onCreateManual: () => void;
@@ -49,7 +52,7 @@ const TRANSLATE_TO: { id: string; label: string }[] = [
 
 // Independent caption workspace: style, rhythm, manual captions and translation are all edited here.
 export function CaptionsControls({
-  captionTrackId, captions, sourceVariants = [], items, fps, onSeekMs, onCreateManual, getPlayheadMs, onUpdate, onRemove, onTranslate, translating, translateError,
+  captionTrackId, captions, sourceVariants = [], items, fps, canvasRatio, onSeekMs, onCreateManual, getPlayheadMs, onUpdate, onRemove, onTranslate, translating, translateError,
 }: CaptionsControlsProps) {
   const t = useT();
   const [bilingualOpen, setBilingualOpen] = useState(!!captions?.bilingual || !!captions?.translation);
@@ -119,7 +122,7 @@ export function CaptionsControls({
             <p className="cc-cap-hint warn">{t('字幕已关闭，预览/导出都不会烧录。再点「显示」或勾选即可恢复。')}</p>
           )}
 
-          <ReelsCaptionStyles captions={captions} onApply={onUpdate} />
+          <ReelsCaptionStyles captions={captions} onApply={onUpdate} scene={{ items, fps, canvas: canvasOfRatio(canvasRatio) }} />
 
           {/* Style: color block + Chinese name */}
           <div className="cc-cap-field">

@@ -126,7 +126,7 @@ export function CaptionStyleMenu({ state, commands, trackId, pos, error, onError
   return (
     <div className="cc-caption-style-menu" style={{ position: 'fixed', left: pos.left, top: pos.top }} onPointerDown={(e) => e.stopPropagation()}>
       <MenuDrillHeader title={t('字幕样式')} onBack={backToParent} />
-      <ReelsCaptionStyles captions={captionsForTrack(state, trackId) ?? newManualCaptions()} onApply={(patch) => {
+      <ReelsCaptionStyles captions={captionsForTrack(state, trackId) ?? newManualCaptions()} scene={{ items: state.items, fps: state.fps, canvas: { width: state.width, height: state.height } }} onApply={(patch) => {
         if (current) commands.updateCaptions(patch, trackId);
         else commands.setCaptions({ ...(captionsForTrack(state, trackId) ?? newManualCaptions()), ...patch }, trackId);
         onError(null);
