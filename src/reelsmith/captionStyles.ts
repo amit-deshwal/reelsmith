@@ -1,10 +1,10 @@
-// RS-502: the six Reels caption styles. Each is an upstream caption template plus a style override, a motion
+// RS-502: the Reels caption styles. Each is an upstream caption template plus a style override, a motion
 // preset and a placement that keeps the block above Instagram's caption/buttons area (bottom ~19% of the frame).
 import type { CaptionStyleOverride } from '../captions/styles';
 import type { CaptionLayout, CaptionMotionPreset, CaptionPacing, CaptionTemplate, CaptionsData } from '../captions/types';
 import { DEFAULT_SAFE_ZONE } from './safeZone';
 
-export type ReelsCaptionStyleId = 'clean-white' | 'highlight-word' | 'boxed' | 'karaoke' | 'pop-word' | 'minimal-lower';
+export type ReelsCaptionStyleId = 'clean-white' | 'highlight-word' | 'boxed' | 'karaoke' | 'pop-word' | 'minimal-lower' | 'behind-speaker';
 
 export interface ReelsCaptionStyle {
   id: ReelsCaptionStyleId;
@@ -15,6 +15,8 @@ export interface ReelsCaptionStyle {
   motionPreset: CaptionMotionPreset;
   styleOverride: CaptionStyleOverride;
   layout: CaptionLayout;
+  /** the words sit behind the person in the shot (CaptionsData.rsBehind) */
+  behind?: boolean;
 }
 
 /** Upstream captions sit 8% above the bottom; lift them so the block clears Instagram's bottom band. */
@@ -57,6 +59,14 @@ export const REELS_CAPTION_STYLES: readonly ReelsCaptionStyle[] = [
     styleOverride: { fontFamily: 'Inter', fontWeight: 500, fontSize: 0.032, textTransform: 'lowercase', textShadow: '0 1px 6px #000b', wordsPerPage: 6 },
     layout: ABOVE_IG_UI,
   },
+  {
+    // From Cardboard's "Captions Behind" (2026-08-31): one or two huge words across the head, the person in front of them
+    id: 'behind-speaker', label: 'Behind the speaker', hint: 'Big words that sit behind the person',
+    template: 'plain', pacing: 'word', motionPreset: 'word-pop',
+    styleOverride: { fontFamily: 'Montserrat', fontWeight: 900, fontSize: 0.12, textTransform: 'uppercase', textShadow: '0 4px 24px #0007', wordsPerPage: 2, displayMode: 'inline' },
+    layout: { anchor: 'middle-center', offsetYRatio: -0.17 },
+    behind: true,
+  },
 ];
 
 export function reelsCaptionStyle(id: string | undefined): ReelsCaptionStyle {
@@ -64,7 +74,7 @@ export function reelsCaptionStyle(id: string | undefined): ReelsCaptionStyle {
 }
 
 /** The CaptionsData fields to set (or patch) for a Reels caption style. */
-export function captionsFor(id: string | undefined): Pick<CaptionsData, 'template' | 'pacing' | 'motionPreset' | 'styleOverride' | 'layout'> {
+export function captionsFor(id: string | undefined): Pick<CaptionsData, 'template' | 'pacing' | 'motionPreset' | 'styleOverride' | 'layout' | 'rsBehind'> {
   const s = reelsCaptionStyle(id);
-  return { template: s.template, pacing: s.pacing, motionPreset: s.motionPreset, styleOverride: { ...s.styleOverride }, layout: { ...s.layout } };
+  return { template: s.template, pacing: s.pacing, motionPreset: s.motionPreset, styleOverride: { ...s.styleOverride }, layout: { ...s.layout }, rsBehind: s.behind === true };
 }

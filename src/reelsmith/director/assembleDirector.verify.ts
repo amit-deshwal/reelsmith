@@ -114,6 +114,7 @@ const raw2 = {
     { move: 'match-cut', beats: 4, clips: ['group', 'trail', 'walker'], params: { flash: true }, text: 'every fit', textStyle: 'glitch' },
     { move: 'talk-zoom', beats: 8, clips: ['group'], transition: 'prism-flash', effects: [{ id: 'sparkle' }, { id: 'flare-sweep' }, { id: 'blackout', timing: 'beat', every: 2 }] },
     ...engineStyles.filter((st) => !['tracking-in', 'wave', 'glitch'].includes(st)).map((st) => ({ move: 'black', beats: 2, text: st === 'count-up' ? '6,000 calories' : st === 'rise-lines' ? 'two days / one fort' : 'Day 2 summit', textStyle: st, ...(st === 'location-tag' ? { params: { sub: '1,424 m' } } : {}) })),
+    { move: 'rewind', beats: 4, clips: ['climb'] }, // RS-1223 (checked in agent/reverseTool.verify.ts)
   ],
 };
 const allMoves = new Set([...raw.sections, ...raw2.sections].map((x) => x.move));

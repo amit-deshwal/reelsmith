@@ -33,6 +33,11 @@ export function createAnalyzeApi(fetcher: typeof fetch = fetch, subjects: typeof
       const r = await post<{ src: string; width: number; height: number }>('/api/reelsmith/still-frame', { src: asset.src, atSec });
       return r?.src && r.width && r.height ? r : null;
     },
+    reverseClip: async (src, startSec, frames, fps) => {
+      const response = await fetcher('/api/reelsmith/reverse-clip', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ src, startSec, frames, fps }) });
+      const r = await response.json().catch(() => ({})) as { src?: string; width?: number; height?: number; frames?: number; error?: string };
+      return response.ok && r.src && r.width && r.height && r.frames ? { src: r.src, width: r.width, height: r.height, frames: r.frames } : { error: r.error ?? `reverse failed (${response.status})` };
+    },
     musicGrid: async (asset) => (await post<{ grid: never }>('/api/reelsmith/music-grid', { src: asset.src }))?.grid ?? null,
   };
 }

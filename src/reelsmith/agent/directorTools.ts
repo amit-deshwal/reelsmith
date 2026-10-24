@@ -14,6 +14,7 @@ import { adoptCustomGraphics, listCustomGraphics } from '../director/customGraph
 import { commit, projectId, type ReelsDeps } from './reelsTools';
 import { reviewDirectorPlan } from '../director/review';
 import { aimMarkers } from '../director/aimMarkers';
+import { rewindClips } from './rewindClips';
 import { clearCaptionsOfPeople } from '../director/clearOfPeople';
 import { findPeople } from '../peopleFinder';
 import { lintReel } from '../reelLint';
@@ -308,6 +309,7 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
   if (!out.action) return { error: out.messages.join('; ') || 'could not build the plan' };
   if (out.action.actions.some((a) => a.type === 'add' && (a.item as { props?: { rsAim?: unknown } }).props?.rsAim)) ctx.onToolProgress?.('Finding who the markers point at');
   out.messages.push(...await aimMarkers(out.action.actions, findPeople));
+  out.messages.push(...await rewindClips(out.action.actions, deps.api, state.fps, ctx.onToolProgress));
   const canvas = out.action.actions.find((a): a is Extract<AtomicAction, { type: 'setCanvas' }> => a.type === 'setCanvas');
   if (canvas) { ctx.onToolProgress?.('Keeping captions off faces'); await clearCaptionsOfPeople(out.action.actions, assets, canvas, state.fps, findPeople); }
   const report = out.result.report;

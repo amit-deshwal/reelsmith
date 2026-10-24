@@ -43,6 +43,8 @@ export interface TranslatedCue {
 
 export interface CaptionsData {
   enabled: boolean;
+  /** Reelsmith RS-502: the words sit behind the person (a cut-out copy of the clips under them is painted above). */
+  rsBehind?: boolean;
   template: CaptionTemplate;
   pacing: CaptionPacing;
   /** Optional frame-derived motion. Missing and `none` both preserve the static legacy render. */

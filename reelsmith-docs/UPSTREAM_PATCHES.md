@@ -462,3 +462,11 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 ## Upstream check 2026-10-25
 
 - Not taken: `2ba98fbf` (AI SDK 7.0.148 and dependency upgrade), `0366d521` (tool calls on non-standard finish reasons; the bug starts at ai 7.0.70, we are on 7.0.52), `3d2e053e` (every URL in a download batch; only safe from ai 7.0.136, whose watchdog ignores tool time), `7fa4b790` (TypeScript 7, Remotion 4.0.537), `5b542cf7` (Doubao speaker IDs). Take the first four together as one dependency upgrade.
+
+## Rewind, captions behind the speaker, speech cleanup (2026-10-25, RS-1223 / RS-502 / RS-204)
+
+- `src/agent/external-tool-policy.ts`: `reels_reverse` and `reels_clean_speech` added to the Reelsmith edit tools.
+- `assets/agent/openchatcut-tool-schemas.json`: regenerated (the two tools).
+- `src/captions/types.ts`: `CaptionsData.rsBehind?: boolean` (one field).
+- `src/editor/TimelineComposition.tsx`: the per-item paint (the body of `ordered.flatMap`) is now a named `paintItem`, unchanged; after the captions layer it paints `captionFrontItems(...)` (ours, `src/reelsmith/captionFronts.ts`) inside an `AbsoluteFill` with `zIndex: 2`, because the captions overlay has `zIndex: 1`. On a merge conflict, keep upstream's body and re-wrap it.
+- Ours: `src/reelsmith/agent/{reverseTool,rewindClips,cleanSpeechTool}.ts`, `src/reelsmith/{captionFronts,speechCleanup}.ts`, the `rewind` move in `director/creatorMoves.ts`, `server/reelsmith/captionBehindRender.verify.ts`.

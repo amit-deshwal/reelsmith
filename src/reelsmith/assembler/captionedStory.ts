@@ -1,9 +1,11 @@
-// captioned-story@1: talking clips with pauses tightened (never mid-word), word-timed captions,
-// B-roll over sentences, and an opening hook title.
+// captioned-story@1: talking clips with pauses tightened and fillers, stutters and abandoned takes cut (never mid-word),
+// word-timed captions, B-roll over sentences, and an opening hook title. Each talking clip becomes the pieces it keeps
+// (speechCleanup.ts): a video plays its source straight through, so a pause or a word only goes with a real cut.
 import { matchBroll } from './brollMeaning';
 import { renderTemplate } from '../../../shared/reelsmith/recipe';
 import type { AtomicAction } from '../../editor/reducerActions';
-import { editedFrames, projectRetimedWords, type EditOpts } from '../../transcript/edit';
+import type { EditOpts } from '../../transcript/edit';
+import { CLEANUP_LEVELS, cleanupIndices, placeWords, speechCuts, type CleanupLevel } from '../speechCleanup';
 import { clipItem, dbToGain, fpsOf, textItem } from './common';
 import { musicStartSec, pickClips, pickWithPreferred } from './beatMontage';
 import { musicEndFrame, musicFadeFrames } from '../musicPolicy';
@@ -40,39 +42,47 @@ export function assembleCaptionedStory(input: AssembleInput): AssembleResult {
 
   const opts = recipe.assembler.options ?? {};
   const level = String(params.tighten ?? 'balanced');
-  const edit = tightenOpts(level, (opts.pauseThresholdMs as Record<string, number>) ?? DEFAULT_THRESHOLDS, Number(opts.keepBreathMs ?? 120), fps);
+  const thresholds = (opts.pauseThresholdMs as Record<string, number>) ?? DEFAULT_THRESHOLDS;
+  const maxPauseMs = level === 'off' ? undefined : thresholds[level] ?? DEFAULT_THRESHOLDS[level];
+  const cleanLevel: CleanupLevel = (CLEANUP_LEVELS as readonly string[]).includes(level) ? level as CleanupLevel : 'balanced';
+  const breathMs = Number(opts.keepBreathMs ?? 120);
   const tag = `${recipe.id}@${recipe.version}`;
   const actions: AtomicAction[] = [];
-  const none = new Set<number>();
   const sentenceStarts: Array<{ frame: number; end: number; text: string }> = [];
+  const removed = { fillers: 0, stutters: 0, retakes: 0 };
   let cursor = 0;
 
   talking.forEach((clip, i) => {
     const words = clip.transcript!;
-    const dur = editedFrames(words, none, fps, edit);
-    const act = clipItem(stableId('rs', tag, seed, 'talk', i), { ...clip, sourceAnalysis: undefined, bestStartFrame: 0 }, 'V1', dur, {
-      props: { rsSection: i === 0 ? 'hook' : 'story', rsRun: tag },
-    }, 0);
-    const item = (act as { item: Record<string, unknown> }).item;
-    Object.assign(item, {
-      kind: 'video', transcript: words, srcInFrame: undefined, playbackRate: undefined,
-      volume: 1, silenceFrames: edit.maxGapFrames, cutPadFrames: edit.cutPadFrames,
+    const clean = cleanupIndices(words, cleanLevel);
+    removed.fillers += clean.fillers.length; removed.stutters += clean.stutters.length; removed.retakes += clean.retakes.length;
+    const deleted = new Set(clean.idxs);
+    const cuts = speechCuts(words, deleted, fps, { srcInFrame: 0, srcFrames: clip.durationInFrames }, maxPauseMs, breathMs);
+    if (!cuts.length) { warnings.push(`${clip.name}: no words left to keep`); return; }
+    const clipStart = cursor;
+    cuts.forEach((cut, k) => {
+      const act = clipItem(stableId('rs', tag, seed, 'talk', i, ...(k ? [k] : [])), { ...clip, sourceAnalysis: undefined, bestStartFrame: 0 }, 'V1', cut.srcFrames, {
+        props: { rsSection: i === 0 ? 'hook' : 'story', rsRun: tag },
+      }, 0);
+      // every piece carries the transcript; captions on video show the words inside each piece's source window
+      Object.assign((act as { item: Record<string, unknown> }).item, { kind: 'video', transcript: words, srcInFrame: cut.srcInFrame, playbackRate: undefined, volume: 1 });
+      (act as { startFrame: number }).startFrame = cursor;
+      actions.push(act);
+      cursor += cut.srcFrames;
     });
-    (act as { startFrame: number }).startFrame = cursor;
-    actions.push(act);
-    // sentence boundaries on the edited timeline
-    const proj = projectRetimedWords(words, none, fps, 0, edit);
+    // sentence boundaries on the cut timeline
+    const placed = placeWords(words, deleted, cuts, fps);
     let sStart = 0;
-    proj.words.forEach((w, k) => {
-      const next = proj.words[k + 1];
-      const endsSentence = /[.?!।]$/.test(w.text) || !next || next.start - w.end > 500;
-      if (endsSentence) {
-        sentenceStarts.push({ frame: cursor + Math.round((proj.words[sStart]!.start / 1000) * fps), end: cursor + Math.round((w.end / 1000) * fps), text: proj.words.slice(sStart, k + 1).map((x) => x.text).join(' ') });
+    placed.forEach((w, k) => {
+      const next = placed[k + 1];
+      if (/[.?!।]$/.test(w.text) || !next || next.startFrame - w.endFrame > Math.round(fps / 2)) {
+        sentenceStarts.push({ frame: clipStart + placed[sStart]!.startFrame, end: clipStart + w.endFrame, text: placed.slice(sStart, k + 1).map((x) => x.text).join(' ') });
         sStart = k + 1;
       }
     });
-    cursor += dur;
   });
+  const cleaned = removed.fillers + removed.stutters + removed.retakes;
+  if (cleaned) warnings.push(`Cut ${[removed.fillers && `${removed.fillers} filler word${removed.fillers === 1 ? '' : 's'}`, removed.stutters && `${removed.stutters} stutter${removed.stutters === 1 ? '' : 's'}`, removed.retakes && `${removed.retakes} word${removed.retakes === 1 ? '' : 's'} of restarted sentences`].filter(Boolean).join(', ')} (${level}).`);
   const total = cursor;
 
   // captions follow the edited, tightened timeline

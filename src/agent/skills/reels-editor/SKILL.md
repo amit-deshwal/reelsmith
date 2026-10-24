@@ -87,6 +87,8 @@ A reel made from the Recipes tab remembers its recipe run.
 - `reels_run_info`: which recipe, its params and texts, and the sections on the timeline (e.g. `intro`, `body`, `outro`, `drop`).
 - `reels_recut_section`: fresh shots for one section ("re-cut the body"). Other sections and clips the user added by hand are kept. Clips imported after the reel was built are picked from too (pass `useNewClips:false` to use only the original set).
 - To change rhythm ("cut every beat in the body"), re-cut the section, then `reels_snap_cuts_to_beats` with the wanted `every`.
+- Talking clips ("remove the ums", "cut my retakes", "tighten my talking"): `reels_clean_speech` (level balanced unless they ask for more; `pauses` true when they want it tighter). Report the words it cut.
+- Backwards ("reverse that", "rewind the jump"): `reels_reverse` on the clip, or `fromSec`/`toSec` for a stretch of it; picture and sound play backwards, everything else stays. `forwards` true undoes it. Never fake it with keyframes or a negative speed.
 - Hook or closer ("add a flash opener"): `reels_strobe` with `mode` opener or closer. It adds 3 beat-cut flashes of different footage with white flashes between, on its own track above the reel. Needs music with a beat grid; keep the default 1.5 s unless asked.
 
 ## Choosing the shots ("let my agent choose")

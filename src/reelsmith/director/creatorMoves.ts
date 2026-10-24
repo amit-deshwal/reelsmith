@@ -116,6 +116,40 @@ const freezeIntro: MoveDef = {
   },
 };
 
+/**
+ * RS-1223: plays a moment, rewinds it fast on the beat like a tape (VHS lines, a record scratch), then plays it again.
+ * The backwards part is laid out forwards here and marked `rsRewind`; the build swaps in a reversed copy of exactly that
+ * span (`rewindClips` in agent/rewindClips.ts), so the move itself stays synchronous like every other.
+ */
+export const REWIND_FX = 'builtin:fx-vhs';
+const rewind: MoveDef = {
+  id: 'rewind', name: 'Rewind', looks: 'The shot plays, then on the beat it rewinds fast like a tape (VHS lines and a record scratch) back to where it began, and plays the moment again.',
+  use: 'Undoing a moment for a laugh or a hook: the jump, the fall, the cake smash, the splash, "wait, watch that again". One video with one clear action; the rewind lands on a beat. Once per reel.',
+  clips: { min: 1, max: 1 }, beats: { min: 2, default: 4, max: 12 }, wants: ['action', 'people'],
+  params: [
+    { id: 'speed', type: 'number', label: 'Rewind speed', default: 3, min: 1.5, max: 6 },
+    { id: 'replay', type: 'boolean', label: 'Play the moment again after the rewind', default: true },
+  ],
+  build: (ctx) => {
+    const clip = ctx.clips[0]!;
+    if (clip.kind !== 'video') { ctx.warn(`${clip.name} is a photo; a rewind needs video, so it is held instead.`); clipAt(ctx, 0, ['rw'], clip, ctx.start, ctx.end, 0); return; }
+    const replay = bool(ctx.params.replay, true);
+    const f1 = ctx.beatFrame(Math.max(1, Math.round(ctx.beats * (replay ? 0.45 : 0.7))));
+    const fwd = f1 - ctx.start;
+    const rew = Math.max(2, Math.min(ctx.end - f1 - (replay ? 1 : 0), Math.round(fwd / num(ctx.params.speed, 3))));
+    const f2 = f1 + rew;
+    const m = ctx.moment(clip, Math.max(fwd, ctx.end - f2));
+    clipAt(ctx, 0, ['rw-play'], clip, ctx.start, f1, m.inFrame);
+    // exactly the span that just played, at the speed that fits it into the rewind
+    clipAt(ctx, 0, ['rw-back'], clip, f1, f2, m.inFrame, {
+      playbackRate: Math.round((fwd / rew) * 1000) / 1000, volume: 0, props: { rsRewind: true },
+      effects: [{ id: ctx.id('rw-vhs'), assetId: REWIND_FX, overrides: { wobble: 1.6, tracking: 1, noise: 1.2 } }],
+    });
+    flash(ctx, 'rw-flash', f1, 'scratch', 0.35);
+    if (replay && f2 < ctx.end) clipAt(ctx, 0, ['rw-again'], clip, f2, ctx.end, m.inFrame);
+  },
+};
+
 /** A cover transform that puts the person's box at the same place and height in every shot (null without a focus). */
 export function matchTransform(clip: Pick<AssemblyClip, 'width' | 'height'>, W: number, H: number, focus: FocusRect | undefined, height: number, centerY = 0.55) {
   const w = clip.width ?? 0, h = clip.height ?? 0;
@@ -189,4 +223,4 @@ const talkZoom: MoveDef = {
   },
 };
 
-export const CREATOR_MOVES: readonly MoveDef[] = [velocity, photo3d, freezeIntro, matchCut, talkZoom];
+export const CREATOR_MOVES: readonly MoveDef[] = [velocity, photo3d, freezeIntro, matchCut, talkZoom, rewind];

@@ -1,5 +1,6 @@
 // Reelsmith agent tools (RS-106, RS-108, RS-403). Executors: ./reelsTools.ts.
 import type { AgentToolSchema } from '../../agent/tool-schema';
+import { CLIP_TOOL_SCHEMAS } from './clipToolSchemas';
 
 export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
   {
@@ -445,6 +446,7 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
       required: ['atSec'],
     },
   },
+  ...CLIP_TOOL_SCHEMAS,
   {
     name: 'reels_restyle_text',
     description: [
@@ -469,4 +471,4 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
 
 export const REELS_TOOL_NAMES = new Set(REELS_TOOL_SCHEMAS.map((t) => t.name));
 export const REELS_READ_TOOL_NAMES = ['reels_lint', 'reels_plan_options', 'reels_director_options', 'reels_director_treatment', 'reels_director_critique', 'reels_run_info', 'reels_selection_candidates', 'reels_selection_sheet'] as const;
-export const REELS_EDIT_TOOL_NAMES = ['reels_plan_assemble', 'reels_director_build', 'reels_director_fix', 'reels_custom_shader', 'reels_custom_graphic', 'reels_time_effect', 'reels_freeze_frame', 'reels_restyle_text', 'reels_apply_look', 'reels_apply_signature', 'reels_recut_section', 'reels_snap_cuts_to_beats', 'reels_strobe', 'propose_selection'] as const;
+export const REELS_EDIT_TOOL_NAMES = ['reels_plan_assemble', 'reels_director_build', 'reels_director_fix', 'reels_custom_shader', 'reels_custom_graphic', 'reels_time_effect', 'reels_freeze_frame', 'reels_reverse', 'reels_clean_speech', 'reels_restyle_text', 'reels_apply_look', 'reels_apply_signature', 'reels_recut_section', 'reels_snap_cuts_to_beats', 'reels_strobe', 'propose_selection'] as const;

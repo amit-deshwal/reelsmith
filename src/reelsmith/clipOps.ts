@@ -43,6 +43,8 @@ export function detachAudioActions(item: TimelineItem, newItemId: string, newTra
 /** What a reversed clip played before, kept on the clip (`props.rsReversed`) so "Play forwards" can put it back. */
 export interface ReversedFrom {
   src: string; srcInFrame?: number; width?: number; height?: number;
+  /** the media pool asset it came from (the reversed copy is not in the pool) */
+  assetId?: string;
   sourceRevision?: string; sourceContentHash?: string; sourceSize?: number; sourceModifiedAt?: number; sourceFilename?: string; originalFilePath?: string;
 }
 
@@ -65,20 +67,36 @@ export function reverseSpanOf(item: Pick<TimelineItem, 'srcInFrame' | 'durationI
  * Play the clip backwards: relink it to the reversed copy of its span (from frame 0 of that copy, since the copy is
  * exactly the span) and remember the forwards source. Place, speed, look, effects and keyframes stay; one undo step.
  */
-export function reverseActions(clip: TimelineItem, rev: ReversedSource): AtomicAction[] {
+function forwardsOf(clip: TimelineItem): ReversedFrom {
   const item = clip as RelinkableTimelineItem;
-  const from: ReversedFrom = {
-    src: item.src!, srcInFrame: item.srcInFrame, width: item.width, height: item.height,
+  return {
+    src: item.src!, srcInFrame: item.srcInFrame, width: item.width, height: item.height, ...(item.sourceAssetId ? { assetId: item.sourceAssetId } : {}),
     sourceRevision: item.sourceRevision, sourceContentHash: item.sourceContentHash, sourceSize: item.sourceSize,
     sourceModifiedAt: item.sourceModifiedAt, sourceFilename: item.sourceFilename, originalFilePath: item.originalFilePath,
   };
+}
+
+const revisionOf = (rev: ReversedSource) => createMediaSourceRevision({ src: rev.src, kind: 'video', durationInFrames: rev.frames, width: rev.width, height: rev.height });
+const fileNameOf = (src: string) => decodeURIComponent(src.split('/').pop() ?? '');
+
+/** A new clip (not yet on the timeline, e.g. one a director build is about to add) that plays the reversed copy instead. */
+export function reversedItem<T extends TimelineItem>(item: T, rev: ReversedSource): T {
+  const { sourceAssetId: _a, sourceContentHash: _h, originalFilePath: _o, sourceSize: _s, sourceModifiedAt: _m, ...rest } = item as T & RelinkableTimelineItem;
+  return {
+    ...rest, src: rev.src, srcInFrame: 0, width: rev.width, height: rev.height, sourceRevision: revisionOf(rev), sourceFilename: fileNameOf(rev.src),
+    props: { ...(item.props ?? {}), rsReversed: forwardsOf(item) },
+  } as unknown as T;
+}
+
+export function reverseActions(item: TimelineItem, rev: ReversedSource): AtomicAction[] {
+  const from = forwardsOf(item);
   return [
     {
       type: 'relinkTimelineItem', id: item.id, src: rev.src, kind: 'video', durationInFrames: rev.frames, width: rev.width, height: rev.height,
       // a new revision, so cached frames of the forwards clip are not shown for the reversed one
-      sourceRevision: createMediaSourceRevision({ src: rev.src, kind: 'video', durationInFrames: rev.frames, width: rev.width, height: rev.height }),
+      sourceRevision: revisionOf(rev),
       sourceContentHash: undefined, sourceSize: undefined, sourceModifiedAt: undefined, originalFilePath: undefined,
-      sourceFilename: decodeURIComponent(rev.src.split('/').pop() ?? ''),
+      sourceFilename: fileNameOf(rev.src),
     },
     { type: 'updateProps', id: item.id, patch: { rsReversed: from } },
   ];

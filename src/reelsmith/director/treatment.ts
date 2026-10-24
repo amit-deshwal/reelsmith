@@ -63,20 +63,20 @@ export const TONE_KIT: Record<Tone, { prefer: string[]; avoid: string[] }> = {
     avoid: [...PLAYFUL_TEXT, ...CARTOONY, ...PARTY, ...BOUNCY, 'caption'],
   },
   hype: {
-    prefer: ['slam', 'words-on-beat', 'glitch', 'title-shuffle', 'split-reveal', 'neon', 'glitch-cut', 'flash', 'spin-zoom', 'prism-flash', 'impact-shake', 'zoom-through', 'whip-blur', 'rgb-split', 'zoom-blur', 'shake', 'bounce', 'blackout', 'flash-cuts', 'zoom-punch', 'velocity'],
+    prefer: ['rewind', 'slam', 'words-on-beat', 'glitch', 'title-shuffle', 'split-reveal', 'neon', 'glitch-cut', 'flash', 'spin-zoom', 'prism-flash', 'impact-shake', 'zoom-through', 'whip-blur', 'rgb-split', 'zoom-blur', 'shake', 'bounce', 'blackout', 'flash-cuts', 'zoom-punch', 'velocity'],
     avoid: ['crossfade', 'light-dissolve', 'pro-mist', 'typewriter', 'watercolor', 'pencil-sketch'],
   },
   playful: {
-    prefer: ['pop-words', 'highlight', 'wave', 'follow-tag', 'draw-on', 'words-on-beat', 'sticker', 'annotate', 'chat-bubbles', 'notification', 'slide-over', 'tile-pop', 'whip-blur', 'zoomIn', 'bounce', 'subject-pop', 'freeze-intro', 'photo-stack'],
+    prefer: ['rewind', 'pop-words', 'highlight', 'wave', 'follow-tag', 'draw-on', 'words-on-beat', 'sticker', 'annotate', 'chat-bubbles', 'notification', 'slide-over', 'tile-pop', 'whip-blur', 'zoomIn', 'bounce', 'subject-pop', 'freeze-intro', 'photo-stack'],
     avoid: ['cinema-bars', 'film-grain', 'moody-bleach', 'dipToBlack'],
   },
   funny: {
-    prefer: ['pop-words', 'highlight', 'follow-tag', 'caption', 'slam', 'annotate', 'sticker', 'chat-bubbles', 'notification', 'loading-bar', 'freeze-intro', 'zoom-punch', 'whip-blur', 'impact-shake', 'bounce', 'subject-pop'],
+    prefer: ['rewind', 'pop-words', 'highlight', 'follow-tag', 'caption', 'slam', 'annotate', 'sticker', 'chat-bubbles', 'notification', 'loading-bar', 'freeze-intro', 'zoom-punch', 'whip-blur', 'impact-shake', 'bounce', 'subject-pop'],
     avoid: ['cinema-bars', 'light-dissolve', 'crossfade', 'pro-mist', 'moody-bleach'],
   },
   emotional: {
     prefer: ['typewriter', 'rise-lines', 'tracking-in', 'cinematic-title', 'crossfade', 'light-leak', 'blur-focus', 'light-dissolve', 'dipToWhite', 'pro-mist', 'halation', 'soft-vignette', 'fine-grain', 'hold', 'photo-drift', 'photo-3d'],
-    avoid: [...PLAYFUL_TEXT, ...GLITCHY, ...CARTOONY, ...PARTY, ...BOUNCY, 'slam', 'words-on-beat', 'flash-cuts', 'zoom-punch', 'shake'],
+    avoid: ['rewind', ...PLAYFUL_TEXT, ...GLITCHY, ...CARTOONY, ...PARTY, ...BOUNCY, 'slam', 'words-on-beat', 'flash-cuts', 'zoom-punch', 'shake'],
   },
   calm: {
     prefer: ['typewriter', 'rise-lines', 'tracking-in', 'cinematic-title', 'landscape-title', 'crossfade', 'light-dissolve', 'blur-focus', 'light-leak', 'soft-vignette', 'fine-grain', 'hold', 'photo-drift'],
@@ -99,7 +99,7 @@ export const TONE_KIT: Record<Tone, { prefer: string[]; avoid: string[] }> = {
 /** Moves that carry a drop. */
 const PEAK_MOVES = new Set(['flash-cuts', 'zoom-punch', 'velocity', 'speed-ramp', 'match-cut', 'break-in', 'strips-reveal']);
 /** Moves that make a reel memorable (one is the signature). */
-const SIGNATURE_MOVES = new Set(['velocity', 'photo-3d', 'freeze-intro', 'match-cut', 'strips-reveal', 'cards-finale', 'break-in', 'speed-ramp']);
+const SIGNATURE_MOVES = new Set(['velocity', 'photo-3d', 'freeze-intro', 'match-cut', 'strips-reveal', 'cards-finale', 'break-in', 'speed-ramp', 'rewind']);
 /** The plain moves: a reel made only of these looks like every other phone edit. */
 export const PLAIN_MOVES = new Set(['cut', 'hold', 'black']);
 

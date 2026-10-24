@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AbsoluteFill, Sequence, getRemotionEnvironment, useCurrentFrame } from 'remotion';
 import { CaptionsLayer } from '../captions/CaptionsLayer';
+import { captionFrontItems } from '../reelsmith/captionFronts';
 import { GlTransition } from '../gl/GlTransition';
 import { ALL_FX, registerCustomFx } from '../gl/fx/effects';
 import { selectTransitionPreviewAdapter, staticEffectPreviewStatus, staticPreviewFallbackStatus } from '../gl/previewAdapter';
@@ -317,16 +318,7 @@ function TimelineContent({ state, project, transparent, browserRenderer = false,
   const drawnIds = new Set(ordered.filter((it) => !sharedVisualIds.has(it.id)).map((it) => it.id));
   const windowAt = new Map(glWindows.filter((w) => drawnIds.has(w.incoming.id)).map((w) => [w.key, w.incoming.id] as const));
   const windowsAfter = (id: string) => glWindows.filter((w) => windowAt.get(w.key) === id).map(renderGlWindow);
-  return (
-    <AbsoluteFill style={{ background: transparent ? undefined : GRID }}>
-      {staticPreviewStatuses.map((status) => (
-        <SelectedPreviewStatusReporter
-          key={`${status.kind}:${status.targetId}`}
-          status={status}
-          listener={onSelectedPreviewStatus}
-        />
-      ))}
-      {ordered.flatMap((item) => [(() => {
+  const paintItem = (item: TimelineItem) => [(() => {
         // Reelsmith: a shared group paints at its first clip's layer. Painted first (under everything), a director
         // reel's black canvas covered any run of contiguous moments of one clip, in preview and in the export.
         const group = sharedGroupAt.get(item.id);
@@ -391,7 +383,19 @@ function TimelineContent({ state, project, transparent, browserRenderer = false,
             </GlTransitionVisibility>
           </Sequence>
         );
-      })(), ...windowsAfter(item.id)])}
+      })(), ...windowsAfter(item.id)];
+  // Reelsmith RS-502: captions behind the speaker. Cut-out copies of the clips under them are painted above the captions.
+  const captionFronts = captionFrontItems(ordered, captionEntries.map((entry) => entry.captions), state.items, state.fps);
+  return (
+    <AbsoluteFill style={{ background: transparent ? undefined : GRID }}>
+      {staticPreviewStatuses.map((status) => (
+        <SelectedPreviewStatusReporter
+          key={`${status.kind}:${status.targetId}`}
+          status={status}
+          listener={onSelectedPreviewStatus}
+        />
+      ))}
+      {ordered.flatMap(paintItem)}
       {/* GLSL transition windows whose incoming clip is not drawn above (painted over both clips, beneath captions) */}
       {glWindows.filter((w) => !windowAt.has(w.key)).map(renderGlWindow)}
       {audio.map((item) => (
@@ -420,6 +424,7 @@ function TimelineContent({ state, project, transparent, browserRenderer = false,
       {captionEntries.map(({ id, captions }) => captions?.enabled
         ? <CaptionsLayer key={id} captions={captions} items={state.items} />
         : null)}
+      {captionFronts.length > 0 && <AbsoluteFill style={{ zIndex: 2 }}>{captionFronts.flatMap(paintItem)}</AbsoluteFill>}
       {state.watermark?.enabled && state.watermark.text
         && <WatermarkLayer watermark={state.watermark} canvasH={state.height} />}
     </AbsoluteFill>

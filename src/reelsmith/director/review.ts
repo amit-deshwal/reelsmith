@@ -18,7 +18,7 @@ export interface ReviewInput {
 /** Moves and settings that give a section a peak: what a drop should land on. */
 const PEAK_MOVES = new Set(['flash-cuts', 'zoom-punch', 'velocity', 'speed-ramp', 'match-cut', 'break-in']);
 const PEAK_TRANSITIONS = new Set(['zoom-through', 'whip-blur', 'spin-zoom', 'flash', 'chroma-glitch', 'flip-3d', 'mirror-flip', 'prism-flash', 'impact-shake', 'radial-blur', 'glitch-cut']);
-const SIGNATURE_MOVES = new Set(['velocity', 'photo-3d', 'freeze-intro', 'match-cut', 'strips-reveal', 'cards-finale', 'break-in', 'speed-ramp']);
+const SIGNATURE_MOVES = new Set(['velocity', 'photo-3d', 'freeze-intro', 'match-cut', 'strips-reveal', 'cards-finale', 'break-in', 'speed-ramp', 'rewind']);
 
 const hasPeak = (s: ReelPlan['sections'][number]) => PEAK_MOVES.has(s.move) || s.textStyle === 'slam'
   || (s.transition !== undefined && PEAK_TRANSITIONS.has(s.transition))

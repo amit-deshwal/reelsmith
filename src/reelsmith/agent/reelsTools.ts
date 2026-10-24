@@ -25,6 +25,8 @@ import { customShaderTool } from './customShaderTool';
 import { customGraphicTool } from './customGraphicTool';
 import { parseTimeEffectArgs, planTimedEffect } from './timeEffectTool';
 import { freezeFrameTool } from './freezeFrameTool';
+import { reverseTool } from './reverseTool';
+import { parseCleanSpeechArgs, planCleanSpeech } from './cleanSpeechTool';
 import { parseRestyleArgs, planRestyle } from './restyleTextTool';
 import { applySignatureTool } from './signatureTools';
 import { applyLookTool } from './lookTools';
@@ -137,6 +139,23 @@ export async function execReelsTool(name: string, args: Args, ctx: AgentContext,
         ok: true, stillItemId: out.plan.stillId, atSec: out.plan.atFrame / state.fps, heldSec: out.plan.holdFrames / state.fps, sourceSec: out.plan.sourceSec,
         ...(out.clamped ? { note: `held only ${(out.plan.holdFrames / state.fps).toFixed(2)} s: the clip ends there` } : {}),
       };
+    }
+
+    case 'reels_reverse': {
+      const out = await reverseTool(args, state, deps.api, () => crypto.randomUUID());
+      if ('error' in out) return out;
+      commit(ctx, out.actions, out.label);
+      return { ok: true, itemId: out.itemId, fromSec: out.from / state.fps, toSec: out.to / state.fps, forwards: args.forwards === true };
+    }
+
+    case 'reels_clean_speech': {
+      const parsed = parseCleanSpeechArgs(args);
+      if ('error' in parsed) return parsed;
+      const out = planCleanSpeech(state, parsed, () => crypto.randomUUID());
+      if ('error' in out) return out;
+      if (!out.actions.length) return { ok: true, changed: false, note: `nothing to cut at ${parsed.level}`, clips: out.clips };
+      commit(ctx, out.actions, `Clean up speech (${parsed.level})`);
+      return { ok: true, changed: true, level: parsed.level, clips: out.clips };
     }
 
     case 'reels_restyle_text': {
