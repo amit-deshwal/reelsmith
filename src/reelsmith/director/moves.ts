@@ -285,14 +285,14 @@ const postcardBand: MoveDef = {
 
 const cardsFinale: MoveDef = {
   id: 'cards-finale', name: 'Cards, grid and panorama', looks: 'A wide shot fills the frame, two more wipe in as bands over its top and bottom thirds, the bands become three cards, the cards split into a six-window grid that swaps pictures, then one window grows into a panorama that shuts into a thin line.',
-  use: 'The ending of a trip film. Clips in order: middle (a wide shot with movement: people walking, a pan), top band (wide, moving), closer (the most beautiful wide shot with movement in it: a pan, a drone, people walking; it is on screen about 6 s and ends the film, so a locked-off or tiny-planet shot reads as frozen), then three details for the grid. The first 2-3 s show only the middle and the two bands, so avoid still footage (people sitting, talking, a held selfie) in those three roles.',
+  use: 'The ending of a trip film. Clips in order: middle (a wide shot with movement: people walking, a pan), top band (wide, moving), closer (the most beautiful wide shot with movement in it: a pan, a drone, people walking; it is on screen about 6 s and ends the film, so a locked-off or tiny-planet shot reads as frozen), then three details for the grid. The first 2-3 s show only the middle and the two bands, so avoid still footage (people sitting, talking, a held selfie) in those three roles. The grid tiles are small: give them steady, sharp moments with one clear subject (a face, a pose, a view, an object), never a walking, running or jumping shot (its motion blur shows at that size) or a crowd.',
   clips: { min: 3, max: 6 }, beats: { min: 10, default: 12, max: 24 }, wants: ['scenery', 'water', 'city', 'food', 'detail', 'people'],
   params: [],
   clipCount: () => 6,
   build: (ctx) => {
     const clock = finaleClock((ctx.end - ctx.start) / ctx.fps);
     const cover = ctx.previous?.bandCover ?? 0;
-    const windows = finaleWindows(ctx.W, ctx.H, 0, () => cover).map((w) => ({ ...w, from: clock(w.from), to: clock(w.to), keys: w.keys.map((key) => ({ ...key, t: clock(key.t) })) }));
+    const windows = finaleWindows(ctx.W, ctx.H, 0, () => cover, 'subject').map((w) => ({ ...w, from: clock(w.from), to: clock(w.to), keys: w.keys.map((key) => ({ ...key, t: clock(key.t) })) }));
     const sources = Object.fromEntries(FINALE_ROLES.map((role, i) => {
       const from = role.startsWith('grid') ? FINALE_GRID_FROM_SEC : 0;
       return [role, source(ctx, ctx.clips[i % ctx.clips.length]!, clock(from + FINALE_NEEDS_SEC[role]) - clock(from), clock(from))];

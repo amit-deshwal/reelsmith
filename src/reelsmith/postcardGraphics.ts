@@ -3,9 +3,10 @@
 //
 // The graphic is a generic window player: `sources` are the clips (each with the source second it plays from and the
 // graphic second it starts at), `windows` say which source shows where and when. A window has keyframed rectangles: the
-// visible rectangle `win` and the `anchor` the picture is centred on. With cover "window" the picture covers the window
-// (strips); with cover "frame" it covers the whole frame and the window only crops it (finale), so a window that changes
-// shape crops rather than stretches. The scenes themselves are plain data built below in TypeScript.
+// visible rectangle `win` and the `anchor` the picture is centred on. With cover "window" the picture covers the anchor
+// (the window itself unless one is given) centred on the source's focus (strips; the director's finale); with cover
+// "frame" it covers the whole frame and the window only crops it (the recipe's finale), so a window that changes shape
+// crops rather than stretches. The scenes themselves are plain data built below in TypeScript.
 
 export type Rect = [number, number, number, number];
 
@@ -80,11 +81,12 @@ export const POSTCARD_GRAPHIC_CODE = String.raw`const PostcardGraphic = ({ item 
     const f = s.focus || [0.5, 0.5];
     let pw, ph, x, y;
     if (w.cover === 'window') {
-      const k = Math.max(win[2] / Math.max(1, s.width), win[3] / Math.max(1, s.height));
+      // the picture covers the anchor (the window unless one is given), so a window growing over a fixed anchor reveals
+      const k = Math.max(anchor[2] / Math.max(1, s.width), anchor[3] / Math.max(1, s.height));
       pw = s.width * k; ph = s.height * k;
       // the focus point as central as the edges allow
-      x = clamp(win[0] + win[2] / 2 - f[0] * pw, win[0] + win[2] - pw, win[0]);
-      y = clamp(win[1] + win[3] / 2 - f[1] * ph, win[1] + win[3] - ph, win[1]);
+      x = clamp(anchor[0] + anchor[2] / 2 - f[0] * pw, anchor[0] + anchor[2] - pw, anchor[0]);
+      y = clamp(anchor[1] + anchor[3] / 2 - f[1] * ph, anchor[1] + anchor[3] - ph, anchor[1]);
     } else {
       const k = Math.max(W / Math.max(1, s.width), H / Math.max(1, s.height));
       pw = s.width * k; ph = s.height * k;
@@ -112,6 +114,12 @@ export function stripWindows(W: number, H: number, at: readonly number[], until:
 // ---- the finale ----------------------------------------------------------------------------------------------------
 
 export type FinaleRole = 'middle' | 'top' | 'closer' | 'grid1' | 'grid2' | 'grid3';
+/**
+ * How the finale frames its clips. 'crop': every window crops one full-frame picture (made for 16:9 postcards).
+ * 'subject': every window shows its clip scaled to cover it and centred on the person; on a 9:16 reel a grid tile is a
+ * third of the width, and a crop of the full frame there was a torso, half a face or sky.
+ */
+export type FinaleFit = 'crop' | 'subject';
 export const FINALE_ROLES: readonly FinaleRole[] = ['middle', 'top', 'closer', 'grid1', 'grid2', 'grid3'];
 
 /** Finale beats in graphic seconds (the graphic starts at 13.3 s of the film). */
@@ -132,8 +140,9 @@ export const FINALE_NEEDS_SEC: Record<FinaleRole, number> = { middle: 3.7, top: 
  * 3 x 2 grid whose pictures swap; the top-right window grows into a panorama while the rest fade; the panorama shuts
  * into a thin line. `bandCover(s)` is the fraction of the height each band bar covers at film second s.
  */
-export function finaleWindows(W: number, H: number, startSec: number, bandCover: (s: number) => number): GraphicWindow[] {
+export function finaleWindows(W: number, H: number, startSec: number, bandCover: (s: number) => number, fit: FinaleFit = 'crop'): GraphicWindow[] {
   const F = FINALE;
+  const cover = fit === 'subject' ? 'window' : 'frame';
   const margin = W * 0.025;
   const gap = W * 0.007;
   const cw = (W - 2 * margin - 2 * gap) / 3;
@@ -147,26 +156,26 @@ export function finaleWindows(W: number, H: number, startSec: number, bandCover:
   const out: GraphicWindow[] = [];
 
   // the middle clip: in the band, opening to the full frame
-  out.push({ s: 'middle', from: 0, to: F.cards[0], cover: 'frame', keys: [
+  out.push({ s: 'middle', from: 0, to: F.cards[0], cover, keys: [
     { t: 0, win: inset(startSec), anchor: full, linear: true },
     { t: F.open[0], win: inset(startSec + F.open[0]), anchor: full },
     { t: F.open[1], win: full, anchor: full },
   ] });
   // two bands wipe in over it, the top one from the left, the bottom one from the right, and the gutters open
-  out.push({ s: 'top', from: F.topWipe[0], to: F.cards[0], cover: 'frame', keys: [
+  out.push({ s: 'top', from: F.topWipe[0], to: F.cards[0], cover, keys: [
     { t: F.topWipe[0], win: [0, 0, 0, bandH], anchor: bands[0] }, { t: F.topWipe[1], win: bands[0], anchor: bands[0] },
   ] });
-  out.push({ s: 'closer', from: F.closerWipe[0], to: F.cards[0], cover: 'frame', keys: [
+  out.push({ s: 'closer', from: F.closerWipe[0], to: F.cards[0], cover, keys: [
     { t: F.closerWipe[0], win: [W, H - bandH, 0, bandH], anchor: bands[2] }, { t: F.closerWipe[1], win: bands[2], anchor: bands[2] },
   ] });
   for (const y of [H / 3, (2 * H) / 3]) {
-    out.push({ s: null, from: F.gutters[0], to: F.cards[0], cover: 'frame', keys: [
+    out.push({ s: null, from: F.gutters[0], to: F.cards[0], cover, keys: [
       { t: F.gutters[0], win: [0, y, W, 0] }, { t: F.gutters[1], win: [0, y - gap / 2, W, gap] },
     ] });
   }
   // the bands become three tall cards
   (['top', 'middle', 'closer'] as const).forEach((role, i) => {
-    out.push({ s: role, from: F.cards[0], to: F.grid, cover: 'frame', keys: [{ t: F.cards[0], win: bands[i]! }, { t: F.cards[1], win: card(i) }] });
+    out.push({ s: role, from: F.cards[0], to: F.grid, cover, keys: [{ t: F.cards[0], win: bands[i]! }, { t: F.cards[1], win: card(i) }] });
   });
 
   // the grid: each top card shrinks into its top window, each bottom window grows up from its bottom edge
@@ -176,7 +185,13 @@ export function finaleWindows(W: number, H: number, startSec: number, bandCover:
     [['middle', F.grid, S.top1a], ['grid2', S.top1a, S.top1b], ['grid3', S.top1b, F.pano[1]]],
     [['closer', F.grid, F.pano[0]]],
   ];
-  const bottomSchedule: Array<Array<[FinaleRole, number, number]>> = [
+  // 'subject': each bottom window trades pictures with a top one at the same moment, so no clip is ever on screen twice
+  // (with six clips in six windows, every one-way swap repeated one; framed on the person, the repeat stood next to itself)
+  const bottomSchedule: Array<Array<[FinaleRole, number, number]>> = fit === 'subject' ? [
+    [['grid3', F.grid, S.top1b], ['grid2', S.top1b, F.pano[1]]],
+    [['grid1', F.grid, S.top0], ['top', S.top0, F.pano[1]]],
+    [['grid2', F.grid, S.top1a], ['middle', S.top1a, F.pano[1]]],
+  ] : [
     [['grid3', F.grid, S.bottom0], ['top', S.bottom0, F.pano[1]]],
     [['grid1', F.grid, S.bottom1], ['grid2', S.bottom1, F.pano[1]]],
     [['grid2', F.grid, S.bottom2], ['grid1', S.bottom2, F.pano[1]]],
@@ -188,10 +203,10 @@ export function finaleWindows(W: number, H: number, startSec: number, bandCover:
     const top = tile(i, 0);
     const bottom = tile(i, 1);
     for (const [role, from, to] of topSchedule[i]!) {
-      out.push({ s: role, from, to, cover: 'frame', keys: [{ t: t0, win: card(i) }, { t: t1, win: top }, ...(i === 2 ? [] : fade(top))] });
+      out.push({ s: role, from, to, cover, keys: [{ t: t0, win: card(i) }, { t: t1, win: top }, ...(i === 2 ? [] : fade(top))] });
     }
     for (const [role, from, to] of bottomSchedule[i]!) {
-      out.push({ s: role, from, to, cover: 'frame', keys: [
+      out.push({ s: role, from, to, cover, keys: [
         { t: t0, win: [bottom[0], bottom[1] + bottom[3], bottom[2], 0], anchor: bottom }, { t: t1, win: bottom, anchor: bottom }, ...fade(bottom),
       ] });
     }
@@ -199,7 +214,7 @@ export function finaleWindows(W: number, H: number, startSec: number, bandCover:
   // the top-right window grows into the panorama, which then shuts into a line across its middle
   const pano: Rect = [W * 0.05, H * 0.1, W * 0.9, H * 0.8];
   const line: Rect = [pano[0], pano[1] + pano[3] / 2, pano[2], 0];
-  out.push({ s: 'closer', from: F.pano[0], to: F.shut[1], cover: 'frame', keys: [
+  out.push({ s: 'closer', from: F.pano[0], to: F.shut[1], cover, keys: [
     { t: F.pano[0], win: tile(2, 0) }, { t: F.pano[1], win: pano }, { t: F.shut[0], win: pano, anchor: pano }, { t: F.shut[1], win: line, anchor: pano },
   ] });
   return out;
