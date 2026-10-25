@@ -49,6 +49,10 @@ export function critiqueFrames(plan: ReelPlan, spans: readonly Span[], fps: numb
     const frame = Math.max(0, Math.round(sec * fps));
     if (!out.some((f) => Math.abs(f.frame - frame) < fps * 0.25)) out.push({ frame, label });
   };
+  // RS-1227: the frame people see mid-scroll with the sound off decides if they stop; a loop is also judged at its seam
+  add(0, 'first frame (mid-scroll, sound off)');
+  const end = spans.at(-1)?.to ?? 0;
+  if (plan.loop && end > 1) out.push({ frame: Math.max(0, Math.round(end * fps) - 1), label: 'loop seam: the last frame (it replays into the first frame)' });
   spans.forEach((s, k) => {
     const len = s.to - s.from;
     const sec = plan.sections[k]!;
@@ -64,7 +68,9 @@ export function critiqueFrames(plan: ReelPlan, spans: readonly Span[], fps: numb
   out.sort((a, b) => a.frame - b.frame);
   // over the budget: keep every section's middle and every line, then thin the rest evenly
   if (out.length <= max) return out;
-  const must = out.filter((f) => / mid$|line|overlay/.test(f.label));
+  // the first frame and a loop's seam first: over the budget they are what a cap would cut (they sit at the ends)
+  const ends = out.filter((f) => /first frame|loop seam/.test(f.label));
+  const must = [...ends, ...out.filter((f) => !ends.includes(f) && / mid$|line|overlay/.test(f.label))];
   const rest = out.filter((f) => !must.includes(f));
   const room = Math.max(0, max - must.length);
   const step = rest.length / Math.max(1, room);
@@ -76,14 +82,16 @@ export function critiqueFrames(plan: ReelPlan, spans: readonly Span[], fps: numb
 export function criticBrief(treatment?: Treatment): string {
   return [
     'Stage 4: critique. You are now a picky creative director seeing this reel cold. Judge only the rendered frames and the findings, not what you meant to make:',
-    '1. Hook: would the first second stop someone scrolling (movement, a face, a reveal), or is it a static selfie with a caption?',
+    '1. Hook: would the first second stop someone scrolling (movement, a face, a reveal), or is it a static selfie with a caption? The first frame alone, sound off: is there a clear subject on it, not black, a flash or a half-faded shot?',
     '2. Words: every letter inside the frame (no word cut off at an edge or wrapped badly), off faces, readable at phone size against the shot; does each style fit the tone' + (treatment ? ` (${treatment.tone})` : '') + '?',
-    '3. Shots: any soft, dark, shaky or dull frame where a better moment exists in the shot log? the same shot twice in a row?',
-    '4. The drop: does the move, the effect and the cut land together, or does the peak pass unnoticed?',
-    '5. Craft: does anything look like a free template (a stock caption box, a transition on every cut, an effect for its own sake) or childish next to the story?',
-    '6. Ending: does it end on the best shot with the closing line and a clear last beat, or just stop?',
-    '7. Graphics: does each one point at the right person or thing, and stay readable?',
-    '8. Sound: the soundFindings are the reel with eyes closed (a sound on nothing, a drop on nothing, a line between beats, an ending mid-bar).',
+    '3. Line and picture: does each line sit on a shot that shows what it says (the summit line on the summit, "bro" on bro, the climb on climbing)? A line over an unrelated shot reads as filler.',
+    '4. Shots: any soft, dark, shaky or dull frame where a better moment exists in the shot log? the same shot twice in a row? a cut in the middle of an action (a jump cut before it lands, a turn half done)? on fast cuts, does the subject jump from one side of the frame to the other (see the eye-trace finding)?',
+    '5. The drop: does the move, the effect and the cut land together, or does the peak pass unnoticed?',
+    '6. Craft: does anything look like a free template (a stock caption box, a transition on every cut, an effect for its own sake) or childish next to the story?',
+    '7. Ending: does it end on the best shot with the closing line and a clear last beat, or just stop? If it loops: do the loop seam (the last frame) and the first frame read as one moment, so the replay feels like it keeps going?',
+    '8. Graphics: does each one point at the right person or thing, and stay readable?',
+    '9. Sound: the soundFindings are the reel with eyes closed (a sound on nothing, a drop on nothing, a line between beats, an ending mid-bar). Is there a moment the footage should be heard (a shout at the top, a splash, laughter, a line someone says) that is buried under the song? Give that section naturalSound.',
+    'Rank the defects as an editor would: emotion first (does it make you feel the story), then the story (is it clear), then rhythm (does it move with the song), then eye trace and framing.',
     'Then name the THREE LARGEST defects, worst first, each with its section, its time, the evidence (which image and what it shows, or which finding) and a local fix, and send them with the changed sections to reels_director_fix. If the frames show no defect, say so in one line and finish.',
   ].join('\n');
 }

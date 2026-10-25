@@ -298,6 +298,7 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
             musicStart: { description: "'firstDownbeat' (default), 'fromStart' or a second of the song." },
             look: { type: 'string', description: 'Optional look id from reels_director_options.' },
             sfx: { type: 'string', enum: ['auto', 'subtle', 'off'], description: 'Sound effects on transitions, flash cuts, drops and builds: auto (default), subtle (quieter) or off.' },
+            loop: { type: 'boolean', description: 'Made to replay: the song runs to the last frame (no fade) and the last shot should hand back to the first. End on a bar, never on black or a dip.' },
             sections: {
               type: 'array',
               items: {
@@ -325,6 +326,7 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
                   },
                   look: { type: 'string', description: 'A look for this section only.' },
                   textBehind: { type: 'boolean', description: 'Draw this section\'s line behind the person in the shot (they are cut out on top). Needs one clear person in video footage.' },
+                  naturalSound: { type: 'string', enum: ['under', 'solo'], description: 'The clips\' own sound plays here (a shout, a splash, laughter, a line someone says): under dips the song about 12 dB; solo stops it for the section and brings it back on the next section\'s first beat. Video only.' },
                   sounds: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, beat: { type: 'number' } }, required: ['id'] }, description: 'Hand-placed sound effects (sounds ids), beat counted from the section start. Auto sounds already cover transitions, flash cuts, drops and builds.' },
                 },
                 required: ['move'],

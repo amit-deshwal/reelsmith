@@ -3,6 +3,7 @@
 // problems with a concrete fix ("the drop at 11.2 s lands in section 4, a plain cut: time an effect to it"). The agent
 // still sees one frame per section; this catches what a frame cannot show (pacing, timing, the song, reading speed).
 import type { ReelPlan } from '../../../shared/reelsmith/directorPlan';
+import { paceFindings, type SongMap } from './songMap';
 
 export interface ReviewFinding { section?: number; issue: string; fix: string }
 
@@ -13,6 +14,12 @@ export interface ReviewInput {
   /** where the song starts in its own seconds, and its analysis */
   musicStartSec?: number;
   song?: { seconds: number; dropSec?: number; loudestSec?: number; bpm?: number; suggest?: { musicStart: number } };
+  /** RS-1224: the song's loudness bar by bar from the reel start */
+  songMap?: SongMap;
+  /** RS-1228: how far the subject jumps across the frame at each fast cut (0 = same place, 1 = the frame's width) */
+  eyeJumps?: ReadonlyArray<{ section: number; at: number; jump: number }>;
+  /** RS-1225: shots where someone talks while their sound is off under the song */
+  voices?: ReadonlyArray<{ section: number; at: number; seconds: number }>;
 }
 
 /** Moves and settings that give a section a peak: what a drop should land on. */
@@ -83,8 +90,41 @@ export function reviewDirectorPlan(r: ReviewInput): ReviewFinding[] {
     if (same.length && s.clips!.length <= 2) out.push({ section: k, issue: `section ${k} repeats a clip from section ${k - 1}`, fix: 'use another clip, or a clearly different moment (@seconds)' });
   });
   reviewGraphics(plan, spans, beatSec, out);
+  // RS-1224: the pace against the song's quiet and loud bars, and transitions on an odd beat
+  if (r.songMap) {
+    const beatOf = (sec: number) => Math.round((sec / beatSec) * 2) / 2;
+    out.push(...paceFindings(plan, spans.map((x) => ({ b0: beatOf(x.from), b1: beatOf(x.to) })), r.songMap));
+  }
+  // RS-1228: on fast cuts the eye stays where the last subject was; a subject on the far side of the frame is lost
+  const bySection = new Map<number, number[]>();
+  for (const j of r.eyeJumps ?? []) bySection.set(j.section, [...(bySection.get(j.section) ?? []), j.jump]);
+  for (const [k, jumps] of bySection) {
+    const sorted = [...jumps].sort((a, b) => a - b);
+    const median = sorted[Math.floor(sorted.length / 2)]!;
+    if (jumps.length >= 2 && median > EYE_JUMP) {
+      out.push({ section: k, issue: `in section ${k} (${plan.sections[k]?.move}) the subject jumps across the frame at each fast cut (${Math.round(median * 100)}% of the frame on the median cut): the eye cannot follow`, fix: 'order its clips so each subject sits near where the last one was (left after left, centre after centre), or cut every 2 beats there' });
+    }
+  }
+  // RS-1225: someone talks for most of a shot with their voice off: a muted mouth reads as a mistake. Phone footage
+  // talks a lot (half the trek clips did), so only the longest such shot is named, and only when nothing is heard yet
+  const muted = (r.voices ?? []).filter((v) => !plan.sections[v.section]?.naturalSound).sort((a, b) => b.seconds - a.seconds)[0];
+  if (muted && !plan.sections.some((x) => x.naturalSound)) {
+    out.push({ section: muted.section, issue: `someone talks through the ${muted.seconds} s shot at ${muted.at} s (section ${muted.section}) with their sound off under the song`, fix: 'if what they say matters, set naturalSound "under" on that section (the song dips and they are heard); otherwise cast a moment where nobody talks' });
+  }
+  // RS-1226: a loop replays from the first frame; the ending must hand straight back to it
+  if (plan.loop) {
+    const lastK = plan.sections.length - 1;
+    const end = plan.sections[lastK];
+    if (end && (end.move === 'black' || end.move === 'cards-finale')) out.push({ section: lastK, issue: `a loop that ends on ${end.move} goes to black before it replays`, fix: 'end on footage that leads into the first shot (a hold or a cut), or set loop false' });
+    if (end?.transition && ['dipToBlack', 'dipToWhite', 'crossfade'].includes(end.transition)) out.push({ section: lastK, issue: `a loop with ${end.transition} into its last section reads as an ending`, fix: 'a hard cut or a moving transition; the replay is the ending' });
+    const beats = Math.round(total / beatSec);
+    if (r.song && beats % 4 !== 0) out.push({ issue: `the loop is ${beats} beats: the song restarts mid-bar`, fix: `make the beats add up to ${Math.floor(beats / 4) * 4} or ${Math.ceil(beats / 4) * 4}` });
+  }
   return out;
 }
+
+/** A median jump past this share of the frame on fast cuts loses the viewer's eye. */
+const EYE_JUMP = 0.35;
 
 /** Words for a person in the user's story: a line that names one should show who it is. */
 export const PERSON = /\b(bro|bhai|bhaiya|dude|buddy|homie|my (?:friend|friends|best friend|brother|sister|bf|gf|boyfriend|girlfriend|wife|husband|mom|dad|boss|partner|cousin)|mom|mum|mummy|maa|dad|papa|boss)\b/i;

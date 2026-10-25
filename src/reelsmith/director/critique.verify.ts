@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { parsePlan, type ReelPlan } from '../../../shared/reelsmith/directorPlan';
 import { assemble, type AssemblyClip, type AssemblyMusic } from '../assembler';
 import { directorRecipe } from './assembleDirector';
-import { criticBrief, parseDefects } from './critique';
+import { criticBrief, critiqueFrames, parseDefects } from './critique';
 import { MOTION_RULES, applyMotionRules, motionRuleText } from './motionRules';
 import { TONES } from './treatment';
 
@@ -66,6 +66,17 @@ assert.ok(!parseDefects([], 4, spans).ok, 'a fix round names its defects');
 assert.ok(!(parseDefects(Array.from({ length: 4 }, () => ({ section: 0, at: 1, evidence: 'e', fix: 'f' })), 4, spans) as { ok: boolean }).ok, 'three at most');
 assert.match(criticBrief(), /THREE LARGEST defects/);
 assert.match(criticBrief(), /Judge only the rendered frames/);
+// RS-1227: the critic sees the first frame (mid-scroll, sound off) and, for a loop, the seam; both survive thinning
+const many: any = { version: 1, ratio: '9:16', sections: Array.from({ length: 12 }, () => ({ move: 'cut', text: 'a line' })) };
+const manySpans = Array.from({ length: 12 }, (_, k) => ({ from: k * 2, to: k * 2 + 2 }));
+const plainFrames = critiqueFrames(many, manySpans, 30, 20);
+assert.equal(plainFrames[0]!.frame, 0);
+assert.match(plainFrames[0]!.label, /first frame/);
+assert.ok(!plainFrames.some((x) => /loop seam/.test(x.label)));
+const loopFrames = critiqueFrames({ ...many, loop: true }, manySpans, 30, 20);
+assert.ok(loopFrames.some((x) => /loop seam/.test(x.label) && x.frame === 24 * 30 - 1));
+assert.match(criticBrief(), /emotion first/);
+assert.match(criticBrief(), /naturalSound/);
 
 // RS-1219: the same plan in two tones moves differently
 for (const tone of TONES) assert.ok(MOTION_RULES[tone] && motionRuleText(tone).startsWith(tone));

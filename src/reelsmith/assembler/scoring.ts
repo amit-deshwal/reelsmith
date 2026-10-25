@@ -115,7 +115,7 @@ export function toAssemblyClips(
       bestStartFrame: win?.startFrame,
       sourceAnalysis: {
         minShotFrames,
-        windows: f.windows.map((w) => ({ startFrame: Math.max(0, w.startFrame), endFrame: Math.min(c.durationInFrames, w.endFrame), score: scoreWindow(w, weights, shape), focusRect: w.focusRect }))
+        windows: f.windows.map((w) => ({ startFrame: Math.max(0, w.startFrame), endFrame: Math.min(c.durationInFrames, w.endFrame), score: scoreWindow(w, weights, shape), focusRect: w.focusRect, ...(w.speech ? { speech: true } : {}) }))
           .filter((w) => w.endFrame > w.startFrame).sort((a, b) => a.startFrame - b.startFrame),
         shotBoundariesFrame: [...(f.shotBoundariesFrame ?? [])],
       },

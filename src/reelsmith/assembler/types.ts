@@ -34,7 +34,7 @@ export interface AssemblyClip {
   /** Scored source windows and hard cuts, retained for duration-aware placement. */
   sourceAnalysis?: {
     minShotFrames: number;
-    windows: Array<{ startFrame: number; endFrame: number; score: number; focusRect?: FocusRect }>;
+    windows: Array<{ startFrame: number; endFrame: number; score: number; focusRect?: FocusRect; speech?: boolean }>;
     shotBoundariesFrame: number[];
   };
   /** RS-109: what the clip shows, from the local visual model (absent when the model is not installed) */
@@ -59,6 +59,8 @@ export interface AssemblyMusic {
   loudestStartSec?: number;
   /** detected drop time in the source song (RS-203) */
   dropSec?: number;
+  /** RS-1224: loudness of each beat (any positive scale), for the director's song map */
+  energyPerBeat?: number[];
 }
 
 export interface AssembleInput {
@@ -108,6 +110,10 @@ export interface AssembleReport {
   sectionMoments?: number[][];
   /** seconds of each shot (cuts on the base lane), for the pace check against a reference reel */
   shotSec?: number[];
+  /** RS-1228: how far the subject jumps across the frame at each fast cut (0..1 of the frame), by section */
+  eyeJumps?: Array<{ section: number; at: number; jump: number }>;
+  /** RS-1225: shots where someone talks while the clip's sound is off under the song */
+  voices?: Array<{ section: number; at: number; seconds: number }>;
 }
 
 /** Stored with the project (RS-108) so the run can be repeated. */

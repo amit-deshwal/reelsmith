@@ -86,6 +86,12 @@ assert.ok(Math.abs(sug.musicStart - (61.7 - 8 * 0.56)) < 0.3);
 assert.equal(sug.beatsFor18s, 32);
 // a short song starts on its first downbeat
 assert.equal(songSuggestion({ ...grid, beatTimesSec: grid.beatTimesSec.slice(0, 40) }, 107, 22).musicStart, 0.1);
+// RS-1224: with per-beat loudness the suggestion carries the song bar by bar from where the reel starts it
+assert.equal((sug as { energy?: string }).energy, undefined, 'no loudness, no energy line');
+const loud = songSuggestion({ ...grid, energyPerBeat: grid.beatTimesSec.map((t) => (t >= 61.6 && t < 80 ? 5 : 1)) }, 107, 446) as { energy?: string };
+assert.match(loud.energy ?? '', /^energy by bar from the reel start/);
+assert.match(loud.energy ?? '', /: 1 1 5 5 \|/, 'two quiet bars, then the drop on bar 3 (beat 8)');
+assert.match(loud.energy ?? '', /lifts on beat 8/);
 // every clip fits on the contact sheets: four moments each while they fit, fewer for long lists
 assert.deepEqual(sheetSamples(20, 0), [0.1, 0.37, 0.63, 0.9], '20 videos: 80 cells');
 assert.equal(sheetSamples(21, 0).length, 3);

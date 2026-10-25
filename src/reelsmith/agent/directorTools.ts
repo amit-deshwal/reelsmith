@@ -30,6 +30,7 @@ import { referenceLine, referenceProfile } from '../director/reference';
 import { motionRuleText } from '../director/motionRules';
 import { missingThings } from '../director/storyThings';
 import type { Defect } from '../director/critique';
+import { songMap, songMapText } from '../director/songMap';
 
 const VISUAL = new Set(['video', 'image']);
 const secs = (frames: number, fps: number) => Math.round((frames / fps) * 10) / 10;
@@ -58,7 +59,7 @@ async function tempo(asset: MediaAsset, deps: ReelsDeps): Promise<{ beat: 'stead
  * RS-1212: the timing arithmetic done for the agent (it was a large share of its planning time): where to start the
  * song, how many beats make about 18 s, and which beat of the reel the drop lands on.
  */
-export function songSuggestion(g: { beatTimesSec: number[]; downbeatIndex: number; dropSec?: number; loudestStartSec?: number }, bpm: number, seconds: number) {
+export function songSuggestion(g: { beatTimesSec: number[]; downbeatIndex: number; dropSec?: number; loudestStartSec?: number; energyPerBeat?: number[]; beatsPerBar?: number }, bpm: number, seconds: number) {
   const beats = g.beatTimesSec;
   const first = g.downbeatIndex;
   const nearest = (t: number) => { let k = first; for (let i = first; i < beats.length; i += 1) if (Math.abs(beats[i]! - t) < Math.abs(beats[k]! - t)) k = i; return k; };
@@ -71,8 +72,11 @@ export function songSuggestion(g: { beatTimesSec: number[]; downbeatIndex: numbe
   const musicStart = Math.round((beats[startIdx] ?? 0) * 100) / 100;
   const beatsFor18s = Math.max(16, Math.round((18 * bpm) / 60 / 4) * 4);
   const dropAtBeat = g.dropSec !== undefined ? nearest(g.dropSec) - startIdx : undefined;
+  // RS-1224: quiet and loud bars over the reel and a little past it, so the pace can follow the song
+  const map = songMap(g.energyPerBeat, startIdx, g.beatsPerBar ?? 4, Math.min(16, Math.ceil((beatsFor18s * 1.5) / (g.beatsPerBar ?? 4))));
   return {
     musicStart, beatsFor18s, ...(dropAtBeat !== undefined && dropAtBeat > 0 && dropAtBeat < beatsFor18s ? { dropAtBeat } : {}),
+    ...(map ? { energy: songMapText(map) } : {}),
     note: `musicStart ${musicStart}; about ${beatsFor18s} beats for 18 s${dropAtBeat !== undefined && dropAtBeat > 0 && dropAtBeat < beatsFor18s ? `; the drop is beat ${dropAtBeat} of the reel: start the peak section there` : ''}`,
   };
 }
@@ -192,7 +196,7 @@ export async function directorOptions(args: Record<string, unknown>, ctx: AgentC
     sheetNote: sheets ? sheets.note : 'No contact sheets (frame sharing is off or unavailable): choose from names and seconds, or view_asset_frames for one or two clips.',
     songs: assets.filter((a) => a.kind === 'audio').slice(0, 3).map(song),
     libraryMusic: libraryMusic(ctx).map(song),
-    songHint: 'Use each song\'s suggest: musicStart as given, sections adding up to beatsFor18s (more or fewer for a longer or shorter reel), and the peak section starting at dropAtBeat. No other timing arithmetic is needed.',
+    songHint: 'Use each song\'s suggest: musicStart as given, sections adding up to beatsFor18s (more or fewer for a longer or shorter reel), and the peak section starting at dropAtBeat. Its energy line is the song bar by bar: longer shots on the quiet bars, shorter as it builds, the fastest cuts on the loud ones; section changes on a bar line. No other timing arithmetic is needed.',
     ...(custom.length ? { customShaders: custom } : {}),
     ...(reference ? { reference: { measured: reference.line, sheet: reference.image ? `the last image: the reference, one cell a shot (cells "r·seconds")` : 'no sheet of the reference (frames unavailable)', use: 'Study it for its pace, colour, type, composition and motion; write the treatment\'s styleGuide from it. Never copy its subjects, words or logos, and never cast it.' } } : {}),
     timelineIsEmpty: ctx.getState().items.length === 0,
@@ -322,9 +326,15 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
   });
   const songAsset = plan.music ? assets.find((a) => a.id === plan.music) : undefined;
   const song = songAsset ? { seconds: songAsset.durationInFrames / fps, ...(await tempo(songAsset, deps)) } : undefined;
-  const findings = reviewDirectorPlan({ plan, spans, musicStartSec: report.musicStartSec, ...(song ? { song } : {}) });
-  // RS-1220: the reel with eyes closed, against the song's beat grid
   const grid = songAsset ? await deps.api.musicGrid(songAsset).catch(() => null) : null;
+  // RS-1224: the song bar by bar from where the reel starts it, for the pace check
+  const startIdx = grid ? grid.beatTimesSec.findIndex((t) => t >= report.musicStartSec - 0.05) : -1;
+  const map = grid && startIdx >= 0 ? songMap(grid.energyPerBeat, startIdx, grid.beatsPerBar, Math.ceil(report.totalFrames / fps / (60 / (song?.bpm ?? 120)) / grid.beatsPerBar) + 1) : null;
+  const findings = reviewDirectorPlan({
+    plan, spans, musicStartSec: report.musicStartSec, ...(song ? { song } : {}), ...(map ? { songMap: map } : {}),
+    ...(report.eyeJumps?.length ? { eyeJumps: report.eyeJumps } : {}), ...(report.voices?.length ? { voices: report.voices } : {}),
+  });
+  // RS-1220: the reel with eyes closed, against the song's beat grid
   const beatFrames = (grid?.beatTimesSec ?? []).map((t) => Math.round((t - report.musicStartSec) * fps)).filter((f) => f >= 0 && f <= report.totalFrames + fps);
   const sound = soundCheck({
     actions: out.action.actions, fps, totalFrames: report.totalFrames, beatFrames,

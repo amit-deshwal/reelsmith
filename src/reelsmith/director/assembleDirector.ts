@@ -22,6 +22,8 @@ import { lookById, lookEffects } from '../looks';
 import { focusForRange } from '../titleClear';
 import { buildGraphics, checkGraphics, coverFocus } from './graphics';
 import { MOTION_RULES, applyMotionRules } from './motionRules';
+import { heardClip, songDuck, type NaturalWindow } from './naturalSound';
+import { traceShots } from './shotTrace';
 
 /** A section effect's asset: a catalogue effect, or a custom one the agent registered this session (custom:fx-*). */
 const effectAsset = (id: string) => directorEffectById(id)?.id ?? (id.startsWith('custom:fx-') && ALL_FX[id] ? id : undefined);
@@ -439,18 +441,38 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
     if (user) actions.push({ type: 'setEffects', id: user.item.id, effects: user.item.effects, defs: serializableDefsFor([{ assetId: fxId }]) } as AtomicAction);
   }
 
+  // 4c. RS-1225: sections where the clips' own sound plays (a shout at the top, a splash, someone talking): their base
+  // clips get their sound back with a short ramp so nothing clicks, and the song dips under them below
+  const natural: NaturalWindow[] = [];
+  if (music) resolved.forEach((r, i) => {
+    const mode = r!.s.naturalSound ?? (r!.move.id === 'talk-zoom' ? 'under' : undefined);
+    if (!mode || !ranges[i]) return;
+    natural.push({ from: frame(spans[i]!.b0), to: Math.max(frame(spans[i]!.b0) + 1, frame(spans[i]!.b1)), solo: mode === 'solo' });
+    let any = false;
+    onClips(i, true, (item) => {
+      if (item.kind !== 'video' || item.props?.rsRewind) return item;
+      any = true;
+      return heardClip(item);
+    });
+    if (!any) warnings.push(`sections[${i}] (${r!.move.id}): naturalSound needs video footage; its photos have no sound.`);
+  });
+
   // 5. sound effects under the song (hand-placed ones always; the rest unless the plan turns them off)
   const level = plan.sfx ?? 'auto';
   actions.push(...sfxActions(level === 'off' ? sfx.filter((e) => e.soundId) : sfx, { fps, total, level: level === 'off' ? 'auto' : level, id: (...p) => stableId('rs-dir', tag, seed, ...p) }));
 
   // 6. the song
   if (music) {
-    const fade = Math.min(Math.round(0.6 * fps), Math.max(0, total - 1));
+    // RS-1226: a loop replays from the first beat, so the song runs to the last frame instead of fading
+    const fade = plan.loop ? 0 : Math.min(Math.round(0.6 * fps), Math.max(0, total - 1));
+    const gain = dbToGain(recipe.music?.gainDb ?? 0);
+    const duck = songDuck(natural, gain, total, fps);
     actions.push({
       type: 'add', startFrame: 0,
       item: {
         id: stableId('rs-dir', tag, seed, 'music'), track: 'A1', kind: 'audio', name: music.name, src: music.src, durationInFrames: Math.max(1, total),
-        srcInFrame: Math.round(startSec * fps), sourceAssetId: music.assetId, volume: dbToGain(recipe.music?.gainDb ?? 0), ...(fade > 0 ? { fadeOutFrames: fade } : {}),
+        srcInFrame: Math.round(startSec * fps), sourceAssetId: music.assetId, volume: gain, ...(fade > 0 ? { fadeOutFrames: fade } : {}),
+        ...(duck.length ? { keyframes: { volume: duck } } : {}),
       } as never,
     });
   }
@@ -466,10 +488,12 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
     if (!carriesOn && cuts.at(-1) !== a.startFrame) cuts.push(a.startFrame);
   });
   const shotSec = cuts.map((f, k) => ((cuts[k + 1] ?? total) - f) / fps).filter((x) => x > 0);
+  // RS-1228/1225: how far the subject jumps at fast cuts, and voices muted under the song, for the review
+  const { eyeJumps, voices } = traceShots(base, cuts, input.clips, { fps, W, H, music: !!music });
   const unusedClips = input.clips.filter((c) => !usedIds.has(c.baseAssetId ?? c.assetId)).length;
   if (unusedClips) warnings.push(`${unusedClips} clip${unusedClips === 1 ? ' was' : 's were'} not used.`);
   return {
     action: { type: 'batch', actions: plan.tone ? applyMotionRules(actions, plan.tone, fps) : actions, label: 'Director: build reel' }, run,
-    report: { shots: shotsCount, usedAssetIds: [...usedIds], musicStartSec: startSec, totalFrames: total, warnings, sectionClips: Array.from({ length: resolved.length }, (_, k) => sectionClips[k] ?? []), sectionMoments: Array.from({ length: resolved.length }, (_, k) => sectionMoments[k] ?? []), shotSec },
+    report: { shots: shotsCount, usedAssetIds: [...usedIds], musicStartSec: startSec, totalFrames: total, warnings, sectionClips: Array.from({ length: resolved.length }, (_, k) => sectionClips[k] ?? []), sectionMoments: Array.from({ length: resolved.length }, (_, k) => sectionMoments[k] ?? []), shotSec, ...(eyeJumps.length ? { eyeJumps } : {}), ...(voices.length ? { voices } : {}) },
   };
 }

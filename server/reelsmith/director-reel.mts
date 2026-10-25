@@ -58,7 +58,7 @@ const api: AnalyzeApi = {
     const g = await analyzeBeatsFile(byFile(a));
     if (!g) return null;
     const drop = detectDropBeat(g.energyPerBeat, 4, 2, g.downbeatIndex);
-    return { durationSec: g.durationSec, beatTimesSec: g.beatTimesSec, beatsPerBar: 4, downbeatIndex: g.downbeatIndex, loudestStartSec: g.loudestStartSec, dropSec: drop === null ? undefined : g.beatTimesSec[drop] };
+    return { durationSec: g.durationSec, beatTimesSec: g.beatTimesSec, beatsPerBar: 4, downbeatIndex: g.downbeatIndex, loudestStartSec: g.loudestStartSec, dropSec: drop === null ? undefined : g.beatTimesSec[drop], energyPerBeat: g.energyPerBeat };
   },
 };
 
@@ -68,7 +68,7 @@ if (rawPlan.musicStart === 'suggest' && grid) {
   const gaps = grid.beatTimesSec.slice(1).map((t, i) => t - grid.beatTimesSec[i]!).sort((a, b) => a - b);
   const bpm = Math.round(60 / gaps[Math.floor(gaps.length / 2)]!);
   const sug = songSuggestion(grid, bpm, grid.durationSec);
-  console.log(`song: ${bpm} bpm, ${sug.note}`);
+  console.log(`song: ${bpm} bpm, ${sug.note}${sug.energy ? `\n${sug.energy}` : ''}`);
   rawPlan.musicStart = sug.musicStart;
 }
 const visual = assets;

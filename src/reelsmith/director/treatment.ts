@@ -268,5 +268,6 @@ export const PLAN_BRIEF = [
   'The drop gets everything at once: the peak move, a drop-timed effect and its hit; the section before it may build. Transitions from your kit only where something changes (the hook, the drop, a new place, the ending).',
   'Effects move with the song: timing beat/drop/build/fade at strength 0.5-0.8, region background to keep a person natural.',
   'Graphics from the treatment on calm shots: annotate on a hold or slow cut where the person is clear (who: front/back/left/right/middle as seen on the sheet).',
+  'Pace with the song\'s energy line: longer shots on quiet bars, faster as it builds, the fastest on loud bars; part changes on a bar line. One moment heard over the song (naturalSound under or solo) when the log has a shout, a splash or a line said; loop true when the last shot can hand back to the first.',
   'Then call reels_director_build with the plan.',
 ].join('\n');

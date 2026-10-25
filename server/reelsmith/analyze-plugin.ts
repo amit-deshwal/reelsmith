@@ -143,6 +143,8 @@ export function reelsmithAnalyzePlugin(): Plugin {
             bpm: a.bpm, beatTimesSec: a.beatTimesSec, beatsPerBar: 4, downbeatIndex: a.downbeatIndex,
             durationSec: a.durationSec, loudestStartSec: a.loudestStartSec,
             dropSec: dropBeat === null ? undefined : a.beatTimesSec[dropBeat],
+            // RS-1224: loudness per beat, for the director's song map (quiet and loud bars)
+            energyPerBeat: a.energyPerBeat.map((x) => Number(x.toPrecision(4))),
           },
         };
       });
