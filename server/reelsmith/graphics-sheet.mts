@@ -1,5 +1,5 @@
 // Contact sheet of the director's graphics (RS-1213) over a real clip: one row per graphic, frames across its length.
-//   npx tsx server/reelsmith/graphics-sheet.mts <clip> <out.jpg> [graphic id ...] [--seconds=4] [--cols=5] [--ratio=9:16]
+//   node --import tsx server/reelsmith/graphics-sheet.mts <clip> <out.jpg> [graphic id ...] [--seconds=4] [--cols=5] [--ratio=9:16]
 // Rendered through the app's own export renderer (remotion), so what you see is what an export draws.
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, linkSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';

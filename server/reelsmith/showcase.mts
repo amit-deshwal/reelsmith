@@ -1,6 +1,6 @@
 // Showcase reels of the Reels effects, looks and transitions on real clips, exported through the app's own pipeline
 // and finalised for Instagram (9:16, 1080x1920).
-//   npx tsx server/reelsmith/showcase.mts <folder with clips> <output folder> [effects-1] [effects-2] [looks] [transitions]
+//   node --import tsx server/reelsmith/showcase.mts <folder with clips> <output folder> [effects-1] [effects-2] [looks] [transitions]
 // Each segment shows the name of what it demonstrates. Nothing is written outside the output folder and a temp folder.
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, existsSync, linkSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs';

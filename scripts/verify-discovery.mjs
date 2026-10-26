@@ -1,6 +1,6 @@
 // Verify discovery: every tracked *.verify.* file is a test. Nothing is registered by hand.
 //
-// A new file runs as `tsx <file>` (`node <file>` for .mjs/.cjs/.js). A suite that needs a different
+// A new file runs under tsx (`node --import tsx <file>`; `node <file>` for .mjs/.cjs/.js). A suite that needs a different
 // launcher is listed in LAUNCHERS below — that is the only per-file bookkeeping, and forgetting it
 // shows up as a failing run, not as a test that quietly never ran.
 import { execFileSync } from 'node:child_process';
@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 export const VERIFY_FILE = /\.verify\.(?:tsx|mts|cjs|mjs|ts|js)$/;
 
 /** Non-test segments of the gate that are still run with it. */
-export const EXTRA_COMMANDS = ['node scripts/check-i18n.mjs', 'tsx server/reelsmith/avsync.mts'];
+export const EXTRA_COMMANDS = ['node scripts/check-i18n.mjs', 'node --import tsx server/reelsmith/avsync.mts'];
 
 /** launcher prefix -> suites that cannot run under the default one (tsconfig paths, Vite `?raw` imports, ESM loader). */
 export const LAUNCHERS = {
@@ -99,8 +99,16 @@ export const LAUNCHERS = {
 
 const launcherByFile = new Map(Object.entries(LAUNCHERS).flatMap(([prefix, files]) => files.map((f) => [f, prefix])));
 
+/**
+ * `tsx [--tsconfig X]` runs as `node --import tsx` (tsconfig via TSX_TSCONFIG_PATH), as cli/occ.mjs does. Under the
+ * tsx CLI, the Chrome Headless Shell that Remotion 4.0.537 ships for macOS loses its GPU process at launch ("icudtl.dat
+ * not found in bundle") and every render or still dies with "Target closed"; under plain node it does not.
+ */
+export const viaNodeImport = (launcher) => launcher.replace(/^tsx(?: --tsconfig (\S+))?$/,
+  (_, tsconfig) => `${tsconfig ? `TSX_TSCONFIG_PATH=${tsconfig} ` : ''}node --import tsx`);
+
 export const verifyCommand = (file) => (
-  `${launcherByFile.get(file) ?? (/\.(?:mjs|cjs|js)$/.test(file) ? 'node' : 'tsx')} ${file}`
+  `${viaNodeImport(launcherByFile.get(file) ?? (/\.(?:mjs|cjs|js)$/.test(file) ? 'node' : 'tsx'))} ${file}`
 );
 
 /** Tracked plus untracked-but-not-ignored verify files, so a brand-new file runs before it is committed. */

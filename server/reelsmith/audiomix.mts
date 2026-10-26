@@ -2,8 +2,8 @@
 // A 6 s timeline: music (440 Hz, follower track, fade in/out 0.5 s) under a "speech" clip (1 kHz, anchor track, 2-4 s).
 // Exports through the app's server pipeline, then measures each tone with a Goertzel filter.
 // SPEECH=voice uses a spoken sentence (macOS `say`) instead of the 1 kHz tone.
-//   npx tsx server/reelsmith/audiomix.mts
-//   SPEECH=voice npx tsx server/reelsmith/audiomix.mts
+//   node --import tsx server/reelsmith/audiomix.mts
+//   SPEECH=voice node --import tsx server/reelsmith/audiomix.mts
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, linkSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';

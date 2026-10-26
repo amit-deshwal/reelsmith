@@ -4,7 +4,7 @@
 //   ducked    the same, voice clips silent (volume 0), so only the duck acts on the song
 //   reference the same, the speech track is not an anchor, so nothing ducks
 // ducked/reference per 10 ms is the exact gain the duck applied to the song, whatever the music does.
-//   npx tsx server/reelsmith/audiomixSong.mts /path/to/song.mp3 [outDir]
+//   node --import tsx server/reelsmith/audiomixSong.mts /path/to/song.mp3 [outDir]
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';

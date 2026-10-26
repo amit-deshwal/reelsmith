@@ -1,6 +1,6 @@
 // Contact sheet of per-clip effects on a real clip: the original first, then each effect at its default settings.
 // Pass `look:<id>` (or `looks` for all of them) to render Reel looks instead of single effects.
-//   npx tsx server/reelsmith/fx-sheet.mts <clip> <out.jpg> [effect id ...] [--at=FRAME] [--cols=N]
+//   node --import tsx server/reelsmith/fx-sheet.mts <clip> <out.jpg> [effect id ...] [--at=FRAME] [--cols=N]
 // Rendered through the app's own export renderer (remotion), so what you see is what an export draws.
 import { execFileSync } from 'node:child_process';
 import { copyFileSync, linkSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';

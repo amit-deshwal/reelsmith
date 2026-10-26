@@ -83,17 +83,17 @@ const countIn = (dir, re = /\.verify\.(ts|tsx|mjs)$/) => readdirSync(dir).filter
   // this runner must not "correct" it.
   assert.equal(
     verifyCommand('remotion/render-timeout.verify.mjs'),
-    'tsx remotion/render-timeout.verify.mjs',
+    'node --import tsx remotion/render-timeout.verify.mjs',
     'the launcher table wins over any extension-based guess',
   );
   // Only unlisted files fall back, and then the extension decides.
-  assert.match(verifyCommand('src/does/not/exist.verify.ts'), /^tsx /,
+  assert.match(verifyCommand('src/does/not/exist.verify.ts'), /^node --import tsx /,
     'an unregistered .ts suite still gets a usable default');
   assert.match(verifyCommand('src/does/not/exist.verify.mjs'), /^node /,
     'an unregistered .mjs suite falls back to bare node');
   assert.match(verifyCommand('src/does/not/exist.verify.cjs'), /^node /);
   assert.match(verifyCommand('src/does/not/exist.verify.js'), /^node /);
-  assert.match(verifyCommand('src/does/not/exist.verify.mts'), /^tsx /);
+  assert.match(verifyCommand('src/does/not/exist.verify.mts'), /^node --import tsx /);
 }
 
 const temporary = realpathSync(mkdtempSync(join(tmpdir(), 'openchatcut-affected-')));

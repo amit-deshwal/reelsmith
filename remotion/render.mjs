@@ -261,7 +261,8 @@ export async function renderTimeline({
           ? `${Math.round(videoBitrate / 1000)}k`
           : undefined,
       ...proresOptions,
-      ...(codec === 'h264' ? { colorSpace: 'bt709' } : {}),
+      // Reelsmith RS-803: bt709 so Instagram finalize can copy the picture; RS_RENDER_COLOR_SPACE=default keeps Remotion's own.
+      ...(codec === 'h264' && process.env.RS_RENDER_COLOR_SPACE !== 'default' ? { colorSpace: 'bt709' } : {}),
       chromiumOptions: { gl: resolveRenderGlBackend() },
       browserExecutable: browserExecutable(),
       puppeteerInstance: browser,

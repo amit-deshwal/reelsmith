@@ -1,5 +1,5 @@
 // RS-004: baseline on real footage. Scripted stand-in for "import, assemble, export" (no GUI):
-//   npx tsx server/reelsmith/baseline.mts <folder with clips + one song> [recipe-id] [--seconds N] [--param k=v] [--text k=v] [--keep]
+//   node --import tsx server/reelsmith/baseline.mts <folder with clips + one song> [recipe-id] [--seconds N] [--param k=v] [--text k=v] [--keep]
 // Reports per-step timings, then exports the reel through the app's server pipeline, finalizes it for Instagram and
 // runs the V1-V9 checks plus the V8 parity sample. Nothing is written outside a temp folder and the report on stdout.
 import { execFileSync } from 'node:child_process';

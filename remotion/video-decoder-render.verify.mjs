@@ -148,6 +148,8 @@ try {
   setUploadsDirProvider(() => directory);
   process.env.OPENCHATCUT_RENDER_CONCURRENCY = '4';
   process.env.OPENCHATCUT_DISABLE_HARDWARE_ENCODING = '1';
+  // Reelsmith: frames are told apart by colour against fixtures decoded with Remotion's own colour path, not our bt709 one.
+  process.env.RS_RENDER_COLOR_SPACE = 'default';
 
   // 29.97 fps footage with audio in a 30 fps timeline: the fractional-rate case
   // where a decoder that selects frames differently is off by one source frame.

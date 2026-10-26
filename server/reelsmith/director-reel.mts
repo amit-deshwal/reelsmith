@@ -1,7 +1,7 @@
 // A director plan built and exported headlessly, through the same steps as the app (real clip analysis with face finding,
 // beat detection, the director compiler, track binding, the export renderer). For checking director features (RS-1213
 // graphics) on real footage without the agent in the loop.
-//   npx tsx server/reelsmith/director-reel.mts <clips folder> <song file> <plan.json> <out.mp4>
+//   node --import tsx server/reelsmith/director-reel.mts <clips folder> <song file> <plan.json> <out.mp4>
 // The plan names clips "#n" in the folder's sorted order (videos and photos), like reels_director_options numbers them;
 // "musicStart": "suggest" uses the song suggestion the agent gets.
 import { execFileSync } from 'node:child_process';

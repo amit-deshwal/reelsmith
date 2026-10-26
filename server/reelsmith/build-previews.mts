@@ -1,7 +1,7 @@
 // RS-107: build the recipe gallery's posters and hover loops from SYNTHETIC media only (ffmpeg lavfi;
 // no third-party footage). Each recipe is assembled exactly as in the app (real clip analysis and beat
 // detection on the synthetic files) and rendered through the app's own export pipeline.
-// Run: npx tsx server/reelsmith/build-previews.mts [recipe-id ...] [--param key=value ...] [--out <dir>]
+// Run: node --import tsx server/reelsmith/build-previews.mts [recipe-id ...] [--param key=value ...] [--out <dir>]
 // --parity also runs the RS-302 V8 sample (editor stills vs the rendered frames) on each recipe's render.
 // --user: build previews for the AI-made recipes in the user's recipe folder instead (--user-dir <dir> to override),
 // writing <dir>/previews/<id>.jpg|mp4 and setting `preview` in the recipe file (served by the user-recipes plugin).

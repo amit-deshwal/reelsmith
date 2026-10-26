@@ -1,6 +1,6 @@
 // RS-304: HDR / VFR / rotation correctness. Builds flash-and-beep fixtures, puts each on a one-clip timeline, exports it
 // through the app's server pipeline and measures the flash-to-beep offset, orientation and HLG tone in the export.
-//   npx tsx server/reelsmith/avsync.mts [--keep]
+//   node --import tsx server/reelsmith/avsync.mts [--keep]
 import { basename, join } from 'node:path';
 import { copyFileSync, linkSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';

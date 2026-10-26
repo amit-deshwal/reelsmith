@@ -1,5 +1,5 @@
 // Contact sheet of Reels transitions on real clips: each row is one transition at progress 0, 25, 50, 75 and 100 %.
-//   npx tsx server/reelsmith/transitions-sheet.mts <clipA> <clipB> <out.jpg> [type ...] [--dir=left|right|up|down] [--seconds=N] [--points=0.25,0.5,0.75]
+//   node --import tsx server/reelsmith/transitions-sheet.mts <clipA> <clipB> <out.jpg> [type ...] [--dir=left|right|up|down] [--seconds=N] [--points=0.25,0.5,0.75]
 // It renders through the app's own export renderer (remotion), and checks that progress 0 and 100 % are the untouched
 // pictures (the same frame of the same timeline with a hard cut instead of the transition).
 import { execFileSync } from 'node:child_process';

@@ -1,6 +1,6 @@
 # Baseline on real footage (RS-004)
 
-Run 2026-10-16 on an Apple Silicon Mac with `npx tsx server/reelsmith/baseline.mts <folder> <recipe-id>`: a scripted
+Run 2026-10-16 on an Apple Silicon Mac with `node --import tsx server/reelsmith/baseline.mts <folder> <recipe-id>`: a scripted
 stand-in for import → assemble → export through the app's own server pipeline (no GUI). It does **not** measure preview
 smoothness or a manual edit; those still need a hands-on pass in the app.
 

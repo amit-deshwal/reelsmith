@@ -20,7 +20,8 @@ const tracked = new Set(execFileSync('git', ['ls-files'], { cwd: root, encoding:
 const untracked = found.filter((file) => !tracked.has(file));
 assert.ok(untracked.every((file) => VERIFY_FILE.test(file)));
 
-assert.equal(verifyCommand('shared/x.verify.ts'), 'tsx shared/x.verify.ts');
+assert.equal(verifyCommand('shared/x.verify.ts'), 'node --import tsx shared/x.verify.ts');
+assert.equal(verifyCommand('src/captions/captionSelection.verify.ts'), 'TSX_TSCONFIG_PATH=tsconfig.app.json node --import tsx src/captions/captionSelection.verify.ts');
 assert.equal(verifyCommand('shared/x.verify.mjs'), 'node shared/x.verify.mjs');
 assert.equal(verifyCommand('src/agent/tools/effect-tools.verify.ts'), 'node scripts/run-check.mjs src/agent/tools/effect-tools.verify.ts');
 
