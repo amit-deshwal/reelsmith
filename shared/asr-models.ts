@@ -46,7 +46,10 @@ export interface AsrModelEntry {
   readonly note: string;
   /** Desktop (whisper.cpp) only: no browser ONNX export exists, so the browser never loads it. */
   readonly desktopOnly?: boolean;
-  /** whisper.cpp alignment-head preset: the model emits no timestamp tokens, so word times come from DTW instead. */
+  /**
+   * whisper.cpp alignment-head preset: desktop word times come from DTW (whisper-cli) instead of whisper-server's words.
+   * Needed by a model that emits no timestamp tokens (Apex); RS-1235: also used where DTW measured better (small, turbo).
+   */
   readonly dtwPreset?: string;
 }
 
@@ -116,6 +119,9 @@ export const ASR_MODELS: readonly AsrModelEntry[] = [
       revision: '5359861c739e955e79d9a303bcbc70fb988958b1',
     },
     label: 'Whisper Small', sizeLabel: '~1.2GB', language: 'Multilingual (incl. English, Hindi, Marathi)', note: '推荐：多语言识别均衡，词级时间戳稳定。',
+    // RS-1235: DTW word starts beat whisper-server's on every word-timed fixture (median 265-326 ms vs 341-366 English,
+    // 170 vs 548 Hindi) and do not drift through the clip
+    dtwPreset: 'small',
   },
   {
     id: 'medium', modelId: 'Xenova/whisper-medium', revision: '8c5b90880ab9f79487ab33613413431bf661d595',
@@ -161,6 +167,9 @@ export const ASR_MODELS: readonly AsrModelEntry[] = [
     },
     label: 'Whisper Large v3 Turbo', sizeLabel: '~1.5GB', language: 'Multilingual (incl. English, Hindi, Marathi)',
     note: '多语言精度最强；浏览器端较慢，桌面端本地推理体验最佳。',
+    // RS-1235: whisper-server's words ran early and drifted (-500 to -1650 ms over a 17 s clip; Hindi median 998 ms);
+    // DTW: English median 271-303 ms, Hindi 78 ms, bounded
+    dtwPreset: 'large.v3.turbo',
   },
   {
     // Hindi/Hinglish fine-tune of Whisper large-v3-turbo (Oriserve, Apache 2.0). Desktop whisper.cpp only:

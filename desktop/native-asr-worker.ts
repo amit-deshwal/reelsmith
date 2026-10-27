@@ -251,7 +251,8 @@ async function transcribeWithEngine(
   const wavPath = join(dir, 'input.wav');
   try {
     await writeWav(samples, wavPath);
-    // Reelsmith: a model without timestamp tokens gets DTW word times from whisper-cli (Metal, then CPU).
+    // Reelsmith: a model with a DTW preset (no timestamp tokens, or DTW measured better, RS-1235) gets DTW word times
+    // from whisper-cli (Metal, then CPU).
     const dtwPreset = ASR_MODELS.find((model) => model.modelId === engine.modelId)?.dtwPreset;
     if (dtwPreset) {
       const viaCli = async (useGpu: boolean) => transcribeDtwWindows(samples, SAMPLE_RATE, async (offsetMs) => {
