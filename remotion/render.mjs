@@ -20,6 +20,7 @@ import { renderDirectHardware } from './direct-hardware.mjs';
 import { assertMaterializedRenderSnapshot, normalizeH264Profile } from './render-contract.mjs';
 import { resolveRenderTimeout } from './render-timeout.mjs';
 import { getServeUrl } from './serve-bundle.mjs';
+import { browserExecutableFor } from '../server/reelsmith/macChromeLauncher.mjs';
 import { resolveServerVideoDecoder } from './video-decoder.mjs';
 
 export { prebuildServeBundle, setUploadsDirProvider } from './serve-bundle.mjs';
@@ -38,7 +39,8 @@ function resolveRenderGlBackend() {
   if (override && RENDER_GL_OVERRIDES.has(override)) return override;
   return process.platform === 'linux' ? 'angle-egl' : 'angle';
 }
-const browserExecutable = () => process.env.CC_BROWSER_EXECUTABLE || undefined;
+// Reelsmith: on macOS Chrome is started through a launcher script (server/reelsmith/macChromeLauncher.mjs)
+const browserExecutable = () => browserExecutableFor(process.env.CC_BROWSER_EXECUTABLE);
 const binariesDirectory = () => process.env.CC_REMOTION_BINARIES_DIR || null;
 
 /** Every server render tells the composition which decoder feeds its video
