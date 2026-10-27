@@ -257,4 +257,18 @@ const volumes = (m: AssemblyMusic | undefined) => ((assemble({ recipe: directorR
 assert.ok(volumes(undefined).length && volumes(undefined).every((v) => v === 1), `no song: clips keep their sound (${volumes(undefined)})`);
 assert.ok(volumes(music).every((v) => v === 0), 'under a song the clips are muted');
 
+// a line over white flashes gets a dark outline; the same style over plain cuts does not
+{
+  const flashPlan = parsePlan({ ratio: '9:16', music: 'song', sections: [
+    { move: 'flash-cuts', beats: 4, text: 'Alang Madan Kulang', textStyle: 'rise-lines' },
+    { move: 'cut', beats: 4, text: 'hold on tight', textStyle: 'rise-lines' },
+  ] });
+  assert.ok(flashPlan.ok);
+  const fp = (flashPlan as { plan: ReelPlan }).plan;
+  const out = assemble({ recipe: directorRecipe(fp), clips, music, texts: {}, params: {}, seed: 3, plan: fp });
+  const line = (t: string) => (out.action!.actions as any[]).find((a) => a.type === 'add' && a.item.props?.rsLineText === t).item.props;
+  assert.equal(line('Alang Madan Kulang').stroke.color, 'rgba(0,0,0,0.85)');
+  assert.ok(line('Alang Madan Kulang').stroke.width >= 2);
+  assert.equal(line('hold on tight').stroke, undefined);
+}
 console.log('assembleDirector.verify: ok');
