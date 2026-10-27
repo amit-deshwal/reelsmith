@@ -1,5 +1,5 @@
 import type { Plugin } from 'vite';
-import { deleteUserRecipe, listUserRecipes, readUserPreview, saveUserRecipe } from './user-recipes.ts';
+import { deleteUserRecipe, listUserRecipes, readUserPreview, saveUserRecipe, writeUserPoster } from './user-recipes.ts';
 import { readJsonBody, sendJson } from '../plugins/export-http.ts';
 import { mountIdeaRoutes } from './ideas.ts';
 
@@ -9,6 +9,14 @@ export function userRecipesPlugin(): Plugin {
     configureServer(server) {
       mountIdeaRoutes(server.middlewares);
       server.middlewares.use('/api/reelsmith/user-recipe-previews', async (req, res) => {
+        if (req.method === 'POST') {
+          try {
+            const body = await readJsonBody(req) as Record<string, unknown>;
+            if (typeof body.id !== 'string' || typeof body.base64 !== 'string') { sendJson(res, 400, { error: 'id and base64 are required' }); return; }
+            sendJson(res, 200, { poster: await writeUserPoster(body.id, body.base64) });
+          } catch (error) { sendJson(res, 400, { error: error instanceof Error ? error.message : String(error) }); }
+          return;
+        }
         const preview = req.method === 'GET' ? await readUserPreview(decodeURIComponent((req.url ?? '').split('?')[0]!.replace(/^\//, ''))) : null;
         if (!preview) { res.statusCode = 404; res.end(); return; }
         res.setHeader('Content-Type', preview.type);

@@ -16,6 +16,8 @@ import { UPSCALE_SOFT } from './qualityLint';
 import { focusForRange, withTitleClear } from './titleClear';
 import { matchEffect, planShotMatch, type ColorStats } from './shotMatch';
 import { withRecipeLook } from './recipeLook';
+import { LINES_INPUT, reelTemplateOf, remixPlan } from './director/reelRecipe';
+import { ratioOf } from '../../shared/reelsmith/ratios';
 
 export interface AnalyzeApi {
   clipFeatures(asset: MediaAsset, fps: number): Promise<ClipFeatures | null>;
@@ -62,6 +64,8 @@ export interface RunOutcome {
   messages: string[];
   /** what to save with the project (RS-108) */
   run: RecipeRunRecord;
+  /** director@1: the plan that was built (a remixed reel's is made from its template) */
+  plan?: ReelPlan;
 }
 
 export interface Prepared {
@@ -171,6 +175,15 @@ export async function prepareAssembly(api: AnalyzeApi, o: RunOptions): Promise<P
     else messages.push('Could not find a steady beat in the song');
   }
 
+  // a saved reel remixed (reelRecipe.ts): the plan comes from its template, cast with this footage
+  let plan = o.plan;
+  const template = plan ? undefined : reelTemplateOf(recipe);
+  if (template) {
+    const remix = remixPlan(template, { ratio: ratioOf(recipe.canvas.width, recipe.canvas.height) ?? template.plan.ratio, clips: primary, music: music?.assetId, lines: o.values.texts[LINES_INPUT] });
+    plan = remix.plan;
+    messages.push(...remix.notes);
+  }
+
   return {
     messages,
     input: {
@@ -179,7 +192,7 @@ export async function prepareAssembly(api: AnalyzeApi, o: RunOptions): Promise<P
       ...(o.preferredAssetIds?.length ? { preferredAssetIds: o.preferredAssetIds } : {}),
       ...(o.openerAssetId ?? o.values.openerAssetId ? { openerAssetId: (o.openerAssetId ?? o.values.openerAssetId)! } : {}),
       ...(o.preferredBrollAssetIds?.length ? { preferredBrollAssetIds: o.preferredBrollAssetIds } : {}),
-      ...(o.plan ? { plan: o.plan } : {}),
+      ...(plan ? { plan } : {}),
     },
   };
 }
@@ -272,7 +285,7 @@ export async function runRecipe(api: AnalyzeApi, o: RunOptions): Promise<RunOutc
     { type: 'setCanvas', width: input.recipe.canvas.width, height: input.recipe.canvas.height, fit: 'cover' } as AtomicAction,
   ];
   return {
-    result, messages, run,
+    result, messages, run, ...(input.plan ? { plan: input.plan } : {}),
     action: { type: 'batch', label: result.action.label, actions: [...prefix, ...withFrontCutouts(withRecipeLook(withTitleClear(withCropFocus(withBeatGrid(result.action.actions, input.music), [...input.clips, ...(input.broll ?? [])], input.recipe.canvas, mismatchFitOf(o.values.params)), [...input.clips, ...(input.broll ?? [])], input.recipe.canvas), input.recipe))] },
   };
 }

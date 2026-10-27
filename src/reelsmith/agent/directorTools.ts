@@ -13,16 +13,13 @@ import { listCustomTransitions } from '../../gl/customTransitions';
 import { adoptCustomGraphics, listCustomGraphics } from '../director/customGraphics';
 import { commit, projectId, type ReelsDeps } from './reelsTools';
 import { reviewDirectorPlan } from '../director/review';
-import { aimMarkers } from '../director/aimMarkers';
-import { rewindClips } from './rewindClips';
-import { clearCaptionsOfPeople } from '../director/clearOfPeople';
-import { findPeople } from '../peopleFinder';
+import { finishDirectorActions, sectionSpans, stampDirector } from '../director/finishBuild';
 import { lintReel } from '../reelLint';
 import { execFramesTool } from '../../agent/tools/frames-tool';
 import type { ClipFeatures } from '../assembler/scoring';
 import type { ClipShotTags } from '../shotTags';
 import { shotLogLines, type ShotLogClip } from '../director/shotLog';
-import { DIRECTOR_PROP, directorSession, restoreDirectorSession, savedDirector, updateDirectorSession } from '../director/directorSession';
+import { directorSession, restoreDirectorSession, savedDirector, updateDirectorSession } from '../director/directorSession';
 import { PLAN_BRIEF, checkTreatment, parseTreatment, treatmentCard, treatmentIds } from '../director/treatment';
 import { catalogKind, catalogSlice } from '../director/catalogText';
 import { soundCheck } from '../director/soundCheck';
@@ -317,19 +314,10 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
     });
   } catch (error) { return { error: error instanceof Error ? error.message : String(error) }; }
   if (!out.action) return { error: out.messages.join('; ') || 'could not build the plan' };
-  if (out.action.actions.some((a) => a.type === 'add' && (a.item as { props?: { rsAim?: unknown } }).props?.rsAim)) ctx.onToolProgress?.('Finding who the markers point at');
-  out.messages.push(...await aimMarkers(out.action.actions, findPeople));
-  out.messages.push(...await rewindClips(out.action.actions, deps.api, state.fps, ctx.onToolProgress));
-  const canvas = out.action.actions.find((a): a is Extract<AtomicAction, { type: 'setCanvas' }> => a.type === 'setCanvas');
-  if (canvas) { ctx.onToolProgress?.('Keeping captions off faces'); await clearCaptionsOfPeople(out.action.actions, assets, canvas, state.fps, findPeople); }
+  out.messages.push(...await finishDirectorActions(out.action.actions, assets, deps.api, state.fps, ctx.onToolProgress));
   const report = out.result.report;
   const fps = state.fps;
-  const spans = plan.sections.map((_, i) => {
-    const mine = out.action!.actions.filter((a): a is Extract<AtomicAction, { type: 'add' }> => a.type === 'add' && String((a.item.props as { rsSection?: unknown } | undefined)?.rsSection ?? '').startsWith(`${i + 1}-`));
-    const from = mine.length ? Math.min(...mine.map((a) => a.startFrame ?? 0)) : 0;
-    const to = mine.length ? Math.max(...mine.map((a) => (a.startFrame ?? 0) + a.item.durationInFrames)) : from;
-    return { from: from / fps, to: to / fps };
-  });
+  const spans = sectionSpans(out.action.actions, plan.sections.length, fps);
   const songAsset = plan.music ? assets.find((a) => a.id === plan.music) : undefined;
   const song = songAsset ? { seconds: songAsset.durationInFrames / fps, ...(await tempo(songAsset, deps)) } : undefined;
   const grid = songAsset ? await deps.api.musicGrid(songAsset).catch(() => null) : null;
@@ -354,8 +342,7 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
   };
   const next = updateDirectorSession(id, { fps, lastBuild: record });
   // RS-1222: the run goes with the reel, on its black canvas
-  const actions = out.action.actions.map((a) => (a.type === 'add' && (a.item.props as { rsSection?: unknown } | undefined)?.rsSection === 'canvas'
-    ? { ...a, item: { ...a.item, props: { ...(a.item.props ?? {}), [DIRECTOR_PROP]: savedDirector(next) } } } as AtomicAction : a));
+  const actions = stampDirector(out.action.actions, savedDirector(next));
   commit(ctx, [...(added ? [{ type: 'addAsset', asset: added } as AtomicAction] : []), ...actions], 'Director: build reel');
   return {
     plan, spans, seconds: secs(report.totalFrames, fps), clipsUsed: report.usedAssetIds.length, notes: out.messages.slice(0, 12),

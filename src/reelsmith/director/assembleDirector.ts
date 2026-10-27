@@ -24,30 +24,13 @@ import { buildGraphics, checkGraphics, coverFocus } from './graphics';
 import { MOTION_RULES, applyMotionRules } from './motionRules';
 import { heardClip, songDuck, type NaturalWindow } from './naturalSound';
 import { traceShots } from './shotTrace';
+import { FLASHING_MOVES, markBehind, outlineOnFlash, tagLine } from './lineMarks';
+
+export { tagLine };
 
 /** A section effect's asset: a catalogue effect, or a custom one the agent registered this session (custom:fx-*). */
 const effectAsset = (id: string) => directorEffectById(id)?.id ?? (id.startsWith('custom:fx-') && ALL_FX[id] ? id : undefined);
 const isCustomTransition = (id: string) => id.startsWith('custom:tr-') && !!getCustomTransition(id);
-
-/** A line meant to pass behind the person: withTitleClear lays it across them instead of moving it off their face. */
-const markBehind = (a: AtomicAction): AtomicAction => (a.type === 'add' && (a.item.kind === 'text' || a.item.kind === 'motion-graphic')
-  ? { ...a, item: { ...a.item, props: { ...(a.item.props ?? {}), rsBehind: true } } } as AtomicAction : a);
-/** Every item of one on-screen line carries the line's key and words, so reels_restyle_text can find all of it later. */
-export const tagLine = (a: AtomicAction, line: string, text: string, style: string): AtomicAction => (a.type === 'add' && (a.item.kind === 'text' || a.item.kind === 'motion-graphic')
-  ? { ...a, item: { ...a.item, props: { ...(a.item.props ?? {}), rsLine: line, rsLineText: text, rsTextStyle: style } } } as AtomicAction : a);
-
-/**
- * A section whose move flashes white under its line (flash cuts, break-in bars) gives the line a thin dark outline: white
- * letters on a 0.85 white flash vanished even with their soft halo ("Alang Madan Kulang", 2026-10-28). Only engine
- * lines without an outline of their own; the outline is about 2.5% of the letter size.
- */
-export const FLASHING_MOVES = new Set(['flash-cuts', 'break-in']);
-export const outlineOnFlash = (a: AtomicAction): AtomicAction => {
-  if (a.type !== 'add' || a.item.kind !== 'motion-graphic') return a;
-  const p = (a.item.props ?? {}) as { preset?: unknown; fontSize?: unknown; stroke?: unknown; color?: unknown };
-  if (typeof p.preset !== 'string' || p.stroke || typeof p.fontSize !== 'number') return a;
-  return { ...a, item: { ...a.item, props: { ...p, stroke: { width: Math.max(2, Math.round(p.fontSize * 0.025)), color: 'rgba(0,0,0,0.85)' } } } } as AtomicAction;
-};
 
 /** Video lanes: V1 holds the black canvas, each section uses V2.. ; text lanes T1..T3 per section, T4.. for overlays. */
 const SECTION_TEXT_LANES = 3;

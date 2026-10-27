@@ -1,7 +1,7 @@
 // Recipes tab: pick a recipe, choose pool media, tune params, press Assemble.
 // Everything heavy lives in ../runRecipe.ts and ../assembler; this file is only the form.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { parseRecipe, supportedRatios, type Recipe, type RecipeMediaInput } from '../../../shared/reelsmith/recipe';
+import { supportedRatios, type Recipe, type RecipeMediaInput } from '../../../shared/reelsmith/recipe';
 import { RATIO_SIZES, type RatioId } from '../../../shared/reelsmith/ratios';
 import { directorPrompt, reshapePrompt, STORY_MAX } from '../director/directorPrompt';
 import { findSavedDirector } from '../director/directorSession';
@@ -12,7 +12,6 @@ import { theme } from '../../theme';
 import { analyzeApi } from '../analyzeApi';
 import { briefChecklist, restoreRunSelections } from '../briefChecklist';
 import { bundledCatalog } from '../bundledRecipes';
-import { deleteUserRecipe, listUserRecipes, saveUserRecipe } from '../userRecipesApi';
 import { RecipeGallery } from './RecipeGallery';
 import { MusicPolicyControls } from './MusicPolicyControls';
 import { ENHANCE_PHOTOS_PARAM, MISMATCH_FIT_PARAM, mismatchFitOf, runRecipe } from '../runRecipe';
@@ -24,6 +23,9 @@ import { kvGet, kvSet } from '../../persist/sharedKv';
 import { importSlotMedia } from '../slotImport';
 import { favoriteCount, favoritesSelection, isFavoritesSelected } from '../slotFavorites';
 import { canAssemble, defaultValues, mediaInputs, validateSetup, widgetFor, type SetupValues } from '../setupForm';
+import { finishRemix, saveReelAsRecipe } from '../reelRecipeActions';
+import { addRecipeTo, UserRecipesManager } from './UserRecipesManager';
+import { reelTemplateOf } from '../director/reelRecipe';
 
 const catalog = bundledCatalog;
 const api = analyzeApi;
@@ -64,10 +66,6 @@ export const AGENT_PICK_PROMPT = [
 /** Starter text for "Plan a reel": the user finishes the sentence, the reels-editor skill does the rest. */
 export const PLAN_REEL_STARTER = 'Plan a reel for me with the clips I imported. It is about: ';
 
-const AI_RECIPE_PROMPT = [
-  'Draft one new Reelsmith recipe manifest as JSON only. Use schemaVersion 1, an id beginning with "ai-", a supported category, 9:16 canvas, declared inputs and params, existing assembler strategy only (beat-montage@1, story-vlog@1, captioned-story@1, collage-grid@1, or travel-diary@1), valid structure/styles, and no executable code or external file paths.',
-  'Keep it practical for ordinary imported clips. Use only existing layout, transition, overlay and animation values from the bundled recipes. Include a concise name, description, required media and optional text inputs. I will validate the JSON before saving it.',
-].join(' ');
 
 const label: React.CSSProperties = { fontSize: 11.5, color: theme.textDim };
 const input: React.CSSProperties = {
@@ -79,56 +77,23 @@ export function RecipesPanel({ projectId, assets, itemCount, items, selectedItem
   const [recipe, setRecipe] = useState<Recipe | null>(() => catalog.recipes.find((r) => r.id === selectedRecipeId) ?? null);
   const [chosenRatio, setChosenRatio] = useState<RatioId | undefined>(initialRatio ?? initialBrief?.target.ratio);
   const [userRecipes, setUserRecipes] = useState<Recipe[]>([]);
-  const [draft, setDraft] = useState('');
   const [story, setStory] = useState('');
   const [referenceId, setReferenceId] = useState('');
   const [directorRatio, setDirectorRatio] = useState<RatioId>('9:16');
   const [askFirst, setAskFirst] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [managerError, setManagerError] = useState('');
   const [managerBusy, setManagerBusy] = useState(false);
-  useEffect(() => {
-    void listUserRecipes().then((result) => {
-      setUserRecipes(result.recipes);
-      if (result.rejected.length) setManagerError(result.rejected.map((entry) => `${entry.file}: ${entry.errors.join('; ')}`).join('\n'));
-    }).catch((error) => setManagerError(error instanceof Error ? error.message : String(error)));
-  }, []);
-  const saveDraft = async () => {
-    setManagerError('');
-    const parsed = parseRecipe(draft);
-    if (!parsed.ok) { setManagerError(parsed.errors.join('; ')); return; }
-    const allIds = new Set([...catalog.recipes, ...userRecipes].map((entry) => entry.id));
-    const slug = parsed.recipe.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 32) || 'recipe';
-    const id = editingId ?? `ai-${slug}-${crypto.randomUUID().slice(0, 8)}`;
-    if (!editingId && allIds.has(id)) { setManagerError('A recipe with this id already exists. Try saving again.'); return; }
-    const candidate = { ...parsed.recipe, id };
-    const normalized = parseRecipe(JSON.stringify(candidate));
-    if (!normalized.ok) { setManagerError(normalized.errors.join('; ')); return; }
-    setManagerBusy(true);
+  const [saveName, setSaveName] = useState('');
+  const [saveNote, setSaveNote] = useState('');
+  const addUserRecipe = (saved: Recipe) => setUserRecipes(addRecipeTo(saved));
+  const saveReel = async () => {
+    if (!items || !saveName.trim()) return;
+    setManagerBusy(true); setSaveNote('Saving…');
     try {
-      const saved = await saveUserRecipe(normalized.recipe, !!editingId);
-      setUserRecipes((current) => [...current.filter((entry) => entry.id !== saved.id), saved].sort((a, b) => a.name.localeCompare(b.name)));
-      setDraft(''); setEditingId(null);
-    } catch (error) { setManagerError(error instanceof Error ? error.message : String(error)); }
-    finally { setManagerBusy(false); }
-  };
-  const duplicate = async (source: Recipe) => {
-    const slug = source.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 28) || 'recipe';
-    const copy = { ...source, id: `ai-${slug}-copy-${crypto.randomUUID().slice(0, 6)}`, name: `${source.name.slice(0, 54)} copy` };
-    setManagerBusy(true); setManagerError('');
-    try {
-      const saved = await saveUserRecipe(copy);
-      setUserRecipes((current) => [...current, saved].sort((a, b) => a.name.localeCompare(b.name)));
-    } catch (error) { setManagerError(error instanceof Error ? error.message : String(error)); }
-    finally { setManagerBusy(false); }
-  };
-  const removeUserRecipe = async (entry: Recipe) => {
-    if (!window.confirm(`Delete the AI-made recipe “${entry.name}”?`)) return;
-    setManagerBusy(true); setManagerError('');
-    try {
-      await deleteUserRecipe(entry.id);
-      setUserRecipes((current) => current.filter((candidate) => candidate.id !== entry.id));
-    } catch (error) { setManagerError(error instanceof Error ? error.message : String(error)); }
+      const { recipe: saved, notes } = await saveReelAsRecipe({ name: saveName.trim(), projectId, items, assets, fps, shotTags: (a) => loadShotTags(projectId, a) });
+      addUserRecipe(saved);
+      setSaveName('');
+      setSaveNote([`Saved “${saved.name}”. Open it from the gallery to remix it with other footage.`, ...notes].join(' '));
+    } catch (error) { setSaveNote(error instanceof Error ? error.message : String(error)); }
     finally { setManagerBusy(false); }
   };
   if (!recipe) {
@@ -166,12 +131,19 @@ export function RecipesPanel({ projectId, assets, itemCount, items, selectedItem
             // RS-1233: the directed reel on this timeline, in another shape
             const shape = findSavedDirector(items ?? [])?.build?.plan.ratio;
             if (!shape) return null;
-            return <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-              <span style={label}>This {shape} reel, also as:</span>
-              {(['4:5', '1:1', '9:16', '16:9'] as const).filter((r) => r !== shape).map((r) => (
-                <button key={r} type="button" title={`A new ${r} timeline with the same sections, clips and lines, laid out for ${r}`} onClick={() => onAskAgent(reshapePrompt(r), { autoSend: true })} style={{ ...input, cursor: 'pointer' }}>{r}</button>
-              ))}
-            </div>;
+            return <>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={label}>This {shape} reel, also as:</span>
+                {(['4:5', '1:1', '9:16', '16:9'] as const).filter((r) => r !== shape).map((r) => (
+                  <button key={r} type="button" title={`A new ${r} timeline with the same sections, clips and lines, laid out for ${r}`} onClick={() => onAskAgent(reshapePrompt(r), { autoSend: true })} style={{ ...input, cursor: 'pointer' }}>{r}</button>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                <input aria-label="Recipe name" value={saveName} maxLength={60} onChange={(e) => setSaveName(e.target.value)} placeholder="Name this reel's recipe" style={{ ...input, flex: 1, minWidth: 140 }} />
+                <button type="button" disabled={managerBusy || !saveName.trim()} title="Keep this reel's parts, moves, transitions, text styles and timing as a recipe; remix it later with other clips, a song and your own lines." onClick={() => { void saveReel(); }} style={{ ...input, cursor: saveName.trim() ? 'pointer' : 'default' }}>Save as recipe</button>
+              </div>
+              {saveNote && <span role="status" style={label}>{saveNote}</span>}
+            </>;
           })()}
         </section>}
         {items && <LooksPanel items={items} selectedItem={selectedItem ?? null} onApply={onApply} />}
@@ -179,24 +151,7 @@ export function RecipesPanel({ projectId, assets, itemCount, items, selectedItem
           setRecipe(selected);
           setChosenRatio(ratio ?? (initialRatio && supportedRatios(selected).includes(initialRatio) ? initialRatio : undefined));
         }} aiMadeIds={new Set(userRecipes.map((entry) => entry.id))} disabled={managerBusy} />
-        <section aria-label="AI-made recipes" style={{ display: 'grid', gap: 8, padding: 10, border: `0.5px solid ${theme.border}`, borderRadius: 8 }}>
-          <b style={{ fontSize: 13 }}>AI-made recipes</b>
-          <span style={label}>Paste recipe JSON drafted by your agent. It is validated before it is saved locally, outside the bundled recipes.</span>
-          {onAskAgent && <button type="button" disabled={managerBusy} onClick={() => onAskAgent(AI_RECIPE_PROMPT)} style={{ ...input, cursor: 'pointer', justifySelf: 'start' }}>Ask agent to draft a recipe</button>}
-          {userRecipes.map((entry) => <div key={entry.id} style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <span style={{ flex: 1, minWidth: 100, fontSize: 12 }}>{entry.name}</span>
-            <button type="button" disabled={managerBusy} style={{ ...input, cursor: 'pointer' }} onClick={() => { setEditingId(entry.id); setDraft(JSON.stringify(entry, null, 2)); }}>Edit</button>
-            <button type="button" disabled={managerBusy} style={{ ...input, cursor: 'pointer' }} onClick={() => { void duplicate(entry); }}>Duplicate</button>
-            <button type="button" disabled={managerBusy} style={{ ...input, cursor: 'pointer' }} onClick={() => { void removeUserRecipe(entry); }}>Delete</button>
-          </div>)}
-          <textarea aria-label="AI-made recipe JSON" value={draft} onChange={(event) => setDraft(event.target.value)} rows={10} spellCheck={false}
-            placeholder="Paste a recipe JSON object from your agent…" style={{ ...input, resize: 'vertical', fontFamily: 'monospace', fontSize: 11.5 }} />
-          <div style={{ display: 'flex', gap: 7 }}>
-            <button type="button" disabled={managerBusy || !draft.trim()} onClick={() => { void saveDraft(); }} style={{ ...input, cursor: 'pointer' }}>{managerBusy ? 'Saving…' : editingId ? 'Save changes' : 'Validate and save'}</button>
-            {editingId && <button type="button" disabled={managerBusy} onClick={() => { setEditingId(null); setDraft(''); }} style={{ ...input, cursor: 'pointer' }}>Cancel</button>}
-          </div>
-          {managerError && <span role="alert" style={{ ...label, color: theme.danger }}>{managerError}</span>}
-        </section>
+        <UserRecipesManager userRecipes={userRecipes} setUserRecipes={setUserRecipes} busy={managerBusy} setBusy={setManagerBusy} onAskAgent={onAskAgent} />
         {catalog.rejected.length > 0 && <div style={{ ...label, color: theme.danger }}>{catalog.rejected.join('; ')}</div>}
       </div>
     );
@@ -263,6 +218,8 @@ export function SetupForm({ recipe, projectId, assets, itemCount, fps, initialRa
     setBusy('Starting…'); setNotes([]);
     try {
       const out = await runRecipe({ ...api, shotTags: (a, progress) => loadShotTags(projectId, a, progress) }, { recipe, ratio, values, assets, fps, replaceTimeline: true, onProgress: setBusy });
+      // a saved reel remixed: the director's finishing steps, and its run kept on the reel for chat fixes
+      if (out.action && reelTemplateOf(recipe)) out.action = await finishRemix(out, recipe, { projectId, assets, fps, api, onProgress: setBusy });
       setNotes(out.messages);
       if (out.action) {
         onApply(out.action);

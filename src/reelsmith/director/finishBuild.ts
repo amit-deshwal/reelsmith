@@ -1,0 +1,37 @@
+// The steps after a director plan is compiled that need the media (people, reversed copies), shared by the agent's
+// build (reels_director_build/fix) and a remixed reel recipe built from the Recipes panel without an agent.
+import type { AtomicAction } from '../../editor/reducerActions';
+import type { MediaAsset } from '../../editor/types';
+import type { AnalyzeApi } from '../runRecipe';
+import { aimMarkers } from './aimMarkers';
+import { rewindClips } from '../agent/rewindClips';
+import { clearCaptionsOfPeople } from './clearOfPeople';
+import { findPeople } from '../peopleFinder';
+import { DIRECTOR_PROP, type SavedDirector } from './directorSession';
+
+/** Markers aimed at the person they name, rewind sections reversed, captions moved off faces. Returns notes. */
+export async function finishDirectorActions(actions: AtomicAction[], assets: readonly MediaAsset[], api: Pick<AnalyzeApi, 'reverseClip'>, fps: number, onProgress?: (text: string) => void): Promise<string[]> {
+  const notes: string[] = [];
+  if (actions.some((a) => a.type === 'add' && (a.item as { props?: { rsAim?: unknown } }).props?.rsAim)) onProgress?.('Finding who the markers point at');
+  notes.push(...await aimMarkers(actions, findPeople));
+  notes.push(...await rewindClips(actions, api, fps, onProgress));
+  const canvas = actions.find((a): a is Extract<AtomicAction, { type: 'setCanvas' }> => a.type === 'setCanvas');
+  if (canvas) { onProgress?.('Keeping captions off faces'); await clearCaptionsOfPeople(actions, assets, canvas, fps, findPeople); }
+  return notes;
+}
+
+/** Each section's span in seconds on the timeline, from the items it added. */
+export function sectionSpans(actions: readonly AtomicAction[], sections: number, fps: number): Array<{ from: number; to: number }> {
+  return Array.from({ length: sections }, (_, i) => {
+    const mine = actions.filter((a): a is Extract<AtomicAction, { type: 'add' }> => a.type === 'add' && String((a.item.props as { rsSection?: unknown } | undefined)?.rsSection ?? '').startsWith(`${i + 1}-`));
+    const from = mine.length ? Math.min(...mine.map((a) => a.startFrame ?? 0)) : 0;
+    const to = mine.length ? Math.max(...mine.map((a) => (a.startFrame ?? 0) + a.item.durationInFrames)) : from;
+    return { from: from / fps, to: to / fps };
+  });
+}
+
+/** RS-1222: the run goes with the reel, on its black canvas. */
+export function stampDirector(actions: readonly AtomicAction[], saved: SavedDirector): AtomicAction[] {
+  return actions.map((a) => (a.type === 'add' && (a.item.props as { rsSection?: unknown } | undefined)?.rsSection === 'canvas'
+    ? { ...a, item: { ...a.item, props: { ...(a.item.props ?? {}), [DIRECTOR_PROP]: saved } } } as AtomicAction : a));
+}

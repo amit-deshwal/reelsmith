@@ -56,6 +56,18 @@ export async function readUserPreview(file: string): Promise<{ data: Buffer; typ
   catch { return null; }
 }
 
+/** A poster for a user recipe (a saved reel's hero frame, or one carried in a shared recipe file): JPEG only, ≤ 2 MB. */
+export async function writeUserPoster(id: string, base64: string): Promise<string> {
+  if (!safeId.test(id)) throw new Error('invalid user recipe id');
+  const data = Buffer.from(base64, 'base64');
+  if (data.length > 2_000_000) throw new Error('poster exceeds 2 MB');
+  if (data.length < 4 || data[0] !== 0xff || data[1] !== 0xd8 || data[2] !== 0xff) throw new Error('poster must be a JPEG');
+  const dir = join(userRecipeDir(), 'previews');
+  await mkdir(dir, { recursive: true });
+  await writeFile(join(dir, `${id}.jpg`), data);
+  return `previews/${id}.jpg`;
+}
+
 export async function deleteUserRecipe(id: string): Promise<boolean> {
   if (!safeId.test(id)) throw new Error('invalid user recipe id');
   for (const ext of ['jpg', 'mp4']) await unlink(join(userRecipeDir(), 'previews', `${id}.${ext}`)).catch(() => undefined);

@@ -3,6 +3,7 @@
 import Ajv2020, { type ErrorObject } from 'ajv/dist/2020.js';
 import { RECIPE_SCHEMA } from './recipe-schema';
 import { RATIO_IDS, RATIO_SIZES, ratioOf, type RatioId } from './ratios';
+import { parsePlan } from './directorPlan';
 
 export type RecipeParamType = 'number' | 'integer' | 'boolean' | 'enum' | 'color' | 'font' | 'seconds';
 
@@ -116,6 +117,15 @@ function semanticErrors(r: Recipe): string[] {
     const m = r.inputs.find((i) => i.id === r.music!.inputId);
     if (!m) errors.push(`music.inputId "${r.music.inputId}" is not an input`);
     else if (m.kind !== 'media' || !m.accept.includes('audio')) errors.push(`music.inputId "${m.id}" must accept audio`);
+  }
+  // a director@1 recipe is a saved reel (src/reelsmith/director/reelRecipe.ts): it runs from its template
+  if (r.assembler.strategy === 'director@1') {
+    const t = r.assembler.options?.template as { v?: unknown; plan?: unknown; slots?: unknown; lineAt?: unknown } | undefined;
+    if (!t || t.v !== 1 || !Array.isArray(t.slots) || !Array.isArray(t.lineAt)) errors.push('assembler.options.template: director@1 recipes are saved reels and need their template');
+    else {
+      const plan = parsePlan(t.plan);
+      if (!plan.ok) errors.push(...plan.errors.map((e) => `assembler.options.template.plan: ${e}`));
+    }
   }
   const styleIds = new Set(Object.keys(r.styles));
   const baseRatio = ratioOf(r.canvas.width, r.canvas.height);

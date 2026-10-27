@@ -48,7 +48,7 @@ export function RecipeCardView({ card: c, onOpen, disabled, aiMade = false }: { 
         {poster && <img src={poster} alt="" loading="lazy" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
         {hover && loop && <video src={loop} muted autoPlay loop playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover' }} />}
         <span style={{ position: 'absolute', left: 6, top: 6, fontSize: 10.5, padding: '2px 6px', borderRadius: 4, background: 'rgba(0,0,0,0.55)', color: '#fff' }}>{categoryLabel(c.category)}</span>
-        {aiMade && <span style={{ position: 'absolute', right: 6, top: 6, fontSize: 10, padding: '2px 6px', borderRadius: 4, background: theme.accent, color: theme.onAccent }}>AI-made</span>}
+        {aiMade && <span style={{ position: 'absolute', right: 6, top: 6, fontSize: 10, padding: '2px 6px', borderRadius: 4, background: theme.accent, color: theme.onAccent }}>{c.tags.includes('remix') ? 'Your reel' : 'AI-made'}</span>}
       </div>
       <div style={{ display: 'grid', gap: 3, padding: '8px 9px 10px' }}>
         <b style={{ fontSize: 13 }}>{c.name}</b>
