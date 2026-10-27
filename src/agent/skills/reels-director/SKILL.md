@@ -112,6 +112,8 @@ Then name the **three largest defects**, worst first, each `{ section, at, evide
 
 When the user asks for a change to the reel you built (another line, a different style, a slower ending, swap a clip, a new opener, "more royal"), call `reels_director_fix` with their words as `request` and only the sections or reel-wide fields that change; everything else comes back the same. In a new chat, or when you do not have the plan, call `reels_director_fix` with nothing first: it returns the treatment and plan saved with the reel. Adding or removing sections needs a full `reels_director_build` (`replaceTimeline` true) from the saved plan. No new treatment unless they want a different reel; if they name a new feel ("this looks basic", "make it royal"), rethink the kit and the arc for that tone first and change all of it, not one item. The request is the go-ahead, unless they say they edited the timeline by hand since; then ask. Three changes need no rebuild: a freeze (`reels_freeze_frame`; never a slow playback rate), playing a clip or a stretch of it backwards (`reels_reverse`) and another style for one line (`reels_restyle_text`). Use the editor tools only for what a plan cannot say (a clip's volume, nudging one item): `read_timeline` once, then every change in one `edit_item` call; a later rebuild drops those edits, so repeat them or tell the user. Finish with `review_edit_session`.
 
+Another shape of the same reel ("a 4:5 for the feed", "square too") is `reels_director_reshape` with the ratio: a new timeline with the same sections and shots, laid out for that shape. Check its frames and fix there with `reels_director_fix`; never crop or retarget the first one.
+
 ## Example plan
 
 The "Earned" treatment above on a 130 bpm song (dropAtBeat 10):

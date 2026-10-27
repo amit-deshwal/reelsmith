@@ -260,6 +260,15 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
     input_schema: { type: 'object', properties: {} },
   },
   {
+    name: 'reels_director_reshape',
+    description: [
+      'The directed reel in another shape (4:5 for the feed, 1:1, 16:9...), as a new timeline next to it: the same sections, clips, moments,',
+      'lines and beats, laid out again for that canvas (text, graphics, crops on the subject, safe area), not a crop of the first. The first',
+      'reel is unchanged. Returns one frame per section of the new version.',
+    ].join(' '),
+    input_schema: { type: 'object', properties: { ratio: { type: 'string', enum: ['9:16', '4:5', '1:1', '16:9', '3:4', '4:3'] } }, required: ['ratio'] },
+  },
+  {
     name: 'reels_review_export',
     description: [
       'Look at the reel as exported: contact sheets taken from the exported MP4 itself (the hook, inside each section or shot, on each cut,',
@@ -486,4 +495,4 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
 
 export const REELS_TOOL_NAMES = new Set(REELS_TOOL_SCHEMAS.map((t) => t.name));
 export const REELS_READ_TOOL_NAMES = ['reels_review_export', 'reels_lint', 'reels_plan_options', 'reels_director_options', 'reels_director_treatment', 'reels_director_critique', 'reels_run_info', 'reels_selection_candidates', 'reels_selection_sheet'] as const;
-export const REELS_EDIT_TOOL_NAMES = ['reels_plan_assemble', 'reels_director_build', 'reels_director_fix', 'reels_custom_shader', 'reels_custom_graphic', 'reels_time_effect', 'reels_freeze_frame', 'reels_reverse', 'reels_clean_speech', 'reels_restyle_text', 'reels_apply_look', 'reels_apply_signature', 'reels_recut_section', 'reels_snap_cuts_to_beats', 'reels_strobe', 'propose_selection'] as const;
+export const REELS_EDIT_TOOL_NAMES = ['reels_plan_assemble', 'reels_director_build', 'reels_director_fix', 'reels_director_reshape', 'reels_custom_shader', 'reels_custom_graphic', 'reels_time_effect', 'reels_freeze_frame', 'reels_reverse', 'reels_clean_speech', 'reels_restyle_text', 'reels_apply_look', 'reels_apply_signature', 'reels_recut_section', 'reels_snap_cuts_to_beats', 'reels_strobe', 'propose_selection'] as const;

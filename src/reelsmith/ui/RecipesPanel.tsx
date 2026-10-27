@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { parseRecipe, supportedRatios, type Recipe, type RecipeMediaInput } from '../../../shared/reelsmith/recipe';
 import { RATIO_SIZES, type RatioId } from '../../../shared/reelsmith/ratios';
-import { directorPrompt, STORY_MAX } from '../director/directorPrompt';
+import { directorPrompt, reshapePrompt, STORY_MAX } from '../director/directorPrompt';
+import { findSavedDirector } from '../director/directorSession';
 import { mapBriefToRecipe, type ReelsBrief } from '../../../shared/reelsmith/brief';
 import type { BatchAction } from '../../editor/reducerActions';
 import type { MediaAsset, TimelineItem } from '../../editor/types';
@@ -161,6 +162,17 @@ export function RecipesPanel({ projectId, assets, itemCount, items, selectedItem
             }} style={{ ...input, cursor: story.trim() ? 'pointer' : 'default' }}>Direct my reel</button>
             <button type="button" onClick={() => onAskAgent(PLAN_REEL_STARTER)} style={{ ...input, cursor: 'pointer' }}>Or let my agent pick a recipe</button>
           </div>
+          {(() => {
+            // RS-1233: the directed reel on this timeline, in another shape
+            const shape = findSavedDirector(items ?? [])?.build?.plan.ratio;
+            if (!shape) return null;
+            return <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={label}>This {shape} reel, also as:</span>
+              {(['4:5', '1:1', '9:16', '16:9'] as const).filter((r) => r !== shape).map((r) => (
+                <button key={r} type="button" title={`A new ${r} timeline with the same sections, clips and lines, laid out for ${r}`} onClick={() => onAskAgent(reshapePrompt(r), { autoSend: true })} style={{ ...input, cursor: 'pointer' }}>{r}</button>
+              ))}
+            </div>;
+          })()}
         </section>}
         {items && <LooksPanel items={items} selectedItem={selectedItem ?? null} onApply={onApply} />}
         <RecipeGallery recipes={[...catalog.recipes, ...userRecipes]} onSelect={(selected, ratio) => {

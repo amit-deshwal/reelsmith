@@ -85,8 +85,10 @@ export function findSavedDirector(items: ReadonlyArray<{ props?: Record<string, 
  */
 export function restoreDirectorSession(projectId: string, items: ReadonlyArray<{ props?: Record<string, unknown> }>): DirectorSession | undefined {
   const live = sessions.get(projectId);
-  if (live?.lastBuild || live?.treatment) return live;
   const saved = findSavedDirector(items);
+  // RS-1233: a project can hold the reel in several shapes, one timeline each; the open timeline's own run wins
+  const otherShape = !!saved?.build && !!live?.lastBuild && saved.build.plan.ratio !== live.lastBuild.plan.ratio;
+  if ((live?.lastBuild || live?.treatment) && !otherShape) return live;
   if (!saved) return live;
   return updateDirectorSession(projectId, {
     fps: saved.fps, ...(saved.song ? { song: saved.song } : {}), ...(saved.treatment ? { treatment: saved.treatment } : {}),

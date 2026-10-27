@@ -31,6 +31,7 @@ import { parseRestyleArgs, planRestyle } from './restyleTextTool';
 import { applySignatureTool } from './signatureTools';
 import { applyLookTool } from './lookTools';
 import { reviewExportTool } from '../exportReview';
+import { directorReshape } from './directorReshapeTool';
 export { REELS_TOOL_NAMES, REELS_TOOL_SCHEMAS } from './reelsToolSchemas';
 
 type Args = Record<string, unknown>;
@@ -120,6 +121,9 @@ export async function execReelsTool(name: string, args: Args, ctx: AgentContext,
 
     case 'reels_director_treatment':
       return directorTreatment(args, ctx);
+
+    case 'reels_director_reshape':
+      return directorReshape(args, ctx, deps);
 
     case 'reels_review_export':
       return reviewExportTool();

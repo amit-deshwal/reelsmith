@@ -20,3 +20,8 @@ export function directorPrompt(story: string, ratio: RatioId, songs = 0, referen
     'Use the reels-director skill and its four stages: reels_director_options (the shot log and contact sheets), reels_director_treatment, reels_director_build, then reels_director_critique and reels_director_fix for its largest defects. I want the best cut possible, not a template; take the time it needs. Keep my words on screen; describe only what the clips show.',
   ].join('\n');
 }
+
+/** RS-1233: the "also as 4:5" buttons; the reel itself comes from the open timeline's saved run. */
+export function reshapePrompt(ratio: RatioId): string {
+  return `Make a ${ratio} version of my directed reel with reels_director_reshape (ratio ${ratio}): same story and shots, laid out for ${ratio}. Check its frames, fix anything that does not fit, and keep my first version as it is.`;
+}
