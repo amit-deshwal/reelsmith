@@ -130,7 +130,8 @@ export function reelsmithAnalyzePlugin(): Plugin {
         // RS-904: the size follows the project's canvas; only supported shapes are accepted
         const sized = body.width === undefined && body.height === undefined ? preset : presetForCanvas(preset, Number(body.width), Number(body.height));
         if (!sized) throw new Error(`unsupported canvas ${String(body.width)}x${String(body.height)}`);
-        return { result: await finalizeForInstagram(file, sized) };
+        const holds = Array.isArray(body.holds) ? (body.holds as unknown[]).filter((h): h is [number, number] => Array.isArray(h) && h.length === 2 && h.every(Number.isFinite)) : [];
+        return { result: await finalizeForInstagram(file, sized, {}, holds) };
       });
       route('/api/reelsmith/music-grid', async (body) => {
         const file = localFile(body.src);

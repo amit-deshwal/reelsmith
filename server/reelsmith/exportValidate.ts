@@ -1,4 +1,5 @@
-// RS-302: automatic export validation (spec §12.7, V1-V9 minus the preview-parity sample, V8, which needs the renderer).
+// RS-302: automatic export validation (spec §12.7, V1-V9 minus the preview-parity sample, V8, which needs the renderer),
+// and V10, frozen or stuttering picture (RS-1231).
 import { execFile } from 'node:child_process';
 import { open, stat } from 'node:fs/promises';
 import { promisify } from 'node:util';
@@ -17,6 +18,8 @@ export interface ValidateOptions {
   expectedFrames?: number;
   /** intended black segments in seconds [start,end] (dip to black etc.) */
   intendedBlack?: Array<[number, number]>;
+  /** intended still stretches in seconds [start,end] (a freeze frame, a photo with no move) */
+  intendedHolds?: Array<[number, number]>;
   /** skip the slow loudness / black passes */
   quick?: boolean;
 }
@@ -145,12 +148,63 @@ export async function validateReel(file: string, opts: ValidateOptions): Promise
     add('V7', stray.length ? 'WARN' : 'PASS', stray.length ? `unexpected black at ${stray.map(([s, e]) => `${s.toFixed(1)}-${e.toFixed(1)}s`).join(', ')}` : 'no unintended black frames');
   }
 
+  // V10 frozen and stuttering picture (RS-1231)
+  if (!opts.quick) checks.push(await frameRepeatCheck(file, p.fps, vdur, opts.intendedHolds ?? []));
+
   // V9 size and bitrate
   const size = (await stat(file)).size;
   const kbps = (size * 8) / Math.max(0.1, vdur) / 1000;
   add('V9', size > 4 * 1024 ** 3 || kbps < 1000 ? 'WARN' : 'PASS', `${(size / 1e6).toFixed(1)} MB, ${Math.round(kbps)} kbps`);
 
   return { ok: !checks.some((c) => c.status === 'FAIL'), checks };
+}
+
+const overlaps = (a: [number, number], spans: ReadonlyArray<[number, number]>) => spans.some(([s, e]) => a[0] >= s - 0.1 && a[1] <= e + 0.1);
+
+/**
+ * RS-1231: what a stalled render leaves in the file. `ydif` is each frame's luma difference from the one before (an
+ * exact repeat decodes as 0), `freezes` ffmpeg's freezedetect spans. A freeze is a still stretch nobody placed; a
+ * stutter is a burst of single repeated frames (at least three within a second) at uneven gaps. Even gaps are a
+ * 24 or 25 fps clip played in a 30 fps reel (`cadence`), which is how that clip looks anywhere.
+ */
+export function repeatedFrames(ydif: readonly number[], freezes: ReadonlyArray<[number, number]>, fps: number, holds: ReadonlyArray<[number, number]> = []) {
+  const frozen = freezes.filter((f) => !overlaps(f, holds));
+  const inFreeze = (i: number) => freezes.some(([s, e]) => i / fps >= s - 1 / fps && i / fps <= e);
+  const reps = ydif.flatMap((d, i) => (i > 0 && d === 0 && !inFreeze(i) && !(ydif[i - 1] === 0 && ydif[i + 1] === 0) ? [i] : []));
+  // bursts: repeats no more than a second apart
+  const bursts: number[][] = [];
+  for (const i of reps) {
+    const last = bursts.at(-1);
+    if (last && i - last.at(-1)! <= fps) last.push(i);
+    else bursts.push([i]);
+  }
+  let cadence = false;
+  const stutters: Array<[number, number]> = [];
+  for (const b of bursts) {
+    const dense = b.some((_, k) => k >= 2 && b[k]! - b[k - 2]! < fps);
+    if (!dense) continue;
+    const gaps = b.slice(1).map((x, k) => x - b[k]!);
+    if (gaps.length >= 3 && Math.max(...gaps) - Math.min(...gaps) <= 1) { cadence = true; continue; }
+    const span: [number, number] = [b[0]! / fps, b.at(-1)! / fps];
+    if (!overlaps(span, holds)) stutters.push(span);
+  }
+  return { freezes: frozen, stutters, cadence };
+}
+
+/** V10 on a file: one ffmpeg pass for freezedetect and each frame's difference from the one before. */
+export async function frameRepeatCheck(file: string, fps: number, seconds: number, holds: ReadonlyArray<[number, number]> = []): Promise<Check> {
+  const fr = await run('ffmpeg', ['-nostats', '-i', file, '-vf', 'freezedetect=n=0.001:d=0.4,signalstats,metadata=print:key=lavfi.signalstats.YDIF', '-an', '-f', 'null', '-'], BIG)
+    .catch((e) => ({ stderr: String(e.stderr ?? '') }));
+  const out = String((fr as { stderr?: string }).stderr);
+  const ydif = [...out.matchAll(/lavfi\.signalstats\.YDIF=([\d.]+)/g)].map((m) => Number(m[1]));
+  const starts = [...out.matchAll(/freeze_start: ([\d.]+)/g)].map((m) => Number(m[1]));
+  const ends = [...out.matchAll(/freeze_end: ([\d.]+)/g)].map((m) => Number(m[1]));
+  const f = repeatedFrames(ydif, starts.map((s, i) => [s, ends[i] ?? seconds]), fps, holds);
+  const spans = (xs: Array<[number, number]>) => xs.map(([s, e]) => `${s.toFixed(1)}-${e.toFixed(1)}s`).join(', ');
+  const parts = [...(f.freezes.length ? [`frozen at ${spans(f.freezes)}`] : []), ...(f.stutters.length ? [`stutters (repeated frames) at ${spans(f.stutters)}`] : [])];
+  return parts.length
+    ? { id: 'V10', status: 'WARN', detail: `${parts.join('; ')}; if the preview plays smoothly there, restart the app and export again` }
+    : { id: 'V10', status: 'PASS', detail: `no frozen or stuttering picture${f.cadence ? ' (a lower frame-rate clip repeats frames evenly, as expected)' : ''}` };
 }
 
 export function formatReport(r: ValidationReport): string {

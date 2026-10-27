@@ -45,6 +45,13 @@ export function presetIdFor(fps: number, silent: boolean): string {
   return fps >= 50 ? 'instagram-reel-60' : 'instagram-reel';
 }
 
+/** RS-1231: where the picture stands still on purpose (a freeze frame, a photo), in seconds, so V10 leaves it alone. */
+export function intendedHolds(state: Pick<TimelineState, 'items' | 'fps'>): Array<[number, number]> {
+  return state.items
+    .filter((i) => i.kind === 'image' || (i.props as { rsFreeze?: unknown } | undefined)?.rsFreeze !== undefined)
+    .map((i) => [i.startFrame / state.fps, (i.startFrame + i.durationInFrames) / state.fps]);
+}
+
 export async function finalizeExportForInstagram(
   state: TimelineState, completed: ExportJobResult, codec: string, signal?: AbortSignal,
   opts: { fetcher?: typeof fetch; setBusy?: (text: string | null) => void } = {},
@@ -60,7 +67,7 @@ export async function finalizeExportForInstagram(
   try {
     const res = await (opts.fetcher ?? fetch)('/api/reelsmith/instagram-finalize', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, signal,
-      body: JSON.stringify({ src: completed.path, presetId: presetIdFor(completed.fps ?? state.fps, pref.silent), width: state.width, height: state.height }),
+      body: JSON.stringify({ src: completed.path, presetId: presetIdFor(completed.fps ?? state.fps, pref.silent), width: state.width, height: state.height, holds: intendedHolds(state) }),
     });
     const body = await res.json().catch(() => null) as { result?: { ok: boolean; reencoded: boolean; first: { checks: Check[] }; second?: { checks: Check[] }; failedPath?: string }; error?: string } | null;
     if (!res.ok || !body?.result) throw new Error(body?.error ?? `Instagram check failed (${res.status})`);

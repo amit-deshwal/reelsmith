@@ -1,4 +1,4 @@
-// RS-301/RS-302: after an export renders, check it against the Instagram rules (V1-V7, V9). If it fails,
+// RS-301/RS-302: after an export renders, check it against the Instagram rules (V1-V7, V9, V10). If it fails,
 // re-encode once with the safe ffmpeg encoder and check again. A good result replaces the rendered file
 // (so delivery copies the fixed one); a still-bad result is kept beside it as <name>.failed.mp4.
 import { existsSync } from 'node:fs';
@@ -23,8 +23,11 @@ export interface FinalizeResult {
 export async function finalizeForInstagram(
   file: string, preset: ReelPreset,
   deps: { validate?: typeof validateReel; encode?: typeof encodeForInstagram } = {},
+  /** RS-1231: still stretches someone placed (freeze frames, photos), in seconds; V10 does not flag them */
+  intendedHolds: Array<[number, number]> = [],
 ): Promise<FinalizeResult> {
-  const validate = deps.validate ?? validateReel;
+  const check = deps.validate ?? validateReel;
+  const validate = (f: string, o: { preset: ReelPreset }) => check(f, { ...o, intendedHolds });
   const encode = deps.encode ?? encodeForInstagram;
   const first = await validate(file, { preset });
   if (first.ok) return { ok: true, reencoded: false, first };
