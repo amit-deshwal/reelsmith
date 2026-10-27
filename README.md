@@ -236,6 +236,13 @@ You give a story, your media and a song; the agent splits the story into section
 - [ ] **More from the same research.** Lines entering with the singer's phrases (vocal onsets, not only beats); the clip's sound leading its picture by a few frames into a natural-sound section (J-cut); cuts placed on motion peaks so an action completes inside its shot; level a natural-sound clip to the song before ducking.
 - [ ] **More moves**: picture-in-picture, film strip.
 - [ ] **Save a plan as a recipe**: a plan that worked becomes a reusable template (replaces RS-1004).
+- [ ] **The rest of the motion-engineering write-up (RS-1230..1235).** A second pass over the @0xwhrrari write-up (2026-10-28) for what RS-1213..1222 left out:
+  - [ ] **RS-1230 Approve the treatment before the build.** "Show me the plan first" in the Director box (off by default): `reels_director_options` takes `askFirst`, the treatment returns a `card` written by code (`treatmentCard`: concept, tone, each part's seconds on the song and purpose, signature, hero shots, kit, the other concept) and the build refuses until it gets `approvedBy` (the user's reply); a revised treatment closes the gate again. _(Built 2026-10-28; `director/approvalGate.verify.ts`. Not yet run in the app.)_ *Check:* in the app the run stops at the card, and "make it funnier" changes the treatment before anything is built.
+  - [ ] **RS-1231 Frozen and stuttering frames in the export.** V10 in `exportValidate.ts`: `freezedetect` and duplicate-frame runs in the exported MP4, by reel second, intended holds excused. *Check:* a file with a 0.5 s freeze and a run of duplicated frames is flagged; a clean export passes.
+  - [ ] **RS-1232 Contact sheet of the export.** `<video>.sheet.jpg` from the MP4 itself (each section start and around each transition) and `reels_review_export`, which returns it with the V1-V10 report. Closes "Frame check tool".
+  - [ ] **RS-1233 The same story in another shape.** `reels_director_reshape(ratio)` rebuilds the saved treatment and plan as a new composition in another shape (same sections, clips and moments; text, graphics, crop and safe zones re-fitted), not a crop. *Check:* a 9:16 reel reshaped to 4:5 and 1:1 keeps every section, with no text outside the safe area and no face cut off.
+  - [ ] **RS-1234 Instagram cover.** `<video>.cover.jpg` at the reel's size: the strongest hero frame with the title inside the 3:4 grid crop.
+  - [ ] **RS-1235 Word timing.** whisper.cpp DTW token timestamps in desktop transcription; re-measure RS-501 with `asr-timing.mjs`.
 
 ---
 

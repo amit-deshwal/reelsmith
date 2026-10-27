@@ -82,6 +82,7 @@ export function RecipesPanel({ projectId, assets, itemCount, items, selectedItem
   const [story, setStory] = useState('');
   const [referenceId, setReferenceId] = useState('');
   const [directorRatio, setDirectorRatio] = useState<RatioId>('9:16');
+  const [askFirst, setAskFirst] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [managerError, setManagerError] = useState('');
   const [managerBusy, setManagerBusy] = useState(false);
@@ -151,9 +152,12 @@ export function RecipesPanel({ projectId, assets, itemCount, items, selectedItem
               <option value="">No reference reel</option>
               {assets.filter((a) => a.kind === 'video').map((a) => <option key={a.id} value={a.id}>Feel like: {a.name}</option>)}
             </select>}
+            <label title="Your agent shows the concept, the parts on the song and the signature moment, and builds only when you say go." style={{ ...label, display: 'flex', gap: 4, alignItems: 'center' }}>
+              <input type="checkbox" checked={askFirst} onChange={(e) => setAskFirst(e.target.checked)} />Show me the plan first
+            </label>
             <button type="button" disabled={!story.trim()} onClick={() => {
               const reference = assets.find((a) => a.id === referenceId);
-              onAskAgent(directorPrompt(story, directorRatio, assets.filter((a) => a.kind === 'audio').length, reference ? { id: reference.id, name: reference.name } : undefined), { autoSend: true });
+              onAskAgent(directorPrompt(story, directorRatio, assets.filter((a) => a.kind === 'audio').length, reference ? { id: reference.id, name: reference.name } : undefined, askFirst), { autoSend: true });
             }} style={{ ...input, cursor: story.trim() ? 'pointer' : 'default' }}>Direct my reel</button>
             <button type="button" onClick={() => onAskAgent(PLAN_REEL_STARTER)} style={{ ...input, cursor: 'pointer' }}>Or let my agent pick a recipe</button>
           </div>

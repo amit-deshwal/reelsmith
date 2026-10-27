@@ -146,6 +146,32 @@ export function parseTreatment(raw: unknown): { ok: true; treatment: Treatment }
   };
 }
 
+/**
+ * RS-1230: the treatment as the user reads it at the approval gate, before anything is built: the concept, the tone,
+ * each part with its seconds on the song and why it is there, the hero shots and the signature. Written by code so the
+ * card shows what was sent, not the agent's retelling of it.
+ */
+export function treatmentCard(t: Treatment, bpm?: number): string {
+  const beatSec = bpm ? 60 / bpm : 0.5;
+  const concept = t.concepts[t.chosen];
+  let at = 0;
+  const parts = t.parts.map((p, i) => {
+    const from = at;
+    at += p.beats * beatSec;
+    const bits = [p.line ? `"${p.line}"` : '', p.purpose ?? p.idea ?? ''].filter(Boolean).join(': ');
+    return `${i + 1}. ${from.toFixed(1)}-${at.toFixed(1)} s · ${p.role} · ${p.move}${bits ? ` · ${bits}` : ''}`;
+  });
+  const kit = [...t.textStyles, ...t.transitions, ...t.effects, ...t.graphics, ...(t.look ? [`look ${t.look}`] : [])];
+  return [
+    `**${concept?.name ?? 'Concept'}** (${t.tone}, about ${at.toFixed(0)} s): ${concept?.idea ?? ''}`,
+    ...parts,
+    `Signature: ${t.signature}`,
+    ...(t.heroes.length ? [`Hero shots: ${t.heroes.join(', ')}`] : []),
+    ...(kit.length ? [`Kit: ${kit.join(', ')}`] : []),
+    `Other idea: ${t.concepts.filter((_, i) => i !== t.chosen).map((c) => `${c.name} (${c.idea})`).join('; ')}`,
+  ].join('\n');
+}
+
 /** Every catalogue id the treatment names (its parts' moves and its kit). */
 export function treatmentIds(t: Treatment): string[] {
   return [...new Set([...t.parts.map((p) => p.move), ...t.textStyles, ...t.transitions, ...t.effects, ...t.graphics, ...(t.look ? [t.look] : [])])];

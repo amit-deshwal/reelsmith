@@ -23,7 +23,7 @@ import type { ClipFeatures } from '../assembler/scoring';
 import type { ClipShotTags } from '../shotTags';
 import { shotLogLines, type ShotLogClip } from '../director/shotLog';
 import { DIRECTOR_PROP, directorSession, restoreDirectorSession, savedDirector, updateDirectorSession } from '../director/directorSession';
-import { PLAN_BRIEF, checkTreatment, parseTreatment, treatmentIds } from '../director/treatment';
+import { PLAN_BRIEF, checkTreatment, parseTreatment, treatmentCard, treatmentIds } from '../director/treatment';
 import { catalogKind, catalogSlice } from '../director/catalogText';
 import { soundCheck } from '../director/soundCheck';
 import { referenceLine, referenceProfile } from '../director/reference';
@@ -179,7 +179,7 @@ export async function directorOptions(args: Record<string, unknown>, ctx: AgentC
   const sug = firstSong ? (beats.get(firstSong.id) as { bpm?: number; suggest?: { beatsFor18s: number; dropAtBeat?: number } } | undefined) : undefined;
   const reference = refAsset ? await watchReference(refAsset, fps, logClips, sug?.bpm, ctx, deps) : undefined;
   updateDirectorSession(projectId(ctx), {
-    fps, clips: logClips, treatment: undefined, lastBuild: undefined, reference: reference ? { assetId: refAsset!.id, profile: reference.profile } : undefined,
+    fps, clips: logClips, treatment: undefined, lastBuild: undefined, askFirst: args.askFirst === true, gate: undefined, reference: reference ? { assetId: refAsset!.id, profile: reference.profile } : undefined,
     ...(firstSong ? { song: { assetId: firstSong.id, ...(sug?.bpm ? { bpm: sug.bpm } : {}), ...(sug?.suggest ? { beatsFor18s: sug.suggest.beatsFor18s, ...(sug.suggest.dropAtBeat !== undefined ? { dropAtBeat: sug.suggest.dropAtBeat } : {}) } : {}) } } : {}),
   });
   const song = (a: MediaAsset) => ({ assetId: a.id, name: a.name, seconds: secs(a.durationInFrames, fps), ...(beats.get(a.id) ?? {}) });
@@ -200,7 +200,7 @@ export async function directorOptions(args: Record<string, unknown>, ctx: AgentC
     ...(custom.length ? { customShaders: custom } : {}),
     ...(reference ? { reference: { measured: reference.line, sheet: reference.image ? `the last image: the reference, one cell a shot (cells "r·seconds")` : 'no sheet of the reference (frames unavailable)', use: 'Study it for its pace, colour, type, composition and motion; write the treatment\'s styleGuide from it. Never copy its subjects, words or logos, and never cast it.' } } : {}),
     timelineIsEmpty: ctx.getState().items.length === 0,
-    next: `Stage 2: write the treatment (two concepts, the tone, hero shots, the arc on the song with each part's purpose, the signature, the kit from the menu in the skill${reference ? ', and the styleGuide from the reference' : ''}) and call reels_director_treatment. Do not write the plan yet.`,
+    next: `${args.askFirst === true ? 'The user wants to approve the treatment before anything is built. ' : ''}Stage 2: write the treatment (two concepts, the tone, hero shots, the arc on the song with each part's purpose, the signature, the kit from the menu in the skill${reference ? ', and the styleGuide from the reference' : ''}) and call reels_director_treatment. Do not write the plan yet.`,
   };
 }
 
@@ -270,6 +270,12 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
   const problems: string[] = [];
   resolvePlanSections(plan, [], problems);
   if (problems.length) return { error: `The plan has problems: ${problems.join('; ')}` };
+  // RS-1230: with "show me the plan first", nothing is built until the user has answered the treatment card
+  if (session?.askFirst && session.gate === 'waiting') {
+    const said = typeof args.approvedBy === 'string' ? args.approvedBy.trim() : '';
+    if (!said) return { error: 'The user asked to approve the treatment first. Show them the card from reels_director_treatment and wait for their reply; then build with approvedBy set to their words.' };
+    updateDirectorSession(id, { gate: 'approved' });
+  }
   const state = ctx.getState();
   if (state.items.length > 0 && args.replaceTimeline !== true) return { error: 'The timeline already has items and building replaces it. Ask the user, then call again with replaceTimeline true (one undo step restores it).' };
   const assets = [...(ctx.getDoc().assets ?? [])];
@@ -413,7 +419,8 @@ export function directorTreatment(args: Record<string, unknown>, ctx: AgentConte
     clips: session?.clips ?? [], fps: session?.fps ?? ctx.getState().fps, ...(session?.song ? { song: session.song } : {}),
     ...(session?.reference?.profile ? { reference: session.reference.profile } : {}),
   });
-  updateDirectorSession(id, { treatment: t, lastBuild: undefined });
+  const gated = session?.askFirst === true;
+  updateDirectorSession(id, { treatment: t, lastBuild: undefined, ...(gated ? { gate: 'waiting' as const } : {}) });
   const count: Record<string, number> = {};
   const ids = treatmentIds(t).filter((x) => {
     const kind = catalogKind(x);
@@ -432,7 +439,10 @@ export function directorTreatment(args: Record<string, unknown>, ctx: AgentConte
     motion: motionRuleText(t.tone),
     catalog: catalogSlice(ids),
     planBrief: PLAN_BRIEF,
-    next: questions.length
+    ...(gated ? { card: treatmentCard(t, session?.song?.bpm) } : {}),
+    next: gated
+      ? `The user approves before anything is built. ${findings.length ? 'First send a revised treatment that fixes the findings (and asks any questions in the same message). Then show' : 'Show'} the user \`card\` exactly as written and ask "Build it, or change something?"; then stop and wait. When they say go, write the plan and call reels_director_build with approvedBy set to their words. When they ask for changes, send a revised treatment and show its card again.`
+      : questions.length
       ? 'Ask the user these questions in one short message and wait for the answer; or, if the reel works without that part, leave its line out and say so in your report. The build refuses a line that names it.'
       : findings.length
         ? 'Fix every finding as you write the plan (no need to send the treatment again unless the concept changes), then call reels_director_build.'

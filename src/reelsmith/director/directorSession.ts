@@ -33,6 +33,9 @@ export interface DirectorSession {
   /** RS-1217: the reel to match (left out of the clip list); its measurements once stage 1 has watched it */
   reference?: { assetId: string; profile?: ReferenceProfile };
   lastBuild?: DirectorBuildRecord;
+  /** RS-1230: the user asked to see the treatment before the build; `waiting` until they answer it */
+  askFirst?: boolean;
+  gate?: 'waiting' | 'approved';
 }
 
 const sessions = new Map<string, DirectorSession>();

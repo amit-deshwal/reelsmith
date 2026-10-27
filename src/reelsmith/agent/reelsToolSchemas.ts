@@ -194,7 +194,10 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
       'With `reference` (an imported reel the user wants theirs to feel like) it also measures that reel (pace, colour, motion), shows one',
       'cell a shot of it, and leaves it out of the clips.',
     ].join(' '),
-    input_schema: { type: 'object', properties: { reference: { type: 'string', description: 'Optional: assetId or file name of an imported reel to match in pace and look (never cast as footage).' } } },
+    input_schema: { type: 'object', properties: {
+      reference: { type: 'string', description: 'Optional: assetId or file name of an imported reel to match in pace and look (never cast as footage).' },
+      askFirst: { type: 'boolean', description: 'True when the user wants to approve the treatment before the build (the treatment then returns a card to show them).' },
+    } },
   },
   {
     name: 'reels_director_treatment',
@@ -354,6 +357,7 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
         },
         seed: { type: 'number', description: 'Optional seed; same plan and seed give the same reel.' },
         replaceTimeline: { type: 'boolean', description: 'Pass true only after the user agreed to replace what is on the timeline.' },
+        approvedBy: { type: 'string', description: 'When the user asked to approve the treatment first: their reply that approved it, in their words.' },
       },
       required: ['plan'],
     },
