@@ -1,7 +1,7 @@
 // RS-1234: the Instagram cover, saved next to the export as <name>.cover.jpg. The frame comes from the exported file:
 // for a directed reel the longest section with no line on it (usually the held hero shot), with the reel's opening line
 // as the title; for any other reel the middle of its longest shot, no title. The title sits in the centred 3:4 crop
-// Instagram shows on the profile grid, so it is never cut off there.
+// Instagram shows on the profile grid, so it is never cut off there, in its calmest third (not across faces).
 import type { TimelineState } from '../editor/types';
 import { findSavedDirector } from './director/directorSession';
 
@@ -45,13 +45,38 @@ export function wrapTitle(text: string, max: number): string[] {
   return lines;
 }
 
-/** The title block: centred, in the middle band of the 3:4 grid crop (lower-middle, under most faces). */
-export function titleLayout(width: number, height: number, lines: number) {
+/** Where the title can sit in the 3:4 grid crop, as a fraction of its height: upper, middle or lower third. */
+export const TITLE_BANDS = [0.2, 0.5, 0.8] as const;
+
+/**
+ * The calmest of the three bands (least detail: sky, ground, a wall), where a title reads and covers no face. `gray` is
+ * a small greyscale copy of the frame, `w` x `h`. A fixed band put the title across a group's faces (2026-10-28).
+ */
+export function quietestBand(gray: ArrayLike<number>, w: number, h: number): number {
+  const gridH = Math.min(h, (w * 4) / 3), top = (h - gridH) / 2;
+  const energy = TITLE_BANDS.map((at) => {
+    const y0 = Math.max(1, Math.round(top + gridH * (at - 0.12))), y1 = Math.min(h - 1, Math.round(top + gridH * (at + 0.12)));
+    let sum = 0, n = 0;
+    for (let y = y0; y < y1; y += 1) for (let x = 1; x < w - 1; x += 1) {
+      const i = y * w + x;
+      sum += Math.abs(gray[i + 1]! - gray[i - 1]!) + Math.abs(gray[i + w]! - gray[i - w]!);
+      n += 1;
+    }
+    return n ? sum / n : Infinity;
+  });
+  // the middle is where the eye goes first: another third wins only when it is clearly calmer
+  const k = energy.indexOf(Math.min(...energy));
+  const best = energy[k]! < energy[1]! * 0.8 ? TITLE_BANDS[k]! : 0.5;
+  return best;
+}
+
+/** The title block: centred, in band `at` (a fraction of the 3:4 grid crop's height) so the profile grid never cuts it. */
+export function titleLayout(width: number, height: number, lines: number, at = 0.5) {
   const gridHeight = Math.min(height, (width * 4) / 3);
   const top = (height - gridHeight) / 2;
   const size = Math.round(width * (lines > 2 ? 0.075 : 0.09));
   const lineHeight = Math.round(size * 1.12);
-  const centre = top + gridHeight * 0.66;
+  const centre = top + gridHeight * at;
   return { size, lineHeight, firstBaseline: Math.round(centre - (lineHeight * (lines - 1)) / 2 + size * 0.35), gridTop: top, gridBottom: top + gridHeight };
 }
 
@@ -64,11 +89,16 @@ export async function drawCover(jpegBase64: string, title: string | undefined): 
   g.drawImage(image, 0, 0);
   if (title) {
     const lines = wrapTitle(title, 16).slice(0, 4);
-    const L = titleLayout(image.width, image.height, lines.length);
+    const sw = 54, sh = Math.round((54 * image.height) / image.width);
+    const small = new OffscreenCanvas(sw, sh).getContext('2d')!;
+    small.drawImage(image, 0, 0, sw, sh);
+    const rgba = small.getImageData(0, 0, sw, sh).data;
+    const gray = Float32Array.from({ length: sw * sh }, (_, i) => 0.299 * rgba[i * 4]! + 0.587 * rgba[i * 4 + 1]! + 0.114 * rgba[i * 4 + 2]!);
+    const L = titleLayout(image.width, image.height, lines.length, quietestBand(gray, sw, sh));
     const shadeTop = L.firstBaseline - L.size * 1.6, shadeBottom = L.firstBaseline + L.lineHeight * (lines.length - 1) + L.size * 1.2;
     const shade = g.createLinearGradient(0, shadeTop, 0, shadeBottom);
     shade.addColorStop(0, 'rgba(0,0,0,0)');
-    shade.addColorStop(0.5, 'rgba(0,0,0,0.38)');
+    shade.addColorStop(0.5, 'rgba(0,0,0,0.45)');
     shade.addColorStop(1, 'rgba(0,0,0,0)');
     g.fillStyle = shade;
     g.fillRect(0, shadeTop, image.width, shadeBottom - shadeTop);

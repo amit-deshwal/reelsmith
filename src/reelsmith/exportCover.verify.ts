@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { DIRECTOR_PROP } from './director/directorSession';
-import { coverMoment, coverSidecarName, deliverCover, titleLayout, wrapTitle } from './exportCover';
+import { coverMoment, coverSidecarName, deliverCover, quietestBand, titleLayout, wrapTitle } from './exportCover';
 
 // RS-1234: the cover is the longest section with no line on it, titled with the reel's opening line
 const canvas = (sections: unknown[], spans: Array<{ from: number; to: number }>, overlays: unknown[] = []) => ({
@@ -21,11 +21,18 @@ assert.deepEqual(wrapTitle('2 days on the toughest trek in Maharashtra', 16), ['
 assert.deepEqual(wrapTitle('Harishchandragadfort', 16), ['Harishchandragadfort']);
 // the title block sits inside the 3:4 crop the profile grid shows (9:16 and 4:5 canvases)
 for (const [w, h] of [[1080, 1920], [1080, 1350]] as const) {
-  for (const lines of [1, 2, 3, 4]) {
-    const L = titleLayout(w, h, lines);
+  for (const [lines, at] of [1, 2, 3, 4].flatMap((n) => [0.2, 0.5, 0.8].map((b) => [n, b] as const))) {
+    const L = titleLayout(w, h, lines, at);
     assert.ok(L.firstBaseline - L.size >= L.gridTop && L.firstBaseline + (lines - 1) * L.lineHeight + L.size * 0.3 <= L.gridBottom, `${w}x${h} ${lines} lines`);
   }
 }
+
+// the title goes to the calmest third: flat sky over a busy group → the top; busy all over → the middle
+const frame = (busy: (y: number) => boolean, w = 54, h = 96) => Array.from({ length: w * h }, (_, i) => (busy(Math.floor(i / w)) ? ((i * 7919) % 255) : 128));
+assert.equal(quietestBand(frame((y) => y > 30), 54, 96), 0.2);
+assert.equal(quietestBand(frame((y) => y < 60), 54, 96), 0.8);
+assert.equal(quietestBand(frame(() => true), 54, 96), 0.5);
+assert.equal(quietestBand(frame(() => false), 54, 96), 0.5);
 
 // delivery: the frame from the exported file, drawn and written next to the video; failures never throw
 let asked: unknown, drawn: unknown;
