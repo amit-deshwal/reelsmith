@@ -38,6 +38,23 @@ interface Look {
   subFontFamily?: string;
 }
 
+/**
+ * When each slammed word lands, in seconds from the line's start: on every `every` beats, but the whole line must stay up
+ * long enough to read before it leaves (about a second; "2 DAYS. ONE ROPE." on 2 beats a word was whole for 0.4 s,
+ * 2026-10-28). Too slow for that, the words land on half or quarter the beats; slower still, evenly spaced.
+ */
+export function slamStarts(ctx: Pick<TextContext, 'start' | 'end' | 'fps' | 'beatFrame'>, words: number, every: number, enter = 0.28): number[] {
+  const total = (ctx.end - ctx.start) / ctx.fps;
+  const exit = Math.min(0.35, total * 0.15);
+  const latest = Math.max(0, total - exit - Math.min(1.2, Math.max(0.8, total * 0.3)) - enter);
+  const at = (e: number) => Array.from({ length: words }, (_, i) => (ctx.beatFrame(i * e) - ctx.start) / ctx.fps);
+  for (const e of [every, every / 2, every / 4]) {
+    const starts = at(e);
+    if ((starts.at(-1) ?? 0) <= latest + 1e-6 && new Set(starts).size === starts.length) return starts;
+  }
+  return Array.from({ length: words }, (_, i) => (words > 1 ? (latest * i) / (words - 1) : 0));
+}
+
 /** The engine graphic for one line of text, sized to fit and placed for the frame's shape. */
 function engine(ctx: TextContext, look: Look, extra: Partial<TextGraphicProps> = {}, key = 'text', lane = 0): void {
   const tall = ctx.H > ctx.W;
@@ -95,7 +112,7 @@ export const ENGINE_STYLES: readonly TextStyleDef[] = [
   style('slam', 'Word slam', 'Huge condensed words slam in one per beat with a small shake.', 'The drop of the song, hype, a three-word punchline.', 40,
     { preset: 'slam', fontFamily: 'Anton', fontWeight: 400, size: 0.2, color: '#ffffff', accent: '#ffffff', uppercase: true, tall: [0.5, 0.48], wide: [0.5, 0.5], enter: 0.28, shadow: true },
     [{ id: 'every', type: 'number', label: 'Beats per word', default: 1, min: 0.25, max: 4 }],
-    (ctx) => { const words = ctx.text.split(/\s+/).filter(Boolean); const every = num(ctx.params.every, 1); return { beats: words.map((_, i) => (ctx.beatFrame(i * every) - ctx.start) / ctx.fps) }; }),
+    (ctx) => ({ beats: slamStarts(ctx, ctx.text.split(/\s+/).filter(Boolean).length, num(ctx.params.every, 1)) })),
   style('count-up', 'Count-up', 'Numbers in the line roll up from zero; a small label can sit under it.', 'Stats: "6000 calories", "1,424 m", "18 km". Put the label in params.sub.', 30,
     { preset: 'count-up', fontFamily: 'Bebas Neue', fontWeight: 400, size: 0.22, color: '#ffffff', accent: '#ffffff', tall: [0.5, 0.45], wide: [0.5, 0.45], enter: 1.2, shadow: true },
     [{ id: 'sub', type: 'text', label: 'Label under it', default: '' }], (ctx) => ({ sub: str(ctx.params.sub, '').toUpperCase() })),
