@@ -15,6 +15,7 @@ import {
   ExternalEditSessionOutcomeError,
   forkExternalEditSession,
   isExternalEditSessionStale,
+  rebaseUntouchedExternalEditSession,
   type ExternalEditSession,
 } from './external-edit-session';
 import { isExternalDraftTool, isExternalRealTool } from './external-tool-policy';
@@ -329,7 +330,11 @@ export class ExternalSessionRunLedger {
   ): Promise<ExecutedExternalDraftTool> {
     requireDraftTool(input.session, input.name, input.args);
     const invocation = await this.requested(input.name, input.args);
-    if (isExternalEditSessionStale(input.session, input.context.getDoc())) {
+    // Reelsmith: an untouched session follows the live project instead of going stale
+    const base = isExternalEditSessionStale(input.session, input.context.getDoc())
+      ? rebaseUntouchedExternalEditSession(input.session, input.context.getDoc()) ?? input.session
+      : input.session;
+    if (isExternalEditSessionStale(base, input.context.getDoc())) {
       const error = new ExternalEditSessionOutcomeError(
         'stale',
         `Edit session ${input.session.id} is stale; begin a new session.`,
@@ -340,7 +345,7 @@ export class ExternalSessionRunLedger {
     }
     let result: unknown;
     let started = false;
-    const candidate = forkExternalEditSession(input.session);
+    const candidate = forkExternalEditSession(base);
     try {
       throwIfExternalCallCancelled(input.signal);
       await this.started(invocation);
@@ -355,7 +360,13 @@ export class ExternalSessionRunLedger {
       await this.captureToolOutcome(invocation, externalToolFailureOutcome(invocation, error, started));
       throw boundedExternalToolError(error);
     }
-    if (isExternalEditSessionStale(input.session, input.context.getDoc())) {
+    const captured = captureExternalToolActions(candidate, input.name, input.args);
+    const live = input.context.getDoc();
+    // a tool that drafted nothing on an untouched session (a read like reels_director_options) keeps its result
+    const rebased = isExternalEditSessionStale(base, live) && captured.operations.length === 0
+      ? rebaseUntouchedExternalEditSession(captured, live)
+      : null;
+    if (!rebased && isExternalEditSessionStale(base, live)) {
       const error = new ExternalEditSessionOutcomeError(
         'stale',
         `Edit session ${input.session.id} became stale while ${input.name} was running.`,
@@ -364,7 +375,7 @@ export class ExternalSessionRunLedger {
       await input.markStale();
       throw error;
     }
-    const session = captureExternalToolActions(candidate, input.name, input.args);
+    const session = rebased ?? captured;
     const failure = externalToolResultFailure(invocation, result);
     const projected = await this.captureToolOutcome(
       invocation,

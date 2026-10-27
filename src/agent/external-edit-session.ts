@@ -172,6 +172,19 @@ export function externalDraftContext(session: ExternalEditSession, live: AgentCo
 }
 
 /** Isolate one tool call so a throwing tool cannot leave a half-written draft. */
+/**
+ * Reelsmith: a drafting session with no operations yet has nothing that a newer project could conflict with, so when
+ * the project changed under it (media still being probed after an import, 2026-10-28) it moves onto the live project
+ * instead of going stale. Null when the session has drafted anything.
+ */
+export function rebaseUntouchedExternalEditSession(
+  session: ExternalEditSession,
+  liveDoc: ProjectDoc,
+): ExternalEditSession | null {
+  if (session.status !== 'drafting' || session.operations.length > 0) return null;
+  return { ...session, baseRevision: revisionOf(liveDoc), baseDoc: liveDoc, draft: makeDraft(liveDoc), updatedAt: Date.now() };
+}
+
 export function forkExternalEditSession(session: ExternalEditSession): ExternalEditSession {
   if (session.status !== 'drafting' || !session.draft) {
     throw new Error(`Edit session ${session.id} is ${session.status}, not drafting.`);
