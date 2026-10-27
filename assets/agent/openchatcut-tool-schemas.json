@@ -6040,6 +6040,14 @@
       }
     },
     {
+      "name": "reels_review_export",
+      "description": "Look at the reel as exported: contact sheets taken from the exported MP4 itself (the hook, inside each section or shot, on each cut, and the last frame) and its export checks (Instagram format, loudness, black, frozen or stuttering picture). Use it after the user exports, or when they say the export looks different from the preview. Changes nothing.",
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
       "name": "reels_director_fix",
       "description": "Repair a directed reel in place, as one undo step: the sections you give are rebuilt and every other section comes back with the same clips and moments; returns frames of the changed sections only and the checks again. Use it for the critique's defects (up to three, each with section, at, evidence, fix) and for the user's later changes to a director reel (`request`), also in a new chat. With no changes it returns the saved treatment and plan of the reel on the timeline.",
       "input_schema": {
@@ -7659,6 +7667,14 @@
     {
       "name": "reels_director_critique",
       "description": "Director stage 4, after the first build: a closer look at the built reel (about three frames a section and every line at its fullest, in sheets of eight), checks against the treatment (tone, a plain arc, no transition or timed effect, a slow hook), the sound with eyes closed, the reference reel's pace and colour, and a critic's checklist. Name the three largest defects from the frames and repair them with reels_director_fix. Changes nothing.",
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "reels_review_export",
+      "description": "Look at the reel as exported: contact sheets taken from the exported MP4 itself (the hook, inside each section or shot, on each cut, and the last frame) and its export checks (Instagram format, loudness, black, frozen or stuttering picture). Use it after the user exports, or when they say the export looks different from the preview. Changes nothing.",
       "input_schema": {
         "type": "object",
         "properties": {}

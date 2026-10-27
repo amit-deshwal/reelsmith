@@ -260,6 +260,15 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
     input_schema: { type: 'object', properties: {} },
   },
   {
+    name: 'reels_review_export',
+    description: [
+      'Look at the reel as exported: contact sheets taken from the exported MP4 itself (the hook, inside each section or shot, on each cut,',
+      'and the last frame) and its export checks (Instagram format, loudness, black, frozen or stuttering picture). Use it after the user',
+      'exports, or when they say the export looks different from the preview. Changes nothing.',
+    ].join(' '),
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
     name: 'reels_director_fix',
     description: [
       'Repair a directed reel in place, as one undo step: the sections you give are rebuilt and every other section comes back with the same',
@@ -476,5 +485,5 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
 ];
 
 export const REELS_TOOL_NAMES = new Set(REELS_TOOL_SCHEMAS.map((t) => t.name));
-export const REELS_READ_TOOL_NAMES = ['reels_lint', 'reels_plan_options', 'reels_director_options', 'reels_director_treatment', 'reels_director_critique', 'reels_run_info', 'reels_selection_candidates', 'reels_selection_sheet'] as const;
+export const REELS_READ_TOOL_NAMES = ['reels_review_export', 'reels_lint', 'reels_plan_options', 'reels_director_options', 'reels_director_treatment', 'reels_director_critique', 'reels_run_info', 'reels_selection_candidates', 'reels_selection_sheet'] as const;
 export const REELS_EDIT_TOOL_NAMES = ['reels_plan_assemble', 'reels_director_build', 'reels_director_fix', 'reels_custom_shader', 'reels_custom_graphic', 'reels_time_effect', 'reels_freeze_frame', 'reels_reverse', 'reels_clean_speech', 'reels_restyle_text', 'reels_apply_look', 'reels_apply_signature', 'reels_recut_section', 'reels_snap_cuts_to_beats', 'reels_strobe', 'propose_selection'] as const;

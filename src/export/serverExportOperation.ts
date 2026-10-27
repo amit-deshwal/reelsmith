@@ -1,6 +1,7 @@
 import { captionTrackEntries } from '../editor/types';
 import { finalizeExportForInstagram, instagramReportStore, loadInstagramPreference, isSupportedShape } from '../reelsmith/instagramExport';
 import { writeSrtSidecar } from '../reelsmith/instagramSrt';
+import { deliverReviewSheet } from '../reelsmith/exportReview';
 import type { BackgroundExportJobSetters, ExportJobStore } from './backgroundExportStore';
 import { isAbortError } from './browserExport';
 import { recordExport } from '../persist/exportHistoryStore';
@@ -189,6 +190,19 @@ async function deliverSrtSidecar(
         : sidecar.status === 'failed' ? `Could not save the .srt: ${sidecar.message}` : `No .srt saved: ${sidecar.reason}.`,
     });
   }
+  // RS-1232: a contact sheet of the rendered file (still on the server until the job is retired), kept for the agent
+  if (!pref.enabled || !completed.path) return;
+  const videoName = completed.name ?? `${context.options.base}.${exportMediaExtension(format, codec as ExportCodec)}`;
+  const sheet = await deliverReviewSheet({
+    state: context.options.state, src: completed.path, seconds: completed.durationSeconds ?? 0, videoName,
+    checks: instagramReportStore.get()?.checks ?? [], save: pref.sheet,
+    write: (filename, blob) => writeBlobToDestination(context.destination, filename, blob, signal),
+  });
+  const now = instagramReportStore.get();
+  if (sheet.status !== 'kept') instagramReportStore.set({
+    ...(now ?? { status: 'skipped' as const }),
+    sheet: sheet.status === 'written' ? `Contact sheet saved as ${sheet.names!.join(', ')}.` : `No contact sheet: ${sheet.message}`,
+  });
 }
 
 async function exportMedia(
