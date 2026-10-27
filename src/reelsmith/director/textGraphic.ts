@@ -165,9 +165,14 @@ export const TEXT_GRAPHIC_CODE = String.raw`const DirectorText = ({ item }) => {
       }
       if (preset === 'shine') {
         const band = -30 + ((t - startOf(u)) / Math.max(0.3, enter * 1.6)) % 1.6 * 100;
-        return lineBox(React.createElement('div', { style: { ...fontBase, opacity: smooth(p * 1.5), color: 'transparent',
-          backgroundImage: 'linear-gradient(100deg, ' + P.color + ' 0%, ' + P.color + ' ' + (band - 12) + '%, #ffffff ' + band + '%, ' + P.color + ' ' + (band + 12) + '%, ' + P.color + ' 100%)',
-          WebkitBackgroundClip: 'text', backgroundClip: 'text' } }, content), li);
+        // the gold is painted through the letters (background-clip: text, transparent fill), so a text-shadow showed
+        // through them and the line read as a dark blur ("AMK", 2026-10-28); the shadow is a filter on the painted result
+        const { textShadow: _clipped, ...face } = fontBase;
+        const shade = P.shadow ? { filter: 'drop-shadow(0 ' + Math.round(size * 0.03) + 'px ' + Math.round(size * 0.08) + 'px rgba(0,0,0,0.6))' } : {};
+        return lineBox(React.createElement('div', { style: { opacity: smooth(p * 1.5), ...shade } },
+          React.createElement('div', { style: { ...face, color: 'transparent',
+            backgroundImage: 'linear-gradient(100deg, ' + P.color + ' 0%, ' + P.color + ' ' + (band - 12) + '%, #ffffff ' + band + '%, ' + P.color + ' ' + (band + 12) + '%, ' + P.color + ' 100%)',
+            WebkitBackgroundClip: 'text', backgroundClip: 'text' } }, content)), li);
       }
       return lineBox(React.createElement('div', { style: { ...fontBase, opacity: smooth(p * 3) } }, content), li);
     });
