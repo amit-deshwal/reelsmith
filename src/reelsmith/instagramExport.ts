@@ -4,7 +4,7 @@ import type { TimelineState } from '../editor/types';
 import { ratioOf } from '../../shared/reelsmith/ratios';
 import type { ExportJobResult } from '../export/exportWorkflowTypes';
 
-export interface InstagramExportPreference { enabled: boolean; silent: boolean; srt: boolean; /** RS-1232: <name>.sheet.jpg next to the video */ sheet: boolean }
+export interface InstagramExportPreference { enabled: boolean; silent: boolean; srt: boolean; /** RS-1232: <name>.sheet.jpg next to the video */ sheet: boolean; /** RS-1234: <name>.cover.jpg */ cover: boolean }
 interface Check { id: string; status: 'PASS' | 'WARN' | 'FAIL'; detail: string }
 export interface InstagramExportReport {
   status: 'running' | 'passed' | 'fixed' | 'failed' | 'error' | 'skipped';
@@ -15,14 +15,16 @@ export interface InstagramExportReport {
   srt?: string;
   /** RS-1232: outcome of the contact sheet */
   sheet?: string;
+  /** RS-1234: outcome of the cover */
+  cover?: string;
 }
 
 const KEY = 'reelsmith:instagram-export';
 export function loadInstagramPreference(): InstagramExportPreference {
   try {
     const v = JSON.parse(globalThis.localStorage?.getItem(KEY) ?? 'null') as Partial<InstagramExportPreference> | null;
-    return { enabled: v?.enabled !== false, silent: v?.silent === true, srt: v?.srt === true, sheet: v?.sheet !== false };
-  } catch { return { enabled: true, silent: false, srt: false, sheet: true }; }
+    return { enabled: v?.enabled !== false, silent: v?.silent === true, srt: v?.srt === true, sheet: v?.sheet !== false, cover: v?.cover !== false };
+  } catch { return { enabled: true, silent: false, srt: false, sheet: true, cover: true }; }
 }
 export function saveInstagramPreference(p: InstagramExportPreference): void {
   try { globalThis.localStorage?.setItem(KEY, JSON.stringify(p)); } catch { /* storage unavailable */ }

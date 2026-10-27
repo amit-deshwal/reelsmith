@@ -46,6 +46,12 @@ export function InstagramExportPanel({ state }: { state: TimelineState }) {
           Also save a contact sheet of the export (.sheet.jpg)
         </label>
       )}
+      {pref.enabled && (
+        <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12 }}>
+          <input type="checkbox" checked={pref.cover} onChange={(e) => update({ ...pref, cover: e.target.checked })} />
+          Also save a cover image for Instagram (.cover.jpg)
+        </label>
+      )}
       {report && report.status !== 'skipped' && (
         <div style={{ display: 'grid', gap: 3, fontSize: 12 }}>
           <b style={{ color: report.status === 'failed' || report.status === 'error' ? theme.danger : theme.text }}>
@@ -62,6 +68,7 @@ export function InstagramExportPanel({ state }: { state: TimelineState }) {
           ))}
           {report.srt && <span style={muted}>{report.srt}</span>}
           {report.sheet && <span style={muted}>{report.sheet}</span>}
+          {report.cover && <span style={muted}>{report.cover}</span>}
           {report.failedPath && <span style={muted}>The failed re-encode was kept as {report.failedPath.split('/').pop()}; the original export was delivered.</span>}
         </div>
       )}

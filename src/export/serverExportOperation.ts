@@ -2,6 +2,7 @@ import { captionTrackEntries } from '../editor/types';
 import { finalizeExportForInstagram, instagramReportStore, loadInstagramPreference, isSupportedShape } from '../reelsmith/instagramExport';
 import { writeSrtSidecar } from '../reelsmith/instagramSrt';
 import { deliverReviewSheet } from '../reelsmith/exportReview';
+import { deliverCover } from '../reelsmith/exportCover';
 import type { BackgroundExportJobSetters, ExportJobStore } from './backgroundExportStore';
 import { isAbortError } from './browserExport';
 import { recordExport } from '../persist/exportHistoryStore';
@@ -202,6 +203,16 @@ async function deliverSrtSidecar(
   if (sheet.status !== 'kept') instagramReportStore.set({
     ...(now ?? { status: 'skipped' as const }),
     sheet: sheet.status === 'written' ? `Contact sheet saved as ${sheet.names!.join(', ')}.` : `No contact sheet: ${sheet.message}`,
+  });
+  // RS-1234: the cover for Instagram, from the same rendered file
+  if (!pref.cover) return;
+  const cover = await deliverCover({
+    state: context.options.state, src: completed.path, seconds: completed.durationSeconds ?? 0, videoName,
+    write: (filename, blob) => writeBlobToDestination(context.destination, filename, blob, signal),
+  });
+  instagramReportStore.set({
+    ...(instagramReportStore.get() ?? { status: 'skipped' as const }),
+    cover: cover.status === 'written' ? `Cover saved as ${cover.name} (at ${cover.pick.atSec.toFixed(1)} s${cover.pick.title ? `, titled "${cover.pick.title}"` : ''}).` : `No cover: ${cover.message}`,
   });
 }
 

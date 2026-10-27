@@ -7,6 +7,7 @@
 //   POST /api/reelsmith/upscale        { src, width, height } -> 2x enhanced copy of a small photo (`{ available:false }` when not installed)
 //   POST /api/reelsmith/preview        { project, seconds } -> 360x640 muted loop of an assembled recipe
 //   POST /api/reelsmith/still-frame    { src, atSec } -> a still of that moment saved next to the video (freeze frames)
+//   POST /api/reelsmith/frame-jpeg     { src, atSec } -> that frame at full size as base64 JPEG (the export's cover)
 //   POST /api/reelsmith/reverse-clip   { src, startSec, frames, fps } -> that span played backwards, saved next to the video
 import { existsSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
@@ -20,7 +21,7 @@ import { analyzeBeatsFile } from './beatDetect.ts';
 import { extractClipFeatures, extractReferenceCuts } from './clipFeatures.ts';
 import { finalizeForInstagram } from './instagramFinalize.ts';
 import { upscaleAvailable, upscalePhoto } from './upscale.ts';
-import { extractStill } from './stillFrame.ts';
+import { extractStill, frameJpeg } from './stillFrame.ts';
 import { reverseSpan } from './reverseClip.ts';
 import { exportParity } from './exportParity.ts';
 import { buildSelectionSheets, MAX_SHEET_CELLS } from './selectionSheet.ts';
@@ -92,6 +93,14 @@ export function reelsmithAnalyzePlugin(): Plugin {
         });
         if (!items.length) throw new Error('no usable items');
         return await buildSelectionSheets(items);
+      });
+      // RS-1234: a full-size frame of a file (the export's cover), returned, not saved
+      route('/api/reelsmith/frame-jpeg', async (body) => {
+        const file = localFile(body.src);
+        if (typeof file !== 'string') throw new Error(file.error);
+        const atSec = Number(body.atSec);
+        if (!(atSec >= 0)) throw new Error('atSec must be a number of seconds');
+        return await frameJpeg(file, atSec);
       });
       route('/api/reelsmith/still-frame', async (body) => {
         const file = localFile(body.src);

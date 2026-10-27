@@ -17,6 +17,15 @@ export function stillName(sourceName: string, atSec: number): string {
   return `${basename(sourceName, extname(sourceName))}.still-${Math.max(0, Math.round(atSec * 1000))}.jpg`;
 }
 
+/** RS-1234: one full-size frame as JPEG bytes, not saved anywhere (the export's cover is drawn from it). */
+export async function frameJpeg(file: string, atSec: number): Promise<{ base64: string; width: number; height: number }> {
+  const { stdout } = await run(ffmpegBin(), ['-v', 'error', '-ss', String(Math.max(0, atSec)), '-i', file, '-frames:v', '1', '-q:v', '2', '-f', 'image2pipe', '-c:v', 'mjpeg', '-'],
+    { timeout: 60_000, encoding: 'buffer', maxBuffer: 64 * 1024 * 1024 });
+  const size = jpegSize(stdout);
+  if (!size) throw new Error(`could not read the frame of ${basename(file)} at ${atSec} s`);
+  return { base64: stdout.toString('base64'), ...size };
+}
+
 export async function extractStill(file: string, atSec: number): Promise<Still> {
   const name = stillName(file, atSec);
   const out = join(dirname(file), name);
