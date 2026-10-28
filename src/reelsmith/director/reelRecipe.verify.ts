@@ -41,7 +41,7 @@ const built = assemble({ recipe: directorRecipe(plan), clips: original, music, t
 assert.ok(built.action, built.report.warnings.join('; '));
 const treatment: Treatment = {
   story: 'AMK with the gang', concepts: [{ name: 'Made it', idea: 'the climb to the top' }], chosen: 0, tone: 'epic', heroes: ['summit'],
-  parts: [{ role: 'hook', beats: 8, move: 'hold', clips: ['fort'], line: 'AMK', purpose: 'where we are' }], signature: 'the whip to the summit',
+  parts: [{ role: 'hook', beats: 8, move: 'hold', clips: ['fort'], line: 'AMK', purpose: 'where we are' }], signature: 'the whip to the summit (#4@2.5) on the drop',
   textStyles: ['cinematic-title'], transitions: ['whip-blur'], effects: ['shake'], graphics: ['confetti'],
 };
 const saved: SavedDirector = { v: 1, fps, treatment, build: { plan, spans: [{ from: 0, to: 4 }, { from: 4, to: 8 }, { from: 8, to: 11 }], builds: 2, clips: built.report.sectionClips!, moments: built.report.sectionMoments! } };
@@ -60,10 +60,12 @@ assert.equal(t.plan.sections[2]!.transition, 'whip-blur', 'built-in transitions 
 assert.deepEqual(t.plan.sections[1]!.effects?.map((e) => e.id), ['shake']);
 assert.deepEqual(t.slots.map((s) => s.tags), [['scenery'], ['people', 'food', 'action', 'people'], ['scenery']], 'slots remember what each shot showed');
 assert.deepEqual(t.lines, ['AMK, the toughest trek', 'we made it', 'Harishchandragad'], 'lines in reel order, as the example');
-assert.equal(recipe.inputs.find((i) => i.id === LINES_INPUT && i.kind === 'text')?.kind === 'text' && (recipe.inputs.find((i) => i.id === LINES_INPUT) as { default?: string }).default, 'AMK, the toughest trek / we made it / Harishchandragad');
+assert.equal(recipe.inputs.find((i) => i.id === LINES_INPUT && i.kind === 'text')?.kind === 'text' && (recipe.inputs.find((i) => i.id === LINES_INPUT) as { default?: string }).default, 'AMK, the toughest trek | we made it | Harishchandragad');
 assert.equal(t.treatment?.tone, 'epic');
 assert.ok(!JSON.stringify(t.treatment).includes('AMK with the gang') && !JSON.stringify(t.treatment).includes('"fort"'), 'no story or cast in the treatment');
 assert.ok(recipe.tags?.includes('remix'));
+assert.match(recipe.description!, /^"Made it"\. An epic reel in 3 parts/);
+assert.ok(recipe.description!.includes('Signature: the whip to the summit on the drop'), recipe.description);
 assert.deepEqual(recipe.casting, { opener: ['scenery'], closer: ['scenery'] });
 assert.ok(recipeForRatio(recipe, '4:5') && recipeForRatio(recipe, '16:9'), 'every shape');
 assert.throws(() => reelToRecipe({ v: 1, fps }, { id: 'ai-x-abc', name: 'x' }), /no director build/);
@@ -72,7 +74,7 @@ console.log('reelRecipe save: ok');
 // remixing: new footage cast by what it shows, the user's lines in order, an empty line drops its slot
 const mine = [clip('beach', 'water'), clip('mates', 'people'), clip('lake', 'scenery'), clip('dosa', 'food'), clip('dive', 'action'), clip('hills', 'scenery'), clip('crew', 'people')];
 {
-  const { plan: p, notes } = remixPlan(t, { ratio: '4:5', clips: mine, music: 'track', lines: 'Goa, finally /  / Baga beach' });
+  const { plan: p, notes } = remixPlan(t, { ratio: '4:5', clips: mine, music: 'track', lines: 'Goa, finally |  | Baga / beach' });
   assert.equal(p.ratio, '4:5');
   assert.equal(p.music, 'track');
   assert.equal(p.musicStart, undefined, 'a second of their song does not carry over');
@@ -80,14 +82,14 @@ const mine = [clip('beach', 'water'), clip('mates', 'people'), clip('lake', 'sce
   assert.equal(p.sections[0]!.text, 'Goa, finally');
   assert.equal(p.sections[2]!.text, undefined, 'an empty line leaves the section without one');
   assert.equal(p.sections[2]!.textBehind, undefined);
-  assert.deepEqual(p.overlays?.map((o) => o.text), ['Baga beach']);
+  assert.deepEqual(p.overlays?.map((o) => o.text), ['Baga / beach'], 'a "/" inside a line stays (graphics split their items on it)');
   assert.deepEqual(p.graphics?.map((g) => g.graphic), ['confetti']);
   assert.ok(notes.some((n) => /6 of 6 shots/.test(n)), notes.join(' | '));
   const re = assemble({ recipe: { ...recipeForRatio(recipe, '4:5')!, canvas: { ...recipeForRatio(recipe, '4:5')!.canvas, fps: { num: fps, den: 1 } } }, clips: mine, music: { ...music, assetId: 'track' }, texts: {}, params: {}, seed: 1, plan: p });
   assert.ok(re.action, re.report.warnings.join('; '));
   assert.deepEqual(re.report.sectionClips, [['hills'], ['crew', 'dosa', 'dive', 'mates'], ['lake']]);
   const tr = remixTreatment(t, p)!;
-  assert.equal(tr.story, 'Goa, finally / Baga beach');
+  assert.equal(tr.story, 'Goa, finally / Baga / beach');
   assert.deepEqual(tr.heroes, []);
 }
 {
@@ -97,7 +99,7 @@ const mine = [clip('beach', 'water'), clip('mates', 'people'), clip('lake', 'sce
   assert.ok(notes.some((n) => /6 shots; your 2 clips are reused/.test(n)));
   assert.ok(p.sections.every((s) => !s.text) && !p.overlays && p.music === undefined);
   // a line longer than its style allows is cut at a word
-  const long = remixPlan(t, { ratio: '9:16', clips: mine, lines: `${'word '.repeat(60)}/x/y/z` });
+  const long = remixPlan(t, { ratio: '9:16', clips: mine, lines: `${'word '.repeat(60)}|x|y|z` });
   assert.ok(long.plan.sections[0]!.text!.length < 140 && !long.plan.sections[0]!.text!.endsWith(' '));
   assert.ok(long.notes.some((n) => /was cut to fit/.test(n)) && long.notes.some((n) => /has 3 lines/.test(n)));
 }
@@ -115,7 +117,7 @@ console.log('reelRecipe remix: ok');
   const values = defaultValues(recipe);
   values.media.clips = mine.map((c) => ({ assetId: c.assetId, kind: 'video' as const }));
   values.media.music = [{ assetId: 'track', kind: 'audio' }];
-  values.texts[LINES_INPUT] = 'One / Two / Three';
+  values.texts[LINES_INPUT] = 'One | Two | Three';
   const out = await runRecipe(api, { recipe, ratio: '9:16', values, assets, fps, replaceTimeline: true, seed: 1 });
   assert.ok(out.action, out.messages.join('; '));
   assert.equal(out.plan?.sections[0]!.text, 'One');

@@ -18,13 +18,16 @@ const slug = (s: string, n = 32) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').
 export const newRecipeId = (name: string) => `ai-${slug(name, 40)}-${crypto.randomUUID().slice(0, 6)}`;
 
 /** The base shot to make the poster from: the first shot of the longest section, at the moment it plays. */
-export function posterShot(items: readonly TimelineItem[], saved: SavedDirector, fps: number): { src: string; atSec: number } | undefined {
+export function posterShot(items: readonly TimelineItem[], saved: SavedDirector, fps: number, assets: readonly Pick<MediaAsset, 'id' | 'src'>[] = []): { src: string; atSec: number } | undefined {
+  const srcOf = (it: TimelineItem) => it.src ?? assets.find((a) => a.id === it.sourceAssetId)?.src;
   const spans = saved.build?.spans ?? [];
   const order = spans.map((s, i) => ({ i, len: s.to - s.from })).sort((a, b) => b.len - a.len).map((s) => s.i);
   for (const i of order) {
-    const shot = items.filter((it) => (it.kind === 'video' || it.kind === 'image') && it.track === 'V2' && String(it.props?.rsSection ?? '').startsWith(`${i + 1}-`) && it.src)
-      .sort((a, b) => (a.startFrame ?? 0) - (b.startFrame ?? 0))[0];
-    if (shot?.src) return { src: shot.src, atSec: shot.kind === 'video' ? ((shot.srcInFrame ?? 0) + shot.durationInFrames * 0.45 * (shot.playbackRate ?? 1)) / fps : 0 };
+    const shot = items.filter((it) => (it.kind === 'video' || it.kind === 'image') && !it.effects?.some((e) => e.assetId === 'builtin:fx-person-cutout') && String(it.props?.rsSection ?? '').startsWith(`${i + 1}-`) && srcOf(it))
+      // tracks are bound to real ids by now: the section's earliest shot, the longest if several start together (the base, not a strip)
+      .sort((a, b) => (a.startFrame ?? 0) - (b.startFrame ?? 0) || b.durationInFrames - a.durationInFrames)[0];
+    const src = shot && srcOf(shot);
+    if (shot && src) return { src, atSec: shot.kind === 'video' ? ((shot.srcInFrame ?? 0) + shot.durationInFrames * 0.45 * (shot.playbackRate ?? 1)) / fps : 0 };
   }
   return undefined;
 }
@@ -71,7 +74,7 @@ export async function saveReelAsRecipe(o: {
   const notes: string[] = [];
   if (dropped.length) notes.push(`Left out (they exist only in the session that made them): ${dropped.join(', ')}.`);
   if (!tags.size) notes.push('Shots could not be tagged (the visual model is not installed), so a remix casts by score only.');
-  const shot = posterShot(o.items, saved, o.fps);
+  const shot = posterShot(o.items, saved, o.fps, o.assets);
   const poster = shot ? await posterJpeg(shot.src, shot.atSec, recipe.canvas.width / recipe.canvas.height).catch(() => undefined) : undefined;
   const path = poster ? await writePoster(id, poster).catch(() => undefined) : undefined;
   if (path) recipe.preview = { poster: path, generatedFrom: 'user-footage' };

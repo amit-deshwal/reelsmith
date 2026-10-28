@@ -14,8 +14,9 @@ import { textStyleById } from './moves';
 import type { Treatment } from './treatment';
 
 export const REEL_TEMPLATE_VERSION = 1;
-/** The text input that holds the lines, separated by "/". */
+/** The text input that holds the lines, separated by "|" (a graphic's own items are split with "/"). */
 export const LINES_INPUT = 'lines';
+export const LINE_SEP = '|';
 
 /** One section's casting: how many shots and what each one showed (a shot tag, or '' when untagged). */
 export interface ReelSlot { tags: string[] }
@@ -108,8 +109,9 @@ export function reelToRecipe(saved: SavedDirector, o: { id: string; name: string
   const own = plan.ratio;
   const description = [
     concept ? `"${concept}".` : '',
-    `A ${treatment?.tone ?? plan.tone ?? 'directed'} reel in ${plan.sections.length} parts (${moves.slice(0, 5).join(', ')}${moves.length > 5 ? '…' : ''}).`,
-    treatment?.signature ? `Signature: ${treatment.signature}` : '',
+    `${/^[aeiou]/i.test(treatment?.tone ?? plan.tone ?? 'directed') ? 'An' : 'A'} ${treatment?.tone ?? plan.tone ?? 'directed'} reel in ${plan.sections.length} parts (${moves.slice(0, 5).join(', ')}${moves.length > 5 ? '…' : ''}).`,
+    // clip references (#2@4) mean nothing without the original footage
+    treatment?.signature ? `Signature: ${treatment.signature.replace(/\s*\(?#\d+(@[\d.]+)?\)?/g, '').trim()}` : '',
   ].filter(Boolean).join(' ').slice(0, 400);
   const firstTag = slots[0]?.tags.find(Boolean);
   const lastTag = slots.at(-1)?.tags.filter(Boolean).at(-1);
@@ -122,8 +124,8 @@ export function reelToRecipe(saved: SavedDirector, o: { id: string; name: string
       { id: 'clips', kind: 'media', accept: ['video', 'image'], min: Math.max(1, Math.min(3, distinct)), max: 200, label: 'Your clips and photos',
         hint: `The original cast ${shots} shots from ${distinct} clips${mix ? ` (${mix})` : ''}. Shots are matched by what they show.`.slice(0, 200) },
       { id: 'music', kind: 'media', accept: ['audio'], min: src.music ? 1 : 0, max: 1, label: 'Song (your own file)' },
-      ...(lines.length ? [{ id: LINES_INPUT, kind: 'text' as const, label: `Your lines (${lines.length}, separated by /)`.slice(0, 80),
-        placeholder: lines.join(' / ').slice(0, 120), default: lines.join(' / ').slice(0, 500), optional: true, maxLength: 500 }] : []),
+      ...(lines.length ? [{ id: LINES_INPUT, kind: 'text' as const, label: `Your lines (${lines.length}, separated by ${LINE_SEP})`.slice(0, 80),
+        placeholder: lines.join(` ${LINE_SEP} `).slice(0, 120), default: lines.join(` ${LINE_SEP} `).slice(0, 500), optional: true, maxLength: 500 }] : []),
     ],
     params: [],
     music: { inputId: 'music', required: !!src.music, startPolicy: 'firstDownbeat', endPolicy: 'fadeOut', fadeOutSec: 0.6, gainDb: 0, clipAudioGainDb: -96, duckUnderSpeech: false },
@@ -156,7 +158,7 @@ function fit(text: string, max: number): string {
 
 /**
  * The template as a plan for new footage: each slot gets the unused clip that shows the same thing (then the best
- * scored), reusing clips only when there are fewer than slots; lines come from the user's text split on "/", in reel
+ * scored), reusing clips only when there are fewer than slots; lines come from the user's text split on "|", in reel
  * order. A section left without words loses its line; an overlay or graphic without words is left out.
  */
 export function remixPlan(t: ReelTemplate, o: { ratio: RatioId; clips: readonly AssemblyClip[]; music?: string; lines?: string }): { plan: ReelPlan; notes: string[] } {
@@ -194,7 +196,7 @@ export function remixPlan(t: ReelTemplate, o: { ratio: RatioId; clips: readonly 
   if (tagged && o.clips.some((c) => c.shot)) notes.push(`${matched} of ${tagged} shots show the same kind of thing as the original.`);
 
   // lines, in reel order; the template's overlays and graphics hold '-' where a line goes
-  const words = (o.lines ?? '').split('/').map((x) => x.replace(/[{}]/g, '').trim());
+  const words = (o.lines ?? '').split(LINE_SEP).map((x) => x.replace(/[{}]/g, '').trim());
   const overlays = [...(plan.overlays ?? [])] as Array<NonNullable<ReelPlan['overlays']>[number] | null>;
   const graphics = [...(plan.graphics ?? [])] as Array<NonNullable<ReelPlan['graphics']>[number] | null>;
   t.lineAt.forEach((l, k) => {
