@@ -64,6 +64,20 @@ assert.notEqual(poseOf(ordered[0]!.item.id), (() => { const o = acts(other).filt
 const still = assemble({ ...base, clips: photos(12), params: { motion: false } });
 assert.ok(!acts(still).some((a) => a.type === 'reframeKeyframe'));
 
+// -- RS-1238 depth motion: each photo gets the photo-parallax effect instead of Ken Burns keys, the moves in turn
+const deep = assemble({ ...base, clips: photos(12), params: { depthMotion: true } });
+const deepPhotos = acts(deep).filter((a) => a.type === 'add' && a.item.kind === 'image');
+assert.ok(deepPhotos.length >= 6);
+assert.ok(deepPhotos.every((a) => a.item.effects?.some((e: { assetId: string }) => e.assetId === 'builtin:fx-photo-parallax')));
+assert.ok(!acts(deep).some((a) => a.type === 'reframeKeyframe'), 'no Ken Burns on top of the camera move');
+const deepMoves = deepPhotos.map((a) => a.item.effects.at(-1).overrides.move);
+assert.ok(deepMoves.every((m: number, i: number) => i === 0 || m !== deepMoves[i - 1]), 'neighbours move differently');
+assert.ok(deep.report.warnings.some((w) => /3D camera move/.test(w)));
+// motion off wins
+assert.ok(!acts(assemble({ ...base, clips: photos(12), params: { motion: false, depthMotion: true } })).some((a) => a.type === 'add' && a.item.effects?.length));
+// the recipe offers it, on by default
+assert.equal(recipe.params.find((p: { id: string }) => p.id === 'depthMotion')?.default, true);
+
 // -- with a song: the song is added and the cuts are on its beats
 const withSong = assemble({ ...base, clips: photos(12), music: song });
 assert.ok(withSong.action);

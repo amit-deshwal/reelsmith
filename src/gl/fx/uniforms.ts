@@ -45,6 +45,9 @@ export interface FxDef {
   cube?: string;
   /** Reelsmith: the shader reads u_mask (the person matte) and u_subjectCenter / u_subjectSize / u_subjectArea */
   needsMask?: boolean;
+  /** Reelsmith: the shader reads u_depth (the photo's depth map, white = near; flat grey until there is one) and u_progress
+   * (0..1 through the clip) */
+  needsDepth?: boolean;
   /** Reelsmith: the shader also reads u_text (a word drawn by the renderer, see ../textLayer.ts) and u_textAspect */
   needsText?: boolean;
   /** Reelsmith: which word list `word` indexes ('title' = the movie titles, default = the behind-you words) */

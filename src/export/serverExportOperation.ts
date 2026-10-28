@@ -4,6 +4,7 @@ import { writeSrtSidecar } from '../reelsmith/instagramSrt';
 import { deliverReviewSheet } from '../reelsmith/exportReview';
 import { deliverCover } from '../reelsmith/exportCover';
 import { retakeIfStalled } from '../reelsmith/exportRetake';
+import { withDepthMaps } from '../reelsmith/depthMaps';
 import type { BackgroundExportJobSetters, ExportJobStore } from './backgroundExportStore';
 import { isAbortError } from './browserExport';
 import { recordExport } from '../persist/exportHistoryStore';
@@ -223,6 +224,8 @@ async function exportMedia(
   signal?: AbortSignal,
 ): Promise<ExportJobResult> {
   if (format === 'video') context.setRenderEngine('server');
+  // Reelsmith RS-1238: clips with a depth effect carry their depth maps (the render page cannot ask for them)
+  if (format === 'video') context = { ...context, options: { ...context.options, state: await withDepthMaps(context.options.state) } };
   const codec = format === 'audio' ? 'mp3' : context.options.codec;
   const startedAt = performance.now();
   let { renderId, completed } = await renderCompleted(context, format, codec, signal);

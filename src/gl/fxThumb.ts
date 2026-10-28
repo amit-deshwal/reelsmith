@@ -195,6 +195,25 @@ function shifted(source: TexImageSource, dx: number): HTMLCanvasElement {
   return c;
 }
 
+let thumbDepthCanvas: HTMLCanvasElement | null = null;
+function thumbDepth(): HTMLCanvasElement {
+  if (!thumbDepthCanvas) {
+    thumbDepthCanvas = document.createElement('canvas');
+    thumbDepthCanvas.width = 4;
+    thumbDepthCanvas.height = 64;
+    const ctx = thumbDepthCanvas.getContext('2d');
+    if (ctx) {
+      const g = ctx.createLinearGradient(0, 0, 0, 64);
+      g.addColorStop(0, '#000');
+      g.addColorStop(0.45, '#202020');
+      g.addColorStop(1, '#fff');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 4, 64);
+    }
+  }
+  return thumbDepthCanvas;
+}
+
 function renderFx(def: FxDef, time: number, overrides?: Record<string, UniformValue>): boolean {
   const sample = getSampleFrame('fx');
   if (!sample || !ensureRuntime() || !rt || !glCanvas) return false;
@@ -218,6 +237,11 @@ function renderFx(def: FxDef, time: number, overrides?: Record<string, UniformVa
       }
     }
     rt.renderFxChain(passes, sample, extras);
+    return true;
+  }
+  if (def.needsDepth) {
+    // depth effects get a stand-in depth (the bottom of the sample near, the top far) and play their move every 3 s
+    rt.renderFxChain([{ frag: def.frag, uniforms: { ...u, u_progress: (time % 3) / 3, u_hasDepth: 1, u_view: [0, 0, 1, 1] } }], sample, { u_depth: thumbDepth() });
     return true;
   }
   if (def.needsText) {

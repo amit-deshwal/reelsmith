@@ -55,7 +55,7 @@ const BOUNCY = ['tile-pop', 'page-curl', 'slide-over', 'cube-turn'];
 
 export const TONE_KIT: Record<Tone, { prefer: string[]; avoid: string[] }> = {
   royal: {
-    prefer: ['cinematic-title', 'tracking-in', 'shine', 'rise-lines', 'landscape-title', 'big-title', 'light-dissolve', 'blur-focus', 'dipToBlack', 'zoom-through', 'light-leak', 'film-burn', 'light-rays', 'flare-sweep', 'anamorphic-flare', 'bloom', 'cinema-bars', 'soft-vignette', 'velocity', 'photo-3d', 'hold', 'cards-finale'],
+    prefer: ['cinematic-title', 'tracking-in', 'shine', 'rise-lines', 'landscape-title', 'big-title', 'light-dissolve', 'blur-focus', 'dipToBlack', 'zoom-through', 'light-leak', 'film-burn', 'light-rays', 'flare-sweep', 'anamorphic-flare', 'bloom', 'cinema-bars', 'soft-vignette', 'velocity', 'photo-3d', 'photo-parallax', 'hold', 'cards-finale'],
     avoid: [...PLAYFUL_TEXT, ...GLITCHY, ...CARTOONY, ...PARTY, ...BOUNCY, 'slam', 'words-on-beat', 'caption'],
   },
   epic: {
@@ -75,11 +75,11 @@ export const TONE_KIT: Record<Tone, { prefer: string[]; avoid: string[] }> = {
     avoid: ['cinema-bars', 'light-dissolve', 'crossfade', 'pro-mist', 'moody-bleach'],
   },
   emotional: {
-    prefer: ['typewriter', 'rise-lines', 'tracking-in', 'cinematic-title', 'crossfade', 'light-leak', 'blur-focus', 'light-dissolve', 'dipToWhite', 'pro-mist', 'halation', 'soft-vignette', 'fine-grain', 'hold', 'photo-drift', 'photo-3d'],
+    prefer: ['typewriter', 'rise-lines', 'tracking-in', 'cinematic-title', 'crossfade', 'light-leak', 'blur-focus', 'light-dissolve', 'dipToWhite', 'pro-mist', 'halation', 'soft-vignette', 'fine-grain', 'hold', 'photo-drift', 'photo-parallax', 'photo-3d'],
     avoid: ['rewind', ...PLAYFUL_TEXT, ...GLITCHY, ...CARTOONY, ...PARTY, ...BOUNCY, 'slam', 'words-on-beat', 'flash-cuts', 'zoom-punch', 'shake'],
   },
   calm: {
-    prefer: ['typewriter', 'rise-lines', 'tracking-in', 'cinematic-title', 'landscape-title', 'crossfade', 'light-dissolve', 'blur-focus', 'light-leak', 'soft-vignette', 'fine-grain', 'hold', 'photo-drift'],
+    prefer: ['typewriter', 'rise-lines', 'tracking-in', 'cinematic-title', 'landscape-title', 'crossfade', 'light-dissolve', 'blur-focus', 'light-leak', 'soft-vignette', 'fine-grain', 'hold', 'photo-drift', 'photo-parallax'],
     avoid: [...PLAYFUL_TEXT, ...GLITCHY, ...CARTOONY, ...PARTY, ...BOUNCY, 'slam', 'words-on-beat', 'flash-cuts', 'zoom-punch', 'shake', 'impact-shake'],
   },
   nostalgic: {

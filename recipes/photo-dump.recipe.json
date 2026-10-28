@@ -18,6 +18,7 @@
   "params": [
     { "id": "cutRule", "type": "enum", "label": "Cut on", "default": "every2Beats", "options": ["everyBeat", "every2Beats", "everyBar"] },
     { "id": "motion", "type": "boolean", "label": "Slow push / pull / pan on every photo", "default": true },
+    { "id": "depthMotion", "type": "boolean", "label": "3D camera moves through the photos (uses the Photo depth model when installed)", "default": true },
     { "id": "captionFont", "type": "font", "label": "Caption font", "default": "Inter Tight" }
   ],
   "music": { "inputId": "music", "required": false, "startPolicy": "fromStart", "endPolicy": "fadeOut", "fadeOutSec": 1, "gainDb": -3, "clipAudioGainDb": -96, "duckUnderSpeech": false },

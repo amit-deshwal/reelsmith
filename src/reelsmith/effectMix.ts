@@ -71,6 +71,7 @@ export const SCALED_BY_ENVELOPE: Record<string, Array<{ key: string; rest: numbe
   'builtin:fx-glitch': [{ key: 'intensity', rest: 0 }],
   'builtin:fx-camera-shake': [{ key: 'strength', rest: 0 }],
   'builtin:fx-bounce': [{ key: 'amount', rest: 0 }],
+  'builtin:fx-photo-parallax': [{ key: 'strength', rest: 0 }],
 };
 
 /**

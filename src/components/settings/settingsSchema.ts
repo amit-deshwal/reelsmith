@@ -313,6 +313,8 @@ export const SETTINGS_CATEGORIES: readonly SettingsCategory[] = [
           { key: LOCAL_ASR_SETTINGS_ROUTE, vendor: 'localasr', title: '本地转写', icon: 'mic', kind: 'local-models', fields: localAsrPage.fields },
           { key: 'local/music/packs', vendor: 'localasr', title: '节拍与音乐分析', icon: 'music', kind: 'local-models', fields: [] },
           { key: 'local/semantic/setup', vendor: 'localasr', title: '画面语义搜索', icon: 'search', kind: 'local-models', fields: [] },
+          // Reelsmith RS-1238
+          { key: 'local/depth/packs', vendor: 'localasr', title: 'Photo depth', icon: 'image', kind: 'local-models', fields: [] },
         ] },
     ],
   },

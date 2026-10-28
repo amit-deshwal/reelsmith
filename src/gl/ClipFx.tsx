@@ -18,9 +18,23 @@ import { LruCache } from './frameCache';
 import { textCellFor } from './textLayer';
 import { fxUniform } from './fx/uniforms';
 import { envelopeFrame, mixUniformsAt } from '../reelsmith/effectMix';
+import { depthRequestFor, depthSrcOf, requestDepthMap } from '../reelsmith/depthMaps';
+import { depthDetail, visibleWindow } from '../reelsmith/depthView';
 
 // mattes of recent source frames, so echo trails segment each frame once while the playhead moves on
 const historyMasks = new LruCache<PersonMaskFrame>(24);
+// Reelsmith RS-1238: what depth effects read when the photo has no depth map (yet): flat, so the move is a plain push
+let flatDepthCanvas: HTMLCanvasElement | null = null;
+function flatDepth(): HTMLCanvasElement {
+  if (!flatDepthCanvas) {
+    flatDepthCanvas = document.createElement('canvas');
+    flatDepthCanvas.width = 2;
+    flatDepthCanvas.height = 2;
+    const ctx = flatDepthCanvas.getContext('2d');
+    if (ctx) { ctx.fillStyle = 'rgb(128,128,128)'; ctx.fillRect(0, 0, 2, 2); }
+  }
+  return flatDepthCanvas;
+}
 
 // One video/image clip rendered through a builtin:fx-* single-input WebGL pass.
 // Mounts a hidden, frame-synced media
@@ -72,9 +86,16 @@ function drawFit(ctx: CanvasRenderingContext2D, source: CanvasImageSource, fit: 
   ctx.drawImage(source, (W - dw) * position.x, (H - dh) * position.y, dw, dh);
 }
 
-export function ClipFx({ item, fit, width, height, frameOffset = 0, onPreviewStatus }: ClipFxProps) {
+export function ClipFx({ item, fit, width: boxWidth, height: boxHeight, frameOffset = 0, onPreviewStatus }: ClipFxProps) {
   const frame = useCurrentFrame() + frameOffset;
-  const { fps } = useVideoConfig();
+  const { fps, width: canvasWidth, height: canvasHeight } = useVideoConfig();
+  // Reelsmith RS-1238: a depth move draws at the clip's scaled-up size (a photo filled into 9:16 is scaled up to 2.4x
+  // after this box) and knows which part of the picture is on screen
+  const depthClip = useMemo(() => glEffects(item).some(({ def }) => def.needsDepth), [item]);
+  const detail = depthClip ? depthDetail(item, boxWidth, boxHeight) : 1;
+  const width = Math.max(1, Math.round(boxWidth * detail));
+  const height = Math.max(1, Math.round(boxHeight * detail));
+  const view = depthClip ? visibleWindow(item, boxWidth, boxHeight, canvasWidth, canvasHeight) : null;
   const isRendering = getRemotionEnvironment().isRendering;
   // Same decoder as the plain layers (RuntimeVideo): a Windows export must not
   // reach the WebCodecs decode through an effect clip either (#162), and one
@@ -110,6 +131,42 @@ export function ClipFx({ item, fit, width, height, frameOffset = 0, onPreviewSta
     void loadPersonMask(maskModel).then((provider) => { if (alive) setMaskProvider(provider); });
     return () => { alive = false; };
   }, [wantsMask, maskModel]);
+  // Reelsmith RS-1238: depth effects read the clip's depth map; the preview asks for one the clip does not carry yet,
+  // an export always carries it (withDepthMaps). undefined = still loading, null = none (flat depth)
+  const wantsDepth = useMemo(() => active.some(({ def }) => def.needsDepth), [active]);
+  const depthReq = wantsDepth ? depthRequestFor(item, fps) : null;
+  const carriedDepth = depthSrcOf(item);
+  const depthKey = wantsDepth ? (carriedDepth ?? (depthReq && !isRendering ? `ask|${depthReq.src}|${depthReq.atSec ?? ''}` : '')) : '';
+  const [depthImage, setDepthImage] = useState<{ key: string; image: HTMLImageElement | null } | undefined>(undefined);
+  useEffect(() => {
+    if (!depthKey) return;
+    let alive = true;
+    let handle = isRendering ? delayRender(`clip-fx depth ${depthKey}`) : null;
+    const release = () => { if (handle != null) { continueRender(handle); handle = null; } };
+    const done = (image: HTMLImageElement | null) => {
+      if (alive) setDepthImage({ key: depthKey, image });
+      release();
+    };
+    void (async () => {
+      const src = carriedDepth ?? (depthReq ? await requestDepthMap(depthReq) : null);
+      if (!src) { done(null); return; }
+      const image = new Image();
+      image.onload = () => done(image);
+      image.onerror = () => { console.warn('[clip-fx] depth map failed to load; the move stays flat:', src); done(null); };
+      image.src = src;
+    })();
+    return () => { alive = false; release(); };
+    // depthKey names everything this loads (the carried map, or the photo and moment to ask about, and whether it may ask)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [depthKey]);
+  const depthReady = !wantsDepth || !depthKey || depthImage?.key === depthKey;
+  const depthStaging = useMemo(() => {
+    if (!wantsDepth) return null;
+    const c = document.createElement('canvas');
+    c.width = width;
+    c.height = height;
+    return c;
+  }, [wantsDepth, width, height]);
   const cropPosition = cropPositionFromProps(item.props);
   // effects that look at earlier frames (echo trails): how many afterimages, and how many frames apart
   const historyFx = active.find(({ def }) => def.history);
@@ -230,6 +287,7 @@ export function ClipFx({ item, fit, width, height, frameOffset = 0, onPreviewSta
       if (!mediaReady) { reportWaiting(); raf = requestAnimationFrame(tick); return; }
       if (active.some(({ def }) => def.cube && !cubeSettled(def.cube))) { reportWaiting(); raf = requestAnimationFrame(tick); return; }
       if (wantsMask && maskProvider === undefined) { reportWaiting(); raf = requestAnimationFrame(tick); return; }
+      if (!depthReady) { reportWaiting(); raf = requestAnimationFrame(tick); return; }
       if (decodedVideo && tapStaging.some((_, i) => tapKeysRef.current[i] !== renderKey)) { reportWaiting(); raf = requestAnimationFrame(tick); return; }
       try {
         const runtime = ensureRuntimeSlot(runtimeRef, () => createGlRuntime(canvas));
@@ -254,6 +312,12 @@ export function ClipFx({ item, fit, width, height, frameOffset = 0, onPreviewSta
         const extras: Record<string, TexImageSource> = {};
         if (maskFrame) extras.u_mask = maskFrame.mask;
         if (textCell) extras.u_text = textCell.canvas;
+        if (wantsDepth) {
+          // the depth map placed exactly like the picture (same fit and crop), so each pixel reads its own depth
+          const depthCtx = depthStaging?.getContext('2d');
+          const image = depthKey && depthImage?.key === depthKey ? depthImage.image : null;
+          if (image && depthStaging && depthCtx) { drawFit(depthCtx, image, fit, cropPosition); extras.u_depth = depthStaging; } else extras.u_depth = flatDepth();
+        }
         tapStaging.forEach((canvas, i) => {
           extras[`u_hist${i}`] = canvas;
           extras[`u_histMask${i}`] = matteAt(canvas, sourceFrameAt(item, frameOffset + Math.max(0, frame - frameOffset - (i + 1) * tapLag))).mask;
@@ -266,8 +330,12 @@ export function ClipFx({ item, fit, width, height, frameOffset = 0, onPreviewSta
             def,
             overrides: env.overrides,
             ...(env.mix ? { mix: { ...env.mix, hasMask: maskFrame && maskProvider ? 1 : 0 } } : {}),
-            ...((def.needsMask && maskFrame) || (def.needsText && textCell)
-              ? { extraUniforms: { ...(def.needsMask && maskFrame ? subjectUniforms(maskFrame.subject) : {}), ...(def.needsText && textCell ? { u_textAspect: textCell.aspect } : {}) } }
+            ...((def.needsMask && maskFrame) || (def.needsText && textCell) || def.needsDepth
+              ? { extraUniforms: {
+                ...(def.needsMask && maskFrame ? subjectUniforms(maskFrame.subject) : {}),
+                ...(def.needsText && textCell ? { u_textAspect: textCell.aspect } : {}),
+                ...(def.needsDepth ? { u_progress: Math.min(1, Math.max(0, frame / Math.max(1, item.durationInFrames - 1))), u_hasDepth: extras.u_depth === flatDepth() ? 0 : 1, u_view: view ?? [0, 0, 1, 1] } : {}),
+              } }
               : {}),
             };
           }),
@@ -295,7 +363,7 @@ export function ClipFx({ item, fit, width, height, frameOffset = 0, onPreviewSta
     };
     tick();
     return () => { cancelAnimationFrame(raf); finish(); };
-  }, [active, definitionKey, fit, cropPosition.x, cropPosition.y, staging, item.id, item.kind, frame, fps, isRendering, renderKey, onPreviewStatus, wantsMask, maskProvider, maskModel, tapStaging, tapLag, historyDef, frameOffset, width, height]);
+  }, [active, definitionKey, fit, cropPosition.x, cropPosition.y, staging, item.id, item.kind, frame, fps, isRendering, renderKey, onPreviewStatus, wantsMask, maskProvider, maskModel, tapStaging, tapLag, historyDef, frameOffset, width, height, wantsDepth, depthReady, depthKey, depthImage, depthStaging, item.durationInFrames, view?.join(',')]);
 
   useEffect(() => () => {
     disposeRuntimeSlot(runtimeRef);

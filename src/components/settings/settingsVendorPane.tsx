@@ -20,7 +20,7 @@ import { ModelCapabilityEditor } from './ModelCapabilityEditor';
 import { XaiOauthVendorPane } from './XaiOauthVendorPane';
 import { VisionModelPane } from './VisionModelPane';
 import { LocalAsrPane } from './LocalAsrPane';
-import { LocalModelPackPane } from './LocalModelPackPane';
+import { DepthModelPackPane, LocalModelPackPane } from './LocalModelPackPane';
 import { SemanticModelPackPane } from './SemanticModelPackPane';
 import { SettingsNoteAction } from './SettingsNoteAction.tsx';
 import {
@@ -181,7 +181,7 @@ function LocalModelsPane({ page, fields, ctx }: {
         packIds={['rhythm-lite', 'music-semantics-lite']}
         title="节拍与音乐分析模型"
         description="模型不会自动安装。安装后，节拍与音乐语义分析只在本机运行。" />}
-      {page.key === 'local/semantic/setup' && <SemanticModelPackPane />}
+      {page.key === 'local/semantic/setup' && <SemanticModelPackPane />}{page.key === 'local/depth/packs' && <DepthModelPackPane />}
     </div>
   );
 }

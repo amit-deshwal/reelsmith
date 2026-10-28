@@ -16,6 +16,7 @@ import { focusForRange } from '../titleClear';
 import type { PlanValue } from '../../../shared/reelsmith/directorPlan';
 import { topBand } from './bandText';
 import { CREATOR_MOVES } from './creatorMoves';
+import { photoParallax } from './depthMoves';
 import { bool, clipAt, num, solid, str, type MoveContext, type MoveDef } from './moveKit';
 
 export type { MoveContext, MoveDef, MoveParam } from './moveKit';
@@ -434,7 +435,7 @@ const compare: MoveDef = {
   },
 };
 
-export const MOVES: readonly MoveDef[] = [cut, flashCuts, zoomPunch, hold, speedRamp, ...CREATOR_MOVES, photoDrift, photoStack, split, breakIn, compare, stripsReveal, postcardBand, cardsFinale, black];
+export const MOVES: readonly MoveDef[] = [cut, flashCuts, zoomPunch, hold, speedRamp, ...CREATOR_MOVES, photoDrift, photoParallax, photoStack, split, breakIn, compare, stripsReveal, postcardBand, cardsFinale, black];
 export const moveById = (id: string) => MOVES.find((m) => m.id === id);
 export const ALL_STRIP_TIMES = STRIP_AT;
 

@@ -9,6 +9,7 @@
 //   POST /api/reelsmith/still-frame    { src, atSec } -> a still of that moment saved next to the video (freeze frames)
 //   POST /api/reelsmith/frame-jpeg     { src, atSec } -> that frame at full size as base64 JPEG (the export's cover)
 //   POST /api/reelsmith/reverse-clip   { src, startSec, frames, fps } -> that span played backwards, saved next to the video
+//   POST /api/reelsmith/depth-map      { src, atSec? } -> the photo's depth map saved next to it (`{ available:false }` without the depth-lite pack)
 import { existsSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -23,6 +24,7 @@ import { finalizeForInstagram } from './instagramFinalize.ts';
 import { upscaleAvailable, upscalePhoto } from './upscale.ts';
 import { extractStill, frameJpeg } from './stillFrame.ts';
 import { reverseSpan } from './reverseClip.ts';
+import { depthMapFor, depthPackInstalled } from './depthMap.ts';
 import { exportParity } from './exportParity.ts';
 import { buildSelectionSheets, MAX_SHEET_CELLS } from './selectionSheet.ts';
 import { renderRecipePreview, type PreviewRequest } from './previewRender.ts';
@@ -115,6 +117,15 @@ export function reelsmithAnalyzePlugin(): Plugin {
         if (typeof file !== 'string') throw new Error(file.error);
         const r = await reverseSpan(file, Number(body.startSec), Math.round(Number(body.frames)), Number(body.fps));
         return { src: `/media/uploads/${encodeURIComponent(r.name)}`, width: r.width, height: r.height, frames: r.frames, hasAudio: r.hasAudio, cached: r.cached };
+      });
+      route('/api/reelsmith/depth-map', async (body) => {
+        if (!depthPackInstalled()) return { available: false };
+        const file = localFile(body.src);
+        if (typeof file !== 'string') throw new Error(file.error);
+        const atSec = body.atSec === undefined || body.atSec === null ? undefined : Number(body.atSec);
+        if (atSec !== undefined && !(atSec >= 0)) throw new Error('atSec must be a number of seconds');
+        const r = await depthMapFor(file, atSec);
+        return { available: true, src: `/media/uploads/${encodeURIComponent(r.name)}`, width: r.width, height: r.height, cached: r.cached };
       });
       route('/api/reelsmith/upscale', async (body) => {
         if (!upscaleAvailable()) return { available: false };

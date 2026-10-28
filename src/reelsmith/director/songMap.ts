@@ -71,7 +71,7 @@ export interface PaceFinding { section: number; issue: string; fix: string }
 /** Moves that cut faster than the beat, or punch on it. */
 const FAST = new Set(['flash-cuts', 'zoom-punch', 'postcard-band']);
 /** Moves that slow down or hold on purpose; a slow-motion slam on a loud bar is the point, not dead air. */
-const HOLDS = new Set(['hold', 'photo-drift', 'black']);
+const HOLDS = new Set(['hold', 'photo-drift', 'photo-parallax', 'black']);
 
 /**
  * The plan's pace against the song: fast cuts over its quiet bars feel unmotivated, a long hold over its loudest bars

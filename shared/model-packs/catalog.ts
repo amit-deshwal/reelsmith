@@ -1,4 +1,4 @@
-export type ModelPackId = 'rhythm-lite' | 'music-semantics-lite' | 'visual-semantics-lite';
+export type ModelPackId = 'rhythm-lite' | 'music-semantics-lite' | 'visual-semantics-lite' | 'depth-lite';
 
 export type ModelPackCapability =
   | '节拍定位'
@@ -9,7 +9,8 @@ export type ModelPackCapability =
   | '音乐相似度'
   | '画面语义向量'
   | '中文画面检索'
-  | '重复镜头检测';
+  | '重复镜头检测'
+  | 'Photo depth';
 
 export interface ModelPackFile {
   readonly path: string;
@@ -156,6 +157,36 @@ export const MODEL_PACKS = [
       },
     ],
   },
+  // Reelsmith RS-1238: depth maps that make photos move (photo parallax). fp32: onnxruntime-node cannot load the fp16 export
+  // on CPU, and the 8-bit ones soften the edges the parallax separates
+  {
+    id: 'depth-lite',
+    label: 'Photo depth',
+    description: 'Reads how far away each part of a photo is, so photos can move in 3D (photo parallax).',
+    modelId: 'onnx-community/depth-anything-v2-small',
+    revision: '4472b7362082ad9968fee890ca0f1e5aca36b93d',
+    license: 'Apache-2.0',
+    sizeBytes: 99_061_338,
+    recommendedMemoryBytes: 1 * GIB,
+    capabilities: ['Photo depth'],
+    files: [
+      {
+        path: 'config.json',
+        sizeBytes: 38,
+        sha256: '3aee5b9bc4f711ee885c2526d871f0c8c6c8c4b26b8e04253d0167f6a83264f5',
+      },
+      {
+        path: 'preprocessor_config.json',
+        sizeBytes: 461,
+        sha256: '03576db3c13dd0471fdf5f5e1428befcb95de063fe699879150b293dc9e0a2c6',
+      },
+      {
+        path: 'onnx/model.onnx',
+        sizeBytes: 99_060_839,
+        sha256: 'afb6a5c28f3b6bf1618c6e43f02073ef9dfdc70e937502d51603e57b0a1df10c',
+      },
+    ],
+  },
 ] as const satisfies readonly ModelPackDefinition[];
 
 export function modelPackDefinition(id: string): ModelPackDefinition | undefined {
@@ -168,6 +199,7 @@ const PACK_SETTINGS_PAGES = new Map<string, { readonly zh: string; readonly en: 
   ['rhythm-lite', MUSIC_PACK_PAGE],
   ['music-semantics-lite', MUSIC_PACK_PAGE],
   ['visual-semantics-lite', { zh: '画面语义搜索', en: 'Visual semantic search' }],
+  ['depth-lite', { zh: 'Photo depth', en: 'Photo depth' }],
 ]);
 
 /**

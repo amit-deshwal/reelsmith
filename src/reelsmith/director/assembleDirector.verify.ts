@@ -35,6 +35,7 @@ const raw = {
     { move: 'break-in', beats: 12, params: { every: 4, kind: 'mix' } },
     { move: 'photo-drift', beats: 8, clips: ['photo1', 'photo2'], text: '2 days 6000 calories', textStyle: 'words-on-beat' },
     { move: 'hold', beats: 6, clips: ['ridge'] },
+    { move: 'photo-parallax', beats: 8, clips: ['photo1', 'photo2'], params: { move: 'orbit', strength: 1.4 } }, // RS-1238 (more in depthMoves.verify.ts)
     { move: 'black', beats: 4, text: 'worth it', textStyle: 'big-title', params: { color: '#111111' } },
     { move: 'cards-finale', beats: 18 },
   ],
@@ -50,9 +51,9 @@ assert.ok(res.action, res.report.warnings.join('; '));
 const acts = res.action!.actions as any[];
 const adds = acts.filter((a) => a.type === 'add');
 
-// sections back to back on the beat grid: total = 84 beats from the first beat
+// sections back to back on the beat grid: total = 92 beats from the first beat
 const clock = beatClock(music, 0.2);
-assert.equal(res.report.totalFrames, Math.round(clock(84) * fps));
+assert.equal(res.report.totalFrames, Math.round(clock(92) * fps));
 const firstOf = (n: number) => Math.min(...adds.filter((a) => a.item.props?.rsSection?.startsWith(`${n}-`)).map((a) => a.startFrame));
 let beat = 0;
 raw.sections.forEach((s, i) => { assert.equal(firstOf(i + 1), Math.round(clock(beat) * fps), `section ${i + 1} starts on beat ${beat}`); beat += s.beats; });
@@ -128,6 +129,10 @@ const res2 = assemble({ recipe: directorRecipe(plan2), clips, music, texts: {}, 
 assert.ok(res2.action, res2.report.warnings.join('; '));
 const a2 = res2.action!.actions as any[];
 const adds2 = a2.filter((a) => a.type === 'add');
+// RS-1238: photo-parallax puts each photo full frame with the depth effect, the move and strength asked for
+const plx = (adds as any[]).filter((a) => String(a.item.props?.rsSection ?? '').endsWith('-photo-parallax') && a.item.kind === 'image');
+assert.deepEqual(plx.map((a) => a.item.sourceAssetId), ['photo1', 'photo2']);
+assert.ok(plx.every((a) => a.item.effects?.length === 1 && a.item.effects[0].assetId === 'builtin:fx-photo-parallax' && a.item.effects[0].overrides.move === 1 && a.item.effects[0].overrides.strength === 1.4));
 const inSec = (n: number) => adds2.filter((a) => a.item.props?.rsSection?.startsWith(`${n}-`));
 // landscape title rides on the hold clip as an effect with the text; effects stack after it
 const holdClip = inSec(1).find((a) => a.item.kind === 'video');

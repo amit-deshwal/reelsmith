@@ -101,6 +101,14 @@ export function LocalModelPackPane({ packIds, title = '本地智能模型', desc
   );
 }
 
+/** Reelsmith RS-1238: Settings → Local models → Photo depth, the install page of the depth-lite pack. */
+export function DepthModelPackPane() {
+  return <LocalModelPackPane
+    packIds={['depth-lite']}
+    title="Photo depth model"
+    description="Not installed automatically. Once installed, photos get a depth map on this computer so the Photo parallax effect and the director's moving photos can move the camera through them in 3D." />;
+}
+
 interface PackCardProps {
   pack: ModelPackCatalogEntry;
   busy: boolean;

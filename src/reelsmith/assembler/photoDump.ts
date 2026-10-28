@@ -1,10 +1,13 @@
 // photo-dump@1: a photo-only reel. It reuses the beat-montage cutter (so the cuts land on beats, or on a steady pulse when
 // there is no song, because audio is often added later in Instagram) and gives every photo its own slow Ken Burns move,
-// so a run of stills never looks like a slideshow. No AI involved; same inputs + seed => same actions.
+// so a run of stills never looks like a slideshow. With `depthMotion` (RS-1238) the move is a 3D camera move through the
+// photo's depth instead (photo-parallax: dolly, orbit, rise in turn); without the Photo depth model that is a plain push
+// or pan. No AI involved; same inputs + seed => same actions.
 import { fillTransformForFocus } from '../cropFocus';
 import { kenBurnsActions, pictureExtent, presetForFit, type KenBurnsPreset } from '../kenBurns';
 import { assembleBeatMontage } from './beatMontage';
 import { metronome } from './common';
+import { PARALLAX_MOVES, PHOTO_PARALLAX_FX } from '../../gl/fx/depthFx';
 import type { AssembleInput, AssembleResult, AssemblyMusic } from './types';
 
 /** Alternate pushes, pulls and pans so neighbouring photos never move the same way. */
@@ -37,6 +40,7 @@ export function assemblePhotoDump(input: AssembleInput): AssembleResult {
   const strategy = input.recipe.assembler.strategy;
   const silent = !input.music;
   const moves = input.params.motion !== false;
+  const depth = moves && input.params.depthMotion === true;
   const music = input.music ?? metronome(Math.max(60, (input.recipe.duration?.maxSec ?? 40) + 10), PHOTO_DUMP_BPM);
   const base = assembleBeatMontage({
     ...input,
@@ -53,6 +57,12 @@ export function assemblePhotoDump(input: AssembleInput): AssembleResult {
   for (const action of base.action.actions) {
     // the stand-in metronome has no file: it must not become an audio clip
     if (silent && action.type === 'add' && action.item.kind === 'audio') continue;
+    if (depth && action.type === 'add' && action.item.kind === 'image') {
+      const move = (start + photos) % PARALLAX_MOVES.length;
+      photos += 1;
+      out.push({ ...action, item: { ...action.item, effects: [...(action.item.effects ?? []), { id: `${action.item.id}-plx`, assetId: PHOTO_PARALLAX_FX, overrides: { move, strength: 1 } }] } });
+      continue;
+    }
     out.push(action);
     if (moves && action.type === 'add' && action.item.kind === 'image') {
       const clip = clips.get(String(action.item.sourceAssetId));
@@ -67,6 +77,6 @@ export function assemblePhotoDump(input: AssembleInput): AssembleResult {
   }
   const warnings = [...base.report.warnings];
   if (silent) warnings.push('no song: cuts follow a steady pulse; add your audio in Instagram');
-  if (moves && photos) warnings.push(`${photos} photo${photos === 1 ? '' : 's'} got a slow push, pull or pan`);
+  if (moves && photos) warnings.push(depth ? `${photos} photo${photos === 1 ? '' : 's'} got a 3D camera move (dolly, orbit or rise)` : `${photos} photo${photos === 1 ? '' : 's'} got a slow push, pull or pan`);
   return { ...base, action: { ...base.action, actions: out }, run, report: { ...base.report, warnings } };
 }
