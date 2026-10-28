@@ -3,6 +3,7 @@ import { finalizeExportForInstagram, instagramReportStore, loadInstagramPreferen
 import { writeSrtSidecar } from '../reelsmith/instagramSrt';
 import { deliverReviewSheet } from '../reelsmith/exportReview';
 import { deliverCover } from '../reelsmith/exportCover';
+import { retakeIfStalled } from '../reelsmith/exportRetake';
 import type { BackgroundExportJobSetters, ExportJobStore } from './backgroundExportStore';
 import { isAbortError } from './browserExport';
 import { recordExport } from '../persist/exportHistoryStore';
@@ -224,14 +225,21 @@ async function exportMedia(
   if (format === 'video') context.setRenderEngine('server');
   const codec = format === 'audio' ? 'mp3' : context.options.codec;
   const startedAt = performance.now();
-  const { renderId, completed } = await renderCompleted(context, format, codec, signal);
+  let { renderId, completed } = await renderCompleted(context, format, codec, signal);
   let targetCommitted = false;
   let claim: ServerExportDeliveryClaim | null = null;
   try {
     if (format === 'video') updateActualEngine(context, completed);
     signal?.throwIfAborted();
     // Reelsmith (RS-301): fix the render for Instagram before QA and delivery
-    if (format === 'video') await finalizeExportForInstagram(context.options.state, completed, codec, signal, { setBusy: context.setBusy });
+    if (format === 'video') {
+      const finalize = (c: ExportJobResult) => finalizeExportForInstagram(context.options.state, c, codec, signal, { setBusy: context.setBusy });
+      await finalize(completed);
+      // Reelsmith: a take that froze (V10) is rendered once more and the better take delivered
+      ({ renderId, completed } = await retakeIfStalled({ renderId, completed }, {
+        render: () => renderCompleted(context, format, codec, signal), finalize, retire: retireAndDeleteExportJob, setBusy: context.setBusy, signal,
+      }));
+    }
     if (format === 'video' && context.autoQaEnabled) {
       await context.verifyCompletedExport(completed, signal);
       signal?.throwIfAborted();

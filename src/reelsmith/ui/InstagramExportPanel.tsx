@@ -66,6 +66,7 @@ export function InstagramExportPanel({ state }: { state: TimelineState }) {
               {c.status === 'PASS' ? '✓' : c.status === 'WARN' ? '!' : '✗'} {NAMES[c.id] ?? c.id}: {c.detail}
             </span>
           ))}
+          {report.status !== 'error' && report.message && <span style={muted}>{report.message}</span>}
           {report.srt && <span style={muted}>{report.srt}</span>}
           {report.sheet && <span style={muted}>{report.sheet}</span>}
           {report.cover && <span style={muted}>{report.cover}</span>}

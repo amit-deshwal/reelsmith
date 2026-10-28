@@ -72,6 +72,7 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 ## Instagram export step and IG safe-zone overlay (RS-301, RS-302, RS-303)
 - `src/export/serverExportOperation.ts`: after a server video render (normal and recovered paths) and before QA/delivery, calls `finalizeExportForInstagram` (`src/reelsmith/instagramExport.ts`). It is a no-op unless the "Make it Instagram-ready" toggle is on, the canvas is 9:16 and the codec is H.264. Browser (WebCodecs) exports are not post-processed.
 - `src/export/ExportDialogMain.tsx`: renders `InstagramExportPanel` on the Video tab.
+- `src/export/serverExportOperation.ts` (2026-10-28, RS-1237): in `exportMedia`, `renderId`/`completed` became `let`, and after the Instagram finalize `retakeIfStalled` (`src/reelsmith/exportRetake.ts`) may render once more when V10 warns, delivering the better take and retiring the other job. The recovered-export path is unchanged.
 - `server/reelsmith/analyze-plugin.ts` (ours): route `/api/reelsmith/instagram-finalize`.
 - `src/components/PreviewPanel.tsx`: an "IG zones" toggle next to the safe-frame toggle draws `InstagramSafeZoneOverlay` (remembered in localStorage).
 
