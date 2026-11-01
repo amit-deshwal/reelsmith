@@ -51,3 +51,13 @@ assert.equal(brandAction({ ...kit, actions: [], links: [{ kind: 'site', label: '
 assert.equal(parseBrandHtml('<title>Chai Point | Bandra</title>', 'https://chai.example/').name, 'Chai Point');
 assert.equal(decodeEntities('Tom &amp; Jerry &#x2014; &hellip;'), 'Tom & Jerry — …');
 console.log('brandKit.verify: ok');
+
+// the live punetrekkers.org page had one colour, a dark green: it becomes the background, the button stays light
+{
+  const { brandPalette, luminance } = await import('./brandKit');
+  assert.deepEqual(brandPalette(['#244936']), { accent: '#ffffff', background: '#244936' });
+  assert.deepEqual(brandPalette(['#ffb020', '#0f2a1d']), { accent: '#ffb020', background: '#0f2a1d' });
+  assert.deepEqual(brandPalette([]), { accent: '#ffb020' });
+  assert.ok(luminance('#ffffff') > 0.99 && luminance('#000000') < 0.01);
+  console.log('brandKit palette: ok');
+}

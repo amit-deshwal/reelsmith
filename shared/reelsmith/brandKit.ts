@@ -135,6 +135,21 @@ export function parseBrandHtml(html: string, url: string): BrandKit {
   return { url, name: name.slice(0, 60), ...(tagline ? { tagline: tagline.slice(0, 200) } : {}), lines, facts, actions, links: linksOf(body, url), colors, fonts, ...(image ? { image } : {}) };
 }
 
+/** Relative luminance of a hex colour, 0 (black) .. 1 (white). */
+export function luminance(hex: string): number {
+  const h = normHex(hex).slice(1);
+  const [r, g, b] = [0, 2, 4].map((i) => { const v = parseInt(h.slice(i, i + 2), 16) / 255; return v <= 0.04 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; });
+  return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+}
+
+/** Which brand colour goes where on the end card: a light one for the button over footage, a dark one for a solid background. */
+export function brandPalette(colors: readonly string[]): { accent: string; background?: string } {
+  const light = colors.filter((c) => luminance(c) > 0.25).sort((a, b) => luminance(b) - luminance(a));
+  const dark = colors.filter((c) => luminance(c) < 0.12).sort((a, b) => luminance(a) - luminance(b));
+  // a page with only dark colours: its colour becomes the background and the button stays a light, readable one
+  return { accent: light[0] ?? (dark.length ? '#ffffff' : colors[0] ?? '#ffb020'), ...(dark[0] ? { background: dark[0] } : {}) };
+}
+
 /** The one thing the end card should ask: the page's own action, else where its links go. */
 export function brandAction(kit: BrandKit): string | undefined {
   const wa = kit.actions.find((a) => /whats ?app/i.test(a)) ?? kit.actions[0];
@@ -157,8 +172,8 @@ export function brandKitText(kit: BrandKit): Record<string, unknown> {
     ...(kit.facts.length ? { facts: kit.facts } : {}),
     ...(kit.actions.length ? { actions: kit.actions } : {}),
     links: kit.links.map((l) => `${l.kind}: ${l.label}`),
-    ...(kit.colors.length ? { colors: kit.colors } : {}),
+    ...(kit.colors.length ? { colors: kit.colors, endCard: brandPalette(kit.colors) } : {}),
     ...(kit.fonts.length ? { fonts: kit.fonts } : {}),
-    use: 'These are the user\'s words for this reel: the hook, the lines and the end card may quote them (trimmed, never reworded; no numbers or claims the page does not state). End on a cta-card: the name, ONE action from actions/links ("Join free on WhatsApp"), and the link line ("link in bio" or the handle); a handle-tag from after the hook. Use the first colour as the end card button and handle dot (accent) and a dark one as its solid background; the colours are the page\'s, so check they read on the footage.',
+    use: 'These are the user\'s words for this reel: the hook, the lines and the end card may quote them (trimmed, never reworded; no numbers or claims the page does not state). End on a cta-card: the name, ONE action from actions/links ("Join free on WhatsApp"), and the link line ("link in bio" or the handle); a handle-tag from after the hook. Give the cta-card the endCard colours: accent (the button and the handle dot, light enough to read over footage) and, when there is one, background with solid true (the brand colour behind the name). Never a dark button over dark footage.',
   };
 }

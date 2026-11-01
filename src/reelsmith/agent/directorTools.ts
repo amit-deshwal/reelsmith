@@ -28,6 +28,7 @@ import { motionRuleText } from '../director/motionRules';
 import { missingThings } from '../director/storyThings';
 import type { Defect } from '../director/critique';
 import { songMap, songMapText } from '../director/songMap';
+import { songReportLine } from '../exportMusic';
 import { brandAction, brandKitText, brandWords, type BrandKit } from '../../../shared/reelsmith/brandKit';
 
 const VISUAL = new Set(['video', 'image']);
@@ -391,7 +392,8 @@ export async function directorBuild(args: Record<string, unknown>, ctx: AgentCon
       : findings.length || lint.errors
         ? 'Fix the review findings and anything clearly wrong in the frames with ONE rebuild (replaceTimeline true), then finish.'
         : 'Check the frames; if nothing is clearly wrong, finish.')
-      + ' To finish: call review_edit_session if you opened an edit session (nothing reaches the timeline until it returns applied), then report to the user in three short lines. Do not call view_timeline_frames or reels_lint separately.',
+      + ' To finish: call review_edit_session if you opened an edit session (nothing reaches the timeline until it returns applied), then report to the user in three short lines.'
+      + songReportLine(ctx.getState()) + ' Do not call view_timeline_frames or reels_lint separately.',
   };
 }
 

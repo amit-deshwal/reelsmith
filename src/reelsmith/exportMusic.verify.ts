@@ -24,10 +24,20 @@ const fetcher = (async (url: string, init?: RequestInit) => {
   }
   return new Response(new Blob(['mp4']));
 }) as typeof fetch;
-const r = await deliverNoSoundCopy({ state: { fps, items: [video, director] as never }, src: '/media/uploads/reel.mp4', fetcher, write: async (name) => { written.push(name); } });
+const r = await deliverNoSoundCopy({ state: { fps, items: [video, director] as never }, src: '/media/uploads/reel.mp4', videoName: 'Hazy Echo.mp4', fetcher, write: async (name) => { written.push(name); } });
 assert.equal(r.status, 'written');
-assert.deepEqual(written, ['reel.no-sound.mp4']);
-assert.equal((await deliverNoSoundCopy({ state: { fps, items: [video] as never }, src: 'x', fetcher, write: async () => {} })).status, 'none');
-const failed = await deliverNoSoundCopy({ state: { fps, items: [video, director] as never }, src: 'x', fetcher: (async () => new Response(JSON.stringify({ error: 'boom' }), { status: 400 })) as typeof fetch, write: async () => {} });
+assert.deepEqual(written, ['Hazy Echo.no-sound.mp4'], 'named after the delivered video, not the render job');
+assert.equal((await deliverNoSoundCopy({ state: { fps, items: [video] as never }, src: 'x', videoName: 'a.mp4', fetcher, write: async () => {} })).status, 'none');
+const failed = await deliverNoSoundCopy({ state: { fps, items: [video, director] as never }, src: 'x', videoName: 'a.mp4', fetcher: (async () => new Response(JSON.stringify({ error: 'boom' }), { status: 400 })) as typeof fetch, write: async () => {} });
 assert.deepEqual(failed, { status: 'failed', message: 'boom' });
 console.log('exportMusic.verify: ok');
+
+// the director's finish hint names the song and its start; a bundled library song needs no line
+{
+  const { songReportLine } = await import('./exportMusic');
+  const line = songReportLine({ fps, items: [video, { ...director, src: '/media/uploads/believer.mp3' }] as never });
+  assert.match(line, /"Believer" is a commercial track.*start the song at 0:51/);
+  assert.equal(songReportLine({ fps, items: [video, { ...director, src: '/audio/track-1.mp3' }] as never }), '');
+  assert.equal(songReportLine({ fps, items: [video] as never }), '');
+  console.log('exportMusic report line: ok');
+}

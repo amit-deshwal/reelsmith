@@ -4,7 +4,7 @@
 // Instagram's picker so the cuts still land on its beat (Kino's 2026-11-01 run told the user "start it at 0:51").
 import type { TimelineState } from '../editor/types';
 
-export interface TimelineSong { name: string; /** seconds into the song where the reel's music starts */ fromSec: number; /** reel second the song comes in */ atReelSec: number }
+export interface TimelineSong { name: string; /** the file it plays (bundled songs are /audio/...) */ src?: string; /** seconds into the song where the reel's music starts */ fromSec: number; /** reel second the song comes in */ atReelSec: number }
 
 /** The reel's song: the music item a recipe or the director laid (id "...music"), else the longest audio from the start. */
 export function songOnTimeline(state: Pick<TimelineState, 'items' | 'fps'>): TimelineSong | undefined {
@@ -15,7 +15,7 @@ export function songOnTimeline(state: Pick<TimelineState, 'items' | 'fps'>): Tim
   const song = laid ?? audio.filter((i) => i.durationInFrames >= reelEnd * 0.6).sort((a, b) => b.durationInFrames - a.durationInFrames)[0];
   if (!song) return undefined;
   const src = (song as { srcInFrame?: number }).srcInFrame ?? 0;
-  return { name: song.name.replace(/\.(mp3|m4a|wav|aac)$/i, ''), fromSec: Math.max(0, src / state.fps), atReelSec: song.startFrame / state.fps };
+  return { name: song.name.replace(/\.(mp3|m4a|wav|aac)$/i, ''), ...((song as { src?: string }).src ? { src: (song as { src?: string }).src } : {}), fromSec: Math.max(0, src / state.fps), atReelSec: song.startFrame / state.fps };
 }
 
 export const clock = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.floor(sec % 60)).padStart(2, '0')}`;
@@ -26,10 +26,24 @@ export function musicNote(song: TimelineSong): string {
   return `To post with Instagram's licensed copy of the song, upload the no-sound file, add “${song.name}” from Instagram's music, start it at ${clock(song.fromSec)}${later}; the cuts follow its beat.`;
 }
 
+/**
+ * The line a director report adds for someone else's song (RS-1241): the agent skipped it when only the skill asked, so
+ * the build and fix results carry it. Bundled library songs need none.
+ */
+export function songReportLine(state: Pick<TimelineState, 'items' | 'fps'>): string {
+  const song = songOnTimeline(state);
+  if (!song || song.src?.startsWith('/audio/')) return '';
+  return ` Add a fourth line about the song: if "${song.name}" is a commercial track, Instagram may mute or limit the reel with it baked in; the Instagram-ready export also saves a no-sound copy, and in Instagram's music picker they start the song at ${clock(song.fromSec)} so the cuts land on its beat.`;
+}
+
+export const noSoundSidecarName = (videoName: string) => `${videoName.replace(/\.[^./\\]+$/, '')}.no-sound.mp4`;
+
 /** Never throws: the video is already delivered. */
 export async function deliverNoSoundCopy(opts: {
   state: Pick<TimelineState, 'items' | 'fps'>;
   src: string;
+  /** the delivered video's name ("Hazy Echo.mp4"); the copy is named after it, not after the server's render file */
+  videoName: string;
   write: (filename: string, blob: Blob) => Promise<void>;
   fetcher?: typeof fetch;
 }): Promise<{ status: 'written'; name: string; note: string } | { status: 'none' } | { status: 'failed'; message: string }> {
@@ -42,8 +56,9 @@ export async function deliverNoSoundCopy(opts: {
     if (!res.ok || !body?.src || !body.name) throw new Error(body?.error ?? `no-sound copy failed (${res.status})`);
     const file = await fetcher(body.src);
     if (!file.ok) throw new Error(`could not read the no-sound copy (${file.status})`);
-    await opts.write(body.name, await file.blob());
-    return { status: 'written', name: body.name, note: musicNote(song) };
+    const name = noSoundSidecarName(opts.videoName);
+    await opts.write(name, await file.blob());
+    return { status: 'written', name, note: musicNote(song) };
   } catch (error) {
     return { status: 'failed', message: error instanceof Error ? error.message : String(error) };
   }

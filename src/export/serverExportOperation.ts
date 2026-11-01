@@ -221,7 +221,7 @@ async function deliverSrtSidecar(
   // RS-1241: a no-sound copy for adding the song from Instagram's licensed library, and where to start it
   if (pref.noSound && !pref.silent) {
     const copy = await deliverNoSoundCopy({
-      state: context.options.state, src: completed.path,
+      state: context.options.state, src: completed.path, videoName,
       write: (filename, blob) => writeBlobToDestination(context.destination, filename, blob, signal),
     });
     if (copy.status !== 'none') instagramReportStore.set({

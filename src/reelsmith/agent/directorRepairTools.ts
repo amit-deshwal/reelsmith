@@ -11,6 +11,7 @@ import { directorSession, restoreDirectorSession, updateDirectorSession } from '
 import { checkAgainstReference } from '../director/reference';
 import type { Treatment } from '../director/treatment';
 import { runBuild } from './directorTools';
+import { songReportLine } from '../exportMusic';
 import { projectId, type ReelsDeps } from './reelsTools';
 
 /** Frames the frame tool renders in one call (one contact sheet each). */
@@ -75,7 +76,7 @@ export async function directorCritique(ctx: AgentContext): Promise<unknown> {
     textWarnings: lint.issues.slice(0, 8).map((x) => x.message),
     ...(brief ? { treatment: brief } : {}),
     checklist: criticBrief(session.treatment),
-    next: 'Name the three largest defects (section, at, evidence, fix) and call reels_director_fix with them and the changed sections only; every other section comes back exactly as it is. If nothing is wrong, finish (review_edit_session if you opened an edit session, then report).',
+    next: 'Name the three largest defects (section, at, evidence, fix) and call reels_director_fix with them and the changed sections only; every other section comes back exactly as it is. If nothing is wrong, finish (review_edit_session if you opened an edit session, then report).' + songReportLine(ctx.getState()),
   };
 }
 
@@ -157,6 +158,6 @@ export async function directorFix(args: Record<string, unknown>, ctx: AgentConte
     next: (last1
       ? 'That was the last fix round: finish, and tell the user in one line what still looks off, if anything.'
       : 'Judge only these frames: is each defect gone, and is nothing new broken? If so, finish. If not, name what remains (up to three, worst first) and call reels_director_fix again.')
-      + ' To finish: call review_edit_session if you opened an edit session, then report to the user in three short lines.',
+      + ' To finish: call review_edit_session if you opened an edit session, then report to the user in three short lines.' + songReportLine(ctx.getState()),
   };
 }
