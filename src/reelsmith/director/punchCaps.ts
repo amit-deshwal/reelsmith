@@ -28,11 +28,26 @@ const lineEm = (line: PunchWord[]) => line.reduce((s, x) => s + [...x.w].length 
 export function punchLines(text: string, maxEm: number): PunchWord[][] {
   const given = punchWords(text);
   if (text.includes('/')) return given;
-  const out: PunchWord[][] = [];
-  for (const w of given.flat()) {
-    const cur = out.at(-1);
-    if (cur && lineEm([...cur, w]) <= maxEm) cur.push(w); else out.push([w]);
+  // the fewest lines that fit, then the break that reads best: after a sentence ends ("NO MARKUP. / NO PROFIT.", not
+  // "NO MARKUP. NO / PROFIT."), with lines of similar width
+  const ws = given.flat();
+  const n = ws.length;
+  const best: Array<{ lines: number; cost: number; from: number } | undefined> = [{ lines: 0, cost: 0, from: -1 }];
+  for (let j = 1; j <= n; j += 1) {
+    for (let i = 0; i < j; i += 1) {
+      const prev = best[i];
+      const em = lineEm(ws.slice(i, j));
+      if (!prev || (em > maxEm && j - i > 1)) continue;
+      const slack = Math.max(0, maxEm - em) / maxEm;
+      const end = ws[j - 1]!.w;
+      const breakCost = j === n ? 0 : /[.!?]$/.test(end) ? 0 : /[,:;]$/.test(end) ? 0.15 : 0.6;
+      const cand = { lines: prev.lines + 1, cost: prev.cost + (j === n ? slack * slack * 0.5 : slack * slack) + breakCost, from: i };
+      const cur = best[j];
+      if (!cur || cand.lines < cur.lines || (cand.lines === cur.lines && cand.cost < cur.cost)) best[j] = cand;
+    }
   }
+  const out: PunchWord[][] = [];
+  for (let j = n; j > 0; j = best[j]!.from) out.unshift(ws.slice(best[j]!.from, j));
   return out;
 }
 

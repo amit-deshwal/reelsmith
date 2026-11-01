@@ -11,6 +11,11 @@ assert.deepEqual(punchWords('LEGS: DEAD. / MOOD: *ELITE*.').map((l) => l.map((x)
 // lines wrap greedily unless the writer broke them
 assert.equal(punchLines('STOP WASTING YOUR *WEEKENDS* IN PUNE.', 8).length, 3);
 assert.equal(punchLines('A / B', 100).length, 2);
+// a break after a sentence beats a fuller first line (the agent's "NO MARKUP. NO / PROFIT." of 2026-11-02)
+const text = (ls: ReturnType<typeof punchLines>) => ls.map((l) => l.map((x) => x.w).join(' '));
+assert.deepEqual(text(punchLines('NO MARKUP. NO *PROFIT*.', 6.5)), ['NO MARKUP.', 'NO PROFIT.']);
+assert.deepEqual(text(punchLines('THEN YOU GET *THIS* VIEW.', 7)), ['THEN YOU GET', 'THIS VIEW.']);
+assert.deepEqual(text(punchLines('*CLIMB.*', 7)), ['CLIMB.']);
 // the longest line fits 88% of a 1080 frame
 const lines = punchLines('NO AGENCY. NO *MARKUP*. NO PROFIT.', 7);
 assert.ok(punchSize(lines, 1080, 1920, 1) <= 1080 * 0.13 && punchSize(lines, 1080, 1920, 1) >= 36);
