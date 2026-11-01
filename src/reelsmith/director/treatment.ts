@@ -248,12 +248,32 @@ export function checkTreatment(t: Treatment, ctx: TreatmentContext): TreatmentFi
   const hookWords = hook.line ? words(hook.line).length : 0;
   if (hookSec > 3.5 && PLAIN_MOVES.has(hook.move)) out.push({ issue: `the hook is ${hookSec.toFixed(1)} s of one ${hook.move}`, fix: 'open in under 2-3 s with movement or a reveal (strips-reveal, flash-cuts, a moving hero shot), and put the setup line on that' });
   if (!hookWords && (t.story.trim() || ctx.brand)) out.push({ issue: 'the hook has no words', fix: 'most people scroll with the sound off: put 2-5 words on the first second (the sharpest part of their story, a question it raises, or the payoff it promises), big and centred' });
+  // RS-1245: a lively reel opens on a burst of shots. Our Pune Trekkers promo opened on one 360 shot held 1.9 s (motion
+  // per second 6 and 4) where Kino's cut five shots in 2.5 s (13-19): the first seconds were the calmest of the reel.
+  const LIVELY = new Set(['hype', 'epic', 'playful', 'funny']);
+  const BURST = new Set(['flash-cuts', 'zoom-punch', 'strips-reveal', 'velocity', 'speed-ramp', 'rewind', 'match-cut', 'freeze-intro']);
+  if ((ctx.brand || LIVELY.has(t.tone)) && !BURST.has(hook.move) && (hook.clips?.length ?? 0) < 3) {
+    const shotsN = Math.max(1, hook.clips?.length ?? 1);
+    out.push({ issue: `the hook is ${shotsN} shot${shotsN === 1 ? '' : 's'} of ${hook.move} for ${hookSec.toFixed(1)} s in a ${ctx.brand ? 'promo' : t.tone} reel`, fix: 'open on a burst: flash-cuts or zoom-punch through 4-5 of the best moving shots (every 0.5-1 beat) under the hook line; the first two seconds should be the busiest of the reel' });
+  }
   if (hookWords > 7) out.push({ issue: `the hook line is ${hookWords} words`, fix: 'open on 2-5 words (the sharpest part of their sentence); put the rest of it in the next part' });
   const first = hook.clips?.[0] ? clipOf(hook.clips[0], ctx.clips) : undefined;
   if (first && hook.move === 'hold' && motionAt(first.clip, first.at, ctx.fps, ctx.clips) === 'still') {
     const moving = ctx.clips.filter((c) => c.kind === 'video' && c.features && motionAt(c, c.seconds / 2, ctx.fps, ctx.clips) === 'moving').slice(0, 4).map((c) => `#${c.n}`);
     out.push({ issue: `the hook holds a still moment (${hook.clips![0]})`, fix: `open on movement${moving.length ? ` (${moving.join(', ')} move)` : ''}, or keep this shot under 1.5 s` });
   }
+  // RS-1245: parts of one length tick like a metronome (11 parts of 4 beats in the agent's promo); Kino's ran 0.5 s shots
+  // in the hook, 1.5-3 s in the story and a long held card
+  if (t.parts.length >= 6) {
+    const counts = new Map<number, number>();
+    for (const p of t.parts) counts.set(p.beats, (counts.get(p.beats) ?? 0) + 1);
+    const [len, n] = [...counts].sort((a, b) => b[1] - a[1])[0]!;
+    if (n / t.parts.length >= 0.75) out.push({ issue: `${n} of ${t.parts.length} parts are ${len} beats long: the reel ticks like a metronome`, fix: 'vary the lengths with the story: a short burst for the hook, 2 beats for quick beats of the day, 6-8 for the payoff view and the proof, a long held ending; keep part changes on bar lines where the song asks for it' });
+  }
+  // RS-1245: a big line needs one clean picture under it; "~2,300 TREKKERS" sat on a split grid filling tile by tile
+  const BUSY = new Set(['split', 'break-in', 'postcard-band', 'photo-stack', 'cards-finale', 'strips-reveal']);
+  const busy = t.textStyles.some((x) => ['punch-caps', 'slam', 'big-title', 'type-stack'].includes(x)) ? t.parts.map((p, i) => (p.line && BUSY.has(p.move) && p.role !== 'hook' ? i : -1)).filter((i) => i >= 0) : [];
+  if (busy.length) out.push({ issue: `part${busy.length > 1 ? 's' : ''} ${busy.join(', ')} put${busy.length > 1 ? '' : 's'} a big line over a multi-picture move (${busy.map((i) => t.parts[i]!.move).join(', ')})`, fix: 'a big line reads on one full-frame shot: use cut, zoom-punch or hold under it, and keep grids and collages for parts without words' });
   // the drop
   if (ctx.song?.dropAtBeat !== undefined) {
     let at = 0;

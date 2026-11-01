@@ -21,7 +21,7 @@ import { RECIPE_TRANSITIONS } from '../assembler/transitions';
 import { lookById, lookEffects } from '../looks';
 import { focusForRange } from '../titleClear';
 import { buildGraphics, checkGraphics, coverFocus } from './graphics';
-import { MOTION_RULES, applyMotionRules } from './motionRules';
+import { MOTION_RULES, applyMotionRules, toneParams } from './motionRules';
 import { heardClip, songDuck, type NaturalWindow } from './naturalSound';
 import { traceShots } from './shotTrace';
 import { FLASHING_MOVES, markBehind, outlineOnFlash, tagLine } from './lineMarks';
@@ -239,8 +239,7 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
   const sectionMoments: number[][] = [];
   resolved.forEach((r, i) => {
     const { s, move } = r!;
-    // RS-1219: a held shot pushes as the tone moves, unless the plan set its push
-    const params = rule && move.id === 'hold' && s.params?.push === undefined && typeof r!.params.push === 'number' ? { ...r!.params, push: r!.params.push * rule.push } : r!.params;
+    const params = toneParams(rule, move.id, s.params, r!.params);
     const { b0, b1 } = spans[i]!;
     const start = frame(b0);
     const end = Math.max(start + 1, frame(b1));

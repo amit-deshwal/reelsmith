@@ -145,3 +145,24 @@ console.log('treatment promo: ok');
   assert.ok(checkTreatment(promo, { clips, fps, song, brand }).some((x) => /the arc is 40 beats.*/.test(x.issue) && /about 27 s/.test(x.fix ?? '') || /aim near 60 beats/.test(x.fix)));
   console.log('treatment promo copy: ok');
 }
+
+// RS-1245: the agent's promo of 2026-11-02: a one-shot hook, eleven 4-beat parts, a big line over a split grid
+{
+  const flat: Treatment = { ...ex, tone: 'hype', textStyles: ['punch-caps'], graphics: ['cta-card', 'handle-tag'], parts: [
+    { role: 'hook', beats: 4, move: 'hold', clips: ['#2@11'], line: 'STOP WASTING *WEEKENDS*.', purpose: 'the dare' },
+    ...Array.from({ length: 6 }, (_, i) => ({ role: 'journey' as const, beats: 4, move: i % 2 ? 'cut' : 'zoom-punch', clips: ['#1', '#3'], line: `LINE ${i}`, purpose: `beat ${i}` })),
+    { role: 'payoff', beats: 4, move: 'split', clips: ['#1', '#2', '#8'], line: '*~2,300* TREKKERS.', purpose: 'proof' },
+    { role: 'ending', beats: 12, move: 'black', purpose: 'the ask' },
+  ] };
+  const ff = checkTreatment(flat, { clips, fps, song: { bpm: 124, beatsFor18s: 36 } });
+  const has2 = (re: RegExp) => assert.ok(ff.some((x) => re.test(x.issue)), `${re}: ${ff.map((x) => x.issue).join(' | ')}`);
+  has2(/the hook is 1 shot of hold for 1\.9 s in a hype reel/);
+  has2(/8 of 9 parts are 4 beats long/);
+  has2(/part 7 puts a big line over a multi-picture move \(split\)/);
+  // a burst hook, varied lengths and a clean shot under the line pass
+  const good: Treatment = { ...flat, parts: flat.parts.map((p, i) => (i === 0 ? { ...p, move: 'flash-cuts', clips: ['#7', '#9', '#8', '#7@14', '#5'] } : i === 7 ? { ...p, move: 'zoom-punch', beats: 8 } : i % 2 ? { ...p, beats: 2 } : p)) };
+  assert.ok(!checkTreatment(good, { clips, fps, song: { bpm: 124, beatsFor18s: 36 } }).some((x) => /hook is|metronome|multi-picture/.test(x.issue)));
+  // a calm reel may open on one held shot
+  assert.ok(!checkTreatment({ ...flat, tone: 'calm', textStyles: ['rise-lines'] }, { clips, fps, song: { bpm: 124, beatsFor18s: 36 } }).some((x) => /hook is/.test(x.issue)));
+  console.log('treatment rhythm: ok');
+}

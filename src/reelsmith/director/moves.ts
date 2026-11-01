@@ -67,10 +67,20 @@ const cut: MoveDef = {
   params: [
     { id: 'every', type: 'number', label: 'Beats per shot', default: 2, min: 0.5, max: 8 },
     { id: 'transition', type: 'enum', label: 'Between shots', default: 'none', options: ['none', ...Object.keys(RECIPE_TRANSITIONS)] },
+    { id: 'punch', type: 'number', label: 'Punch-in on each cut (0 none; the tone sets it)', default: 0, min: 0, max: 0.3 },
   ],
   clipCount: (beats, p) => Math.ceil(beats / num(p.every, 2) - 1e-6),
   build: (ctx) => {
-    const ids = shots(ctx, 0, steps(ctx.beats, num(ctx.params.every, 2)), 'cut');
+    // RS-1245: Kino's cut lands every shot slightly zoomed and lets it snap back, then drifts in: the picture never sits
+    // dead between cuts. Ours held still in every plain cut section (motion per second 1-4 against Kino's 5-15).
+    const punch = num(ctx.params.punch, 0);
+    const cuts = steps(ctx.beats, num(ctx.params.every, 2));
+    const frames = [...cuts.map((b) => ctx.beatFrame(b)), ctx.end];
+    const settle = Math.max(3, Math.round(ctx.fps * 0.3));
+    const ids = shots(ctx, 0, cuts, 'cut', (i) => {
+      const len = Math.max(1, Math.min(ctx.end, frames[i + 1]!) - Math.max(ctx.start, frames[i]!));
+      return punch > 0 && len > settle + 2 ? { keyframes: { scale: [{ frame: 0, value: 1 + punch, easing: 'easeOut' }, { frame: settle, value: 1 }, { frame: len - 1, value: 1 + punch / 2 }] } } : {};
+    });
     const spec = RECIPE_TRANSITIONS[str(ctx.params.transition, 'none')];
     if (!spec) return;
     const shot = Math.max(2, ctx.beatFrame(num(ctx.params.every, 2)) - ctx.start);

@@ -290,4 +290,18 @@ assert.ok(volumes(music).every((v) => v === 0), 'under a song the clips are mute
   assert.deepEqual(caps.map((a) => a.item.props.lines.flat().filter((w: any) => w.hi).map((w: any) => w.w)), [['WEEKENDS'], ['THIS']]);
   assert.equal(caps[1].item.props.kicker, '5:48 AM');
 }
+// RS-1245: plain cuts in a hype reel land punched in and drift; a calm reel's cuts sit still; a plan's own punch wins
+{
+  const cutsOf = (tone: string | undefined, params?: Record<string, number>) => {
+    const pp = parsePlan({ ratio: '9:16', music: 'song', ...(tone ? { tone } : {}), sections: [{ move: 'cut', beats: 8, clips: ['walker', 'trail', 'ridge'], ...(params ? { params } : {}) }] });
+    assert.ok(pp.ok, pp.ok ? '' : pp.errors.join('; '));
+    const plan = (pp as { plan: ReelPlan }).plan;
+    const out = assemble({ recipe: directorRecipe(plan), clips, music, texts: {}, params: {}, seed: 3, plan });
+    return (out.action!.actions as any[]).filter((a) => a.type === 'add' && a.item.kind === 'video');
+  };
+  const hype = cutsOf('hype');
+  assert.ok(hype.length >= 3 && hype.every((a) => a.item.keyframes?.scale?.[0]?.value === 1.12 && a.item.keyframes.scale.at(-1).value === 1.06), JSON.stringify(hype.map((a) => a.item.keyframes)));
+  assert.ok(cutsOf('calm').every((a) => !a.item.keyframes?.scale));
+  assert.ok(cutsOf('hype', { punch: 0 }).every((a) => !a.item.keyframes?.scale));
+}
 console.log('assembleDirector.verify: ok');
