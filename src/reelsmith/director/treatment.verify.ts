@@ -166,3 +166,42 @@ console.log('treatment promo: ok');
   assert.ok(!checkTreatment({ ...flat, tone: 'calm', textStyles: ['rise-lines'] }, { clips, fps, song: { bpm: 124, beatsFor18s: 36 } }).some((x) => /hook is/.test(x.issue)));
   console.log('treatment rhythm: ok');
 }
+
+// RS-1247: the Torna promo of 2026-11-02 (no song): fast from the first frame to the card, flash-cuts and four
+// zoom-punch parts, so the drop at the top hit no harder than the climb
+{
+  const torna: Treatment = { ...ex, tone: 'epic', textStyles: ['punch-caps'], graphics: ['cta-card'], parts: [
+    { role: 'hook', beats: 4, move: 'zoom-punch', clips: ['#1', '#2', '#3', '#5'], line: 'NOBODY TOLD US', purpose: 'the hook' },
+    { role: 'journey', beats: 6, move: 'cut', clips: ['#1', '#3', '#2', '#7'], line: '4 AM · *PUNE*', purpose: 'the start' },
+    { role: 'build', beats: 6, move: 'zoom-punch', clips: ['#5', '#7', '#9'], line: '*CLIMB*', purpose: 'the effort' },
+    { role: 'drop', beats: 4, move: 'flash-cuts', clips: ['#8', '#9', '#1', '#2'], line: 'AT THE *TOP*', purpose: 'release' },
+    { role: 'peak', beats: 6, move: 'zoom-punch', clips: ['#3', '#5'], line: '*VIEWS*', purpose: 'the views' },
+    { role: 'payoff', beats: 4, move: 'flash-cuts', clips: ['#7', '#8'], line: '*TEMPLE*', purpose: 'the temple' },
+    { role: 'ending', beats: 8, move: 'black', purpose: 'the ask' },
+  ] };
+  const many = Array.from({ length: 20 }, (_, i) => ({ ...clips.find((c) => c.kind === 'video')!, n: 100 + i }));
+  const brand = { name: 'Pune Trekkers', words: 'free trekking group in Pune' };
+  const tf = checkTreatment(torna, { clips: [...clips, ...many], fps, brand });
+  const has3 = (re: RegExp, field: 'issue' | 'fix' = 'issue') => assert.ok(tf.some((x) => re.test(x[field])), `${re}: ${tf.map((x) => x.issue).join(' | ')}`);
+  has3(/2 parts are flash-cuts/);
+  has3(/5 of 7 parts are punch moves/);
+  has3(/before the drop \(parts 1-2\) a shot lasts 0\.9 s/);
+  has3(/the arc is 38 beats \(19\.0 s\)/);
+  has3(/aim near 72 beats \(about 36 s\)/, 'fix');
+  // a slow build into one fast drop passes
+  const built: Treatment = { ...torna, parts: [
+    { ...torna.parts[0]! },
+    { ...torna.parts[1]!, beats: 12, clips: ['#1', '#3'] },
+    { ...torna.parts[2]!, move: 'hold', beats: 10, clips: ['#5', '#7'] },
+    { ...torna.parts[3]! },
+    { ...torna.parts[4]!, move: 'cut', beats: 12 },
+    { ...torna.parts[5]!, move: 'cut', beats: 10, clips: ['#7', '#8', '#9'] },
+    { ...torna.parts[6]!, beats: 6 },
+  ] };
+  const bf = checkTreatment(built, { clips: [...clips, ...many], fps, brand });
+  assert.ok(!bf.some((x) => /flash-cuts|punch moves|before the drop|the arc is/.test(x.issue)), bf.map((x) => x.issue).join(' | '));
+  // a user who asks for a slow, cinematic opening is not pushed into a burst
+  const slow = checkTreatment({ ...built, story: 'slow cinematic build-up, then a big beat drop', parts: built.parts.map((p, i) => (i === 0 ? { ...p, move: 'hold', clips: ['#1'] } : p)) }, { clips, fps, brand });
+  assert.ok(!slow.some((x) => /open on a burst/.test(x.fix)));
+  console.log('treatment drop contrast: ok');
+}

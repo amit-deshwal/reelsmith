@@ -229,9 +229,14 @@ export function checkTreatment(t: Treatment, ctx: TreatmentContext): TreatmentFi
   const total = t.parts.reduce((s, p) => s + p.beats, 0);
   const seconds = total * beatSec;
   // RS-1243: a promo reel tells a little story and ends on a held card: about 27 s (Kino's better cut ran 30 s, ours 17.5 s)
-  const target = ctx.song?.beatsFor18s ? Math.round((ctx.song.beatsFor18s * (ctx.brand ? 1.5 : 1)) / 4) * 4 : 0;
+  // RS-1247: with 16+ videos a promo has the footage for about 36 s (the Torna promo used 21 of 26 clips in 21 s); without
+  // a song the target is counted on the 0.5 s clock
+  const videos = ctx.clips.filter((c) => c.kind === 'video').length;
+  const promoScale = ctx.brand ? (videos >= 16 ? 2 : 1.5) : 1;
+  const base = ctx.song?.beatsFor18s ?? (ctx.brand ? Math.round(18 / beatSec) : 0);
+  const target = base ? Math.round((base * promoScale) / 4) * 4 : 0;
   if (target && (total < target * (ctx.brand ? 0.8 : 0.6) || total > target * (ctx.brand ? 1.3 : 1.6))) {
-    out.push({ issue: `the arc is ${total} beats (${seconds.toFixed(1)} s)`, fix: `aim near ${target} beats (about ${ctx.brand ? 27 : 18} s) unless the user asked for a length` });
+    out.push({ issue: `the arc is ${total} beats (${seconds.toFixed(1)} s)`, fix: `aim near ${target} beats (about ${Math.round(target * beatSec)} s) unless the user asked for a length` });
   }
   const plain = t.parts.filter((p) => PLAIN_MOVES.has(p.move)).length;
   const distinct = new Set(t.parts.map((p) => p.move)).size;
@@ -252,9 +257,10 @@ export function checkTreatment(t: Treatment, ctx: TreatmentContext): TreatmentFi
   // per second 6 and 4) where Kino's cut five shots in 2.5 s (13-19): the first seconds were the calmest of the reel.
   const LIVELY = new Set(['hype', 'epic', 'playful', 'funny']);
   const BURST = new Set(['flash-cuts', 'zoom-punch', 'strips-reveal', 'velocity', 'speed-ramp', 'rewind', 'match-cut', 'freeze-intro']);
-  if ((ctx.brand || LIVELY.has(t.tone)) && !BURST.has(hook.move) && (hook.clips?.length ?? 0) < 3) {
+  const slowOpen = /\bslow(ly)?\b|build-?up|cinematic/i.test(t.story);
+  if ((ctx.brand || LIVELY.has(t.tone)) && !slowOpen && !BURST.has(hook.move) && (hook.clips?.length ?? 0) < 3) {
     const shotsN = Math.max(1, hook.clips?.length ?? 1);
-    out.push({ issue: `the hook is ${shotsN} shot${shotsN === 1 ? '' : 's'} of ${hook.move} for ${hookSec.toFixed(1)} s in a ${ctx.brand ? 'promo' : t.tone} reel`, fix: 'open on a burst: flash-cuts or zoom-punch through 4-5 of the best moving shots (every 0.5-1 beat) under the hook line; the first two seconds should be the busiest of the reel' });
+    out.push({ issue: `the hook is ${shotsN} shot${shotsN === 1 ? '' : 's'} of ${hook.move} for ${hookSec.toFixed(1)} s in a ${ctx.brand ? 'promo' : t.tone} reel`, fix: 'open on a burst: flash-cuts or zoom-punch through 4-5 of the best moving shots (every 0.5-1 beat) under the hook line for about 2 s, then let the build breathe' });
   }
   if (hookWords > 7) out.push({ issue: `the hook line is ${hookWords} words`, fix: 'open on 2-5 words (the sharpest part of their sentence); put the rest of it in the next part' });
   const first = hook.clips?.[0] ? clipOf(hook.clips[0], ctx.clips) : undefined;
@@ -269,6 +275,27 @@ export function checkTreatment(t: Treatment, ctx: TreatmentContext): TreatmentFi
     for (const p of t.parts) counts.set(p.beats, (counts.get(p.beats) ?? 0) + 1);
     const [len, n] = [...counts].sort((a, b) => b[1] - a[1])[0]!;
     if (n / t.parts.length >= 0.75) out.push({ issue: `${n} of ${t.parts.length} parts are ${len} beats long: the reel ticks like a metronome`, fix: 'vary the lengths with the story: a short burst for the hook, 2 beats for quick beats of the day, 6-8 for the payoff view and the proof, a long held ending; keep part changes on bar lines where the song asks for it' });
+  }
+  // RS-1247: a reel that is fast end to end has no drop. The Torna promo cut every 0.5-1 s from the first frame to the
+  // card (four zoom-punch parts, flash-cuts and flash transitions): the drop at the top hit no harder than the climb.
+  const PUNCH = new Set(['flash-cuts', 'zoom-punch', 'velocity', 'speed-ramp']);
+  const flashes = t.parts.filter((p) => p.move === 'flash-cuts').length;
+  if (flashes > 1) out.push({ issue: `${flashes} parts are flash-cuts`, fix: 'flash-cuts once, on the drop (2-4 beats); a hook burst uses zoom-punch' });
+  const punches = t.parts.filter((p) => PUNCH.has(p.move)).length;
+  if (t.parts.length >= 5 && punches > Math.max(2, Math.round(t.parts.length / 3))) {
+    out.push({ issue: `${punches} of ${t.parts.length} parts are punch moves (${t.parts.filter((p) => PUNCH.has(p.move)).map((p) => p.move).join(', ')})`, fix: 'two or three at most: the hook and the drop (and one hit later); the build and the story on cuts and holds' });
+  }
+  let dropAt = -1;
+  if (ctx.song?.dropAtBeat !== undefined) { let at = 0; dropAt = t.parts.findIndex((p) => { const hit = ctx.song!.dropAtBeat! < at + p.beats; at += p.beats; return hit; }); }
+  if (dropAt < 0) dropAt = t.parts.findIndex((p) => p.role === 'drop');
+  if (dropAt > 1) {
+    const before = t.parts.slice(1, dropAt);
+    const beats = before.reduce((n, p) => n + p.beats, 0);
+    const shots = before.reduce((n, p) => n + Math.max(1, p.clips?.length ?? 1), 0);
+    const shotSec = (beats * beatSec) / shots;
+    if (before.every((p) => PUNCH.has(p.move)) || shotSec < 1.5) {
+      out.push({ issue: `before the drop (parts 1-${dropAt - 1}) a shot lasts ${shotSec.toFixed(1)} s: as fast as the drop, so the drop does not land`, fix: `let the build breathe: 2-3 s shots (cut with every ${Math.round(2 / beatSec)}-${Math.round(3 / beatSec)}, or a hold), no punch moves, so part ${dropAt} is the first fast part` });
+    }
   }
   // RS-1245: a big line needs one clean picture under it; "~2,300 TREKKERS" sat on a split grid filling tile by tile
   const BUSY = new Set(['split', 'break-in', 'postcard-band', 'photo-stack', 'cards-finale', 'strips-reveal']);
@@ -317,7 +344,7 @@ export function checkTreatment(t: Treatment, ctx: TreatmentContext): TreatmentFi
   if (ctx.reference && !t.styleGuide) out.push({ issue: `there is a reference reel (${ctx.reference.name}) and no styleGuide`, fix: 'write styleGuide from its measurements and sheet: pacing (seconds or beats a shot), palette (its colours in words), type, motion (snap, glide, hold), texture, and doNotCopy (its subjects, words and logos)' });
   // RS-1239: a promo reel asks for one thing at the end, and says who made it
   if (ctx.brand) {
-    if (!t.graphics.includes('cta-card')) out.push({ issue: `a promo reel for ${ctx.brand.name} with no end card`, fix: `add cta-card to the graphics on the ending: "${ctx.brand.name} / ${ctx.brand.action ?? '<one action from the brand kit>'} / link in bio", 6-12 beats` });
+    if (!t.graphics.includes('cta-card')) out.push({ issue: `a promo reel for ${ctx.brand.name} with no end card`, fix: `add cta-card to the graphics on the ending: "${ctx.brand.name} / ${ctx.brand.action ?? '<one action from the brand kit>'} / link in bio", about 3 s` });
     if (!t.graphics.includes('handle-tag') && t.parts.length >= 4) out.push({ issue: `nothing names ${ctx.brand.name} until the end`, fix: 'a handle-tag (the @handle or the name) from the part after the hook to the end card' });
   }
   // who the story names
