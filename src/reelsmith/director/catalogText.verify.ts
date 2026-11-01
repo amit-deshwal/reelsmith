@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { withCatalog, CATALOG_START } from './catalogText';
+import { catalogueFiles, withCatalog, CATALOG_START } from './catalogText';
 import { MOVES, TEXT_STYLES } from './moves';
 import { DIRECTOR_EFFECTS, DIRECTOR_TRANSITIONS } from './catalog';
 import { DIRECTOR_SOUNDS } from './sfx';
@@ -15,13 +15,19 @@ import { directorSession, updateDirectorSession } from './directorSession';
 // the skill carries the current catalogue (run sync-director-catalog.mts after changing the library)
 const skill = readFileSync(new URL('../../agent/skills/reels-director/SKILL.md', import.meta.url), 'utf8');
 assert.equal(withCatalog(skill), skill, 'the reels-director catalogue is stale: npx tsx src/reelsmith/director/sync-director-catalog.mts');
-const cat = skill.slice(skill.indexOf(CATALOG_START));
+// RS-1244: the full menu is in support files; SKILL.md carries the move, style and graphic ids
+const refs = Object.fromEntries(['references/catalogue.md', 'references/catalogue-fx.md', 'references/examples.md', 'references/promo.md', 'references/changes.md']
+  .map((r) => [r, readFileSync(new URL(`../../agent/skills/reels-director/${r}`, import.meta.url), 'utf8')]));
+for (const [rel, text] of Object.entries(catalogueFiles())) assert.equal(refs[rel], text, `${rel} is stale: npx tsx src/reelsmith/director/sync-director-catalog.mts`);
+const cat = refs['references/catalogue.md']! + refs['references/catalogue-fx.md']!;
+const ids = skill.slice(skill.indexOf(CATALOG_START));
+for (const id of [...MOVES.map((m) => m.id), ...TEXT_STYLES.map((t) => t.id), ...GRAPHICS.map((g) => g.id)]) assert.ok(ids.includes(`\`${id}\``), `SKILL.md names ${id}`);
 for (const id of [...MOVES.map((m) => m.id), ...TEXT_STYLES.map((t) => t.id), ...DIRECTOR_EFFECTS.map((e) => e.id.replace('builtin:fx-', '')), ...DIRECTOR_TRANSITIONS.map((t) => t.id), ...GRAPHICS.map((g) => g.id)]) {
   assert.ok(cat.includes(`\`${id}\``), `catalogue lists ${id}`);
 }
 // the hand-written part never drifts from the code: its example plan and overlay snippet pass the plan check, and every
 // kebab-case id it names is in the catalogue (a renamed move or style would otherwise send the agent into a refused build)
-const hand = skill.slice(0, skill.indexOf(CATALOG_START));
+const hand = skill.slice(0, skill.indexOf(CATALOG_START)) + refs['references/examples.md'] + refs['references/promo.md'] + refs['references/changes.md'];
 const known = new Set([...MOVES.map((m) => m.id), ...TEXT_STYLES.map((t) => t.id), ...DIRECTOR_EFFECTS.map((e) => e.id.replace('builtin:fx-', '')), ...DIRECTOR_TRANSITIONS.map((t) => t.id), ...DIRECTOR_SOUNDS.map((x) => x.id), ...REEL_LOOKS.map((l) => l.id), ...GRAPHICS.map((g) => g.id)]);
 const named = [...hand.replace(/```[\s\S]*?```/g, '').matchAll(/`([a-z0-9]+(?:-[a-z0-9]+)+)`/g)].map((m) => m[1]!);
 assert.deepEqual(named.filter((id) => !known.has(id)), [], 'ids the skill names that the catalogue lacks');
@@ -36,8 +42,11 @@ const checkPlan = (raw: unknown, what: string) => {
 const example = checkPlan(JSON.parse(/```json\n([\s\S]*?)```/.exec(hand)![1]!), 'the example plan');
 const overlay = /`("overlays": \[[^`]*\])`/.exec(hand)![1]!;
 checkPlan({ ...JSON.parse(`{${overlay}}`), sections: example.sections }, 'the overlay snippet');
-// the whole skill loads in one load_skill result (64k characters with its metadata)
-assert.ok(skill.length < 56_000, `skill is ${skill.length} characters`);
+// RS-1244: each file loads whole in one load_skill result. A 54k SKILL.md reached the claude CLI as "Output too large"
+// (saved to a file it could not open) and the agent read characters 1,800-25,800 of it; 27k results arrive whole.
+assert.ok(skill.length < 25_000, `SKILL.md is ${skill.length} characters`);
+for (const [rel, text] of Object.entries(refs)) assert.ok(text.length < 18_000, `${rel} is ${text.length} characters`);
+assert.ok(refs['references/catalogue.md']!.length + refs['references/promo.md']!.length < 22_000, 'the first catalogue call with the promo guide stays readable');
 
 // options stay far under the 16k-character limit above which an external agent only gets an artifact pointer
 const assets = Array.from({ length: 60 }, (_, i) => ({ id: `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`, name: `IMG_${7800 + i}.MOV`, kind: 'video', src: '/x', durationInFrames: 300, width: 1080, height: 1920 }));

@@ -11,7 +11,7 @@ import type { WindowFeatures } from '../assembler/scoring';
 for (const tone of TONES) for (const id of [...TONE_KIT[tone].prefer, ...TONE_KIT[tone].avoid]) assert.ok(catalogKind(id), `${tone}: ${id} is not in the catalogue`);
 
 // the skill's example treatment parses, needs no fixes, and its kit's entries fit well under the 16k result cap
-const skill = readFileSync(new URL('../../agent/skills/reels-director/SKILL.md', import.meta.url), 'utf8');
+const skill = readFileSync(new URL('../../agent/skills/reels-director/references/examples.md', import.meta.url), 'utf8');
 const example = parseTreatment(JSON.parse(/```json treatment\n([\s\S]*?)```/.exec(skill)![1]!));
 assert.ok(example.ok, example.ok ? '' : example.errors.join('; '));
 const ex = example.treatment;
