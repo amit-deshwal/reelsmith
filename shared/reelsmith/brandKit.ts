@@ -174,6 +174,6 @@ export function brandKitText(kit: BrandKit): Record<string, unknown> {
     links: kit.links.map((l) => `${l.kind}: ${l.label}`),
     ...(kit.colors.length ? { colors: kit.colors, endCard: brandPalette(kit.colors) } : {}),
     ...(kit.fonts.length ? { fonts: kit.fonts } : {}),
-    use: 'These are the user\'s words for this reel: the hook, the lines and the end card may quote them (trimmed, never reworded; no numbers or claims the page does not state). End on a cta-card: the name, ONE action from actions/links ("Join free on WhatsApp"), and the link line ("link in bio" or the handle); a handle-tag from after the hook. Give the cta-card the endCard colours: accent (the button and the handle dot, light enough to read over footage) and, when there is one, background with solid true (the brand colour behind the name). Never a dark button over dark footage.',
+    use: 'Write the promo\'s lines yourself in punch-caps, one on every part, from what this page says: its problem and promise, its facts (numbers only from facts and lines, never invented), who it welcomes, its price. End on a cta-card held 8-12 beats: kicker, the name, tagline (from the page), ONE action from actions/links, "link in bio · <site>", ask "save-tag"; a handle-tag from after the hook. Colours: the endCard accent for the button, the key-word boxes and the handle dot; background (solid true) behind the card. Never a dark button over dark footage.',
   };
 }

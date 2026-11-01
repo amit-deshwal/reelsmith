@@ -11,6 +11,7 @@ export const CTA_ASKS: Record<string, string> = {
   share: 'SEND THIS TO A FRIEND',
   follow: 'FOLLOW FOR MORE',
   'save-share': 'SAVE THIS · SEND IT TO A FRIEND',
+  'save-tag': 'SAVE THIS + TAG A FRIEND',
 };
 
 export const CTA_CARD_CODE = graphicComponent('CtaCard', String.raw`
@@ -40,8 +41,10 @@ export const CTA_CARD_CODE = graphicComponent('CtaCard', String.raw`
     ? h(AbsoluteFill, { style: { background: 'radial-gradient(circle at 50% 40%, ' + bg + ' 0%, ' + bg + ' 55%, rgba(0,0,0,0.9) 140%)', opacity: smooth(t / 0.25) } })
     : h(AbsoluteFill, { style: { background: 'rgba(0,0,0,' + (0.55 * smooth(t / 0.3)).toFixed(3) + ')' } });
   const col = box({ left: cx - W * 0.42, width: W * 0.84, top, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }, [
+    P.kicker ? h('div', { key: 'kk', style: { marginBottom: fs * 0.5, fontFamily: 'Inter', fontWeight: 700, fontSize: fs * 0.72, color, opacity: 0.95 * smooth(t / 0.25), textShadow: solid ? 'none' : shadow } }, P.kicker) : null,
     name ? h('div', { key: 'n', style: { fontFamily: 'Anton', fontWeight: 400, fontSize: fsName, lineHeight: 1, letterSpacing: fsName * 0.02, color, textTransform: 'uppercase', textShadow: solid ? 'none' : shadow,
       transform: 'translateY(' + ((1 - nameIn) * fsName * 0.6).toFixed(1) + 'px) scale(' + (0.85 + 0.15 * nameIn).toFixed(3) + ')', opacity: smooth(t / 0.2) } }, name) : null,
+    P.tagline ? h('div', { key: 'tg', style: { marginTop: fs * 0.45, fontFamily: 'Inter', fontWeight: 800, fontSize: fs * 0.6, letterSpacing: fs * 0.08, color: lum(accent) > 0.3 ? accent : color, textTransform: 'uppercase', opacity: smooth((t - 0.25) / 0.25) } }, P.tagline) : null,
     action ? h('div', { key: 'a', style: { marginTop: fs * 1.1, padding: (fs * 0.55).toFixed(1) + 'px ' + (fs * 1.2).toFixed(1) + 'px', borderRadius: fs * 2, background: accent, color: onAccent, border: lum(accent) < 0.08 && !solid ? '2px solid rgba(255,255,255,0.85)' : 'none', fontFamily: 'Inter', fontWeight: 900, fontSize: fs * 1.05,
       boxShadow: '0 ' + (fs * 0.25).toFixed(1) + 'px ' + (fs * 0.9).toFixed(1) + 'px rgba(0,0,0,0.4)', transform: 'scale(' + (Math.max(0, actIn) * pulse).toFixed(3) + ')', opacity: smooth((t - 0.35) / 0.12) } }, action) : null,
     sub ? h('div', { key: 's', style: { marginTop: fs * 0.9, fontFamily: 'Inter', fontWeight: 700, fontSize: fs * 0.8, letterSpacing: fs * 0.04, color, opacity: 0.92 * subIn, textShadow: solid ? 'none' : shadow,

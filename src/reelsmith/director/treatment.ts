@@ -59,19 +59,19 @@ export const TONE_KIT: Record<Tone, { prefer: string[]; avoid: string[] }> = {
     avoid: [...PLAYFUL_TEXT, ...GLITCHY, ...CARTOONY, ...PARTY, ...BOUNCY, 'slam', 'words-on-beat', 'caption'],
   },
   epic: {
-    prefer: ['cinematic-title', 'landscape-title', 'slam', 'rise-lines', 'tracking-in', 'split-reveal', 'zoom-through', 'whip-blur', 'impact-shake', 'radial-blur', 'flash', 'dipToBlack', 'zoom-blur', 'shake', 'light-rays', 'cinema-bars', 'anamorphic-flare', 'velocity', 'speed-ramp', 'strips-reveal', 'zoom-punch'],
+    prefer: ['punch-caps', 'cinematic-title', 'landscape-title', 'slam', 'rise-lines', 'tracking-in', 'split-reveal', 'zoom-through', 'whip-blur', 'impact-shake', 'radial-blur', 'flash', 'dipToBlack', 'zoom-blur', 'shake', 'light-rays', 'cinema-bars', 'anamorphic-flare', 'velocity', 'speed-ramp', 'strips-reveal', 'zoom-punch'],
     avoid: [...PLAYFUL_TEXT, ...CARTOONY, ...PARTY, ...BOUNCY, 'caption'],
   },
   hype: {
-    prefer: ['rewind', 'slam', 'words-on-beat', 'glitch', 'title-shuffle', 'split-reveal', 'neon', 'glitch-cut', 'flash', 'spin-zoom', 'prism-flash', 'impact-shake', 'zoom-through', 'whip-blur', 'rgb-split', 'zoom-blur', 'shake', 'bounce', 'blackout', 'flash-cuts', 'zoom-punch', 'velocity'],
+    prefer: ['punch-caps', 'rewind', 'slam', 'words-on-beat', 'glitch', 'title-shuffle', 'split-reveal', 'neon', 'glitch-cut', 'flash', 'spin-zoom', 'prism-flash', 'impact-shake', 'zoom-through', 'whip-blur', 'rgb-split', 'zoom-blur', 'shake', 'bounce', 'blackout', 'flash-cuts', 'zoom-punch', 'velocity'],
     avoid: ['crossfade', 'light-dissolve', 'pro-mist', 'typewriter', 'watercolor', 'pencil-sketch'],
   },
   playful: {
-    prefer: ['rewind', 'pop-words', 'highlight', 'wave', 'follow-tag', 'draw-on', 'words-on-beat', 'sticker', 'annotate', 'chat-bubbles', 'notification', 'slide-over', 'tile-pop', 'whip-blur', 'zoomIn', 'bounce', 'subject-pop', 'freeze-intro', 'photo-stack'],
+    prefer: ['punch-caps', 'rewind', 'pop-words', 'highlight', 'wave', 'follow-tag', 'draw-on', 'words-on-beat', 'sticker', 'annotate', 'chat-bubbles', 'notification', 'slide-over', 'tile-pop', 'whip-blur', 'zoomIn', 'bounce', 'subject-pop', 'freeze-intro', 'photo-stack'],
     avoid: ['cinema-bars', 'film-grain', 'moody-bleach', 'dipToBlack'],
   },
   funny: {
-    prefer: ['rewind', 'pop-words', 'highlight', 'follow-tag', 'caption', 'slam', 'annotate', 'sticker', 'chat-bubbles', 'notification', 'loading-bar', 'freeze-intro', 'zoom-punch', 'whip-blur', 'impact-shake', 'bounce', 'subject-pop'],
+    prefer: ['punch-caps', 'rewind', 'pop-words', 'highlight', 'follow-tag', 'caption', 'slam', 'annotate', 'sticker', 'chat-bubbles', 'notification', 'loading-bar', 'freeze-intro', 'zoom-punch', 'whip-blur', 'impact-shake', 'bounce', 'subject-pop'],
     avoid: ['cinema-bars', 'light-dissolve', 'crossfade', 'pro-mist', 'moody-bleach'],
   },
   emotional: {
@@ -228,8 +228,10 @@ export function checkTreatment(t: Treatment, ctx: TreatmentContext): TreatmentFi
   // the arc
   const total = t.parts.reduce((s, p) => s + p.beats, 0);
   const seconds = total * beatSec;
-  if (ctx.song?.beatsFor18s && (total < ctx.song.beatsFor18s * 0.6 || total > ctx.song.beatsFor18s * 1.6)) {
-    out.push({ issue: `the arc is ${total} beats (${seconds.toFixed(1)} s)`, fix: `aim near ${ctx.song.beatsFor18s} beats (about 18 s) unless the user asked for a length` });
+  // RS-1243: a promo reel tells a little story and ends on a held card: about 27 s (Kino's better cut ran 30 s, ours 17.5 s)
+  const target = ctx.song?.beatsFor18s ? Math.round((ctx.song.beatsFor18s * (ctx.brand ? 1.5 : 1)) / 4) * 4 : 0;
+  if (target && (total < target * (ctx.brand ? 0.8 : 0.6) || total > target * (ctx.brand ? 1.3 : 1.6))) {
+    out.push({ issue: `the arc is ${total} beats (${seconds.toFixed(1)} s)`, fix: `aim near ${target} beats (about ${ctx.brand ? 27 : 18} s) unless the user asked for a length` });
   }
   const plain = t.parts.filter((p) => PLAIN_MOVES.has(p.move)).length;
   const distinct = new Set(t.parts.map((p) => p.move)).size;
@@ -268,9 +270,17 @@ export function checkTreatment(t: Treatment, ctx: TreatmentContext): TreatmentFi
     if (n && n / (p.beats * beatSec) > 3) out.push({ issue: `part ${i}: "${p.line}" is ${n} words in ${(p.beats * beatSec).toFixed(1)} s`, fix: 'fewer words or more beats (about 3 words a second at most)' });
   });
   // the user's words
-  if (!t.ownWords) {
+  // RS-1243: a promo reel is copywriting: lines of the director's own, but every number and claim from the page or the user
+  if (ctx.brand) {
+    const known = `${t.story} ${ctx.brand.words}`;
+    const numbers = t.parts.flatMap((p) => (p.line ?? '').match(/\d[\d,.]*\+?%?/g) ?? []).filter((n) => !known.includes(n.replace(/[+%]$/, '')) && !(ctx.clock && /^\d{1,2}[:.]\d{2}$/.test(n)));
+    if (numbers.length) out.push({ issue: `numbers the page and the user never gave: ${[...new Set(numbers)].join(', ')}`, fix: 'use only the brand kit\'s facts and the user\'s numbers; clock times only from the log\'s "filmed" times' });
+    const bare = t.parts.map((p, i) => (p.line || p.role === 'ending' ? -1 : i)).filter((i) => i >= 0);
+    if (bare.length) out.push({ issue: `part${bare.length > 1 ? 's' : ''} ${bare.join(', ')} carr${bare.length > 1 ? 'y' : 'ies'} no line`, fix: 'a promo reel has a short punch-caps line on every part (one beat of the story each: the problem, the alternative, the day, a joke, the payoff, the proof, the price, the ask); a part with nothing to say is cut' });
+  }
+  if (!t.ownWords && !ctx.brand) {
     // RS-1239/1240: a promo reel's page and the clips' own filming times are the user's words too
-    const said = new Set([...words(t.story), ...(ctx.brand ? words(ctx.brand.words) : []), ...(ctx.clock ? ['am', 'pm', 'day'] : [])]);
+    const said = new Set([...words(t.story), ...(ctx.clock ? ['am', 'pm', 'day'] : [])]);
     const added = t.parts.flatMap((p) => (p.line ? words(p.line).filter((w) => !said.has(w)) : []));
     if (added.length) out.push({ issue: `words the user did not write: ${[...new Set(added)].join(', ')}`, fix: 'quote their phrases as written (trim, never reword); set ownWords only when they asked for lines of your own' });
   }

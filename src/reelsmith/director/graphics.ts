@@ -144,10 +144,10 @@ export const GRAPHICS: readonly GraphicDef[] = [
   },
   {
     id: 'cta-card', name: 'End card', code: CTA_CARD_CODE,
-    looks: 'The name lands big, a pill button with the one action pops in and breathes on the beat, the link line under it, and an optional "save this" ask in a small white box; the picture dims (or a solid brand colour).',
-    use: 'The ending of a promo reel (a club, a shop, a page, an event): "PUNE TREKKERS / Join free on WhatsApp / link in bio". Only the brand\'s own name, action and link (from the brand kit or the user). 6-12 beats on the last section, over a calm shot or a black section.',
+    looks: 'An optional line above, the name big, the brand tagline under it, a pill button with the one action that breathes on the beat, the link line, and an optional "save this" ask in a small white box; the picture dims (or a solid brand colour).',
+    use: 'The ending of a promo reel (a club, a shop, a page, an event): "PUNE TREKKERS / Join free on WhatsApp / link in bio". Only the brand\'s own name, action and link (from the brand kit or the user). Hold it 8-12 beats (about 5 s) on the last section, solid with the brand background for a promo.',
     text: { required: true, max: 90, items: [1, 3], hint: 'name / action / link line, split with "/"' },
-    params: [choice('ask', 'Engagement ask under it', Object.keys(CTA_ASKS)), { id: 'solid', type: 'boolean', label: 'Solid background instead of the dimmed picture', default: false }, color('background', 'Solid background (the brand colour)', '#0f2a1d'), color('accent', 'Button colour (the brand colour)', '#ffb020'), color('color', 'Text colour', '#ffffff'), Y],
+    params: [choice('ask', 'Engagement ask under it', Object.keys(CTA_ASKS)), words('kicker', 'Small line above the name ("Your next weekend is sorted.")'), words('tagline', 'The brand\'s tagline under the name, from the page'), { id: 'solid', type: 'boolean', label: 'Solid background instead of the dimmed picture', default: false }, color('background', 'Solid background (the brand colour)', '#0f2a1d'), color('accent', 'Button colour (the brand colour)', '#ffb020'), color('color', 'Text colour', '#ffffff'), Y],
     sounds: (g) => [{ sec: 0.1, cue: 'whoosh-soft' }, ...(g.items[1] ? [{ sec: 0.4, cue: 'pop' as SfxCue }] : []), ...(g.params.ask && g.params.ask !== 'none' ? [{ sec: 1.0, cue: 'click' as SfxCue }] : [])],
   },
   {

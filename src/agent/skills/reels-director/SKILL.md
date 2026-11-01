@@ -13,7 +13,7 @@ Work in four stages, each with its own tool. Do the thinking each stage asks for
 ## Before stage 1
 
 - **Ask only what is missing**, in one message, at most two questions: the story if there is none; the song only if the user says they will add one and none is imported (then ask them to import it instead of picking a library song). A song playing in the clips' own audio is not missing: with no song imported, build on the clips' sound (no `music`). Build from whatever media is imported; never ask about effects, ratio or fonts, or whether to go ahead with fewer clips.
-- **A promo reel** (the user names a club, shop, page, event or business, or gives its website): pass the address as `brandUrl` in stage 1. Its brand kit (name, tagline, lines, facts, actions, links, colours) is then the user's words for the reel, alongside anything they wrote; with no website, ask in one message for the name, the one thing viewers should do ("Join on WhatsApp", "Book a table") and the @handle. Never write slogans or claims the page does not make.
+- **A promo reel** (the user names a club, shop, page, event or business, or gives its website): pass the address as `brandUrl` in stage 1. A promo is copywriting: you write the lines (punchy, in the page's voice), but every number, price and claim comes from the brand kit or the user; never invent one. With no website, ask in one message for the name, the one thing viewers should do ("Join on WhatsApp", "Book a table") and the @handle.
 - **Not every request is a montage.** If the user wants the whole clip with only a moment left out (or just text added), do not direct a reel: cut that range out with the editor tools, keep the clip's sound, add their lines, and say so in one line.
 
 ## Stage 1: watch the footage (`reels_director_options`)
@@ -54,7 +54,16 @@ How to shape it:
 - **Vary the moves**: never the same move twice in a row; at least three different moves in a reel of four or more parts; plain cuts and holds for at most half of it.
 - **Creator signatures** (one per reel): `velocity` (the best action shot), `rewind` (a jump, fall or splash played, rewound and played again: funny or hype), `photo-3d` (a portrait or a person in front of a view), `freeze-intro` (introduce someone), `match-cut`, `talk-zoom` (a piece to camera), a line with `textBehind` on a clear person, or one effect timed to the drop.
 - **A story told by the clock**: when the log has "filmed" times and the story is a day (a trek, a wedding, a trip day), mark the turns with them: a `typewriter` line or `location-tag` sub ("4:12 am", "6:45 am · the fort"), in order, on 3-5 parts, never invented. Over several days, "day 2" on a `chapter-bar` or `split-reveal` instead.
-- **A promo reel** is hook → proof → who it is for → ask. Hook: the tagline's sharpest words or its strongest fact; proof: the best action with the page's facts as lines (`count-up` for "2,300+ trekkers"); who it is for: a line from the page ("solo or first-timer? you're welcome") on people together; the ask: a `cta-card` on the last 6-12 beats (name / one action / "link in bio" or the handle; `ask` "save" or "share" when it fits) and a `handle-tag` from the part after the hook. Use the kit's colours as the end card's `accent` and `background` and in your text styles' colour params; hype or epic tone unless the page is calm (a cafe, a spa).
+- **A promo reel** (about 27 s: `beatsFor18s` x 1.5) is a little story with a line on EVERY part, all in `punch-caps` (one style, the key word of each line in its box: `*WEEKENDS*`). The shape that worked (Kino's Pune Trekkers cut, which beat ours):
+  1. hook, 4-5 beats over flash-cuts or zoom-punch of the best action: the problem the page solves, as a dare: "STOP WASTING YOUR *WEEKENDS* IN PUNE."
+  2. the turn: "DO *THIS* INSTEAD." on the first people shot;
+  3. the day in 3-5 short beats, each with a `kicker` (a filmed time "4:12 AM", or a place): "FIRST LIGHT.", "THE *FORT* APPEARS.", "GEAR UP.", "*CLIMB.*";
+  4. one relatable joke on a face: "LEGS: DEAD. MOOD: *ELITE*.";
+  5. the payoff on the hero view: "THEN YOU GET *THIS* VIEW.";
+  6. the proof from the page's facts and lines: "NO AGENCY. NO *MARKUP*. NO PROFIT." (kicker "100% volunteer-run"), "*2,300+* STRANGERS. ONE TREK GANG.";
+  7. the price or the catch: "AND IT'S *FREE* TO JOIN.";
+  8. a `cta-card` held 8-12 beats, `solid` with the dark brand colour as `background` and a light `accent`: kicker "Your next weekend is sorted.", name, `tagline` from the page, the one action, "link in bio · <site>", `ask` "save-tag".
+  A `handle-tag` from part 2 to the card. Lines are 2-6 words; plain cuts with `zoom-punch` and short `flash` transitions carry it; hype or epic tone unless the page is calm (a cafe, a spa).
 - **Graphics show what the story names.** Go through its words: a person ("bro", "mom", a name) → `annotate` (a marker arrow labelled with their word, on a calm shot where they are clear; never over `velocity`, `speed-ramp` or fast cuts) or a `follow-tag`; two places → `route-map` (`boarding-pass` for a flight); numbers → `hud-stats` or `count-up`; days or chapters → one `chapter-bar`; a conversation they wrote → `chat-bubbles` or `notification`; into the drop → `countdown`; throwback footage → `camcorder`; the punchline in 2-5 big words → `type-stack`. `confetti` and `sticker` only in playful or funny reels. One or two per reel, never two at once.
 
 ```json treatment
@@ -150,6 +159,7 @@ The reveal opens on movement with four words; the arrow names bro on a calm hold
 - **In-picture text needs the right shot**: `landscape-title` needs open sky above the scenery; `behind-you` needs one clear person; neither works on close-ups or indoors.
 - **Transitions mark changes**, one family per reel: `film-burn` for vintage travel, `prism-flash` for fashion and nights, `flip-3d` for sports, `mirror-flip` for before/after, `brush-wipe` for journals, `pixelate` for tech, `blur-focus` for memories, `light-dissolve` and `zoom-through` for grand journeys.
 - **Few effects, all moving with the music**; `bounce` and `blackout` only with timing `beat`; `sparkle` only for real highlights in a playful reel; `flare-sweep` for golden hour and open sky.
+- **Clean picture over tricks**: a white flash lasts 2-5 frames; `dipToWhite`, `light-dissolve` or bloom over a bright sky washes the frame out for a second, and `velocity` blur over a whole section reads as a smeared shot. One velocity per reel at most, never in a promo's proof or payoff.
 - **Hit the drop with everything at once**: that one moment, done fully, sells the reel.
 - **Graphics are information, not glitter**: each tells part of the story.
 - **Let the best shot breathe**: give the hero view a `hold` or the `cards-finale` closer.
@@ -207,6 +217,7 @@ The reveal opens on movement with four words; the arrow names bro on a calm hold
 - `draw-on` (≤24 chars) — Elegant openers, memories, a handmade feel.
 - `shine` (≤24 chars) — Celebrations, achievements, luxury, the summit moment.
 - `pop-words` (≤90 chars) — Talking, storytelling, a spoken-style line in the lower third.
+- `punch-caps` (≤60 chars) — The Instagram hook and story lines of a hype, promo or trip reel: "STOP WASTING YOUR *WEEKENDS* IN PUNE.", "LEGS: DEAD. MOOD: *ELITE*." One line on every section, the same style all through; kicker for a time, a place or a fact.
 - `behind-you` (≤14 chars) — A clear person in the shot (portrait, dance, walking to camera). One short word: the place, a mood ("FREEDOM").
 - `landscape-title` (≤16 chars) — The place name over a wide view with open sky (mountains, sea, desert, skyline). Not for indoor or close shots.
 - `follow-tag` (≤24 chars) — Name or role of the person in the shot ("me", "the planner", "@friend"), a short joke label. Needs one clear person in video footage.
@@ -225,7 +236,7 @@ The reveal opens on movement with four words; the arrow names bro on a calm hold
 - `loading-bar` — A chunky retro loading bar fills in stutters, hangs at 99%, then completes with a pop and the done line. A meme intro or build-up: "loading weekend... / 100% vacation". 4-8 beats; ends where the payoff starts.
 - `camcorder` — A camcorder viewfinder: corner brackets, a blinking REC dot, a running timecode, a battery and an orange date stamp. Throwbacks, vlogs, "the footage from that night", with retro looks. Spans several sections. The date only if the user gave it.
 - `type-stack` — Huge condensed words stack to fill the frame; each is revealed by a colour block that wipes in and off on its beat; the rows leave upward together. The motion-designer hook or the punchline: "ONE / LAST / TRIP". 2-5 words, one per beat. Over dimmed footage, or solid on a black section.
-- `cta-card` — The name lands big, a pill button with the one action pops in and breathes on the beat, the link line under it, and an optional "save this" ask in a small white box; the picture dims (or a solid brand colour). The ending of a promo reel (a club, a shop, a page, an event): "PUNE TREKKERS / Join free on WhatsApp / link in bio". Only the brand's own name, action and link (from the brand kit or the user). 6-12 beats on the last section, over a calm shot or a black section.
+- `cta-card` — An optional line above, the name big, the brand tagline under it, a pill button with the one action that breathes on the beat, the link line, and an optional "save this" ask in a small white box; the picture dims (or a solid brand colour). The ending of a promo reel (a club, a shop, a page, an event): "PUNE TREKKERS / Join free on WhatsApp / link in bio". Only the brand's own name, action and link (from the brand kit or the user). Hold it 8-12 beats (about 5 s) on the last section, solid with the brand background for a promo.
 - `handle-tag` — A small dark pill in the top-left corner with a coloured dot and the handle or name; slides in and stays. A promo reel's name or @handle on screen while the story plays ("@punetrekkers"), so a viewer who skips the end still knows who made it. Spans the sections after the hook up to the end card; never over the hook's first second.
 
 ### Effects

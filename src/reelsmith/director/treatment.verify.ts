@@ -130,3 +130,18 @@ assert.ok(checkTreatment({ ...ex, parts: ex.parts.map((p, i) => (i === 0 ? { ...
 // RS-1240: clock times from the clips' own metadata count as theirs
 assert.ok(!checkTreatment({ ...ex, parts: ex.parts.map((p, i) => (i === 1 ? { ...p, line: '4:12 am' } : p)) }, { clips, fps, song, clock: true }).some((x) => /did not write: am/.test(x.issue)));
 console.log('treatment promo: ok');
+
+// RS-1243: a promo is copywriting (Kino's cut beat ours with lines of its own), but no invented numbers, a line on every
+// part, and about 27 s
+{
+  const lines = ['STOP WASTING YOUR *WEEKENDS* IN PUNE.', 'DO *THIS* INSTEAD.', 'LEGS: DEAD. MOOD: *ELITE*.', '*2,300+* STRANGERS.', 'AND IT\'S *FREE* TO JOIN.', ''];
+  const copy: Treatment = { ...promo, graphics: ['cta-card', 'handle-tag'], parts: ex.parts.map((p, i) => ({ ...p, beats: p.beats * 1.5, line: lines[i] || undefined })) };
+  const cf = checkTreatment(copy, { clips, fps, song, brand });
+  assert.ok(!cf.some((x) => /did not write|numbers|no line|the arc is/.test(x.issue)), cf.map((x) => x.issue).join(' | '));
+  const invented = checkTreatment({ ...copy, parts: copy.parts.map((p, i) => (i === 3 ? { ...p, line: '5,000 TREKKERS' } : p)) }, { clips, fps, song, brand });
+  assert.ok(invented.some((x) => /numbers the page and the user never gave: 5,000/.test(x.issue)), invented.map((x) => x.issue).join(' | '));
+  const bare = checkTreatment({ ...copy, parts: copy.parts.map((p, i) => (i === 2 ? { ...p, line: undefined } : p)) }, { clips, fps, song, brand });
+  assert.ok(bare.some((x) => /part 2 carries no line/.test(x.issue)));
+  assert.ok(checkTreatment(promo, { clips, fps, song, brand }).some((x) => /the arc is 40 beats.*/.test(x.issue) && /about 27 s/.test(x.fix ?? '') || /aim near 60 beats/.test(x.fix)));
+  console.log('treatment promo copy: ok');
+}

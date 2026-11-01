@@ -120,7 +120,7 @@ const raw2 = {
 };
 const allMoves = new Set([...raw.sections, ...raw2.sections].map((x) => x.move));
 assert.deepEqual([...MOVES.map((m) => m.id)].filter((m) => !allMoves.has(m)), [], 'the two plans use every move');
-const allStyles = new Set([...raw.sections, ...raw2.sections].flatMap((x) => ('textStyle' in x && x.textStyle ? [x.textStyle] : [])).concat(raw.overlays.map((o) => o.style), 'top-band')); // top-band has its own check below
+const allStyles = new Set([...raw.sections, ...raw2.sections].flatMap((x) => ('textStyle' in x && x.textStyle ? [x.textStyle] : [])).concat(raw.overlays.map((o) => o.style), 'top-band', 'punch-caps')); // top-band and punch-caps have their own checks below
 assert.deepEqual(TEXT_STYLES.map((t) => t.id).filter((t) => !allStyles.has(t)), [], 'and every text style');
 const parsed2 = parsePlan(raw2);
 assert.ok(parsed2.ok, parsed2.ok ? '' : parsed2.errors.join('; '));
@@ -275,5 +275,19 @@ assert.ok(volumes(music).every((v) => v === 0), 'under a song the clips are mute
   assert.equal(line('Alang Madan Kulang').stroke.color, 'rgba(0,0,0,0.85)');
   assert.ok(line('Alang Madan Kulang').stroke.width >= 2);
   assert.equal(line('hold on tight').stroke, undefined);
+}
+// RS-1243: punch captions go through the build as one motion graphic per line, timed inside its section, under a song
+{
+  const pp = parsePlan({ ratio: '9:16', music: 'song', sections: [
+    { move: 'flash-cuts', beats: 4, text: 'STOP WASTING YOUR *WEEKENDS*', textStyle: 'punch-caps', params: { every: 0.5 } },
+    { move: 'cut', beats: 4, text: 'DO *THIS* INSTEAD.', textStyle: 'punch-caps', params: { kicker: '5:48 AM' } },
+  ] });
+  assert.ok(pp.ok, pp.ok ? '' : pp.errors.join('; '));
+  const plan = (pp as { plan: ReelPlan }).plan;
+  const out = assemble({ recipe: directorRecipe(plan), clips, music, texts: {}, params: {}, seed: 3, plan });
+  const caps = (out.action!.actions as any[]).filter((a) => a.type === 'add' && a.item.kind === 'motion-graphic' && Array.isArray(a.item.props?.lines));
+  assert.equal(caps.length, 2);
+  assert.deepEqual(caps.map((a) => a.item.props.lines.flat().filter((w: any) => w.hi).map((w: any) => w.w)), [['WEEKENDS'], ['THIS']]);
+  assert.equal(caps[1].item.props.kicker, '5:48 AM');
 }
 console.log('assembleDirector.verify: ok');

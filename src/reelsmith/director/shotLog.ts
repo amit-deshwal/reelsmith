@@ -24,7 +24,12 @@ export interface ShotLogClip {
  * than one; clips without a time stay unlabelled. Fewer than two timed clips say nothing worth a label.
  */
 export function filmedLabels(times: ReadonlyArray<number | undefined>, tzOffsetMin: number): Array<string | undefined> {
-  const known = times.filter((t): t is number => typeof t === 'number' && Number.isFinite(t) && t > 946_684_800_000);
+  const valid = times.filter((t): t is number => typeof t === 'number' && Number.isFinite(t) && t > 946_684_800_000).sort((a, b) => a - b);
+  // the shoot is the largest run of clips with no gap over 36 h: an edited copy (a 360 camera's export, a re-saved clip)
+  // carries the day it was saved, two days after the trek on the AMK clips (2026-10-12 for a 2026-10-10 climb)
+  const runs: number[][] = [];
+  for (const t of valid) { const run = runs.at(-1); if (run && t - run.at(-1)! <= 36 * 3_600_000) run.push(t); else runs.push([t]); }
+  const known = runs.reduce<number[]>((best, r) => (r.length > best.length ? r : best), []);
   if (known.length < 2) return times.map(() => undefined);
   const dayOf = (t: number) => Math.floor((t + tzOffsetMin * 60_000) / 86_400_000);
   const first = Math.min(...known.map(dayOf));

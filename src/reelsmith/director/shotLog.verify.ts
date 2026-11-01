@@ -58,5 +58,7 @@ console.log('shotLog ok');
   // one timed clip, or bogus 1970 dates, say nothing
   assert.deepEqual(filmedLabels([at('2026-10-18T06:30:00Z'), undefined], ist), [undefined, undefined]);
   assert.deepEqual(filmedLabels([0, 1000], ist), [undefined, undefined]);
+  // a 360 export saved two days later is not part of the shoot (the AMK clips: 7 on 10 Oct, 2 exports on 12 Oct)
+  assert.deepEqual(filmedLabels([at('2026-10-10T00:18:41Z'), at('2026-10-10T03:56:53Z'), at('2026-10-12T16:33:18Z')], ist), ['5:48 am', '9:26 am', undefined]);
   console.log('shotLog filmed: ok');
 }

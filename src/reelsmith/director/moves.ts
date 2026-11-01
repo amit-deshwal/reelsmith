@@ -22,6 +22,7 @@ import { bool, clipAt, num, solid, str, type MoveContext, type MoveDef } from '.
 export type { MoveContext, MoveDef, MoveParam } from './moveKit';
 import { bigTitle, caption, titleShuffle, wordsOnBeat, type TextStyleDef } from './basicTextStyles';
 import { CLIP_TEXT_STYLES, ENGINE_STYLES } from './textStyles';
+import { punchCaps } from './punchCaps';
 
 // ---- item helpers ----------------------------------------------------------------------------------------------------
 
@@ -91,10 +92,13 @@ const flashCuts: MoveDef = {
     const cuts = steps(ctx.beats, num(ctx.params.every, 0.5));
     shots(ctx, 0, cuts, 'flash');
     if (!bool(ctx.params.flash, true)) return;
-    const len = Math.max(2, Math.round(ctx.fps * 0.12));
+    // RS-1243: a flash is a hit, not a wash: at most a quarter of its shot. At half a beat a shot (0.24 s) a fixed 0.12 s
+    // flash at 85% left the whole hook of the Pune Trekkers promo white half the time, and the hook is the reel.
     cuts.forEach((b, i) => {
       const f = ctx.beatFrame(b);
-      if (f + 1 < ctx.end) solid(ctx, 1, ['flash-w', i], 'Flash', f, Math.min(ctx.end, f + len), '#ffffff', { transform: { opacity: 0.85 }, fadeOutFrames: len });
+      const next = i + 1 < cuts.length ? ctx.beatFrame(cuts[i + 1]!) : ctx.end;
+      const len = Math.max(2, Math.min(Math.round(ctx.fps * 0.12), Math.round((next - f) * 0.25)));
+      if (f + 1 < ctx.end) solid(ctx, 1, ['flash-w', i], 'Flash', f, Math.min(ctx.end, f + len), '#ffffff', { transform: { opacity: 0.7 }, fadeOutFrames: len });
     });
   },
 };
@@ -443,5 +447,5 @@ export const ALL_STRIP_TIMES = STRIP_AT;
 
 export type { TextContext, TextStyleDef } from './basicTextStyles';
 
-export const TEXT_STYLES: readonly TextStyleDef[] = [titleShuffle, wordsOnBeat, bigTitle, caption, topBand, ...ENGINE_STYLES, ...CLIP_TEXT_STYLES];
+export const TEXT_STYLES: readonly TextStyleDef[] = [titleShuffle, wordsOnBeat, bigTitle, caption, topBand, ...ENGINE_STYLES, punchCaps, ...CLIP_TEXT_STYLES];
 export const textStyleById = (id: string) => TEXT_STYLES.find((t) => t.id === id);
