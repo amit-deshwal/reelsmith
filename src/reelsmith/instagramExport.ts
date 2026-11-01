@@ -75,11 +75,13 @@ export async function finalizeExportForInstagram(
       method: 'POST', headers: { 'Content-Type': 'application/json' }, signal,
       body: JSON.stringify({ src: completed.path, presetId: presetIdFor(completed.fps ?? state.fps, pref.silent), width: state.width, height: state.height, holds: intendedHolds(state) }),
     });
-    const body = await res.json().catch(() => null) as { result?: { ok: boolean; reencoded: boolean; first: { checks: Check[] }; second?: { checks: Check[] }; failedPath?: string }; error?: string } | null;
+    const body = await res.json().catch(() => null) as { result?: { ok: boolean; reencoded: boolean; first: { checks: Check[] }; second?: { checks: Check[] }; failedPath?: string }; width?: number; height?: number; error?: string } | null;
     if (!res.ok || !body?.result) throw new Error(body?.error ?? `Instagram check failed (${res.status})`);
     const r = body.result;
     const checks = [...(r.second ?? r.first).checks];
     if (r.ok) {
+      // The file now has the Instagram size (a 4K render was scaled down in place); QA must expect that size
+      if (r.reencoded && body.width && body.height) { completed.width = body.width; completed.height = body.height; }
       // V8: a parity sample is informative only; it never blocks delivery
       opts.setBusy?.('Comparing the export with the preview…');
       try {

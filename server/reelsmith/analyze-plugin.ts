@@ -162,7 +162,8 @@ export function reelsmithAnalyzePlugin(): Plugin {
         const sized = body.width === undefined && body.height === undefined ? preset : presetForCanvas(preset, Number(body.width), Number(body.height));
         if (!sized) throw new Error(`unsupported canvas ${String(body.width)}x${String(body.height)}`);
         const holds = Array.isArray(body.holds) ? (body.holds as unknown[]).filter((h): h is [number, number] => Array.isArray(h) && h.length === 2 && h.every(Number.isFinite)) : [];
-        return { result: await finalizeForInstagram(file, sized, {}, holds) };
+        // the delivered file has the preset's size when it passes (a 4K render is re-encoded down to it)
+        return { result: await finalizeForInstagram(file, sized, {}, holds), width: sized.width, height: sized.height };
       });
       route('/api/reelsmith/music-grid', async (body) => {
         const file = localFile(body.src);
