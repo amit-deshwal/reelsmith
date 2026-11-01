@@ -124,14 +124,16 @@ export const bigTitle: TextStyleDef = {
 
 export const caption: TextStyleDef = {
   id: 'caption', name: 'Caption line', maxChars: 90,
-  looks: 'A short sentence in clean white sans with a soft shadow, low in the frame (inside Instagram\'s safe area).',
-  use: 'Telling the story in the user\'s words: "we almost turned back here".',
-  params: [],
+  looks: 'A short sentence in clean white sans with a soft shadow, low in the frame (inside Instagram\'s safe area); `center` puts it bold in the middle.',
+  use: 'Telling the story in the user\'s words: "we almost turned back here". A shot list that asks for "bold white text with a soft shadow, centred": center true.',
+  // RS-1249: a user's shot list asked for bold white centred lines with a soft shadow
+  params: [{ id: 'center', type: 'boolean', label: 'Bold, in the middle of the frame', default: false }],
   build: (ctx) => {
-    const line = wrapToFit(ctx.text, Math.round(Math.min(ctx.W, ctx.H) * 0.055), ctx.W, 0.78, 0.55);
+    const center = ctx.params.center === true;
+    const line = wrapToFit(ctx.text, Math.round(Math.min(ctx.W, ctx.H) * (center ? 0.07 : 0.055)), ctx.W, 0.78, center ? 0.6 : 0.55);
     textAt(ctx, 0, ['caption'], line.text, ctx.start, ctx.end, {
-      fontFamily: 'Inter', fontWeight: 600, fontSize: line.fontSize, color: '#ffffff',
+      fontFamily: 'Inter', fontWeight: center ? 800 : 600, fontSize: line.fontSize, color: '#ffffff',
       shadow: { color: '#000000a0', blurPx: 18, dx: 0, dy: 3 },
-    }, 0, ctx.H > ctx.W ? 22 : 30, { fadeInFrames: Math.round(0.2 * ctx.fps) });
+    }, 0, center ? 0 : ctx.H > ctx.W ? 22 : 30, { fadeInFrames: Math.round(0.2 * ctx.fps) });
   },
 };

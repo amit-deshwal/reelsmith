@@ -237,6 +237,7 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
         graphics: { type: 'array', items: { type: 'string' }, description: 'Graphic ids for what the story names.' },
         look: { type: 'string', description: 'A look id, or leave it out for the footage as shot.' },
         ownWords: { type: 'boolean', description: 'True only when the user asked for lines of your own.' },
+        shotList: { type: 'boolean', description: 'True when the user gave a shot list (timed shots with their own lines): it is built as written (references/shotlist.md). Detected from the story when it has three or more timed shots.' },
         styleGuide: {
           type: 'object', description: 'Required with a reference reel: what you learned from it, in concrete words.',
           properties: {
@@ -320,6 +321,7 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
             musicStart: { description: "'firstDownbeat' (default), 'fromStart' or a second of the song." },
             look: { type: 'string', description: 'Optional look id from reels_director_options.' },
             sfx: { type: 'string', enum: ['auto', 'subtle', 'off'], description: 'Sound effects on transitions, flash cuts, drops and builds: auto (default), subtle (quieter) or off.' },
+            shotList: { type: 'boolean', description: 'The user\'s own shot list: no motion of ours on cuts and holds, the critique checks against their list. Filled from the treatment.' },
             loop: { type: 'boolean', description: 'Made to replay: the song runs to the last frame (no fade) and the last shot should hand back to the first. End on a bar, never on black or a dip.' },
             sections: {
               type: 'array',
@@ -348,6 +350,7 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
                   },
                   look: { type: 'string', description: 'A look for this section only.' },
                   textBehind: { type: 'boolean', description: 'Draw this section\'s line behind the person in the shot (they are cut out on top). Needs one clear person in video footage.' },
+                  speed: { type: 'number', description: 'Playback speed of this section\'s footage, 0.25-2: 0.5 is the user\'s "slow motion 50%". Slowed footage is silent.' },
                   naturalSound: { type: 'string', enum: ['under', 'solo'], description: 'The clips\' own sound plays here (a shout, a splash, laughter, a line someone says): under dips the song about 12 dB; solo stops it for the section and brings it back on the next section\'s first beat. Video only.' },
                   sounds: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, beat: { type: 'number' } }, required: ['id'] }, description: 'Hand-placed sound effects (sounds ids), beat counted from the section start. Auto sounds already cover transitions, flash cuts, drops and builds.' },
                 },

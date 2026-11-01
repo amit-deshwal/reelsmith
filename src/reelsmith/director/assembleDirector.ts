@@ -138,6 +138,13 @@ export function resolvePlanSections(plan: ReelPlan, warnings: string[], errors: 
   return { sections: resolved, customFx };
 }
 
+/** RS-1249: a section's footage at its own speed ("slow motion 50%"): video plays at speed x its rate; slowed sound is muted. */
+export function withSpeed<T extends { kind?: string }>(item: T, speed: number | undefined): T {
+  if (speed === undefined || speed === 1 || item.kind !== 'video') return item;
+  const v = item as T & { playbackRate?: number; volume?: number };
+  return { ...v, playbackRate: Math.round((v.playbackRate ?? 1) * speed * 1000) / 1000, ...(speed < 1 ? { volume: 0 } : {}) };
+}
+
 export function assembleDirector(input: AssembleInput): AssembleResult {
   const { recipe, seed } = input;
   const plan = input.plan;
@@ -239,8 +246,13 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
   const sectionMoments: number[][] = [];
   resolved.forEach((r, i) => {
     const { s, move } = r!;
-    const params = toneParams(rule, move.id, s.params, r!.params);
+    // RS-1249: a shot list moves only as the user asked
     const { b0, b1 } = spans[i]!;
+    // RS-1249: a shot list moves only as the user asked, and a listed shot is one shot: a cut's time is shared by the
+    // clips it names (a 3 s shot of one clip, not three 1 s cuts of the default grid)
+    const params = plan.shotList
+      ? (move.id === 'cut' && s.params?.every === undefined && s.clips?.length ? { ...r!.params, every: (b1 - b0) / s.clips.length } : r!.params)
+      : toneParams(rule, move.id, s.params, r!.params);
     const start = frame(b0);
     const end = Math.max(start + 1, frame(b1));
     // clips
@@ -293,7 +305,7 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
         moments.push(m.inFrame);
         return m;
       },
-      emit: (a) => actions.push(a.type === 'add' ? { ...a, item: { ...a.item, props: { ...(a.item.props ?? {}), rsSection: `${i + 1}-${move.id}` } } } as AtomicAction : a),
+      emit: (a) => actions.push(a.type === 'add' ? { ...a, item: withSpeed({ ...a.item, props: { ...(a.item.props ?? {}), rsSection: `${i + 1}-${move.id}` } }, s.speed) } as AtomicAction : a),
       warn: (m) => warnings.push(`sections[${i}] (${move.id}): ${m}`),
       ...(previous ? { previous } : {}),
     });

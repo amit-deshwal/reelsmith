@@ -273,6 +273,8 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
   const session = restoreDirectorSession(id, ctx.getState().items as never);
   // RS-1219: the treatment's tone sets how things move unless the plan names its own
   if (!plan.tone && session?.treatment) plan.tone = session.treatment.tone;
+  // RS-1249: a shot list is built as written
+  if (plan.shotList === undefined && session?.treatment?.shotList) plan.shotList = true;
   if (Array.isArray(args.keep)) plan.keep = args.keep as ReelPlan['keep'];
   // catalogue mistakes come back at once, before the clip analysis the build waits on
   // (a custom graphic already on the timeline from an earlier session is picked up again)

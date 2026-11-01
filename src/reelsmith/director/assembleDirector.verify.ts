@@ -304,4 +304,27 @@ assert.ok(volumes(music).every((v) => v === 0), 'under a song the clips are mute
   assert.ok(cutsOf('calm').every((a) => !a.item.keyframes?.scale));
   assert.ok(cutsOf('hype', { punch: 0 }).every((a) => !a.item.keyframes?.scale));
 }
+// RS-1249: a shot list moves only as written: no tone punch on its cuts; its slow motion is half speed and silent
+{
+  const build = (extra: Record<string, unknown>) => {
+    const pp = parsePlan({ ratio: '9:16', tone: 'hype', ...extra });
+    assert.ok(pp.ok, pp.ok ? '' : pp.errors.join('; '));
+    const plan = (pp as { plan: ReelPlan }).plan;
+    const out = assemble({ recipe: directorRecipe(plan), clips, texts: {}, params: {}, seed: 3, plan });
+    return (out.action!.actions as any[]).filter((a) => a.type === 'add');
+  };
+  const listed = build({ shotList: true, sections: [{ move: 'cut', seconds: 3, clips: ['walker'], speed: 0.5 }, { move: 'cut', seconds: 2, clips: ['trail'], text: '4:00 AM · Pune', textStyle: 'caption', params: { center: true } }] });
+  const vids = listed.filter((a) => a.item.kind === 'video');
+  assert.ok(vids.every((a) => !a.item.keyframes?.scale), 'no punch-in in a shot list');
+  const slow = vids.find((a) => a.item.props?.rsSection?.startsWith('1-'))!;
+  assert.equal(slow.item.playbackRate, 0.5);
+  assert.equal(slow.item.volume, 0, 'slowed footage is silent');
+  const real = vids.find((a) => a.item.props?.rsSection?.startsWith('2-'))!;
+  assert.ok(real.item.playbackRate === undefined || real.item.playbackRate === 1);
+  assert.equal(slow.item.durationInFrames, 3 * fps, 'their 3 s');
+  const line = listed.find((a) => a.item.kind === 'text' && a.item.props?.text?.includes('4:00 AM'))!;
+  assert.equal(line.item.transform.y, 0, 'centred');
+  assert.equal(line.item.props.fontWeight, 800);
+  assert.ok(!parsePlan({ ratio: '9:16', sections: [{ move: 'cut', speed: 0.1 }] }).ok, 'speed range');
+}
 console.log('assembleDirector.verify: ok');

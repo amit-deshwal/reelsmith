@@ -36,6 +36,8 @@ export interface PlanSection {
    * 'solo' stops the song for the section so it comes back on the next section's first beat. talk-zoom is 'under'.
    */
   naturalSound?: NaturalSound;
+  /** RS-1249: playback speed of this section's footage (0.25-2; 0.5 = the user's "slow motion 50%"); slowed footage is silent */
+  speed?: number;
 }
 
 export const NATURAL_SOUNDS = ['under', 'solo'] as const;
@@ -105,6 +107,12 @@ export interface ReelPlan {
   /** RS-1226: the reel is made to replay: the song does not fade out and the last shot hands back to the first */
   loop?: boolean;
   /**
+   * RS-1249: the user gave a shot list (timed shots, their own lines): the build adds no motion of its own (no tone
+   * punch-in on plain cuts, no tone push on holds) and the critique checks the build against the list, not taste.
+   * The build fills it from the treatment.
+   */
+  shotList?: boolean;
+  /**
    * Set by reels_director_fix, never parsed from the agent (RS-1216): sections to rebuild exactly as last time, with the
    * clips they were cast and the source frame each shot started at, in order. null = build that section afresh.
    */
@@ -128,6 +136,7 @@ export function parsePlan(raw: unknown): { ok: true; plan: ReelPlan } | { ok: fa
   if (raw.sfx !== undefined && raw.sfx !== 'auto' && raw.sfx !== 'subtle' && raw.sfx !== 'off') errors.push('sfx must be auto, subtle or off');
   if (raw.tone !== undefined && !(TONES as readonly unknown[]).includes(raw.tone)) errors.push(`tone must be one of ${TONES.join(', ')}`);
   if (raw.loop !== undefined && typeof raw.loop !== 'boolean') errors.push('loop must be true or false');
+  if (raw.shotList !== undefined && typeof raw.shotList !== 'boolean') errors.push('shotList must be true or false');
   const params = (v: unknown, where: string) => {
     if (v === undefined) return undefined;
     if (!obj(v)) { errors.push(`${where}.params must be an object`); return undefined; }
@@ -185,6 +194,7 @@ export function parsePlan(raw: unknown): { ok: true; plan: ReelPlan } | { ok: fa
         sounds.push({ id: x.id, ...(typeof x.beat === 'number' ? { beat: x.beat } : {}) });
       });
     }
+    const speed = s.speed === undefined ? undefined : typeof s.speed === 'number' && s.speed >= 0.25 && s.speed <= 2 ? s.speed : (errors.push(`${w}.speed must be 0.25 to 2 (0.5 = half speed)`), undefined);
     const natural = s.naturalSound === undefined || s.naturalSound === false ? undefined : s.naturalSound === true ? 'under'
       : (NATURAL_SOUNDS as readonly unknown[]).includes(s.naturalSound) ? s.naturalSound as NaturalSound : (errors.push(`${w}.naturalSound must be under or solo`), undefined);
     sections.push({
@@ -192,7 +202,7 @@ export function parsePlan(raw: unknown): { ok: true; plan: ReelPlan } | { ok: fa
       textStyle: typeof s.textStyle === 'string' ? s.textStyle : undefined, params: params(s.params, w),
       ...(typeof s.transition === 'string' ? { transition: s.transition } : {}), ...(effects.length ? { effects } : {}),
       ...(typeof s.look === 'string' ? { look: s.look } : {}), ...(sounds.length ? { sounds } : {}), ...(s.textBehind === true ? { textBehind: true } : {}),
-      ...(natural ? { naturalSound: natural } : {}),
+      ...(natural ? { naturalSound: natural } : {}), ...(speed !== undefined && speed !== 1 ? { speed } : {}),
     });
   });
   const overlays: PlanOverlay[] = [];
@@ -235,6 +245,7 @@ export function parsePlan(raw: unknown): { ok: true; plan: ReelPlan } | { ok: fa
       ...(raw.sfx === 'auto' || raw.sfx === 'subtle' || raw.sfx === 'off' ? { sfx: raw.sfx } : {}),
       ...((TONES as readonly unknown[]).includes(raw.tone) ? { tone: raw.tone as Tone } : {}),
       ...(raw.loop === true ? { loop: true } : {}),
+      ...(raw.shotList === true ? { shotList: true } : {}),
     },
   };
 }

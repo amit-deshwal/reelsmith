@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { TONE_KIT, TONES, checkTreatment, parseTreatment, treatmentIds, type Treatment } from './treatment';
+import { TONE_KIT, TONES, checkTreatment, isShotList, parseTreatment, treatmentIds, type Treatment } from './treatment';
 import { catalogKind, catalogSlice } from './catalogText';
 import { brandAction, brandWords, parseBrandHtml } from '../../../shared/reelsmith/brandKit';
 import { critiqueFrames, critiquePlan, criticBrief } from './critique';
@@ -204,4 +204,51 @@ console.log('treatment promo: ok');
   const slow = checkTreatment({ ...built, story: 'slow cinematic build-up, then a big beat drop', parts: built.parts.map((p, i) => (i === 0 ? { ...p, move: 'hold', clips: ['#1'] } : p)) }, { clips, fps, brand });
   assert.ok(!slow.some((x) => /open on a burst/.test(x.fix)));
   console.log('treatment drop contrast: ok');
+}
+
+// RS-1249: a shot list written for another AI editor (the user's Torna brief) is built as written: the checks that
+// would restructure it (a slow hook, one length, plain cuts, promo copy, the length target) stay quiet
+{
+  const brief = `Create a vertical 9:16 Instagram Reel, 28 seconds, from my Torna Fort trek clips. NO music.
+PART 1 – HOOK + BUILD-UP (0–8s, slow and cinematic)
+0.0–3.0s  Misty shot of the fort in clouds, slow motion 50%. Text: "Nobody told us Torna looks like this in November 🌧️"
+3.0–5.0s  Dark road, leaving Pune. Text: "4:00 AM · Pune"
+5.0–6.5s  Breakfast stop. Text: "6:00 AM · Poha & chai ☕"
+6.5–8.0s  Torna seen from far away. Text: "7:00 AM · Velhe village"
+14.0s      Palm moves away from the lens. Hard cut, no fade.`;
+  assert.ok(isShotList(brief), 'a timed brief is a shot list');
+  assert.ok(!isShotList(ex.story), 'a story is not');
+  assert.ok(!isShotList('a 25s reel, the drop at 8s, about 40 s long'), 'lengths alone are not a shot list');
+  const raw = {
+    ...ex, story: brief, tone: 'epic', concepts: [{ name: 'Their list', idea: 'as written' }], chosen: 0, signature: '',
+    textStyles: ['caption'], transitions: [], effects: [], graphics: [],
+    parts: [
+      { role: 'hook', beats: 6, move: 'hold', clips: ['#1'], line: 'Nobody told us Torna looks like this in November 🌧️', purpose: 'hook' },
+      ...[1, 2, 3, 4, 5, 6].map((i) => ({ role: 'journey', beats: 4, move: 'cut', clips: [`#${i}`], line: `LINE ${i}`, purpose: `p${i}` })),
+    ],
+  };
+  const parsed = parseTreatment(raw);
+  assert.ok(parsed.ok, parsed.ok ? '' : parsed.errors.join('; '));
+  const t = (parsed as { treatment: Treatment }).treatment;
+  assert.equal(t.shotList, true, 'detected from the story');
+  const brand = { name: 'Pune Trekkers', words: 'free trekking group in Pune' };
+  const sf = checkTreatment(t, { clips, fps, brand });
+  assert.ok(!sf.some((x) => /hook is|metronome|plain cuts|both cut|no transitions|signature|end card|names Pune Trekkers|the arc is|carr/.test(x.issue)), sf.map((x) => x.issue).join(' | '));
+  // what still matters: a line too long to read in its time
+  const fast = checkTreatment({ ...t, parts: t.parts.map((p, i) => (i === 0 ? { ...p, beats: 2 } : p)) }, { clips, fps });
+  assert.ok(fast.some((x) => /part 0: ".*" is 9 words in 1\.0 s/.test(x.issue)), fast.map((x) => x.issue).join(' | '));
+  // the same treatment without the shot list gets the taste checks
+  assert.ok(checkTreatment({ ...t, shotList: undefined, story: ex.story }, { clips, fps, brand }).some((x) => /no transitions|end card/.test(x.issue)));
+  console.log('treatment shot list: ok');
+}
+
+// RS-1249: the critique of a shot list checks it against itself
+{
+  const plan = { version: 1 as const, ratio: '9:16' as const, shotList: true, sections: [{ move: 'cut', seconds: 3 }, { move: 'cut', seconds: 2 }, { move: 'cut', seconds: 2 }, { move: 'cut', seconds: 2 }] };
+  const spans = [{ from: 0, to: 3 }, { from: 3, to: 5 }, { from: 5, to: 7 }, { from: 7, to: 9 }];
+  assert.deepEqual(critiquePlan(plan, spans), []);
+  assert.ok(critiquePlan({ ...plan, shotList: undefined }, spans).length > 0, 'without it the taste checks run');
+  assert.match(criticBrief({ ...ex, shotList: true }), /against the user's shot list/);
+  assert.doesNotMatch(criticBrief(ex), /shot list/);
+  console.log('critique shot list: ok');
 }

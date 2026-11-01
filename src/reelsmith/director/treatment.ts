@@ -41,6 +41,8 @@ export interface Treatment {
   /** the user asked for lines of the agent's own (a joke, a meme caption) */
   ownWords?: boolean;
   styleGuide?: StyleGuide;
+  /** RS-1249: the user gave a shot list (timed shots, their own lines): build it as written; see isShotList */
+  shotList?: boolean;
 }
 
 export interface TreatmentFinding { issue: string; fix: string; /** a question for the user: stop and ask it before planning */ ask?: string }
@@ -110,7 +112,9 @@ export function parseTreatment(raw: unknown): { ok: true; treatment: Treatment }
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
   const errors: string[] = [];
   const concepts = (Array.isArray(r.concepts) ? r.concepts : []).map((c) => ({ name: str((c as Record<string, unknown>)?.name), idea: str((c as Record<string, unknown>)?.idea) })).filter((c) => c.name && c.idea);
-  if (concepts.length < 2) errors.push('concepts: give at least two different concepts ({ name, idea }) before choosing one');
+  // RS-1249: a shot list is the user's own edit: one concept (theirs), no signature of ours
+  const shotList = r.shotList === true || isShotList(str(r.story));
+  if (concepts.length < (shotList ? 1 : 2)) errors.push('concepts: give at least two different concepts ({ name, idea }) before choosing one');
   const chosen = typeof r.chosen === 'number' ? Math.round(r.chosen) : 0;
   if (chosen < 0 || chosen >= Math.max(1, concepts.length)) errors.push(`chosen: an index into concepts (0-${concepts.length - 1})`);
   const tone = str(r.tone) as Tone;
@@ -127,7 +131,7 @@ export function parseTreatment(raw: unknown): { ok: true; treatment: Treatment }
     if (!p.move) errors.push(`parts[${i}].move is missing`);
     if (!(p.beats > 0)) errors.push(`parts[${i}].beats must be a positive number`);
   });
-  if (!str(r.signature)) errors.push('signature: the one moment people will remember, and where it is');
+  if (!str(r.signature) && !shotList) errors.push('signature: the one moment people will remember, and where it is');
   if (!str(r.story)) errors.push('story: the user\'s story, in their words');
   const sg = (r.styleGuide && typeof r.styleGuide === 'object' ? r.styleGuide : undefined) as Record<string, unknown> | undefined;
   const styleGuide: StyleGuide | undefined = sg ? {
@@ -142,6 +146,7 @@ export function parseTreatment(raw: unknown): { ok: true; treatment: Treatment }
       story: str(r.story), concepts, chosen, tone, heroes: strs(r.heroes), parts, signature: str(r.signature),
       textStyles: strs(r.textStyles), transitions: strs(r.transitions), effects: strs(r.effects), graphics: strs(r.graphics),
       ...(str(r.look) ? { look: str(r.look) } : {}), ...(r.ownWords === true ? { ownWords: true } : {}), ...(styleGuide ? { styleGuide } : {}),
+      ...(shotList ? { shotList: true } : {}),
     },
   };
 }
@@ -211,7 +216,25 @@ const clipOf = (ref: string, clips: readonly ShotLogClip[]) => {
   return clip ? { clip, at: Number(m![2] ?? 0) } : undefined;
 };
 
+/**
+ * RS-1249: a brief written as a shot list (the kind other AI editors take): three or more timed shots ("0.0-3.0s",
+ * "8.0–9.5s", "14.0s"). The user has made the creative calls; the director builds it as written.
+ */
+export function isShotList(story: string): boolean {
+  const ranges = story.match(/\b\d{1,3}(?:[.:]\d{1,2})?\s*(?:s|sec)?\s*[-–—]\s*\d{1,3}(?:[.:]\d{1,2})?\s*(?:s|sec)\b/gi) ?? [];
+  return ranges.length >= 3;
+}
+
+/** What still matters in a shot list: catalogue mistakes, unreadable lines, too many typefaces and what no clip shows. */
+const SHOT_LIST_KEEPS = [/^not in the catalogue/, /text styles$/, /^part \d+: ".*" is \d+ words in/, /^the story names ".*" and no clip seems to show it/];
+
 export function checkTreatment(t: Treatment, ctx: TreatmentContext): TreatmentFinding[] {
+  const found = checkTreatmentAll(t, ctx);
+  // RS-1249: the user's own structure, lengths, moves and lines are not ours to second-guess
+  return t.shotList ? found.filter((f) => SHOT_LIST_KEEPS.some((re) => re.test(f.issue))) : found;
+}
+
+function checkTreatmentAll(t: Treatment, ctx: TreatmentContext): TreatmentFinding[] {
   const out: TreatmentFinding[] = [];
   const beatSec = ctx.song?.bpm ? 60 / ctx.song.bpm : 0.5;
   const unknown = treatmentIds(t).filter((id) => !catalogKind(id));

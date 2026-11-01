@@ -28,7 +28,7 @@
 - `title-shuffle` (≤20 chars) — The place or the trip name, over a montage (as an overlay across several sections). Keep it to a name, 18 characters at most.
 - `words-on-beat` (≤80 chars) — The story line, punchy: "2 days / 6000 calories / one fort". 3-8 words per section.
 - `big-title` (≤40 chars) — The name of the reel at the start, or a closing line.
-- `caption` (≤90 chars) — Telling the story in the user's words: "we almost turned back here".
+- `caption` (≤90 chars) — Telling the story in the user's words: "we almost turned back here". A shot list that asks for "bold white text with a soft shadow, centred": center true.
 - `top-band` (≤70 chars) — A joke or title that must stay on screen for the whole reel without covering the shot (the user asks for text "above the video" or "in the black space"). Use it as ONE overlay from the first section to the last. Moves that fill the frame with graphics (strips-reveal, cards-finale, postcard-band) will cover the band; use cut, hold, zoom-punch or flash-cuts under it.
 - `cinematic-title` (≤22 chars) — A place or trip name over a wide view; calm, premium openers and endings.
 - `tracking-in` (≤28 chars) — Luxury, weddings, slow travel, a refined ending line.

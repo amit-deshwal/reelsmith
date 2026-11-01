@@ -16,6 +16,8 @@ const usedIds = (plan: ReelPlan) => [
 ].filter((x): x is string => typeof x === 'string');
 
 export function critiquePlan(plan: ReelPlan, spans: readonly Span[], treatment?: Treatment): CritiqueFinding[] {
+  // RS-1249: a shot list is judged against itself (criticBrief), not against our taste in moves and transitions
+  if (plan.shotList || treatment?.shotList) return [];
   const out: CritiqueFinding[] = [];
   const n = plan.sections.length;
   if (treatment) {
@@ -79,7 +81,19 @@ export function critiqueFrames(plan: ReelPlan, spans: readonly Span[], fps: numb
 }
 
 /** The critic's checklist: what to look for in the frames before naming the defects. */
+/** RS-1249: the critique of a user's shot list: was it built as written, and does every line read. */
+const SHOT_LIST_BRIEF = [
+  'Stage 4: check the build against the user\'s shot list, line by line. They made the creative calls; you check the craft:',
+  '1. Picture: does each shot show what their list names for it (Zunjar Machi on the Zunjar Machi line, the temple on the temple line, a palm over the lens where they asked for one)? A soft, dark or shaky moment where a better moment of the same subject exists?',
+  '2. Words: exactly their words and emoji, every letter inside the frame, out of the bottom 20% and the right edge if they asked, readable against the shot?',
+  '3. Timing and speed: each section as long as their list says; slow motion only where they asked for it; real speed everywhere else.',
+  '4. Their style rules: only the transitions they named (hard cuts otherwise), their grade, their text style.',
+  'Never add moves, transitions, effects, graphics or lines they did not ask for, and never reorder or re-time their list to suit a rule of ours.',
+  'Name up to THREE defects, worst first, each with its section, its time, the evidence (which image and what it shows) and the local fix, and send them with the changed sections to reels_director_fix. If the frames match the list, say so in one line and finish.',
+].join('\n');
+
 export function criticBrief(treatment?: Treatment): string {
+  if (treatment?.shotList) return SHOT_LIST_BRIEF;
   return [
     'Stage 4: critique. You are now a picky creative director seeing this reel cold. Judge only the rendered frames and the findings, not what you meant to make:',
     '1. Hook: would the first second stop someone scrolling (movement, a face, a reveal), or is it a static selfie with a caption? The first frame alone, sound off: is there a clear subject on it, not black, a flash or a half-faded shot?',

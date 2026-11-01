@@ -5989,6 +5989,10 @@
             "type": "boolean",
             "description": "True only when the user asked for lines of your own."
           },
+          "shotList": {
+            "type": "boolean",
+            "description": "True when the user gave a shot list (timed shots with their own lines): it is built as written (references/shotlist.md). Detected from the story when it has three or more timed shots."
+          },
           "styleGuide": {
             "type": "object",
             "description": "Required with a reference reel: what you learned from it, in concrete words.",
@@ -6161,6 +6165,10 @@
                 ],
                 "description": "Sound effects on transitions, flash cuts, drops and builds: auto (default), subtle (quieter) or off."
               },
+              "shotList": {
+                "type": "boolean",
+                "description": "The user's own shot list: no motion of ours on cuts and holds, the critique checks against their list. Filled from the treatment."
+              },
               "loop": {
                 "type": "boolean",
                 "description": "Made to replay: the song runs to the last frame (no fade) and the last shot should hand back to the first. End on a bar, never on black or a dip."
@@ -6257,6 +6265,10 @@
                     "textBehind": {
                       "type": "boolean",
                       "description": "Draw this section's line behind the person in the shot (they are cut out on top). Needs one clear person in video footage."
+                    },
+                    "speed": {
+                      "type": "number",
+                      "description": "Playback speed of this section's footage, 0.25-2: 0.5 is the user's \"slow motion 50%\". Slowed footage is silent."
                     },
                     "naturalSound": {
                       "type": "string",
@@ -7648,6 +7660,10 @@
           "ownWords": {
             "type": "boolean",
             "description": "True only when the user asked for lines of your own."
+          },
+          "shotList": {
+            "type": "boolean",
+            "description": "True when the user gave a shot list (timed shots with their own lines): it is built as written (references/shotlist.md). Detected from the story when it has three or more timed shots."
           },
           "styleGuide": {
             "type": "object",
