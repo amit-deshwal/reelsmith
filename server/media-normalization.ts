@@ -17,6 +17,7 @@ import {
   throwIfNormalizationAborted,
 } from './media-normalization-admission.ts';
 import { ffmpegThreadArgs, spawnMediaProcess } from './media-process.ts';
+import { clockwiseRotation, vtFfmpeg, vtTranscodeArgs } from './reelsmith/vtNormalize.ts';
 export {
   createNormalizeAdmission,
   normalizationAbortError,
@@ -141,6 +142,8 @@ export interface ProbeMeta {
   variableFrameRate: boolean;
   /** HLG or PQ transfer: the file is converted to SDR Rec.709 (Reelsmith RS-304). */
   hdr?: boolean;
+  /** Reelsmith RS-1248: clockwise display rotation of the coded stream, 0-359 */
+  rotation?: number;
 }
 
 /** HLG (arib-std-b67) and PQ (smpte2084) footage, e.g. iPhone HDR video. */
@@ -282,6 +285,7 @@ export async function probeVideo(path: string, signal?: AbortSignal): Promise<Pr
     frameCount,
     variableFrameRate: isVariableFrameRate(avgFrameRate, nominalFrameRate),
     hdr: isHdrTransfer(video.color_transfer),
+    rotation: clockwiseRotation(video),
   };
 }
 
@@ -361,6 +365,41 @@ export function normalizeReason(
   return null;
 }
 
+/** Reelsmith RS-1248: the whole conversion on the Mac's media engine; false (and no output) when it cannot run. */
+async function encodeOnVideoToolbox(
+  ffmpeg: string,
+  audioArgs: string[],
+  outputArgs: string[],
+  options: TranscodeVideoOptions,
+  outputPath: string,
+  preferred: Awaited<ReturnType<typeof resolveH264Encoder>>,
+  proxyQuality: Awaited<ReturnType<typeof probeEncoderQualityMode>>,
+  signal?: AbortSignal,
+): Promise<boolean> {
+  if (preferred !== 'h264_videotoolbox' || !options.inputPath) return false;
+  const vt = await vtFfmpeg(ffmpeg);
+  if (!vt) return false;
+  const args = vtTranscodeArgs({
+    inputPath: options.inputPath, hasAudio: options.hasAudio === true, rotation: options.rotation ?? 0,
+    targetW: options.targetW, targetH: options.targetH, targetFps: options.targetFps, convertToCfr: options.convertToCfr,
+    hdr: options.hdr === true, audioArgs, outputArgs,
+    encodeArgs: h264EncodingArgs({
+      encoder: preferred, targetBitrate: options.targetBitrate, maxBitrate: options.targetBitrate, bufferSize: options.targetBitrate * 2,
+      ...(proxyQuality ? { hardwareQuality: 23, qualityMode: proxyQuality } : {}),
+    }),
+  });
+  if (!args) return false;
+  try {
+    await run(vt, args, FFMPEG_TIMEOUT_MS, signal);
+    return true;
+  } catch (error) {
+    throwIfNormalizationAborted(signal);
+    console.warn(`[normalize-media] VideoToolbox path failed (${error instanceof Error ? error.message.slice(0, 200) : String(error)}); using the CPU path`);
+    await unlink(outputPath).catch(() => {});
+    return false;
+  }
+}
+
 interface TranscodeVideoOptions {
   readonly targetW: number;
   readonly targetH: number;
@@ -368,6 +407,10 @@ interface TranscodeVideoOptions {
   readonly targetFps: number;
   readonly convertToCfr: boolean;
   readonly hdr?: boolean;
+  /** Reelsmith RS-1248: for the VideoToolbox path */
+  readonly inputPath?: string;
+  readonly hasAudio?: boolean;
+  readonly rotation?: number;
 }
 
 async function encodeTranscodedVideo(
@@ -389,6 +432,7 @@ async function encodeTranscodedVideo(
   throwIfNormalizationAborted(signal);
   const proxyQuality = await probeEncoderQualityMode(ffmpeg, preferred);
   throwIfNormalizationAborted(signal);
+  if (await encodeOnVideoToolbox(ffmpeg, audioArgs, outputArgs, options, outputPath, preferred, proxyQuality, signal)) return;
   let lastError: unknown;
   for (const encoder of h264EncoderAttempts(preferred)) {
     const args = [
@@ -461,7 +505,7 @@ export async function encodeNormalized(
     commonArgs,
     audioArgs,
     transcodeOutputArgs,
-    { targetW, targetH, targetBitrate, targetFps, convertToCfr, hdr: meta.hdr === true },
+    { targetW, targetH, targetBitrate, targetFps, convertToCfr, hdr: meta.hdr === true, inputPath, hasAudio: meta.hasAudio, rotation: meta.rotation ?? 0 },
     outputPath,
     signal,
   );

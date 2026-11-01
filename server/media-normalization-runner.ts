@@ -21,6 +21,7 @@ import {
 } from './media-normalization.ts';
 import { putUploadFile, r2Config } from './r2.ts';
 import { uploadDir } from './media-dir.ts';
+import { capImportSize } from './reelsmith/importSize.ts';
 
 export interface NormalizeMediaFileResult {
   readonly path: string;
@@ -87,9 +88,13 @@ async function createNormalizePlan(options: NormalizeMediaFileOptions): Promise<
     );
   }
   const optimizeOutput = options.force === true || options.optimize === true;
-  const { w: targetW, h: targetH } = targetDimension(meta.width, meta.height, optimizeOutput);
-  const recommended = recommendedBitrate(targetW, targetH);
-  const targetBitrate = optimizeOutput ? recommended : Math.max(recommended, meta.sourceBitrate);
+  const sized = targetDimension(meta.width, meta.height, optimizeOutput);
+  const recommendedFull = recommendedBitrate(sized.w, sized.h);
+  const fullBitrate = optimizeOutput ? recommendedFull : Math.max(recommendedFull, meta.sourceBitrate);
+  // Reelsmith RS-1248: a master-quality re-encode is capped at 2560 px (4K60 converts at about real time)
+  const capped = optimizeOutput ? { ...sized, bitrate: fullBitrate } : capImportSize(sized.w, sized.h, fullBitrate, recommendedBitrate(1, 1));
+  const { w: targetW, h: targetH } = capped;
+  const targetBitrate = capped.bitrate;
   const forceCfr = options.forceCfr === true;
   const targetFps = resolveTargetFps(
     options.targetFps, meta.avgFrameRate, meta.nominalFrameRate, forceCfr || optimizeOutput,
