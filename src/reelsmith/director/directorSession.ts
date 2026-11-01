@@ -9,6 +9,7 @@ import type { ReferenceProfile } from './reference';
 import type { ShotLogClip } from './shotLog';
 import type { SoundFinding } from './soundCheck';
 import type { Treatment } from './treatment';
+import type { BrandKit } from '../../../shared/reelsmith/brandKit';
 
 export interface DirectorBuildRecord {
   plan: ReelPlan;
@@ -36,6 +37,8 @@ export interface DirectorSession {
   /** RS-1230: the user asked to see the treatment before the build; `waiting` until they answer it */
   askFirst?: boolean;
   gate?: 'waiting' | 'approved';
+  /** RS-1239: the brand kit of a promo reel's page (stage 1, when the user named one) */
+  brand?: BrandKit;
 }
 
 const sessions = new Map<string, DirectorSession>();

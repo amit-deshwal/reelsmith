@@ -46,3 +46,17 @@ assert.equal(motionAt(view, 3, fps, [climb, view]), 'still');
 assert.equal(motionAt(climb, 3, fps, [climb, view]), 'some');
 assert.equal(motionAt(photo, 0, fps, [climb]), 'still');
 console.log('shotLog ok');
+
+// RS-1240: the local clock time each clip was filmed
+{
+  const { filmedLabels } = await import('./shotLog');
+  const ist = 330;
+  const at = (iso: string) => Date.parse(iso);
+  assert.deepEqual(filmedLabels([at('2026-10-18T22:42:00Z'), at('2026-10-19T01:15:00Z'), undefined], ist), ['4:12 am', '6:45 am', undefined]);
+  // over two days the day is counted from the first clip's day
+  assert.deepEqual(filmedLabels([at('2026-10-18T06:30:00Z'), at('2026-10-19T00:05:00Z')], ist), ['day 1 · 12:00 pm', 'day 2 · 5:35 am']);
+  // one timed clip, or bogus 1970 dates, say nothing
+  assert.deepEqual(filmedLabels([at('2026-10-18T06:30:00Z'), undefined], ist), [undefined, undefined]);
+  assert.deepEqual(filmedLabels([0, 1000], ist), [undefined, undefined]);
+  console.log('shotLog filmed: ok');
+}

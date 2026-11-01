@@ -3,6 +3,7 @@ import { finalizeExportForInstagram, instagramReportStore, loadInstagramPreferen
 import { writeSrtSidecar } from '../reelsmith/instagramSrt';
 import { deliverReviewSheet } from '../reelsmith/exportReview';
 import { deliverCover } from '../reelsmith/exportCover';
+import { deliverNoSoundCopy } from '../reelsmith/exportMusic';
 import { retakeIfStalled } from '../reelsmith/exportRetake';
 import { withDepthMaps } from '../reelsmith/depthMaps';
 import type { BackgroundExportJobSetters, ExportJobStore } from './backgroundExportStore';
@@ -207,15 +208,27 @@ async function deliverSrtSidecar(
     sheet: sheet.status === 'written' ? `Contact sheet saved as ${sheet.names!.join(', ')}.` : `No contact sheet: ${sheet.message}`,
   });
   // RS-1234: the cover for Instagram, from the same rendered file
-  if (!pref.cover) return;
-  const cover = await deliverCover({
-    state: context.options.state, src: completed.path, seconds: completed.durationSeconds ?? 0, videoName,
-    write: (filename, blob) => writeBlobToDestination(context.destination, filename, blob, signal),
-  });
-  instagramReportStore.set({
-    ...(instagramReportStore.get() ?? { status: 'skipped' as const }),
-    cover: cover.status === 'written' ? `Cover saved as ${cover.name} (at ${cover.pick.atSec.toFixed(1)} s${cover.pick.title ? `, titled "${cover.pick.title}"` : ''}).` : `No cover: ${cover.message}`,
-  });
+  if (pref.cover) {
+    const cover = await deliverCover({
+      state: context.options.state, src: completed.path, seconds: completed.durationSeconds ?? 0, videoName,
+      write: (filename, blob) => writeBlobToDestination(context.destination, filename, blob, signal),
+    });
+    instagramReportStore.set({
+      ...(instagramReportStore.get() ?? { status: 'skipped' as const }),
+      cover: cover.status === 'written' ? `Cover saved as ${cover.name} (at ${cover.pick.atSec.toFixed(1)} s${cover.pick.title ? `, titled "${cover.pick.title}"` : ''}).` : `No cover: ${cover.message}`,
+    });
+  }
+  // RS-1241: a no-sound copy for adding the song from Instagram's licensed library, and where to start it
+  if (pref.noSound && !pref.silent) {
+    const copy = await deliverNoSoundCopy({
+      state: context.options.state, src: completed.path,
+      write: (filename, blob) => writeBlobToDestination(context.destination, filename, blob, signal),
+    });
+    if (copy.status !== 'none') instagramReportStore.set({
+      ...(instagramReportStore.get() ?? { status: 'skipped' as const }),
+      music: copy.status === 'written' ? `Saved ${copy.name}. ${copy.note}` : `No no-sound copy: ${copy.message}`,
+    });
+  }
 }
 
 async function exportMedia(

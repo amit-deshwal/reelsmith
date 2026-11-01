@@ -8,6 +8,11 @@ export const STORY_MAX = 600;
  * `songs` is how many songs the user imported. The sound line must match: a conditional "with no song imported, keep the
  * clips' own sound" sent with a song imported read as an order, and the agent left the user's song out.
  */
+/** RS-1239: a web address in the story ("promo reel for punetrekkers.org"), for the brand kit. */
+export function storySite(story: string): string | undefined {
+  return /\b(?:https?:\/\/)?(?:[a-z0-9-]+\.)+(?:com|org|net|in|co|io|club|app|me|studio|cafe|shop|store|travel|fit|life)(?:\/[^\s"]*)?(?=[\s,.!?)"]|$)/i.exec(story)?.[0];
+}
+
 export function directorPrompt(story: string, ratio: RatioId, songs = 0, reference?: { id: string; name: string }, askFirst = false): string {
   const text = story.replace(/\s+/g, ' ').trim().slice(0, STORY_MAX);
   return [
@@ -15,6 +20,8 @@ export function directorPrompt(story: string, ratio: RatioId, songs = 0, referen
     text ? `My story, in my words: "${text}"` : 'I have not written a story: ask me for one line about it first.',
     // RS-1217: the reference is named by id so the agent passes it to stage 1; it is never footage
     ...(reference ? [`Make it feel like my reference reel "${reference.name.replace(/"/g, '')}" (assetId ${reference.id}): pass it as reference to reels_director_options. Match its pace and look; it is not footage, and copy nothing of its content.`] : []),
+    // RS-1239: a promo reel's page is read once in stage 1 for its words, action and colours
+    ...(storySite(text) ? [`It is a promo reel for ${storySite(text)}: pass it as brandUrl to reels_director_options and end on its call to action.`] : []),
     // RS-1230: the approval gate; the tools enforce it, this line turns it on
     ...(askFirst ? ['Show me the plan first: pass askFirst true to reels_director_options, and after reels_director_treatment show me its card and wait for my go before you build.'] : []),
     'Use the reels-director skill and its four stages: reels_director_options (the shot log and contact sheets), reels_director_treatment, reels_director_build, then reels_director_critique and reels_director_fix for its largest defects. I want the best cut possible, not a template; take the time it needs. Keep my words on screen; describe only what the clips show.',

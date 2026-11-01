@@ -52,6 +52,12 @@ export function InstagramExportPanel({ state }: { state: TimelineState }) {
           Also save a cover image for Instagram (.cover.jpg)
         </label>
       )}
+      {pref.enabled && !pref.silent && (
+        <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12 }}>
+          <input type="checkbox" checked={pref.noSound} onChange={(e) => update({ ...pref, noSound: e.target.checked })} />
+          When the reel has a song, also save a copy with no sound (.no-sound.mp4) to add the song from Instagram&apos;s music
+        </label>
+      )}
       {report && report.status !== 'skipped' && (
         <div style={{ display: 'grid', gap: 3, fontSize: 12 }}>
           <b style={{ color: report.status === 'failed' || report.status === 'error' ? theme.danger : theme.text }}>
@@ -70,6 +76,7 @@ export function InstagramExportPanel({ state }: { state: TimelineState }) {
           {report.srt && <span style={muted}>{report.srt}</span>}
           {report.sheet && <span style={muted}>{report.sheet}</span>}
           {report.cover && <span style={muted}>{report.cover}</span>}
+          {report.music && <span style={muted}>{report.music}</span>}
           {report.failedPath && <span style={muted}>The failed re-encode was kept as {report.failedPath.split('/').pop()}; the original export was delivered.</span>}
         </div>
       )}

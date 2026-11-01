@@ -18,7 +18,7 @@ import { lintReel } from '../reelLint';
 import { execFramesTool } from '../../agent/tools/frames-tool';
 import type { ClipFeatures } from '../assembler/scoring';
 import type { ClipShotTags } from '../shotTags';
-import { shotLogLines, type ShotLogClip } from '../director/shotLog';
+import { filmedLabels, shotLogLines, type ShotLogClip } from '../director/shotLog';
 import { directorSession, restoreDirectorSession, savedDirector, updateDirectorSession } from '../director/directorSession';
 import { PLAN_BRIEF, checkTreatment, parseTreatment, treatmentCard, treatmentIds } from '../director/treatment';
 import { catalogKind, catalogSlice } from '../director/catalogText';
@@ -28,6 +28,7 @@ import { motionRuleText } from '../director/motionRules';
 import { missingThings } from '../director/storyThings';
 import type { Defect } from '../director/critique';
 import { songMap, songMapText } from '../director/songMap';
+import { brandAction, brandKitText, brandWords, type BrandKit } from '../../../shared/reelsmith/brandKit';
 
 const VISUAL = new Set(['video', 'image']);
 const secs = (frames: number, fps: number) => Math.round((frames / fps) * 10) / 10;
@@ -160,6 +161,9 @@ export async function directorOptions(args: Record<string, unknown>, ctx: AgentC
   if (want && !refAsset) return { error: `no imported video ${JSON.stringify(args.reference)} to use as the reference (give its assetId or file name)` };
   updateDirectorSession(projectId(ctx), { reference: refAsset ? { assetId: refAsset.id } : undefined });
   const visual = directorVisuals(ctx);
+  // RS-1239: a promo reel's page, read while the clips are watched
+  const brandRaw = typeof args.brandUrl === 'string' ? args.brandUrl.trim() : '';
+  const brandWork: Promise<BrandKit | { error: string } | undefined> = brandRaw && deps.api.brandKit ? deps.api.brandKit(brandRaw).catch((e: unknown) => ({ error: String((e as Error)?.message ?? e) })) : Promise.resolve(brandRaw ? { error: 'reading a web page is not available here' } : undefined);
   const songs = [...assets.filter((a) => a.kind === 'audio').slice(0, 3), ...libraryMusic(ctx)];
   const beats = new Map(await Promise.all(songs.map(async (a) => [a.id, await tempo(a, deps)] as const)));
   // stage 1: watch the footage, then log it and take the sheet cells at each clip's best moments
@@ -169,13 +173,19 @@ export async function directorOptions(args: Record<string, unknown>, ctx: AgentC
     n: i + 1, kind: a.kind === 'image' ? 'image' : 'video', seconds: a.durationInFrames / fps,
     ...(shape(a) ? { shape: shape(a) } : {}), features: features.get(a.id) ?? null, ...(tags.get(a.id) ? { tags: tags.get(a.id) } : {}),
   }));
+  // RS-1240: the local clock time each video was filmed, from its metadata
+  const filmed = filmedLabels(logClips.map((c) => c.features?.captureTimeMs), -new Date().getTimezoneOffset());
+  logClips.forEach((c, i) => { if (filmed[i]) c.filmedAt = filmed[i]; });
   const k = sheetSamples(visual.filter((a) => a.kind !== 'image').length, visual.filter((a) => a.kind === 'image').length).length;
   const log = shotLogLines(logClips, fps, k);
   const sheets = await contactSheets(visual, log.moments, ctx, deps);
   const firstSong = assets.find((a) => a.kind === 'audio');
   const sug = firstSong ? (beats.get(firstSong.id) as { bpm?: number; suggest?: { beatsFor18s: number; dropAtBeat?: number } } | undefined) : undefined;
   const reference = refAsset ? await watchReference(refAsset, fps, logClips, sug?.bpm, ctx, deps) : undefined;
+  const brandResult = await brandWork;
+  const brand = brandResult && !('error' in brandResult) ? brandResult : undefined;
   updateDirectorSession(projectId(ctx), {
+    brand,
     fps, clips: logClips, treatment: undefined, lastBuild: undefined, askFirst: args.askFirst === true, gate: undefined, reference: reference ? { assetId: refAsset!.id, profile: reference.profile } : undefined,
     ...(firstSong ? { song: { assetId: firstSong.id, ...(sug?.bpm ? { bpm: sug.bpm } : {}), ...(sug?.suggest ? { beatsFor18s: sug.suggest.beatsFor18s, ...(sug.suggest.dropAtBeat !== undefined ? { dropAtBeat: sug.suggest.dropAtBeat } : {}) } : {}) } } : {}),
   });
@@ -188,7 +198,7 @@ export async function directorOptions(args: Record<string, unknown>, ctx: AgentC
   return {
     ...(images.length ? { __images: images } : {}),
     clips: log.lines.map((line, i) => line.replace(/^#\d+ /, `#${i + 1} ${visual[i]!.name} `)),
-    shotLogNote: '"best @t" = its strongest moments (sharp, lit, a subject, some life), best first; "moving" = where it moves most; "talking" = speech; "soft/dark" = avoid those seconds. Cast from these with "#n@t".',
+    shotLogNote: '"best @t" = its strongest moments (sharp, lit, a subject, some life), best first; "moving" = where it moves most; "talking" = speech; "soft/dark" = avoid those seconds; "filmed" = the clock time it was shot (true, so a time label may use it). Cast from these with "#n@t".',
     clipRefs: 'In the plan, name a clip by its number: "#7", or "#7@4.5" to start it at 4.5 s of the source.',
     sheetNote: sheets ? sheets.note : 'No contact sheets (frame sharing is off or unavailable): choose from names and seconds, or view_asset_frames for one or two clips.',
     songs: assets.filter((a) => a.kind === 'audio').slice(0, 3).map(song),
@@ -196,6 +206,8 @@ export async function directorOptions(args: Record<string, unknown>, ctx: AgentC
     songHint: 'Use each song\'s suggest: musicStart as given, sections adding up to beatsFor18s (more or fewer for a longer or shorter reel), and the peak section starting at dropAtBeat. Its energy line is the song bar by bar: longer shots on the quiet bars, shorter as it builds, the fastest cuts on the loud ones; section changes on a bar line. No other timing arithmetic is needed.',
     ...(custom.length ? { customShaders: custom } : {}),
     ...(reference ? { reference: { measured: reference.line, sheet: reference.image ? `the last image: the reference, one cell a shot (cells "r·seconds")` : 'no sheet of the reference (frames unavailable)', use: 'Study it for its pace, colour, type, composition and motion; write the treatment\'s styleGuide from it. Never copy its subjects, words or logos, and never cast it.' } } : {}),
+    ...(brand ? { brand: brandKitText(brand) } : {}),
+    ...(brandResult && 'error' in brandResult ? { brandError: `${brandResult.error}. Ask the user for the name, the one action (e.g. "Join on WhatsApp") and the handle, or build from their story.` } : {}),
     timelineIsEmpty: ctx.getState().items.length === 0,
     next: `${args.askFirst === true ? 'The user wants to approve the treatment before anything is built. ' : ''}Stage 2: write the treatment (two concepts, the tone, hero shots, the arc on the song with each part's purpose, the signature, the kit from the menu in the skill${reference ? ', and the styleGuide from the reference' : ''}) and call reels_director_treatment. Do not write the plan yet.`,
   };
@@ -405,6 +417,8 @@ export function directorTreatment(args: Record<string, unknown>, ctx: AgentConte
   const findings = checkTreatment(t, {
     clips: session?.clips ?? [], fps: session?.fps ?? ctx.getState().fps, ...(session?.song ? { song: session.song } : {}),
     ...(session?.reference?.profile ? { reference: session.reference.profile } : {}),
+    ...(session?.brand ? { brand: { name: session.brand.name, words: brandWords(session.brand), ...(brandAction(session.brand) ? { action: brandAction(session.brand) } : {}) } } : {}),
+    ...(session?.clips.some((c) => c.filmedAt) ? { clock: true } : {}),
   });
   const gated = session?.askFirst === true;
   updateDirectorSession(id, { treatment: t, lastBuild: undefined, ...(gated ? { gate: 'waiting' as const } : {}) });

@@ -10,6 +10,7 @@ import type { SfxCue } from './sfx';
 import { getCustomGraphic } from './customGraphics';
 import { BOARDING_PASS_CODE, CAMCORDER_CODE, CHAPTER_BAR_CODE, HUD_STATS_CODE, LOADING_BAR_CODE, ROUTE_MAP_CODE } from './graphicsTravel';
 import { ANNOTATE_CODE, CHAT_BUBBLES_CODE, CONFETTI_CODE, COUNTDOWN_CODE, NOTIFICATION_CODE, STICKER_CODE, TYPE_STACK_CODE } from './graphicsSocial';
+import { CTA_ASKS, CTA_CARD_CODE, HANDLE_TAG_CODE } from './graphicsPromo';
 
 /** What a graphic knows when its sounds are placed: its words, params, length and beat clock (seconds from its start). */
 export interface GraphicTiming { items: string[]; params: Record<string, PlanValue>; total: number; beatSec: (b: number) => number }
@@ -140,6 +141,21 @@ export const GRAPHICS: readonly GraphicDef[] = [
     text: { required: true, max: 60, items: [2, 6], hint: 'words or short lines, split with "/"' },
     params: [EVERY(1), color('color', 'Text colour', '#ffffff'), color('accent', 'Block colour', '#ff3b5c'), { id: 'solid', type: 'boolean', label: 'Solid background instead of the dimmed picture', default: false }, color('background', 'Solid background colour', '#111111'), Y],
     sounds: (g) => perItem(g, 'click', 0.05),
+  },
+  {
+    id: 'cta-card', name: 'End card', code: CTA_CARD_CODE,
+    looks: 'The name lands big, a pill button with the one action pops in and breathes on the beat, the link line under it, and an optional "save this" ask in a small white box; the picture dims (or a solid brand colour).',
+    use: 'The ending of a promo reel (a club, a shop, a page, an event): "PUNE TREKKERS / Join free on WhatsApp / link in bio". Only the brand\'s own name, action and link (from the brand kit or the user). 6-12 beats on the last section, over a calm shot or a black section.',
+    text: { required: true, max: 90, items: [1, 3], hint: 'name / action / link line, split with "/"' },
+    params: [choice('ask', 'Engagement ask under it', Object.keys(CTA_ASKS)), { id: 'solid', type: 'boolean', label: 'Solid background instead of the dimmed picture', default: false }, color('background', 'Solid background (the brand colour)', '#0f2a1d'), color('accent', 'Button colour (the brand colour)', '#ffb020'), color('color', 'Text colour', '#ffffff'), Y],
+    sounds: (g) => [{ sec: 0.1, cue: 'whoosh-soft' }, ...(g.items[1] ? [{ sec: 0.4, cue: 'pop' as SfxCue }] : []), ...(g.params.ask && g.params.ask !== 'none' ? [{ sec: 1.0, cue: 'click' as SfxCue }] : [])],
+  },
+  {
+    id: 'handle-tag', name: 'Handle tag', code: HANDLE_TAG_CODE,
+    looks: 'A small dark pill in the top-left corner with a coloured dot and the handle or name; slides in and stays.',
+    use: 'A promo reel\'s name or @handle on screen while the story plays ("@punetrekkers"), so a viewer who skips the end still knows who made it. Spans the sections after the hook up to the end card; never over the hook\'s first second.',
+    text: { required: true, max: 28, items: [1, 1], hint: 'the @handle or the name' },
+    params: [color('accent', 'Dot colour (the brand colour)', '#ffb020'), color('color', 'Text colour', '#ffffff'), { id: 'upper', type: 'boolean', label: 'Capitals', default: true }, { id: 'dot', type: 'boolean', label: 'Coloured dot', default: true }, X, Y],
   },
 ];
 

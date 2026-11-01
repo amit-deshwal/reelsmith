@@ -10,6 +10,8 @@
 //   POST /api/reelsmith/frame-jpeg     { src, atSec } -> that frame at full size as base64 JPEG (the export's cover)
 //   POST /api/reelsmith/reverse-clip   { src, startSec, frames, fps } -> that span played backwards, saved next to the video
 //   POST /api/reelsmith/depth-map      { src, atSec? } -> the photo's depth map saved next to it (`{ available:false }` without the depth-lite pack)
+//   POST /api/reelsmith/no-sound-copy  { src } -> RS-1241: <name>.no-sound.mp4 next to the export (picture copied, no audio)
+//   POST /api/reelsmith/brand-kit      { url } -> RS-1239: name, tagline, lines, facts, actions, links, colours of the one page the user named
 import { existsSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -26,6 +28,8 @@ import { extractStill, frameJpeg } from './stillFrame.ts';
 import { reverseSpan } from './reverseClip.ts';
 import { depthMapFor, depthPackInstalled } from './depthMap.ts';
 import { exportParity } from './exportParity.ts';
+import { fetchBrandKit } from './brandFetch.ts';
+import { noSoundCopy } from './noSoundCopy.ts';
 import { buildSelectionSheets, MAX_SHEET_CELLS } from './selectionSheet.ts';
 import { renderRecipePreview, type PreviewRequest } from './previewRender.ts';
 import { REEL_PRESETS, presetForCanvas } from '../../shared/reelsmith/instagramPreset.ts';
@@ -137,6 +141,13 @@ export function reelsmithAnalyzePlugin(): Plugin {
         return { available: true, src: `/media/uploads/${encodeURIComponent(r.name)}`, width: r.width, height: r.height, cached: r.cached };
       });
       route('/api/reelsmith/preview', async (body) => renderRecipePreview(body as unknown as PreviewRequest));
+      route('/api/reelsmith/no-sound-copy', async (body) => {
+        const file = localFile(body.src);
+        if (typeof file !== 'string') throw new Error(file.error);
+        const copy = await noSoundCopy(file);
+        return { src: `/media/uploads/${encodeURIComponent(copy.name)}`, name: copy.name, bytes: copy.bytes };
+      });
+      route('/api/reelsmith/brand-kit', async (body) => ({ kit: await fetchBrandKit(body.url) }));
       route('/api/reelsmith/export-parity', async (body) => {
         const file = localFile(body.src);
         if (typeof file !== 'string') throw new Error(file.error);

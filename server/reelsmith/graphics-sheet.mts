@@ -28,6 +28,8 @@ const SAMPLES: Record<string, { text?: string; params?: Record<string, unknown> 
   'hud-stats': { text: 'ALT 1,424 m / DIST 18 km / TIME 6 h' },
   'chapter-bar': { text: 'Day 1 / Day 2 / Summit' },
   'loading-bar': { text: 'loading weekend... / 100% vacation' },
+  'cta-card': { text: 'Pune Trekkers / Join free on WhatsApp / link in bio', params: { ask: 'save-share', accent: '#ffb020' } },
+  'handle-tag': { text: '@punetrekkers', params: { accent: '#ffb020' } },
   camcorder: { text: 'OCT 21 2026' },
   'type-stack': { text: 'one / last / trip' },
 };

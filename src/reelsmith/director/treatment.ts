@@ -190,6 +190,10 @@ export interface TreatmentContext {
   fps: number;
   song?: { bpm?: number; beatsFor18s?: number; dropAtBeat?: number };
   reference?: ReferenceProfile;
+  /** RS-1239: a promo reel's brand kit: its words count as the user's, and the reel ends asking for its one action */
+  brand?: { name: string; words: string; action?: string };
+  /** RS-1240: clock times the clips were filmed at ("#3 4:12 am"), for time labels that are true */
+  clock?: boolean;
 }
 
 const STOP = new Set(['the', 'a', 'an', 'and', 'of', 'to', 'it', 'is', 'in', 'on', 'we', 'they', 'that', 'this', 'their', 'our', 'viewer', 'viewers', 'see', 'sees', 'now', 'knows', 'know', 'feel', 'feels']);
@@ -241,6 +245,7 @@ export function checkTreatment(t: Treatment, ctx: TreatmentContext): TreatmentFi
   const hookSec = hook.beats * beatSec;
   const hookWords = hook.line ? words(hook.line).length : 0;
   if (hookSec > 3.5 && PLAIN_MOVES.has(hook.move)) out.push({ issue: `the hook is ${hookSec.toFixed(1)} s of one ${hook.move}`, fix: 'open in under 2-3 s with movement or a reveal (strips-reveal, flash-cuts, a moving hero shot), and put the setup line on that' });
+  if (!hookWords && (t.story.trim() || ctx.brand)) out.push({ issue: 'the hook has no words', fix: 'most people scroll with the sound off: put 2-5 words on the first second (the sharpest part of their story, a question it raises, or the payoff it promises), big and centred' });
   if (hookWords > 7) out.push({ issue: `the hook line is ${hookWords} words`, fix: 'open on 2-5 words (the sharpest part of their sentence); put the rest of it in the next part' });
   const first = hook.clips?.[0] ? clipOf(hook.clips[0], ctx.clips) : undefined;
   if (first && hook.move === 'hold' && motionAt(first.clip, first.at, ctx.fps, ctx.clips) === 'still') {
@@ -264,7 +269,8 @@ export function checkTreatment(t: Treatment, ctx: TreatmentContext): TreatmentFi
   });
   // the user's words
   if (!t.ownWords) {
-    const said = new Set(words(t.story));
+    // RS-1239/1240: a promo reel's page and the clips' own filming times are the user's words too
+    const said = new Set([...words(t.story), ...(ctx.brand ? words(ctx.brand.words) : []), ...(ctx.clock ? ['am', 'pm', 'day'] : [])]);
     const added = t.parts.flatMap((p) => (p.line ? words(p.line).filter((w) => !said.has(w)) : []));
     if (added.length) out.push({ issue: `words the user did not write: ${[...new Set(added)].join(', ')}`, fix: 'quote their phrases as written (trim, never reword); set ownWords only when they asked for lines of your own' });
   }
@@ -279,6 +285,11 @@ export function checkTreatment(t: Treatment, ctx: TreatmentContext): TreatmentFi
   for (const m of missingThings(t.story, ctx.clips)) out.push({ issue: `the story names "${m.word}" and no clip seems to show it`, fix: 'ask the user before planning; never put that line over a shot of something else', ask: missingThingQuestion(m) });
   // RS-1217: a reference the agent was given is studied before it is followed
   if (ctx.reference && !t.styleGuide) out.push({ issue: `there is a reference reel (${ctx.reference.name}) and no styleGuide`, fix: 'write styleGuide from its measurements and sheet: pacing (seconds or beats a shot), palette (its colours in words), type, motion (snap, glide, hold), texture, and doNotCopy (its subjects, words and logos)' });
+  // RS-1239: a promo reel asks for one thing at the end, and says who made it
+  if (ctx.brand) {
+    if (!t.graphics.includes('cta-card')) out.push({ issue: `a promo reel for ${ctx.brand.name} with no end card`, fix: `add cta-card to the graphics on the ending: "${ctx.brand.name} / ${ctx.brand.action ?? '<one action from the brand kit>'} / link in bio", 6-12 beats` });
+    if (!t.graphics.includes('handle-tag') && t.parts.length >= 4) out.push({ issue: `nothing names ${ctx.brand.name} until the end`, fix: 'a handle-tag (the @handle or the name) from the part after the hook to the end card' });
+  }
   // who the story names
   if (PERSON.test(t.story) && !t.graphics.includes('annotate') && !t.textStyles.includes('follow-tag') && !t.parts.some((p) => p.move === 'freeze-intro')) {
     out.push({ issue: `the story names "${PERSON.exec(t.story)![1]}" and nothing shows who that is`, fix: 'an annotate arrow labelled with their word on a calm shot of them, a follow-tag, or a freeze-intro' });

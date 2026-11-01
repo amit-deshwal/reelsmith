@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { TONE_KIT, TONES, checkTreatment, parseTreatment, treatmentIds, type Treatment } from './treatment';
 import { catalogKind, catalogSlice } from './catalogText';
+import { brandAction, brandWords, parseBrandHtml } from '../../../shared/reelsmith/brandKit';
 import { critiqueFrames, critiquePlan, criticBrief } from './critique';
 import type { ShotLogClip } from './shotLog';
 import type { WindowFeatures } from '../assembler/scoring';
@@ -111,3 +112,21 @@ assert.ok(ask?.ask && /waterfall.*Is it in one of them/.test(ask.ask), falls.map
 // one clip with water in it is enough; untagged footage is not judged
 assert.ok(!checkTreatment({ ...ex, story: `${ex.story} waterfall` }, { clips: tagged.map((c, i) => (i === 2 ? { ...c, tags: tags('water', 0.5) } : c)), fps, song }).some((x) => x.ask));
 assert.ok(!checkTreatment({ ...ex, story: `${ex.story} waterfall` }, { clips, fps, song }).some((x) => x.ask));
+
+// RS-1239: a promo reel (Kino's 2026-11-01 Pune Trekkers run): the page's words are the user's, and it ends asking
+const kit = parseBrandHtml(`<title>Pune Trekkers | Find your people</title><meta name="description" content="Free, volunteer-run treks.">
+  <h1>FIND YOUR PEOPLE. FIND YOUR TRAIL.</h1><p>2,300+ trekkers and counting</p><a href="https://chat.whatsapp.com/x">Join free on WhatsApp</a>`, 'https://punetrekkers.org/');
+const brand = { name: kit.name, words: brandWords(kit), action: brandAction(kit) };
+const promo: Treatment = { ...ex, story: 'promo reel for our trekking group', graphics: [], parts: ex.parts.map((p, i) => (i === 0 ? { ...p, line: 'find your trail' } : i === 2 ? { ...p, line: '2,300+ trekkers' } : i === 5 ? { ...p, line: 'join free on whatsapp' } : { ...p, line: undefined })) };
+const pf = checkTreatment(promo, { clips, fps, song, brand });
+assert.ok(!pf.some((x) => /did not write/.test(x.issue)), pf.map((x) => x.issue).join(' | '));
+assert.ok(pf.some((x) => /promo reel for Pune Trekkers with no end card/.test(x.issue) && /Join free on WhatsApp/.test(x.fix)), pf.map((x) => x.issue).join(' | '));
+assert.ok(pf.some((x) => /nothing names Pune Trekkers/.test(x.issue)));
+assert.ok(!checkTreatment({ ...promo, graphics: ['cta-card', 'handle-tag'] }, { clips, fps, song, brand }).some((x) => /end card|nothing names/.test(x.issue)));
+// without the kit, the same lines are words the user did not write
+assert.ok(checkTreatment(promo, { clips, fps, song }).some((x) => /did not write/.test(x.issue)));
+// a hook with no words, when there is a story to quote
+assert.ok(checkTreatment({ ...ex, parts: ex.parts.map((p, i) => (i === 0 ? { ...p, line: undefined } : p)) }, { clips, fps, song }).some((x) => /hook has no words/.test(x.issue)));
+// RS-1240: clock times from the clips' own metadata count as theirs
+assert.ok(!checkTreatment({ ...ex, parts: ex.parts.map((p, i) => (i === 1 ? { ...p, line: '4:12 am' } : p)) }, { clips, fps, song, clock: true }).some((x) => /did not write: am/.test(x.issue)));
+console.log('treatment promo: ok');

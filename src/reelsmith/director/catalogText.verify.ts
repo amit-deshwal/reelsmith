@@ -108,3 +108,15 @@ assert.equal(sheetSamples(19, 10).length, 3, 'photos take cells too');
   assert.match(directorPrompt('trek', '9:16', 2), /pick the one that fits the story/);
 }
 console.log('catalogText: ok');
+
+// RS-1239: a web address in the story turns on the brand kit; plain stories and file names do not
+{
+  const { directorPrompt, storySite } = await import('./directorPrompt');
+  assert.equal(storySite('promo reel for punetrekkers.org, join us'), 'punetrekkers.org');
+  assert.equal(storySite('see https://www.chaipoint.in/menu today'), 'https://www.chaipoint.in/menu');
+  assert.equal(storySite('bro lied to me. 2 days of adventure'), undefined);
+  assert.equal(storySite('used IMG_0307.MOV and clip.mp4'), undefined);
+  assert.match(directorPrompt('promo for punetrekkers.org', '9:16', 1), /pass it as brandUrl/);
+  assert.doesNotMatch(directorPrompt('bro lied to me', '9:16', 1), /brandUrl/);
+  console.log('directorPrompt site: ok');
+}

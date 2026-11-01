@@ -192,11 +192,12 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
       'and returns the shot log (each clip numbered #1, #2... with its best moments, where it moves, talks or goes soft), contact sheets taken',
       'at those moments, and the songs with bpm, drop and a timing suggestion. Call once, then write the treatment (reels_director_treatment).',
       'With `reference` (an imported reel the user wants theirs to feel like) it also measures that reel (pace, colour, motion), shows one',
-      'cell a shot of it, and leaves it out of the clips.',
+      'cell a shot of it, and leaves it out of the clips. With `brandUrl` (a promo reel) it also reads that one page for its brand kit.',
     ].join(' '),
     input_schema: { type: 'object', properties: {
       reference: { type: 'string', description: 'Optional: assetId or file name of an imported reel to match in pace and look (never cast as footage).' },
       askFirst: { type: 'boolean', description: 'True when the user wants to approve the treatment before the build (the treatment then returns a card to show them).' },
+      brandUrl: { type: 'string', description: 'Optional, for a promo reel (a club, shop, page or event): the web address the user gave (e.g. "punetrekkers.org"). Returns its brand kit: name, tagline, lines, facts, actions, links and colours, whose words you may then put on screen.' },
     } },
   },
   {

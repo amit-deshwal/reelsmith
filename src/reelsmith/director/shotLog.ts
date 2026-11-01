@@ -14,6 +14,28 @@ export interface ShotLogClip {
   shape?: 'portrait' | 'landscape' | 'square';
   features?: ClipFeatures | null;
   tags?: ClipShotTags;
+  /** RS-1240: when it was filmed, on the local clock ("4:12 am", "day 2 · 6:05 am" over several days) */
+  filmedAt?: string;
+}
+
+/**
+ * RS-1240: the local clock time each clip was filmed (from its own metadata), for time labels that are true ("4:12 am"
+ * over the night start, as Kino's run guessed at). Days are counted from the first clip's day when the clips span more
+ * than one; clips without a time stay unlabelled. Fewer than two timed clips say nothing worth a label.
+ */
+export function filmedLabels(times: ReadonlyArray<number | undefined>, tzOffsetMin: number): Array<string | undefined> {
+  const known = times.filter((t): t is number => typeof t === 'number' && Number.isFinite(t) && t > 946_684_800_000);
+  if (known.length < 2) return times.map(() => undefined);
+  const dayOf = (t: number) => Math.floor((t + tzOffsetMin * 60_000) / 86_400_000);
+  const first = Math.min(...known.map(dayOf));
+  const days = new Set(known.map(dayOf)).size;
+  return times.map((t) => {
+    if (typeof t !== 'number' || !known.includes(t)) return undefined;
+    const d = new Date(t + tzOffsetMin * 60_000);
+    const h = d.getUTCHours(), m = d.getUTCMinutes();
+    const clock = `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`;
+    return days > 1 ? `day ${dayOf(t) - first + 1} · ${clock}` : clock;
+  });
 }
 
 /** Project-wide thresholds, so "moving" and "soft" mean the same across clips shot on different phones. */
@@ -98,7 +120,7 @@ export function shotLogLines(clips: readonly ShotLogClip[], fps: number, k: numb
   const moments = new Map<number, number[]>();
   const lines = clips.map((c) => {
     const head = `#${c.n} ${r1(c.seconds)}s ${c.kind === 'image' ? 'photo' : 'video'}${c.shape ? ` ${c.shape}` : ''}`;
-    const tags = tagWords(c.tags);
+    const tags = [tagWords(c.tags), c.filmedAt ? `filmed ${c.filmedAt}` : ''].filter(Boolean).join(' · ');
     if (c.kind === 'image') { moments.set(c.n, [0]); return [head, tags].filter(Boolean).join(' · '); }
     const best = bestMoments(c, k, fps, scale);
     moments.set(c.n, best);
