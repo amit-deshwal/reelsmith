@@ -3,6 +3,7 @@
 // It renders through the app's own export renderer (remotion), and checks that progress 0 and 100 % are the untouched
 // pictures (the same frame of the same timeline with a hard cut instead of the transition).
 import { execFileSync } from 'node:child_process';
+import { ffmpegBin, ffprobeBin } from '../media-binaries.ts';
 import { copyFileSync, linkSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { extname, join, resolve } from 'node:path';
@@ -31,7 +32,7 @@ seedKeystore({ MEDIA_DIR: media });
 function asset(file: string, i: number): MediaAsset {
   const safe = `f${i}${extname(file).toLowerCase()}`;
   try { linkSync(file, join(media, safe)); } catch { copyFileSync(file, join(media, safe)); }
-  const p = JSON.parse(execFileSync('ffprobe', ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', file]).toString());
+  const p = JSON.parse(execFileSync(ffprobeBin(), ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', file]).toString());
   const v = p.streams.find((s: { codec_type: string }) => s.codec_type === 'video');
   const rot = Math.abs(Number(v.side_data_list?.find((d: { rotation?: number }) => d.rotation !== undefined)?.rotation ?? 0));
   const [w, h] = rot === 90 || rot === 270 ? [v.height, v.width] : [v.width, v.height];
@@ -68,7 +69,7 @@ async function stills(type: TransitionType | null, seconds: number, frames: numb
 const mad = (a: Buffer, b: Buffer, name: string) => {
   const ja = join(work, `${name}-a.jpg`), jb = join(work, `${name}-b.jpg`);
   writeFileSync(ja, a); writeFileSync(jb, b);
-  const o = execFileSync('ffmpeg', ['-v', 'error', '-i', ja, '-i', jb, '-filter_complex', '[1][0]scale2ref[b][a];[a][b]blend=all_mode=difference,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-', '-f', 'null', '-'], { stdio: ['ignore', 'pipe', 'pipe'] }).toString();
+  const o = execFileSync(ffmpegBin(), ['-v', 'error', '-i', ja, '-i', jb, '-filter_complex', '[1][0]scale2ref[b][a];[a][b]blend=all_mode=difference,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-', '-f', 'null', '-'], { stdio: ['ignore', 'pipe', 'pipe'] }).toString();
   return Number(/YAVG=([\d.]+)/.exec(o)?.[1] ?? NaN);
 };
 
@@ -89,11 +90,11 @@ for (const type of types) {
   console.log(`${ok ? 'ok  ' : 'FAIL'} ${type.padEnd(16)} ${seconds}s  start diff ${d0.toFixed(2)}  end diff ${d1.toFixed(2)}`);
   const files = withT.map((b, i) => { const f = join(work, `${type}-${i}.jpg`); writeFileSync(f, b); return f; });
   const row = join(work, `row-${type}.jpg`);
-  execFileSync('ffmpeg', ['-y', '-v', 'error', ...files.flatMap((f) => ['-i', f]), '-filter_complex', `${files.map((_, i) => `[${i}:v]scale=216:-1[s${i}]`).join(';')};${files.map((_, i) => `[s${i}]`).join('')}hstack=inputs=${files.length}`, '-frames:v', '1', row]);
+  execFileSync(ffmpegBin(), ['-y', '-v', 'error', ...files.flatMap((f) => ['-i', f]), '-filter_complex', `${files.map((_, i) => `[${i}:v]scale=216:-1[s${i}]`).join(';')};${files.map((_, i) => `[s${i}]`).join('')}hstack=inputs=${files.length}`, '-frames:v', '1', row]);
   rows.push(row);
 }
 if (rows.length === 1) copyFileSync(rows[0]!, out);
-else execFileSync('ffmpeg', ['-y', '-v', 'error', ...rows.flatMap((f) => ['-i', f]), '-filter_complex', `${rows.map((_, i) => `[${i}:v]`).join('')}vstack=inputs=${rows.length}`, '-frames:v', '1', out]);
+else execFileSync(ffmpegBin(), ['-y', '-v', 'error', ...rows.flatMap((f) => ['-i', f]), '-filter_complex', `${rows.map((_, i) => `[${i}:v]`).join('')}vstack=inputs=${rows.length}`, '-frames:v', '1', out]);
 console.log(`sheet: ${out}  (rows: ${types.join(', ')})`);
 rmSync(work, { recursive: true, force: true });
 if (failed) { console.error(`${failed} transition(s) changed the untouched ends`); process.exit(1); }

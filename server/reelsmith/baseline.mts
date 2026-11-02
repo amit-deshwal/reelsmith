@@ -3,6 +3,7 @@
 // Reports per-step timings, then exports the reel through the app's server pipeline, finalizes it for Instagram and
 // runs the V1-V9 checks plus the V8 parity sample. Nothing is written outside a temp folder and the report on stdout.
 import { execFileSync } from 'node:child_process';
+import { ffprobeBin } from '../media-binaries.ts';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, linkSync, copyFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { extname, join, resolve } from 'node:path';
@@ -49,7 +50,7 @@ let t = Date.now();
 files.forEach((f, i) => {
   const safe = `f${i}${extname(f).toLowerCase()}`;
   try { linkSync(join(folder, f), join(media, safe)); } catch { copyFileSync(join(folder, f), join(media, safe)); }
-  const p = JSON.parse(execFileSync('ffprobe', ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', join(folder, f)], { maxBuffer: 1 << 26 }).toString());
+  const p = JSON.parse(execFileSync(ffprobeBin(), ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', join(folder, f)], { maxBuffer: 1 << 26 }).toString());
   const v = p.streams.find((s: { codec_type: string }) => s.codec_type === 'video');
   const dur = Number(p.format.duration);
   const base = { id: `a${i}`, name: f, src: `/media/uploads/${safe}`, durationInFrames: Math.max(1, Math.floor(dur * FPS)) };

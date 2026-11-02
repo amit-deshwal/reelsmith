@@ -3,6 +3,7 @@
 //   node --import tsx server/reelsmith/fx-sheet.mts <clip> <out.jpg> [effect id ...] [--at=FRAME] [--cols=N]
 // Rendered through the app's own export renderer (remotion), so what you see is what an export draws.
 import { execFileSync } from 'node:child_process';
+import { ffmpegBin, ffprobeBin } from '../media-binaries.ts';
 import { copyFileSync, linkSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { extname, join, resolve } from 'node:path';
@@ -35,7 +36,7 @@ seedKeystore({ MEDIA_DIR: media });
 
 const safe = `f0${extname(clip).toLowerCase()}`;
 try { linkSync(clip, join(media, safe)); } catch { copyFileSync(clip, join(media, safe)); }
-const p = JSON.parse(execFileSync('ffprobe', ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', clip]).toString());
+const p = JSON.parse(execFileSync(ffprobeBin(), ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', clip]).toString());
 const v = p.streams.find((s: { codec_type: string }) => s.codec_type === 'video');
 const rot = Math.abs(Number(v.side_data_list?.find((d: { rotation?: number }) => d.rotation !== undefined)?.rotation ?? 0));
 const [w, h] = rot === 90 || rot === 270 ? [v.height, v.width] : [v.width, v.height];
@@ -69,10 +70,10 @@ for (let i = 0; i < tiles.length; i += cols) {
   const group = tiles.slice(i, i + cols);
   while (group.length < cols) group.push(group[0]!);   // pad the last row with the original
   const row = join(work, `row-${i}.jpg`);
-  execFileSync('ffmpeg', ['-y', '-v', 'error', ...group.flatMap((f) => ['-i', f]), '-filter_complex', `${group.map((_, k) => `[${k}:v]scale=270:-1[s${k}]`).join(';')};${group.map((_, k) => `[s${k}]`).join('')}hstack=inputs=${group.length}`, '-frames:v', '1', row]);
+  execFileSync(ffmpegBin(), ['-y', '-v', 'error', ...group.flatMap((f) => ['-i', f]), '-filter_complex', `${group.map((_, k) => `[${k}:v]scale=270:-1[s${k}]`).join(';')};${group.map((_, k) => `[s${k}]`).join('')}hstack=inputs=${group.length}`, '-frames:v', '1', row]);
   rows.push(row);
 }
 if (rows.length === 1) copyFileSync(rows[0]!, out);
-else execFileSync('ffmpeg', ['-y', '-v', 'error', ...rows.flatMap((f) => ['-i', f]), '-filter_complex', `${rows.map((_, i) => `[${i}:v]`).join('')}vstack=inputs=${rows.length}`, '-frames:v', '1', out]);
+else execFileSync(ffmpegBin(), ['-y', '-v', 'error', ...rows.flatMap((f) => ['-i', f]), '-filter_complex', `${rows.map((_, i) => `[${i}:v]`).join('')}vstack=inputs=${rows.length}`, '-frames:v', '1', out]);
 console.log(`sheet: ${out}  (order: original, ${ids.map((i) => i.replace('builtin:fx-', '').replace('look:', 'look ')).join(', ')})`);
 rmSync(work, { recursive: true, force: true });

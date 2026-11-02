@@ -5,6 +5,7 @@
 //   node --import tsx server/reelsmith/audiomix.mts
 //   SPEECH=voice node --import tsx server/reelsmith/audiomix.mts
 import { execFileSync } from 'node:child_process';
+import { ffmpegBin } from '../media-binaries.ts';
 import { copyFileSync, linkSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -26,7 +27,7 @@ const media = join(work, 'media');
 mkdirSync(media);
 setUploadsDirProvider(() => media);
 seedKeystore({ MEDIA_DIR: media });
-const ff = (...a: string[]) => execFileSync('ffmpeg', ['-v', 'error', '-y', ...a], { maxBuffer: 1 << 28 });
+const ff = (...a: string[]) => execFileSync(ffmpegBin(), ['-v', 'error', '-y', ...a], { maxBuffer: 1 << 28 });
 
 // sources
 ff('-f', 'lavfi', '-i', `sine=f=440:r=${SR}:d=6`, '-af', 'volume=0.5', '-c:a', 'aac', join(media, 'music.m4a'));
@@ -56,7 +57,7 @@ const out = join(work, 'mix.mp4');
 try { await withExportPermit(() => renderExportPlan(submission.plan, out, () => {})); } finally { await submission.cleanup(); }
 
 function pcm(file: string): Float32Array {
-  const buf = execFileSync('ffmpeg', ['-v', 'error', '-i', file, '-vn', '-ac', '1', '-ar', String(SR), '-f', 'f32le', '-'], { maxBuffer: 1 << 28 });
+  const buf = execFileSync(ffmpegBin(), ['-v', 'error', '-i', file, '-vn', '-ac', '1', '-ar', String(SR), '-f', 'f32le', '-'], { maxBuffer: 1 << 28 });
   return new Float32Array(buf.buffer, buf.byteOffset, Math.floor(buf.byteLength / 4));
 }
 /** Amplitude of one tone over [t0, t1) seconds. */

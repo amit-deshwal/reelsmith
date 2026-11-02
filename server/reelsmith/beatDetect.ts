@@ -2,13 +2,14 @@
 // Onset envelope -> tempo by autocorrelation -> beat phase by comb scoring. Good for steady pop/dance music;
 // the beat-grid UI (RS-601) lets the user correct it by hand.
 import { spawn } from 'node:child_process';
+import { ffmpegBin } from '../media-binaries.ts';
 
 const SR = 11025;
 const HOP = 256; // ~23 ms frames
 
 export function decodeMono(file: string, maxSec = 300): Promise<Float32Array> {
   return new Promise((resolve, reject) => {
-    const ff = spawn('ffmpeg', ['-v', 'error', '-t', String(maxSec), '-i', file, '-vn', '-ac', '1', '-ar', String(SR), '-f', 'f32le', '-']);
+    const ff = spawn(ffmpegBin(), ['-v', 'error', '-t', String(maxSec), '-i', file, '-vn', '-ac', '1', '-ar', String(SR), '-f', 'f32le', '-']);
     const chunks: Buffer[] = [];
     let err = '';
     ff.stdout.on('data', (d: Buffer) => chunks.push(d));

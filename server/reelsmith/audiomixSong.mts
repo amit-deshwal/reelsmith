@@ -6,6 +6,7 @@
 // ducked/reference per 10 ms is the exact gain the duck applied to the song, whatever the music does.
 //   node --import tsx server/reelsmith/audiomixSong.mts /path/to/song.mp3 [outDir]
 import { execFileSync } from 'node:child_process';
+import { ffmpegBin } from '../media-binaries.ts';
 import { copyFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -33,7 +34,7 @@ const media = join(work, 'media');
 mkdirSync(media);
 setUploadsDirProvider(() => media);
 seedKeystore({ MEDIA_DIR: media });
-const ff = (...a: string[]) => execFileSync('ffmpeg', ['-v', 'error', '-y', ...a], { maxBuffer: 1 << 28 });
+const ff = (...a: string[]) => execFileSync(ffmpegBin(), ['-v', 'error', '-y', ...a], { maxBuffer: 1 << 28 });
 
 ff('-ss', String(SONG_AT), '-t', String(LEN + 1), '-i', song, '-ar', String(SR), '-c:a', 'aac', '-b:a', '256k', join(media, 'song.m4a'));
 LINES.forEach(([from, to, text], i) => {
@@ -68,7 +69,7 @@ async function render(name: string, voiceVolume: number, anchor: boolean): Promi
 }
 
 function pcm(file: string): Float32Array {
-  const buf = execFileSync('ffmpeg', ['-v', 'error', '-i', file, '-vn', '-ac', '1', '-ar', String(SR), '-f', 'f32le', '-'], { maxBuffer: 1 << 28 });
+  const buf = execFileSync(ffmpegBin(), ['-v', 'error', '-i', file, '-vn', '-ac', '1', '-ar', String(SR), '-f', 'f32le', '-'], { maxBuffer: 1 << 28 });
   return new Float32Array(buf.buffer, buf.byteOffset, Math.floor(buf.byteLength / 4));
 }
 const db = (r: number) => 20 * Math.log10(Math.max(r, 1e-9));

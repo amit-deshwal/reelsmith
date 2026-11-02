@@ -5,6 +5,7 @@
 // The plan names clips "#n" in the folder's sorted order (videos and photos), like reels_director_options numbers them;
 // "musicStart": "suggest" uses the song suggestion the agent gets.
 import { execFileSync } from 'node:child_process';
+import { ffprobeBin } from '../media-binaries.ts';
 import { copyFileSync, linkSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { extname, join, resolve } from 'node:path';
@@ -34,7 +35,7 @@ mkdirSync(media);
 setUploadsDirProvider(() => media);
 seedKeystore({ MEDIA_DIR: media });
 
-const probe = (file: string) => JSON.parse(execFileSync('ffprobe', ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', file], { maxBuffer: 1 << 26 }).toString());
+const probe = (file: string) => JSON.parse(execFileSync(ffprobeBin(), ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', file], { maxBuffer: 1 << 26 }).toString());
 const link = (file: string, safe: string) => { try { linkSync(file, join(media, safe)); } catch { copyFileSync(file, join(media, safe)); } };
 const folder = resolve(folderArg);
 const files = readdirSync(folder).filter((f) => /\.(mov|mp4|m4v|jpe?g|png)$/i.test(f)).sort();

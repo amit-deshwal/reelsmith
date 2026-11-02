@@ -3,6 +3,7 @@
 //   node --import tsx server/reelsmith/showcase.mts <folder with clips> <output folder> [effects-1] [effects-2] [looks] [transitions]
 // Each segment shows the name of what it demonstrates. Nothing is written outside the output folder and a temp folder.
 import { execFileSync } from 'node:child_process';
+import { ffmpegBin, ffprobeBin } from '../media-binaries.ts';
 import { copyFileSync, existsSync, linkSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { extname, join, resolve } from 'node:path';
@@ -38,7 +39,7 @@ const files = readdirSync(folder).filter((f) => /\.(mov|mp4|m4v)$/i.test(f)).sor
 const assets: MediaAsset[] = files.map((f, i) => {
   const safe = `f${i}${extname(f).toLowerCase()}`;
   try { linkSync(join(folder, f), join(media, safe)); } catch { copyFileSync(join(folder, f), join(media, safe)); }
-  const p = JSON.parse(execFileSync('ffprobe', ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', join(folder, f)], { maxBuffer: 1 << 26 }).toString());
+  const p = JSON.parse(execFileSync(ffprobeBin(), ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', join(folder, f)], { maxBuffer: 1 << 26 }).toString());
   const v = p.streams.find((s: { codec_type: string }) => s.codec_type === 'video');
   const rot = Math.abs(Number(v.side_data_list?.find((d: { rotation?: number }) => d.rotation !== undefined)?.rotation ?? 0));
   const [w, h] = rot === 90 || rot === 270 ? [v.height, v.width] : [v.width, v.height];
@@ -48,7 +49,7 @@ const assets: MediaAsset[] = files.map((f, i) => {
 function brightness(a: MediaAsset): number {
   const file = join(media, a.src.split('/').pop()!);
   try {
-    const at = (sec: string) => Number(/YAVG=([\d.]+)/.exec(execFileSync('ffmpeg', ['-v', 'error', '-ss', sec, '-i', file, '-frames:v', '1', '-vf', 'scale=96:-1,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-', '-f', 'null', '-'], { stdio: ['ignore', 'pipe', 'pipe'] }).toString())?.[1] ?? 128);
+    const at = (sec: string) => Number(/YAVG=([\d.]+)/.exec(execFileSync(ffmpegBin(), ['-v', 'error', '-ss', sec, '-i', file, '-frames:v', '1', '-vf', 'scale=96:-1,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-', '-f', 'null', '-'], { stdio: ['ignore', 'pipe', 'pipe'] }).toString())?.[1] ?? 128);
     return Math.max(at('2'), at('3'));
   } catch { return 128; }
 }

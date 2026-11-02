@@ -2,6 +2,7 @@
 //   node --import tsx server/reelsmith/graphics-sheet.mts <clip> <out.jpg> [graphic id ...] [--seconds=4] [--cols=5] [--ratio=9:16]
 // Rendered through the app's own export renderer (remotion), so what you see is what an export draws.
 import { execFileSync } from 'node:child_process';
+import { ffmpegBin, ffprobeBin } from '../media-binaries.ts';
 import { copyFileSync, linkSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { extname, join, resolve } from 'node:path';
@@ -53,7 +54,7 @@ seedKeystore({ MEDIA_DIR: media });
 
 const safe = `f0${extname(clip).toLowerCase()}`;
 try { linkSync(clip, join(media, safe)); } catch { copyFileSync(clip, join(media, safe)); }
-const p = JSON.parse(execFileSync('ffprobe', ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', clip]).toString());
+const p = JSON.parse(execFileSync(ffprobeBin(), ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', clip]).toString());
 const v = p.streams.find((s: { codec_type: string }) => s.codec_type === 'video');
 const rot = Math.abs(Number(v.side_data_list?.find((d: { rotation?: number }) => d.rotation !== undefined)?.rotation ?? 0));
 const [w, h] = rot === 90 || rot === 270 ? [v.height, v.width] : [v.width, v.height];
@@ -87,7 +88,7 @@ async function row(id: string): Promise<string> {
     const tiles = r.map((x, i) => { const f = join(work, `${id}-${i}.jpg`); writeFileSync(f, Buffer.from(x.base64, 'base64')); return f; });
     const file = join(work, `row-${id}.jpg`);
     const tw = W > H ? 384 : 216;
-    execFileSync('ffmpeg', ['-y', '-v', 'error', ...tiles.flatMap((f) => ['-i', f]), '-filter_complex', `${tiles.map((_, k) => `[${k}:v]scale=${tw}:-2[s${k}]`).join(';')};${tiles.map((_, k) => `[s${k}]`).join('')}hstack=inputs=${tiles.length}`, '-frames:v', '1', file]);
+    execFileSync(ffmpegBin(), ['-y', '-v', 'error', ...tiles.flatMap((f) => ['-i', f]), '-filter_complex', `${tiles.map((_, k) => `[${k}:v]scale=${tw}:-2[s${k}]`).join(';')};${tiles.map((_, k) => `[s${k}]`).join('')}hstack=inputs=${tiles.length}`, '-frames:v', '1', file]);
     return file;
   } finally { await sub.cleanup(); }
 }
@@ -95,6 +96,6 @@ async function row(id: string): Promise<string> {
 const rows: string[] = [];
 for (const id of ids) { rows.push(await row(id)); console.log(`rendered ${id}`); }
 if (rows.length === 1) copyFileSync(rows[0]!, out);
-else execFileSync('ffmpeg', ['-y', '-v', 'error', ...rows.flatMap((f) => ['-i', f]), '-filter_complex', `${rows.map((_, i) => `[${i}:v]`).join('')}vstack=inputs=${rows.length}`, '-frames:v', '1', out]);
+else execFileSync(ffmpegBin(), ['-y', '-v', 'error', ...rows.flatMap((f) => ['-i', f]), '-filter_complex', `${rows.map((_, i) => `[${i}:v]`).join('')}vstack=inputs=${rows.length}`, '-frames:v', '1', out]);
 console.log(`sheet: ${out}  (rows: ${ids.join(', ')})`);
 rmSync(work, { recursive: true, force: true });

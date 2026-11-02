@@ -3,6 +3,7 @@
 // turned into words by the worker's own helpers.
 //   node --import tsx server/reelsmith/asr-timing-native.mts <ggml file> <dtw preset> <lang> <clip.wav> <truth.json>
 import { execFileSync, spawn } from 'node:child_process';
+import { ffmpegBin } from '../media-binaries.ts';
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -12,7 +13,7 @@ import { transcribeDtwWindows, DTW_WINDOW_MS, type DtwJson } from '../../shared/
 const [ggml, preset, lang, wav, truthFile] = process.argv.slice(2) as [string, string, string, string, string];
 const bin = join(process.cwd(), 'public/whisper-cli', `${process.platform}-${process.arch}`);
 const truth = JSON.parse(readFileSync(truthFile, 'utf8')) as Array<{ word: string; start: number }>;
-const pcm = execFileSync('ffmpeg', ['-nostdin', '-v', 'error', '-i', wav, '-f', 'f32le', '-ac', '1', '-ar', '16000', '-'], { maxBuffer: 1 << 28 });
+const pcm = execFileSync(ffmpegBin(), ['-nostdin', '-v', 'error', '-i', wav, '-f', 'f32le', '-ac', '1', '-ar', '16000', '-'], { maxBuffer: 1 << 28 });
 const samples = new Float32Array(pcm.buffer, pcm.byteOffset, pcm.byteLength / 4);
 
 function score(name: string, ms: number, chunks: ReadonlyArray<{ text: string; start: number }>) {

@@ -1,5 +1,6 @@
 // RS-304 fixtures and measurement: flash-and-beep clips (CFR, VFR, rotated, HLG) and a flash-to-beep offset meter.
 import { execFileSync } from 'node:child_process';
+import { ffmpegBin } from '../media-binaries.ts';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -17,7 +18,7 @@ export interface Fixture {
   referenceLuma?: number;
 }
 
-const ff = (...args: string[]) => execFileSync('ffmpeg', ['-v', 'error', '-y', ...args], { maxBuffer: 1 << 26 });
+const ff = (...args: string[]) => execFileSync(ffmpegBin(), ['-v', 'error', '-y', ...args], { maxBuffer: 1 << 26 });
 
 const flashExpr = FLASH_TIMES.map((t) => `between(t,${t},${t + FLASH_LEN - 0.001})`).join('+');
 
@@ -74,7 +75,7 @@ const out = (cmd: string, args: string[]) => execFileSync(cmd, args, { maxBuffer
 
 /** Luma per decoded frame (pts_time, mean Y) for the first video stream. */
 function frameLuma(path: string): Array<{ t: number; y: number }> {
-  const res = execFileSync('ffmpeg', ['-v', 'error', '-i', path, '-an', '-vf', 'scale=96:-2,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-', '-f', 'null', '-'], { maxBuffer: 1 << 28 }).toString();
+  const res = execFileSync(ffmpegBin(), ['-v', 'error', '-i', path, '-an', '-vf', 'scale=96:-2,signalstats,metadata=print:key=lavfi.signalstats.YAVG:file=-', '-f', 'null', '-'], { maxBuffer: 1 << 28 }).toString();
   const rows: Array<{ t: number; y: number }> = [];
   let t = NaN;
   for (const line of res.split('\n')) {
@@ -88,7 +89,7 @@ function frameLuma(path: string): Array<{ t: number; y: number }> {
 
 /** Loudness per millisecond (RMS dB) of the first audio stream, 48 samples at a time. */
 function beepOnsets(path: string): number[] {
-  const res = execFileSync('ffmpeg', ['-v', 'error', '-i', path, '-vn', '-ac', '1', '-ar', '48000', '-af', 'asetnsamples=n=48:p=0,astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file=-', '-f', 'null', '-'], { maxBuffer: 1 << 28 }).toString();
+  const res = execFileSync(ffmpegBin(), ['-v', 'error', '-i', path, '-vn', '-ac', '1', '-ar', '48000', '-af', 'asetnsamples=n=48:p=0,astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file=-', '-f', 'null', '-'], { maxBuffer: 1 << 28 }).toString();
   const rows: Array<{ t: number; db: number }> = [];
   let t = NaN;
   for (const line of res.split('\n')) {
@@ -120,7 +121,7 @@ export function measureOffsets(path: string, expected: number[]): Measure {
   });
   const size = out('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height', '-of', 'csv=p=0', path]).trim();
   // Background luma and marker position from one dark frame (t = 0.5 s), at 4x4 resolution.
-  const raw = execFileSync('ffmpeg', ['-v', 'error', '-ss', '0.5', '-i', path, '-frames:v', '1', '-vf', 'scale=4:4:flags=area,format=rgb24', '-f', 'rawvideo', '-'], { maxBuffer: 1 << 20 });
+  const raw = execFileSync(ffmpegBin(), ['-v', 'error', '-ss', '0.5', '-i', path, '-frames:v', '1', '-vf', 'scale=4:4:flags=area,format=rgb24', '-f', 'rawvideo', '-'], { maxBuffer: 1 << 20 });
   const px = (x: number, y: number) => [raw[(y * 4 + x) * 3]!, raw[(y * 4 + x) * 3 + 1]!, raw[(y * 4 + x) * 3 + 2]!] as const;
   const redness = (x: number, y: number) => px(x, y)[0] - px(x, y)[2];
   let best = { x: 0, y: 0, v: -999 };

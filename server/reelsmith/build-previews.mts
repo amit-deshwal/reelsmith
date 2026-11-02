@@ -8,6 +8,7 @@
 // --clips <dir>: use your own footage (videos and photos in <dir>) instead of the synthetic clips, so the previews show real clips.
 // Output: assets/recipe-previews/<id>.jpg (poster) and <id>.mp4 (muted 360x640 loop, ~4 s), served at /recipe-previews/.
 import { execFileSync } from 'node:child_process';
+import { ffmpegBin } from '../media-binaries.ts';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -47,7 +48,7 @@ mkdirSync(OUT, { recursive: true });
 setUploadsDirProvider(() => media);
 // in-memory only: point media resolution at the temp folder (nothing is written to the user's keystore)
 seedKeystore({ MEDIA_DIR: media });
-const ff = (...a: string[]) => execFileSync('ffmpeg', ['-v', 'error', '-y', ...a]);
+const ff = (...a: string[]) => execFileSync(ffmpegBin(), ['-v', 'error', '-y', ...a]);
 
 // --- synthetic media ---------------------------------------------------------------------------
 const PALETTE = [

@@ -6,11 +6,12 @@
 // Hindi, Rishi for English), joined with 0.28 s gaps, so each true start is exact; real speech is harder.
 import { pipeline, env } from '@huggingface/transformers';
 import { execFileSync } from 'node:child_process';
+import { ffmpegBin } from '../media-binaries.ts';
 import { readFileSync } from 'node:fs';
 const [,, modelId, lang, wav, truthFile, dtype = 'q8'] = process.argv;
 env.localModelPath = `${process.env.HOME}/.reelsmith/asr-models/`;
 env.allowRemoteModels = false; env.allowLocalModels = true;
-const pcm = execFileSync('ffmpeg', ['-nostdin', '-v', 'error', '-i', wav, '-f', 'f32le', '-ac', '1', '-ar', '16000', '-'], { maxBuffer: 1 << 28 });
+const pcm = execFileSync(ffmpegBin(), ['-nostdin', '-v', 'error', '-i', wav, '-f', 'f32le', '-ac', '1', '-ar', '16000', '-'], { maxBuffer: 1 << 28 });
 const samples = new Float32Array(pcm.buffer, pcm.byteOffset, pcm.byteLength / 4);
 const t0 = Date.now();
 const asr = await pipeline('automatic-speech-recognition', modelId, { dtype, device: 'cpu' });
