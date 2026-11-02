@@ -2,7 +2,7 @@
 // reels-director skill. The story is quoted as the user's words, never as instructions to follow.
 import type { RatioId } from '../../../shared/reelsmith/ratios';
 
-export const STORY_MAX = 600;
+export const STORY_MAX = 6000;
 
 /**
  * `songs` is how many songs the user imported. The sound line must match: a conditional "with no song imported, keep the
@@ -14,7 +14,7 @@ export function storySite(story: string): string | undefined {
 }
 
 export function directorPrompt(story: string, ratio: RatioId, songs = 0, reference?: { id: string; name: string }, askFirst = false): string {
-  const text = story.replace(/\s+/g, ' ').trim().slice(0, STORY_MAX);
+  const text = story.replace(/[ \t]+/g, ' ').replace(/\s*\n\s*/g, '\n').trim().slice(0, STORY_MAX);
   return [
     `Direct a ${ratio} reel from the media I imported (director mode). Use what is there; ${songs ? `put it to the song I imported${songs > 1 ? ' (pick the one that fits the story)' : ''}.` : 'no song is imported, so keep the clips\' own sound.'}`,
     text ? `My story, in my words: "${text}"` : 'I have not written a story: ask me for one line about it first.',
