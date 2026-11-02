@@ -509,3 +509,9 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 - `server/media-normalization.ts`: our RS-1248 `encodeOnVideoToolbox` moved to `server/reelsmith/vtNormalize.ts` (takes the normaliser's runner as a callback); the file was over the 500-line gate.
 - `server/outbound-proxy.verify.ts`, `server/xai-oauth-session.verify.ts` (chdir to the fixture), `server/plugins/import-url-errors.verify.ts`, `desktop/embedded-project-store-http.verify.ts` (isolated dev profile id): they wrote the checkout's real `.env.local` through `setKeys` (import-url-errors cleared `UI_LOCALE`), which also made Vite-based suites restart mid-run and fail at random.
 
+
+## RS-1251 (2026-11-02): export size and fps from submit_export
+
+- `src/generate/media-export.ts`: `applyExportGeometry` (set the canvas height to the preset and the timeline fps to the override) replaced by `exportOutputGeometry`, which only reports the output size; `resolution` and `fps` now go to `/export`, which scales by the shorter side and retimes. A 9:16 reel at 1080p came out 608x1080, laid out on a smaller canvas, and a 60 fps timeline exported at 30 played at half speed.
+- `src/generate/media-export.geometry.verify.ts`: asserts the new behaviour (9:16 at 1080p is 1080x1920; the timeline's own size and rate without overrides).
+- `assets/agent/openchatcut-tool-schemas.json`: regenerated (plan `voiceover`, `voiceoverStart`, `captions`).

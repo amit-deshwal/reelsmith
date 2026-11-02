@@ -16,12 +16,14 @@ import { effectMixFor } from './effectTiming';
 import { isSfxCue, sfxActions, TRANSITION_CUES, type SfxEvent } from './sfx';
 import { serializableDefsFor } from '../../gl/fx/effects';
 import { customTransitionUniforms, getCustomTransition } from '../../gl/customTransitions';
-import { RECIPE_TRANSITIONS } from '../assembler/transitions';
+import { addRecipeTransition, RECIPE_TRANSITIONS } from '../assembler/transitions';
 import { lookById, lookEffects } from '../looks';
 import { focusForRange } from '../titleClear';
 import { buildGraphics, coverFocus } from './graphics';
 import { MOTION_RULES, applyMotionRules, toneParams } from './motionRules';
 import { heardClip, songDuck, type NaturalWindow } from './naturalSound';
+import { overSpeech, speechWindows, voiceFrames, voiceoverActions } from './voiceover';
+import { lyricsCaptions, reelLyrics } from './lyrics';
 import { traceShots } from './shotTrace';
 import { FLASHING_MOVES, markBehind, outlineOnFlash, tagLine } from './lineMarks';
 import { effectAsset, resolveParams, resolvePlanSections } from './planSections';
@@ -99,21 +101,34 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
   // 2. the clock: section start and end frames
   const frame = (b: number) => Math.round(clock(b) * fps);
   let at = 0;
+  // RS-1251: where the plan meant this section to end, in seconds from the reel start. Each seconds-section snaps that
+  // running total to the grid (nearest quarter beat), so rounding never adds up: flooring each length on its own put
+  // the voiceover reel's cuts 0.5 s ahead of their lines by the end.
+  let meant = 0;
   const spans = resolved.map((r) => {
     const s = r!.s;
     const a = at;
     let b: number;
     if (s.seconds !== undefined) {
-      // seconds: find the beat count whose clock length is closest, so the following sections stay on the beat grid
-      const target = clock(at) + s.seconds;
-      let nb = at;
-      while (clock(nb + 0.25) <= target + 1e-6 && nb - at < 600) nb += 0.25;
+      meant += s.seconds;
+      let nb = at + 0.25;
+      while (clock(nb + 0.25) <= meant + 1e-6 && nb - at < 600) nb += 0.25;
+      if (Math.abs(clock(nb + 0.25) - meant) < Math.abs(clock(nb) - meant)) nb += 0.25;
       b = nb;
-    } else b = at + r!.beats;
+    } else { b = at + r!.beats; meant = clock(b); }
     at = b;
     return { b0: a, b1: b };
   });
   const total = frame(at);
+  // RS-1251: the user's narration plays whole; a reel shorter than it would cut their last words off
+  const voice = input.voiceover;
+  const voiceStart = voice ? Math.min(plan.voiceoverStart ?? 0, Math.max(0, voice.durationSec - 0.5)) : 0;
+  const voiceLen = voice ? voiceFrames(voice, voiceStart, fps) : 0;
+  if (voice && total < voiceLen - Math.round(0.1 * fps)) {
+    const short = (voiceLen - total) / fps;
+    return fail(`The reel is ${(total / fps).toFixed(1)} s but the voiceover runs ${(voiceLen / fps).toFixed(1)} s: the sections must add up to at least ${(voiceLen / fps).toFixed(1)} s (add ${short.toFixed(1)} s, e.g. hold the last shot or the end card longer). The voiceover is never cut.`);
+  }
+  const speech = voice ? speechWindows(voice, voiceStart, fps, total) : [];
   if (music && clock(at) > music.durationSec - startSec + 0.05) warnings.push(`The song ends ${(clock(at) - (music.durationSec - startSec)).toFixed(1)} s before the reel; shorten the plan or start the song earlier.`);
 
   // 3. clips: the plan's picks, else the best clips not used yet
@@ -222,7 +237,7 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
       return { inFrame: s0, loop: clip.durationInFrames - s0 < frames };
     };
     move.build({
-      W, H, fps, start, end, beats: b1 - b0, clips, params, seed: seed + i, clipVolume: music ? 0 : 1,
+      W, H, fps, start, end, beats: b1 - b0, clips, params, seed: seed + i, clipVolume: music || voice ? 0 : 1,
       beatFrame: (b) => Math.min(end, Math.max(start, frame(b0 + b))),
       id, layer: (n) => `V${2 + n}`,
       moment: (clip, frames) => {
@@ -275,10 +290,10 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
       const spec = RECIPE_TRANSITIONS[s.transition] ?? { type: 'custom-shader' as const, seconds: 0.5 };
       if (lastPrev && firstHere && lastPrev.startFrame + lastPrev.item.durationInFrames === firstHere.startFrame) {
         const length = Math.max(2, Math.min(Math.round(spec.seconds * (rule?.transition ?? 1) * fps), Math.floor(Math.min(lastPrev.item.durationInFrames, firstHere.item.durationInFrames) / 2)));
-        actions.push({
+        actions.push(...addRecipeTransition(spec, {
           type: 'addTransition', id: id('tr-in'), incomingItemId: firstHere.item.id, transType: spec.type, durationInFrames: length,
           ...(custom ? { custom: { frag: custom.frag, uniforms: customTransitionUniforms(custom), label: custom.label } } : {}),
-        } as AtomicAction);
+        } as Extract<AtomicAction, { type: 'addTransition' }>));
         const cue = custom ? 'whoosh-soft' : TRANSITION_CUES[s.transition];
         if (cue) sfx.push({ frame: firstHere.startFrame, cue });
       } else warnings.push(`sections[${i}]: the ${s.transition} transition needs footage on both sides of the cut (${previous?.move ?? 'none'} → ${move.id}); left as a cut.`);
@@ -386,9 +401,14 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
   // 4c. RS-1225: sections where the clips' own sound plays (a shout at the top, a splash, someone talking): their base
   // clips get their sound back with a short ramp so nothing clicks, and the song dips under them below
   const natural: NaturalWindow[] = [];
-  if (music) resolved.forEach((r, i) => {
+  if (music || voice) resolved.forEach((r, i) => {
     const mode = r!.s.naturalSound ?? (r!.move.id === 'talk-zoom' ? 'under' : undefined);
     if (!mode || !ranges[i]) return;
+    // RS-1251: nothing talks over the user's narration
+    if (voice && overSpeech(frame(spans[i]!.b0), frame(spans[i]!.b1), speech)) {
+      if (r!.s.naturalSound) warnings.push(`sections[${i}] (${r!.move.id}): naturalSound left off: the voiceover is speaking there (the clips' sound may only play in its pauses).`);
+      return;
+    }
     natural.push({ from: frame(spans[i]!.b0), to: Math.max(frame(spans[i]!.b0) + 1, frame(spans[i]!.b1)), solo: mode === 'solo' });
     let any = false;
     onClips(i, true, (item) => {
@@ -400,15 +420,18 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
   });
 
   // 5. sound effects under the song (hand-placed ones always; the rest unless the plan turns them off)
-  const level = plan.sfx ?? 'auto';
+  const level = plan.sfx ?? (voice ? 'subtle' : 'auto');
   actions.push(...sfxActions(level === 'off' ? sfx.filter((e) => e.soundId) : sfx, { fps, total, level: level === 'off' ? 'auto' : level, id: (...p) => stableId('rs-dir', tag, seed, ...p) }));
 
+  // RS-1253: the sung words, when the plan asks for lyrics and the song has some
+  const lyricWords = plan.lyrics && music ? reelLyrics(music.lyrics ?? [], startSec, (total / fps) * 1000) : [];
+  if (plan.lyrics && music && !lyricWords.length) warnings.push('lyrics: the song has no words to show (it was not transcribed, or nothing sung was heard); the reel has no lyrics.');
   // 6. the song
   if (music) {
     // RS-1226: a loop replays from the first beat, so the song runs to the last frame instead of fading
     const fade = plan.loop ? 0 : Math.min(Math.round(0.6 * fps), Math.max(0, total - 1));
     const gain = dbToGain(recipe.music?.gainDb ?? 0);
-    const duck = songDuck(natural, gain, total, fps);
+    const duck = songDuck([...natural, ...speech], gain, total, fps);
     actions.push({
       type: 'add', startFrame: 0,
       item: {
@@ -417,7 +440,10 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
         ...(duck.length ? { keyframes: { volume: duck } } : {}),
       } as never,
     });
+    if (lyricWords.length) actions.push(lyricsCaptions(lyricWords, { style: plan.lyrics!.style, color: plan.lyrics!.color }));
   }
+  // RS-1251: the narration, whole, with its words as captions (a lyric reel's captions are the lyrics)
+  if (voice) actions.push(...voiceoverActions(voice, { startSec: voiceStart, fps, total, id: stableId('rs-dir', tag, seed, 'voiceover'), captions: lyricWords.length ? false : plan.captions }));
   // RS-1217: how long each shot runs, for the pace check against a reference. A cut is a new shot on the base lane (V2);
   // a velocity or speed ramp splits one shot into rate segments that carry on in the same clip, which is not a cut.
   const base = actions.filter((a): a is AtomicAction & Add => isFootage(a) && a.item.track === 'V2' && !a.item.props?.rsFront).sort((x, y) => x.startFrame - y.startFrame);
@@ -431,7 +457,7 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
   });
   const shotSec = cuts.map((f, k) => ((cuts[k + 1] ?? total) - f) / fps).filter((x) => x > 0);
   // RS-1228/1225: how far the subject jumps at fast cuts, and voices muted under the song, for the review
-  const { eyeJumps, voices } = traceShots(base, cuts, input.clips, { fps, W, H, music: !!music });
+  const { eyeJumps, voices } = traceShots(base, cuts, input.clips, { fps, W, H, music: !!music || !!voice });
   const unusedClips = input.clips.filter((c) => !usedIds.has(c.baseAssetId ?? c.assetId)).length;
   if (unusedClips) warnings.push(`${unusedClips} clip${unusedClips === 1 ? ' was' : 's were'} not used.`);
   return {

@@ -1,5 +1,6 @@
 import { materializeTimelineExport } from '../export/materializeBlobMedia';
 import type { ProjectDoc, TimelineState } from '../editor/types';
+import { scaledExportDimensions } from '../export/mediaSettings';
 
 export interface SubmitMediaExportArgs {
   format: 'video' | 'audio';
@@ -9,9 +10,9 @@ export interface SubmitMediaExportArgs {
   endFrameExclusive?: number;
   startSeconds?: number;
   endSeconds?: number;
-  /** Output fps override. Frame counts stay fixed while real-time duration scales. */
+  /** Output fps; the server retimes (drops or repeats frames), so the duration is kept. */
   fps?: number;
-  /** Target max-height ladder: 480p | 720p | 1080p. */
+  /** Target size of the shorter side (a 9:16 reel at 1080p is 1080x1920): 480p | 720p | 1080p. */
   resolution?: '480p' | '720p' | '1080p';
   /** Exact video bitrate in bits per second. */
   videoBitrate?: number;
@@ -33,29 +34,19 @@ export interface MediaExportResult {
   height?: number;
 }
 
-const RES_HEIGHT: Record<NonNullable<SubmitMediaExportArgs['resolution']>, number> = {
-  '480p': 480,
-  '720p': 720,
-  '1080p': 1080,
-};
-
-/** Scale canvas to fit resolution ladder while preserving aspect ratio. */
-export function applyExportGeometry(
-  state: TimelineState,
+/**
+ * Reelsmith (RS-1251 follow-up): the output size and frame rate, without touching the timeline. The server's /export
+ * scales the render by the shorter side and retimes the fps itself; rewriting the canvas here made a 9:16 reel at
+ * "1080p" come out 608x1080 (the height was set to 1080) and laid out on a smaller canvas, and overriding the timeline's
+ * fps kept its frame counts, so a 60 fps reel exported "at 30" played at half speed.
+ */
+export function exportOutputGeometry(
+  state: Pick<TimelineState, 'width' | 'height' | 'fps'>,
   opts: { fps?: number; resolution?: SubmitMediaExportArgs['resolution'] },
-): TimelineState {
-  let next: TimelineState = { ...state };
-  if (opts.resolution && RES_HEIGHT[opts.resolution]) {
-    const targetH = RES_HEIGHT[opts.resolution];
-    const aspect = state.width / Math.max(1, state.height);
-    const height = targetH;
-    const width = Math.max(2, Math.round(height * aspect / 2) * 2); // even
-    next = { ...next, width, height };
-  }
-  if (typeof opts.fps === 'number' && [24, 25, 30, 50, 60].includes(opts.fps)) {
-    next = { ...next, fps: opts.fps };
-  }
-  return next;
+): { width: number; height: number; fps: number } {
+  const size = scaledExportDimensions(state, opts.resolution);
+  const fps = typeof opts.fps === 'number' && [24, 25, 30, 50, 60].includes(opts.fps) ? opts.fps : state.fps;
+  return { width: size.width, height: size.height, fps };
 }
 
 export async function submitMediaExport(
@@ -67,13 +58,9 @@ export async function submitMediaExport(
   const ext = codec === 'h264' ? 'mp4' : codec === 'vp8' ? 'webm' : codec;
   const selected = project.timelines.find((timeline) => timeline.id === timelineId);
   if (!selected) throw new Error(`timeline not found: ${timelineId}`);
-  const geometry = applyExportGeometry(selected, { fps: args.fps, resolution: args.resolution });
-  const exportProject: ProjectDoc = {
-    ...project,
-    timelines: project.timelines.map((timeline) =>
-      timeline.id === timelineId ? { ...timeline, ...geometry } : timeline),
-  };
-  const snapshot = await materializeTimelineExport(exportProject, timelineId);
+  const video = args.format === 'video';
+  const geometry = exportOutputGeometry(selected, video ? { fps: args.fps, resolution: args.resolution } : {});
+  const snapshot = await materializeTimelineExport(project, timelineId);
   const exportState = snapshot.state;
   const response = await fetch('/export', {
     method: 'POST',
@@ -89,7 +76,9 @@ export async function submitMediaExport(
       endFrameExclusive: args.endFrameExclusive,
       startSeconds: args.startSeconds,
       endSeconds: args.endSeconds,
-      videoBitrate: args.format === 'video' ? args.videoBitrate : undefined,
+      videoBitrate: video ? args.videoBitrate : undefined,
+      resolution: video ? args.resolution : undefined,
+      fps: video && geometry.fps !== selected.fps ? geometry.fps : undefined,
     }),
   });
   if (!response.ok) {
@@ -121,9 +110,9 @@ export async function submitMediaExport(
     endFrameExclusive: args.endFrameExclusive,
     startSeconds: args.startSeconds,
     endSeconds: args.endSeconds,
-    fps: exportState.fps,
+    fps: geometry.fps,
     resolution: args.resolution,
-    width: exportState.width,
-    height: exportState.height,
+    width: geometry.width,
+    height: geometry.height,
   };
 }

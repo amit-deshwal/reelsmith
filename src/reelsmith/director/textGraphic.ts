@@ -64,13 +64,24 @@ export const TEXT_GRAPHIC_CODE = String.raw`const DirectorText = ({ item }) => {
   const size = P.fontSize || 96;
   const lines = text.split('\n');
 
+  // letters as the eye reads them: a mark (a Devanagari vowel sign, a nasal dot, a nukta) stays on its letter, and a
+  // virama joins the next consonant into one cluster (क्ष), so Hindi animates syllable by syllable instead of breaking
+  const letters = (str) => {
+    const out = [];
+    for (const ch of Array.from(str)) {
+      const prev = out[out.length - 1];
+      if (prev && (/^[\p{M}\u200C\u200D]$/u.test(ch) || /\u094D$/.test(prev))) out[out.length - 1] = prev + ch;
+      else out.push(ch);
+    }
+    return out;
+  };
   // units: letters, words or lines, each with its start time
   const unitKind = { typewriter: 'letter', 'blur-in': 'letter', 'tracking-in': 'letter', wave: 'letter', glitch: 'letter', neon: 'letter', 'draw-on': 'letter', location: 'letter', slam: 'word', highlight: 'word', 'pop-words': 'word', rise: 'line', split: 'line', shine: 'line', 'count-up': 'line' }[preset] || 'letter';
   const units = [];
   lines.forEach((line, li) => {
     if (unitKind === 'line') { units.push({ s: line, line: li }); return; }
     if (unitKind === 'word') { line.split(/(\s+)/).forEach((w) => { if (w) units.push({ s: w, line: li, space: /^\s+$/.test(w) }); }); return; }
-    Array.from(line).forEach((ch) => units.push({ s: ch, line: li, space: ch === ' ' }));
+    letters(line).forEach((ch) => units.push({ s: ch, line: li, space: ch === ' ' }));
   });
   let k = 0;
   units.forEach((u) => { u.k = u.space ? Math.max(0, k - 1) : k++; });

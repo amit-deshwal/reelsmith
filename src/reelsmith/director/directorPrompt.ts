@@ -16,7 +16,7 @@ export function storySite(story: string): string | undefined {
 export function directorPrompt(story: string, ratio: RatioId, songs = 0, reference?: { id: string; name: string }, askFirst = false): string {
   const text = story.replace(/[ \t]+/g, ' ').replace(/\s*\n\s*/g, '\n').trim().slice(0, STORY_MAX);
   return [
-    `Direct a ${ratio} reel from the media I imported (director mode). Use what is there; ${songs ? `put it to the song I imported${songs > 1 ? ' (pick the one that fits the story)' : ''}.` : 'no song is imported, so keep the clips\' own sound.'}`,
+    `Direct a ${ratio} reel from the media I imported (director mode). Use what is there; ${songs ? `put it to the song I imported${songs > 1 ? ' (pick the one that fits the story)' : ''}. If an imported audio file is my own voiceover (stage 1 lists it under voiceovers), it leads the reel whole, with captions: never cut it, turn it down or use it as the song.` : 'no song is imported, so keep the clips\' own sound.'}`,
     text ? `My story, in my words: "${text}"` : 'I have not written a story: ask me for one line about it first.',
     // RS-1217: the reference is named by id so the agent passes it to stage 1; it is never footage
     ...(reference ? [`Make it feel like my reference reel "${reference.name.replace(/"/g, '')}" (assetId ${reference.id}): pass it as reference to reels_director_options. Match its pace and look; it is not footage, and copy nothing of its content.`] : []),

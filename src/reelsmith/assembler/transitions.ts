@@ -2,14 +2,14 @@
 // which rotates through a list (default: bars, wide bars, window, flash) so no style repeats back to back.
 // An optional recipe param (assembler.options.transitionParam) lets the user override the whole reel in the setup form.
 import type { AtomicAction } from '../../editor/reducerActions';
-import type { TransitionType } from '../../editor/types';
+import type { TransitionDirection, TransitionType } from '../../editor/types';
 import { GLT_TRANSITIONS } from '../glTransitionsMeta';
 import { stableId } from './rng';
 import type { PlannedShot } from './types';
 
 export const AUTO_TRANSITIONS = ['bars', 'wide-bars', 'window', 'flash'] as const;
 
-interface Spec { type: TransitionType; seconds: number }
+interface Spec { type: TransitionType; seconds: number; /** set on the transition after it is added (whip-blur up/down) */ direction?: TransitionDirection }
 /** Recipe names -> editor transitions. `cut` is absent: no transition item. */
 export const RECIPE_TRANSITIONS: Record<string, Spec> = {
   crossfade: { type: 'cross-dissolve', seconds: 0.4 },
@@ -17,7 +17,7 @@ export const RECIPE_TRANSITIONS: Record<string, Spec> = {
   dipToWhite: { type: 'flash', seconds: 0.3 },
   flash: { type: 'flash', seconds: 0.15 },
   slideLeft: { type: 'whip-pan', seconds: 0.3 },
-  slideUp: { type: 'whip-pan', seconds: 0.3 },
+  slideUp: { type: 'whip-pan', seconds: 0.3, direction: 'up' },
   pushLeft: { type: 'whip-pan', seconds: 0.3 },
   zoomIn: { type: 'anticipation-zoom', seconds: 0.4 },
   bars: { type: 'bars', seconds: 0.35 },
@@ -25,6 +25,9 @@ export const RECIPE_TRANSITIONS: Record<string, Spec> = {
   window: { type: 'window', seconds: 0.35 },
   'zoom-through': { type: 'zoom-through', seconds: 0.4 },
   'whip-blur': { type: 'whip-blur', seconds: 0.3 },
+  // the feed swipe of Reels and mobile editors: a motion-blurred whip up (or down) to the next shot
+  'swipe-up': { type: 'whip-blur', seconds: 0.3, direction: 'up' },
+  'swipe-down': { type: 'whip-blur', seconds: 0.3, direction: 'down' },
   'spin-zoom': { type: 'spin-zoom', seconds: 0.45 },
   'light-leak': { type: 'light-leak', seconds: 0.6 },
   'chroma-glitch': { type: 'chroma-glitch', seconds: 0.35 },
@@ -51,6 +54,11 @@ export const RECIPE_TRANSITIONS: Record<string, Spec> = {
   'line-wipe': { type: 'clean-line-wipe', seconds: 0.45 },
   'luma-blend': { type: 'luma-blend', seconds: 0.5 },
 };
+
+/** The addTransition for a recipe name, followed by its direction when the name carries one (addTransition has no direction). */
+export function addRecipeTransition(spec: Spec, add: Extract<AtomicAction, { type: 'addTransition' }>): AtomicAction[] {
+  return spec.direction ? [add, { type: 'setTransition', id: add.id, patch: { direction: spec.direction } }] : [add];
+}
 
 export interface TransitionContext {
   options?: Record<string, unknown>;
@@ -97,7 +105,7 @@ export function transitionActions(shots: PlannedShot[], ids: string[], names: Ar
     const spec = RECIPE_TRANSITIONS[name]!;
     // at most half the shorter shot, so beat-length shots still hold still between transitions
     const length = Math.max(2, Math.min(Math.round(spec.seconds * ctx.fps), Math.floor(Math.min(prev.durationInFrames, shot.durationInFrames) / 2)));
-    out.push({ type: 'addTransition', id: stableId('rs-tr', tag, scope, i), incomingItemId: ids[i]!, transType: spec.type, durationInFrames: length });
+    out.push(...addRecipeTransition(spec, { type: 'addTransition', id: stableId('rs-tr', tag, scope, i), incomingItemId: ids[i]!, transType: spec.type, durationInFrames: length }));
   });
   return out;
 }

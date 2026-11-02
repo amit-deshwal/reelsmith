@@ -2,7 +2,6 @@
 // says what it looks like, when it fits the story, what footage it needs and which settings it takes, and builds its
 // items from clips the compiler casts. Moves are placed in fractions of the frame, so every move works in any ratio.
 // Times inside a move scale with the section's length, so the agent sets the pace with beats.
-import type { AtomicAction } from '../../editor/reducerActions';
 import type { Keyframe } from '../../editor/types';
 import { placeInSlot } from '../../editor/layouts';
 import type { AssemblyClip } from '../assembler/types';
@@ -11,7 +10,7 @@ import { BAR_STEPS, isCloseUp, postcardOrder } from '../assembler/postcardCollag
 import { FINALE, FINALE_GRID_FROM_SEC, FINALE_NEEDS_SEC, FINALE_ROLES, finaleWindows, POSTCARD_GRAPHIC_CODE, stripWindows, type GraphicSource, type GraphicWindow } from '../postcardGraphics';
 import { REVEAL_FRAG, REVEAL_LABELS, revealUniforms, type RevealKind } from '../travelDiaryReveal';
 import { kenBurnsActions, type KenBurnsPreset } from '../kenBurns';
-import { RECIPE_TRANSITIONS } from '../assembler/transitions';
+import { addRecipeTransition, RECIPE_TRANSITIONS } from '../assembler/transitions';
 import { focusForRange } from '../titleClear';
 import type { PlanValue } from '../../../shared/reelsmith/directorPlan';
 import { topBand } from './bandText';
@@ -85,7 +84,7 @@ const cut: MoveDef = {
     if (!spec) return;
     const shot = Math.max(2, ctx.beatFrame(num(ctx.params.every, 2)) - ctx.start);
     const length = Math.max(2, Math.min(Math.round(spec.seconds * ctx.fps), Math.floor(shot / 2)));
-    ids.slice(1).forEach((itemId, i) => ctx.emit({ type: 'addTransition', id: ctx.id('cut-tr', i), incomingItemId: itemId, transType: spec.type, durationInFrames: length } as AtomicAction));
+    ids.slice(1).forEach((itemId, i) => addRecipeTransition(spec, { type: 'addTransition', id: ctx.id('cut-tr', i), incomingItemId: itemId, transType: spec.type, durationInFrames: length }).forEach((x) => ctx.emit(x)));
   },
 };
 
@@ -372,23 +371,47 @@ const zoomPunch: MoveDef = {
   },
 };
 
+/**
+ * Speed curves (the curve-speed presets of mobile editors): each is [share of the section, speed] parts, played in order
+ * with the source running forward without a jump. 'S' parts play at the slow-motion param; bullet goes slower still.
+ */
+export const SPEED_CURVES: Record<string, ReadonlyArray<readonly [number, number | 'S']>> = {
+  ramp: [[0.3, 1], [0.45, 'S'], [0.25, 2.5]],                                  // normal, slow for the moment, whip on
+  montage: [[0.18, 2.2], [0.22, 'S'], [0.2, 2.2], [0.22, 'S'], [0.18, 2.2]],   // fast and slow by turns: two moments
+  hero: [[0.14, 1], [0.14, 2.6], [0.44, 'S'], [0.14, 2.6], [0.14, 1]],          // a burst into a long slow hero moment
+  bullet: [[0.22, 2.6], [0.56, 'S'], [0.22, 2.6]],                              // bullet time: almost frozen in the middle
+  'jump-cut': [[0.4, 1], [0.18, 4], [0.42, 1]],                                 // normal with one sudden jump forward
+  'flash-in': [[0.25, 3.2], [0.2, 1.7], [0.55, 1]],                             // arrives fast, lands at normal speed
+  'flash-out': [[0.55, 1], [0.2, 1.7], [0.25, 3.2]],                            // normal, then races away into the next cut
+};
+export const SPEED_CURVE_IDS = Object.keys(SPEED_CURVES);
+
+/** The [share, rate] parts of a curve with the slow-motion speed filled in. */
+export function speedCurveParts(curve: string, slow: number): Array<[number, number]> {
+  const parts = SPEED_CURVES[curve] ?? SPEED_CURVES.ramp!;
+  const s = curve === 'bullet' ? Math.max(0.12, slow * 0.6) : slow;
+  return parts.map(([share, rate]) => [share, rate === 'S' ? s : rate]);
+}
+
 const speedRamp: MoveDef = {
-  id: 'speed-ramp', name: 'Speed ramp', looks: 'One shot plays at normal speed, drops into slow motion for the key moment, then whips forward fast.',
-  use: 'The single most dramatic action shot: a jump, a splash, a turn, a reveal. Needs a video at least 4 s long; one clip.',
+  id: 'speed-ramp', name: 'Speed ramp', looks: 'One shot changes speed along a curve: by default normal, slow motion for the key moment, then a fast whip forward. Curves: montage (fast and slow by turns), hero (a burst into a long slow moment), bullet (bullet time in the middle), jump-cut (one sudden jump forward), flash-in (arrives fast, lands normal), flash-out (normal, then races into the next cut).',
+  use: 'The single most dramatic action shot: a jump, a splash, a turn, a reveal (ramp, hero, bullet). montage for a shot with two moments; flash-in to open a section, flash-out to leave it into a transition; jump-cut to skip the dull middle of a walk. Needs a video at least 4 s long; one clip.',
   clips: { min: 1, max: 1 }, beats: { min: 4, default: 8, max: 16 }, wants: ['action', 'people'],
-  params: [{ id: 'slow', type: 'number', label: 'Slow-motion speed', default: 0.35, min: 0.15, max: 0.8 }],
+  params: [
+    { id: 'slow', type: 'number', label: 'Slow-motion speed', default: 0.35, min: 0.15, max: 0.8 },
+    { id: 'curve', type: 'enum', label: 'Speed curve', default: 'ramp', options: SPEED_CURVE_IDS },
+  ],
   build: (ctx) => {
     const clip = ctx.clips[0]!;
     const len = ctx.end - ctx.start;
-    const slow = num(ctx.params.slow, 0.35);
-    // three parts: 30% at 1x, 45% slow, 25% at 2.5x; the source keeps running forward without a jump
-    const parts: Array<[number, number]> = [[0.3, 1], [0.45, slow], [0.25, 2.5]];
+    const parts = speedCurveParts(str(ctx.params.curve, 'ramp'), num(ctx.params.slow, 0.35));
     const sourceNeed = Math.round(parts.reduce((s, [share, rate]) => s + share * len * rate, 0));
     if (clip.kind !== 'video') { clipAt(ctx, 0, ['ramp'], clip, ctx.start, ctx.end, 0); return; }
     let src = ctx.moment(clip, sourceNeed).inFrame;
     let at = ctx.start;
     parts.forEach(([share, rate], i) => {
       const to = i === parts.length - 1 ? ctx.end : at + Math.round(share * len);
+      if (to <= at) return;
       clipAt(ctx, 0, ['ramp', i], clip, at, to, Math.min(src, Math.max(0, clip.durationInFrames - 2)), rate === 1 ? {} : { playbackRate: rate });
       src += Math.round((to - at) * rate);
       at = to;

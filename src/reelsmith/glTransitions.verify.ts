@@ -42,7 +42,7 @@ for (const t of GLT_TRANSITIONS) {
   assert.doesNotMatch(src, /texture2D|\bvarying\b|gl_FragColor/, `${t.id}: no GLSL ES 1.0 leftovers`);
   // GLSL ES will not convert an int literal to a float constant (the first import lost 18 shaders to this)
   for (const m of src.matchAll(/^const float \w+ = (-?\d+);/gm)) assert.fail(`${t.id}: float constant with an int literal: ${m[0]}`);
-  assert.match(src, /Adapted from (GL Transitions|GTKottman\/remotion-transitions)/, `${t.id}: credits the source`);
+  assert.match(src, /Adapted from (GL Transitions|GTKottman\/remotion-transitions)|Reelsmith original/, `${t.id}: credits the source`);
 }
 
 // the dated slideshow shapes are gone; the kept imports carry the polish (ease, motion blur) unless they bring their own

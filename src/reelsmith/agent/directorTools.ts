@@ -31,7 +31,8 @@ import { songMap, songMapText } from '../director/songMap';
 import { songReportLine } from '../exportMusic';
 import { brandAction, brandKitText, brandWords, type BrandKit } from '../../../shared/reelsmith/brandKit';
 import { directorTimelineFps } from '../director/footageRate';
-
+import { narrationOptions, resolveVoiceover, VOICEOVER_HINT } from './directorVoiceover';
+import { resolveLyrics } from './directorLyrics';
 const VISUAL = new Set(['video', 'image']);
 const secs = (frames: number, fps: number) => Math.round((frames / fps) * 10) / 10;
 
@@ -180,8 +181,11 @@ export async function directorOptions(args: Record<string, unknown>, ctx: AgentC
   // RS-1239: a promo reel's page, read while the clips are watched
   const brandRaw = typeof args.brandUrl === 'string' ? args.brandUrl.trim() : '';
   const brandWork: Promise<BrandKit | { error: string } | undefined> = brandRaw && deps.api.brandKit ? deps.api.brandKit(brandRaw).catch((e: unknown) => ({ error: String((e as Error)?.message ?? e) })) : Promise.resolve(brandRaw ? { error: 'reading a web page is not available here' } : undefined);
-  const songs = [...assets.filter((a) => a.kind === 'audio').slice(0, 3), ...libraryMusic(ctx)];
-  const beats = new Map(await Promise.all(songs.map(async (a) => [a.id, await tempo(a, deps)] as const)));
+  // RS-1251: imported files that are mostly speech may be the user's narration: they leave the songs
+  const { importedSongs, narrations } = await narrationOptions(assets.filter((a) => a.kind === 'audio').slice(0, 4), deps);
+  const songs = [...importedSongs, ...libraryMusic(ctx)];
+  const beats = new Map(await Promise.all([...songs, ...narrations.map((n) => n.asset)].map(async (a) => [a.id, await tempo(a, deps)] as const)));
+  const voiceovers = await Promise.all(narrations.map((n) => n.describe(ctx, deps, fps, (beats.get(n.asset.id) as { bpm?: number } | undefined)?.bpm)));
   // stage 1: watch the footage, then log it and take the sheet cells at each clip's best moments
   const { features, tags } = await analyseClips(visual, fps, ctx, deps);
   const shape = (a: MediaAsset) => (a.width && a.height ? (a.height > a.width ? 'portrait' : a.height < a.width ? 'landscape' : 'square') : undefined);
@@ -195,7 +199,7 @@ export async function directorOptions(args: Record<string, unknown>, ctx: AgentC
   const k = sheetSamples(visual.filter((a) => a.kind !== 'image').length, visual.filter((a) => a.kind === 'image').length).length;
   const log = shotLogLines(logClips, fps, k);
   const sheets = await contactSheets(visual, log.moments, ctx, deps);
-  const firstSong = assets.find((a) => a.kind === 'audio');
+  const firstSong = importedSongs[0];
   const sug = firstSong ? (beats.get(firstSong.id) as { bpm?: number; suggest?: { beatsFor18s: number; dropAtBeat?: number } } | undefined) : undefined;
   const reference = refAsset ? await watchReference(refAsset, fps, logClips, sug?.bpm, ctx, deps) : undefined;
   const brandResult = await brandWork;
@@ -217,7 +221,11 @@ export async function directorOptions(args: Record<string, unknown>, ctx: AgentC
     shotLogNote: '"best @t" = its strongest moments (sharp, lit, a subject, some life), best first; "moving" = where it moves most; "talking" = speech; "soft/dark" = avoid those seconds; "filmed" = the clock time it was shot (true, so a time label may use it). Cast from these with "#n@t".',
     clipRefs: 'In the plan, name a clip by its number: "#7", or "#7@4.5" to start it at 4.5 s of the source.',
     sheetNote: sheets ? sheets.note : 'No contact sheets (frame sharing is off or unavailable): choose from names and seconds, or view_asset_frames for one or two clips.',
-    songs: assets.filter((a) => a.kind === 'audio').slice(0, 3).map(song),
+    ...(voiceovers.length ? {
+      voiceovers,
+      voiceoverHint: VOICEOVER_HINT,
+    } : {}),
+    songs: importedSongs.map(song),
     libraryMusic: libraryMusic(ctx).map(song),
     songHint: 'Use each song\'s suggest: musicStart as given, sections adding up to beatsFor18s (more or fewer for a longer or shorter reel), and the peak section starting at dropAtBeat. Its energy line is the song bar by bar: longer shots on the quiet bars, shorter as it builds, the fastest cuts on the loud ones; section changes on a bar line. No other timing arithmetic is needed.',
     ...(custom.length ? { customShaders: custom } : {}),
@@ -315,6 +323,12 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
     if (!assets.some((a) => a.id === hit.id)) { assets.push(hit); added = hit; }
     plan.music = hit.id;
   }
+  // RS-1251: the user's narration (an audio file, or a video's sound)
+  const voice = await resolveVoiceover(plan, assets, ctx, deps);
+  if ('error' in voice) return voice;
+  const { voiceover, note: voiceNote } = voice;
+  // RS-1253: a lyric reel: the song's sung words (transcribed now if the song has none yet)
+  const sung = await resolveLyrics(plan, plan.music ? assets.find((a) => a.id === plan.music) : undefined, ctx, deps);
   // "#n" references from the numbered clip list
   const visual = directorVisuals(ctx);
   const badRefs: string[] = [];
@@ -339,12 +353,14 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
   if (tagsWarming) { ctx.onToolProgress?.('Reading what the shots show'); await tagsWarming; }
   try {
     out = await runRecipe({ ...deps.api, ...(deps.shotTags ? { shotTags: deps.shotTags(id) } : {}) }, {
-      recipe, values, assets, fps: state.fps, replaceTimeline: true, plan,
+      recipe, values, assets, fps: state.fps, replaceTimeline: true, plan, ...(voiceover ? { voiceover } : {}), ...(sung.words ? { lyrics: sung.words } : {}),
       ...(typeof args.seed === 'number' && Number.isFinite(args.seed) ? { seed: Math.round(args.seed) } : {}),
       onProgress: ctx.onToolProgress,
     });
   } catch (error) { return { error: error instanceof Error ? error.message : String(error) }; }
   if (!out.action) return { error: out.messages.join('; ') || 'could not build the plan' };
+  if (voiceNote) out.messages.push(voiceNote);
+  if (sung.note) out.messages.push(sung.note);
   out.messages.push(...await finishDirectorActions(out.action.actions, assets, deps.api, state.fps, ctx.onToolProgress));
   const report = out.result.report;
   const fps = state.fps;

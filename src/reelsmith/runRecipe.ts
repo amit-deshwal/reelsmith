@@ -6,6 +6,7 @@ import type { RatioId } from '../../shared/reelsmith/ratios';
 import type { AtomicAction, BatchAction } from '../editor/reducerActions';
 import type { MediaAsset } from '../editor/types';
 import { assemble, type AssembleInput, type AssembleResult, type AssemblyClip, type AssemblyMusic, type RecipeRunRecord } from './assembler';
+import type { AssemblyVoiceover } from './assembler/types';
 import { toAssemblyClips, type ClipFeatures } from './assembler/scoring';
 import type { ClipShotTags } from './shotTags';
 import { validateSetup, type SetupValues } from './setupForm';
@@ -38,6 +39,10 @@ export interface AnalyzeApi {
   brandKit?(url: string): Promise<BrandKit | { error: string }>;
   /** RS-1250: each source's frame rate, in order (null when unreadable) */
   mediaFps?(srcs: string[]): Promise<Array<number | null>>;
+  /** RS-1251: share of an audio file's seconds that are speech (0..1), to tell a narration from a song; null when unreadable */
+  speechShare?(asset: MediaAsset): Promise<number | null>;
+  /** RS-1251: word-timed transcript (source ms) of a narration; null when no speech model is available */
+  transcribe?(asset: MediaAsset, onProgress?: (text: string) => void, opts?: { language?: string }): Promise<Array<{ text: string; start: number; end: number }> | null>;
   selectionSheet?(items: Array<{ asset: MediaAsset; atSec: number; label: string }>): Promise<{ sheets: Array<{ base64: string; labels: string[] }>; skipped: string[] } | null>;
 }
 
@@ -58,6 +63,10 @@ export interface RunOptions {
   openerAssetId?: string;
   /** RS-1201: the agent's plan for a director@1 run */
   plan?: ReelPlan;
+  /** RS-1251: the plan's voiceover, resolved to its file and transcript */
+  voiceover?: AssemblyVoiceover;
+  /** RS-1253: the song's words for a lyric reel (ms in the song file) */
+  lyrics?: AssemblyMusic['lyrics'];
   preferredBrollAssetIds?: string[];
   onProgress?: (text: string) => void;
 }
@@ -176,7 +185,7 @@ export async function prepareAssembly(api: AnalyzeApi, o: RunOptions): Promise<P
   if (musicAsset) {
     o.onProgress?.('Finding the beat');
     const grid = await api.musicGrid(musicAsset).catch(() => null);
-    if (grid) music = { assetId: musicAsset.id, name: musicAsset.name, src: musicAsset.src, ...grid };
+    if (grid) music = { assetId: musicAsset.id, name: musicAsset.name, src: musicAsset.src, ...grid, ...(o.lyrics?.length ? { lyrics: o.lyrics } : {}) };
     else messages.push('Could not find a steady beat in the song');
   }
 
@@ -198,6 +207,7 @@ export async function prepareAssembly(api: AnalyzeApi, o: RunOptions): Promise<P
       ...(o.openerAssetId ?? o.values.openerAssetId ? { openerAssetId: (o.openerAssetId ?? o.values.openerAssetId)! } : {}),
       ...(o.preferredBrollAssetIds?.length ? { preferredBrollAssetIds: o.preferredBrollAssetIds } : {}),
       ...(plan ? { plan } : {}),
+      ...(o.voiceover ? { voiceover: o.voiceover } : {}),
     },
   };
 }

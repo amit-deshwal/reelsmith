@@ -11,6 +11,7 @@
 //   POST /api/reelsmith/reverse-clip   { src, startSec, frames, fps } -> that span played backwards, saved next to the video
 //   POST /api/reelsmith/depth-map      { src, atSec? } -> the photo's depth map saved next to it (`{ available:false }` without the depth-lite pack)
 //   POST /api/reelsmith/no-sound-copy  { src } -> RS-1241: <name>.no-sound.mp4 next to the export (picture copied, no audio)
+//   POST /api/reelsmith/speech-share   { src } -> RS-1251: { share } of seconds that are speech (narration vs song)
 //   POST /api/reelsmith/brand-kit      { url } -> RS-1239: name, tagline, lines, facts, actions, links, colours of the one page the user named
 import { existsSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
@@ -21,7 +22,7 @@ import { resolveUploadFile, uploadNameOfSource } from '../media-dir.ts';
 import { readJsonBody, sendJson } from '../plugins/export-http.ts';
 import { detectDropBeat } from '../../src/reelsmith/assembler/drop.ts';
 import { analyzeBeatsFile } from './beatDetect.ts';
-import { extractClipFeatures, extractReferenceCuts } from './clipFeatures.ts';
+import { extractClipFeatures, extractReferenceCuts, speechShareOf } from './clipFeatures.ts';
 import { readFrameRate } from './mediaFps.ts';
 import { finalizeForInstagram } from './instagramFinalize.ts';
 import { upscaleAvailable, upscalePhoto } from './upscale.ts';
@@ -93,6 +94,12 @@ export function reelsmithAnalyzePlugin(): Plugin {
           const file = localFile(src);
           return typeof file === 'string' ? readFrameRate(file) : null;
         })) };
+      });
+      // RS-1251: how much of an audio file is speech, so the director can tell the user's narration from a song
+      route('/api/reelsmith/speech-share', async (body) => {
+        const file = localFile(body.src);
+        if (typeof file !== 'string') throw new Error(file.error);
+        return { share: await speechShareOf(file) };
       });
       route('/api/reelsmith/reference-cuts', async (body) => {
         const file = localFile(body.src);

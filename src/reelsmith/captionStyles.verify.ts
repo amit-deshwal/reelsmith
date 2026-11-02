@@ -6,12 +6,14 @@ const W = 1080;
 const H = 1920;
 const safe = safeRect({ width: W, height: H });
 
-assert.deepEqual(REELS_CAPTION_STYLES.map((s) => s.id), ['clean-white', 'highlight-word', 'boxed', 'karaoke', 'pop-word', 'minimal-lower', 'behind-speaker']);
-assert.equal(new Set(REELS_CAPTION_STYLES.map((s) => s.label)).size, 7, 'labels are distinct');
-assert.equal(new Set(REELS_CAPTION_STYLES.map((s) => `${s.template}|${s.motionPreset}`)).size, 7, 'seven distinct looks');
-// only the behind-the-speaker style puts the words behind the person; any other style turns it off again
+assert.deepEqual(REELS_CAPTION_STYLES.map((s) => s.id), ['clean-white', 'highlight-word', 'boxed', 'karaoke', 'pop-word', 'minimal-lower', 'behind-speaker', 'lyrics-behind']);
+assert.equal(new Set(REELS_CAPTION_STYLES.map((s) => s.label)).size, 8, 'labels are distinct');
+assert.equal(new Set(REELS_CAPTION_STYLES.map((s) => `${s.template}|${s.motionPreset}|${s.styleOverride.wordsPerPage}|${s.styleOverride.fontFamily}`)).size, 8, 'eight distinct looks (the two behind styles differ in words a page and face)');
+// only the behind styles put the words behind the person; any other style turns it off again
 assert.equal(captionsFor('behind-speaker').rsBehind, true);
-assert.ok(REELS_CAPTION_STYLES.filter((s) => s.id !== 'behind-speaker').every((s) => captionsFor(s.id).rsBehind === false));
+assert.equal(captionsFor('lyrics-behind').rsBehind, true);
+assert.equal(reelsCaptionStyle('lyrics-behind').styleOverride.wordsPerPage, 1, 'lyrics: one sung word at a time');
+assert.ok(REELS_CAPTION_STYLES.filter((s) => !['behind-speaker', 'lyrics-behind'].includes(s.id)).every((s) => captionsFor(s.id).rsBehind === false));
 assert.equal(reelsCaptionStyle('nope').id, 'highlight-word', 'unknown id falls back');
 
 assert.equal(reelsCaptionStyle('minimal-lower').styleOverride.textTransform, 'lowercase');

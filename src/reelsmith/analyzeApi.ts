@@ -3,6 +3,7 @@ import type { ClipFeatures } from './assembler/scoring';
 import { analyzeSubjects, mergeSubjectFeatures } from './subjectFeatures';
 import type { AnalyzeApi } from './runRecipe';
 import type { BrandKit } from '../../shared/reelsmith/brandKit';
+import { transcribePath } from '../transcript/provider';
 
 export function createAnalyzeApi(fetcher: typeof fetch = fetch, subjects: typeof analyzeSubjects = analyzeSubjects, tags?: AnalyzeApi['shotTags']): AnalyzeApi {
   async function post<T>(path: string, body: unknown): Promise<T | null> {
@@ -44,6 +45,11 @@ export function createAnalyzeApi(fetcher: typeof fetch = fetch, subjects: typeof
       const response = await fetcher('/api/reelsmith/brand-kit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
       const r = await response.json().catch(() => ({})) as { kit?: BrandKit; error?: string };
       return response.ok && r.kit ? r.kit : { error: r.error ?? `could not read the page (${response.status})` };
+    },
+    speechShare: async (asset) => (await post<{ share: number | null }>('/api/reelsmith/speech-share', { src: asset.src }))?.share ?? null,
+    transcribe: async (asset, onProgress, opts) => {
+      const r = await transcribePath(asset.src, (note) => { if (note) onProgress?.(note); }, opts?.language ? { languageCode: opts.language } : {});
+      return r.words.length ? r.words.map((w) => ({ text: w.text, start: w.start, end: w.end })) : null;
     },
     musicGrid: async (asset) => (await post<{ grid: never }>('/api/reelsmith/music-grid', { src: asset.src }))?.grid ?? null,
   };

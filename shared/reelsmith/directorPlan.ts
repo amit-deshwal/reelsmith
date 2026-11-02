@@ -88,6 +88,17 @@ export interface PlanGraphic {
   params?: Record<string, PlanValue>;
 }
 
+export interface PlanLyrics {
+  /** caption style id (default lyrics-behind: one huge word at a time, behind the person) */
+  style?: string;
+  /** the lyrics as the user wrote them, in order; replaces the transcribed words, keeping their timing */
+  text?: string;
+  /** word colour, #rrggbb (the style's own by default) */
+  color?: string;
+  /** language the song is sung in, ISO 639-1 (hi, mr, en...); default: hi for Devanagari text, else the app's setting */
+  language?: string;
+}
+
 export interface ReelPlan {
   version: 1;
   ratio: RatioId;
@@ -95,6 +106,21 @@ export interface ReelPlan {
   music?: string;
   /** where the song starts: 'firstDownbeat' (default), 'fromStart', or a second of the song */
   musicStart?: 'firstDownbeat' | 'fromStart' | number;
+  /**
+   * RS-1251: the user's own narration (an audio or video assetId). It is the reel's spine: it plays whole from
+   * voiceoverStart at full level, is never ducked, faded or cut short, and its words become the captions. A song
+   * (music) plays under it. The sections must add up to at least its length.
+   */
+  voiceover?: string;
+  /** second of the voiceover file it starts from (default 0: from the top) */
+  voiceoverStart?: number;
+  /** caption style id for the voiceover's words (Reels caption styles; default highlight-word), or false for none */
+  captions?: string | false;
+  /**
+   * RS-1253: the song's sung words on screen, one at a time as they are sung (a lyric video). They come from the song's
+   * transcript (transcribed at build in `language`), or from `text` (the lyrics the user gave) laid onto the sung timing.
+   */
+  lyrics?: PlanLyrics;
   /** a reel look id applied to every shot (reels_apply_look ids) */
   look?: string;
   sections: PlanSection[];
@@ -132,6 +158,24 @@ export function parsePlan(raw: unknown): { ok: true; plan: ReelPlan } | { ok: fa
   if (raw.music !== undefined && typeof raw.music !== 'string') errors.push('music must be a song assetId');
   const ms = raw.musicStart;
   if (ms !== undefined && ms !== 'firstDownbeat' && ms !== 'fromStart' && !(typeof ms === 'number' && ms >= 0)) errors.push('musicStart must be firstDownbeat, fromStart or a number of seconds');
+  if (raw.voiceover !== undefined && (typeof raw.voiceover !== 'string' || !raw.voiceover)) errors.push('voiceover must be the assetId of the user\'s narration');
+  if (raw.voiceoverStart !== undefined && !(typeof raw.voiceoverStart === 'number' && Number.isFinite(raw.voiceoverStart) && raw.voiceoverStart >= 0)) errors.push('voiceoverStart must be a second of the voiceover (0 or more)');
+  if (raw.captions !== undefined && raw.captions !== false && typeof raw.captions !== 'string') errors.push('captions must be a caption style id or false');
+  if (typeof raw.voiceover === 'string' && raw.voiceover === raw.music) errors.push('the voiceover cannot also be the song: leave music out, or give a song to play under the voice');
+  const ly = raw.lyrics as Record<string, unknown> | boolean | undefined;
+  let lyrics: PlanLyrics | undefined;
+  if (ly === true) lyrics = {};
+  else if (ly !== undefined && ly !== false) {
+    if (typeof ly !== 'object' || ly === null || Array.isArray(ly)) errors.push('lyrics must be true or { style?, text?, color?, language? }');
+    else {
+      if (!raw.music) errors.push('lyrics need a song: set music');
+      for (const k of ['style', 'text', 'color', 'language'] as const) if (ly[k] !== undefined && typeof ly[k] !== 'string') errors.push(`lyrics.${k} must be a string`);
+      if (typeof ly.color === 'string' && !/^#[0-9a-f]{6}$/i.test(ly.color)) errors.push('lyrics.color must be #rrggbb');
+      if (typeof ly.language === 'string' && !/^[a-z]{2}$/.test(ly.language)) errors.push('lyrics.language must be a two-letter code (hi, mr, en)');
+      lyrics = Object.fromEntries((['style', 'text', 'color', 'language'] as const).filter((k) => typeof ly[k] === 'string' && (ly[k] as string).trim()).map((k) => [k, (ly[k] as string).trim()]));
+    }
+  }
+  if (ly === true && !raw.music) errors.push('lyrics need a song: set music');
   if (raw.look !== undefined && typeof raw.look !== 'string') errors.push('look must be a look id');
   if (raw.sfx !== undefined && raw.sfx !== 'auto' && raw.sfx !== 'subtle' && raw.sfx !== 'off') errors.push('sfx must be auto, subtle or off');
   if (raw.tone !== undefined && !(TONES as readonly unknown[]).includes(raw.tone)) errors.push(`tone must be one of ${TONES.join(', ')}`);
@@ -241,6 +285,10 @@ export function parsePlan(raw: unknown): { ok: true; plan: ReelPlan } | { ok: fa
     plan: {
       version: 1, ratio: ratio as RatioId, sections,
       ...(typeof raw.music === 'string' ? { music: raw.music } : {}), ...(ms !== undefined ? { musicStart: ms as ReelPlan['musicStart'] } : {}),
+      ...(typeof raw.voiceover === 'string' && raw.voiceover ? { voiceover: raw.voiceover } : {}),
+      ...(typeof raw.voiceoverStart === 'number' && raw.voiceoverStart > 0 ? { voiceoverStart: raw.voiceoverStart } : {}),
+      ...(raw.captions === false || typeof raw.captions === 'string' ? { captions: raw.captions as string | false } : {}),
+      ...(lyrics ? { lyrics } : {}),
       ...(typeof raw.look === 'string' ? { look: raw.look } : {}), ...(overlays.length ? { overlays } : {}), ...(graphics.length ? { graphics } : {}),
       ...(raw.sfx === 'auto' || raw.sfx === 'subtle' || raw.sfx === 'off' ? { sfx: raw.sfx } : {}),
       ...((TONES as readonly unknown[]).includes(raw.tone) ? { tone: raw.tone as Tone } : {}),

@@ -189,6 +189,21 @@ export function speechDetector(pcm: Int16Array): (startSec: number, endSec: numb
   };
 }
 
+/** RS-1251: share of whole seconds that are speech (a narration reads ~0.8, a song with a steady bed far less). */
+export function speechShareOfPcm(pcm: Int16Array): number | null {
+  const secs = Math.floor(pcm.length / AUDIO_RATE);
+  if (secs < 2) return null;
+  const isSpeech = speechDetector(pcm);
+  let on = 0;
+  for (let t = 0; t < secs; t += 1) if (isSpeech(t, t + 1)) on += 1;
+  return Math.round((on / secs) * 100) / 100;
+}
+
+/** RS-1251: speech share of a file's first three minutes; null when it has no sound. */
+export async function speechShareOf(file: string): Promise<number | null> {
+  return speechShareOfPcm(await readSpeechBand(file, 180));
+}
+
 /** 64-bit dHash on a 9x8 box-downsample of a 64x64 gray frame. */
 export function dHashOf(f: Buffer): string {
   const cw = 7; const ch = 8; // 9 columns of ~7px, 8 rows of 8px

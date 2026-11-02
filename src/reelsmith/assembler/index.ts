@@ -11,6 +11,7 @@ import { assemblePostcardCollage } from './postcardCollage';
 import { assembleDirector } from '../director/assembleDirector';
 import { ratioOf } from '../../../shared/reelsmith/ratios';
 import { withMusicOverrides } from '../musicPolicy';
+import { withScriptFonts } from '../scriptFonts';
 
 export type { AssembleInput, AssembleResult, AssemblyClip, AssemblyMusic, RecipeRunRecord, AssembleReport } from './types';
 
@@ -47,7 +48,8 @@ export function assemble(raw: AssembleInput): AssembleResult {
   }
   const ratio = ratioOf(input.recipe.canvas.width, input.recipe.canvas.height);
   if (ratio) result.run = { ...result.run, ratio };
-  if (result.action) result.action = { ...result.action, actions: result.action.actions.map((action) => action.type === 'add'
+  // RS-1253: Hindi and Marathi words get the bundled Devanagari face after the style's own
+  if (result.action) result.action = { ...result.action, actions: withScriptFonts(result.action.actions).map((action) => action.type === 'add'
     ? { ...action, item: { ...action.item, props: { ...action.item.props, rsRun: `${input.recipe.id}@${input.recipe.version}` } } }
     : action) };
   return result;

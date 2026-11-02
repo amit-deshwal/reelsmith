@@ -136,6 +136,13 @@ export const DIRECTOR_TOOL_SCHEMAS: AgentToolSchema[] = [
             ratio: { type: 'string', description: '9:16 (default), 4:5, 1:1 or 16:9.' },
             music: { type: 'string', description: 'Song assetId (imported or libraryMusic). Omit for silent.' },
             musicStart: { description: "'firstDownbeat' (default), 'fromStart' or a second of the song." },
+            voiceover: { type: 'string', description: 'The user\'s own narration (assetId from voiceovers): plays whole at full level, never cut or ducked; its words become captions. The sections must add up to at least its length. Never pass it as music.' },
+            voiceoverStart: { type: 'number', description: 'Second of the voiceover file to start from (default 0).' },
+            captions: { description: 'Caption style id for the voiceover\'s words (default highlight-word), or false for none.' },
+            lyrics: {
+              description: 'A lyric reel: the song\'s sung words appear one at a time as they are sung, huge and behind the person (style lyrics-behind). true, or { text, language, color, style }. text = the lyrics the user gave (laid onto the sung timing; transcription mishears singing, so ask for them); language = what it is sung in (hi, mr, en; hi when text is Devanagari). Needs music. Put the clearest single-person shots under the sung lines.',
+              anyOf: [{ type: 'boolean' }, { type: 'object', properties: { text: { type: 'string' }, language: { type: 'string' }, color: { type: 'string' }, style: { type: 'string' } }, additionalProperties: false }],
+            },
             look: { type: 'string', description: 'Optional look id from reels_director_options.' },
             sfx: { type: 'string', enum: ['auto', 'subtle', 'off'], description: 'Sound effects on transitions, flash cuts, drops and builds: auto (default), subtle (quieter) or off.' },
             shotList: { type: 'boolean', description: 'The user\'s own shot list: no motion of ours on cuts and holds, the critique checks against their list. Filled from the treatment.' },

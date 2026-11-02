@@ -45,6 +45,18 @@ export interface AssemblyClip {
   transcript?: Array<{ text: string; start: number; end: number }>;
 }
 
+/** RS-1251: the user's narration for a director reel: played whole, its words become the captions. */
+export interface AssemblyVoiceover {
+  assetId: string;
+  name: string;
+  src: string;
+  /** audio or video (a video's sound only; its picture is not placed by this) */
+  kind: 'audio' | 'video';
+  durationSec: number;
+  /** word-timed transcript in source ms; none = no captions */
+  transcript?: Array<{ text: string; start: number; end: number }>;
+}
+
 export interface AssemblyMusic {
   assetId: string;
   name: string;
@@ -59,6 +71,8 @@ export interface AssemblyMusic {
   loudestStartSec?: number;
   /** detected drop time in the source song (RS-203) */
   dropSec?: number;
+  /** RS-1253: the song's sung words (ms in the song file), for a lyric reel */
+  lyrics?: Array<{ text: string; start: number; end: number }>;
   /** RS-1224: loudness of each beat (any positive scale), for the director's song map */
   energyPerBeat?: number[];
 }
@@ -69,6 +83,8 @@ export interface AssembleInput {
   /** B-roll pool for captioned-story@1 */
   broll?: AssemblyClip[];
   music?: AssemblyMusic;
+  /** RS-1251: director@1 only */
+  voiceover?: AssemblyVoiceover;
   texts: Record<string, string>;
   params: Record<string, string | number | boolean>;
   seed: number;

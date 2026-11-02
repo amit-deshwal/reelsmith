@@ -96,6 +96,8 @@ export const DIRECTOR_TRANSITIONS: readonly DirectorTransition[] = [
   { id: 'zoomIn', looks: 'Anticipation push into the next shot.', use: 'Building up to something; entering a place.' },
   { id: 'zoom-through', looks: 'Zooms through the frame into the next shot.', use: 'Drops, arrivals, high energy.' },
   { id: 'whip-blur', looks: 'Fast motion-blurred whip.', use: 'Quick travel cuts, action.' },
+  { id: 'swipe-up', looks: 'The shot whips up out of frame with motion blur and the next comes up from below, like swiping the feed.', use: 'The native Reels cut: next place, next outfit, next day; a run of quick vertical swipes on the beat.' },
+  { id: 'swipe-down', looks: 'The same whip, downward: the next shot drops in from above.', use: 'Going down (a descent, a jump, a waterfall); answering a swipe-up.' },
   { id: 'spin-zoom', looks: 'Spinning zoom.', use: 'Party, dizzy fun, a big drop. Use once.' },
   { id: 'bars', looks: 'Next shot breaks in through tall bars.', use: 'Rhythmic reveals on the beat.' },
   { id: 'wide-bars', looks: 'Next shot breaks in through wide bars.', use: 'Rhythmic reveals on the beat.' },

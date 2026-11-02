@@ -4,7 +4,7 @@ import type { CaptionStyleOverride } from '../captions/styles';
 import type { CaptionLayout, CaptionMotionPreset, CaptionPacing, CaptionTemplate, CaptionsData } from '../captions/types';
 import { DEFAULT_SAFE_ZONE } from './safeZone';
 
-export type ReelsCaptionStyleId = 'clean-white' | 'highlight-word' | 'boxed' | 'karaoke' | 'pop-word' | 'minimal-lower' | 'behind-speaker';
+export type ReelsCaptionStyleId = 'clean-white' | 'highlight-word' | 'boxed' | 'karaoke' | 'pop-word' | 'minimal-lower' | 'behind-speaker' | 'lyrics-behind';
 
 export interface ReelsCaptionStyle {
   id: ReelsCaptionStyleId;
@@ -65,6 +65,14 @@ export const REELS_CAPTION_STYLES: readonly ReelsCaptionStyle[] = [
     template: 'plain', pacing: 'word', motionPreset: 'word-pop',
     styleOverride: { fontFamily: 'Montserrat', fontWeight: 900, fontSize: 0.12, textTransform: 'uppercase', textShadow: '0 4px 24px #0007', wordsPerPage: 2, displayMode: 'inline' },
     layout: { anchor: 'middle-center', offsetYRatio: -0.17 },
+    behind: true,
+  },
+  {
+    // RS-1253: the lyric-video look: each sung word alone, huge and heavy across the head, the singer in front of it
+    id: 'lyrics-behind', label: 'Lyrics behind', hint: 'One huge sung word at a time, behind the person',
+    template: 'plain', pacing: 'word', motionPreset: 'word-pop',
+    styleOverride: { fontFamily: 'Anton', fontWeight: 400, fontSize: 0.19, textShadow: '0 6px 30px #0008', wordsPerPage: 1, displayMode: 'inline' },
+    layout: { anchor: 'middle-center', offsetYRatio: -0.12 },
     behind: true,
   },
 ];

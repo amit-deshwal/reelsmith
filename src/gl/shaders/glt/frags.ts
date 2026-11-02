@@ -35,6 +35,9 @@ import liquidFill from './liquid-fill.frag.ts';
 import swooshLines from './swoosh-lines.frag.ts';
 import portalZoom from './portal-zoom.frag.ts';
 import strobeCut from './strobe-cut.frag.ts';
+import lensCover from './lens-cover.frag.ts';
+import stretch from './stretch.frag.ts';
+import pullBack from './pull-back.frag.ts';
 
 export const GLT_FRAGS = {
   'cross-zoom': crossZoom,
@@ -73,4 +76,7 @@ export const GLT_FRAGS = {
   'swoosh-lines': swooshLines,
   'portal-zoom': portalZoom,
   'strobe-cut': strobeCut,
+  'lens-cover': lensCover,
+  'stretch': stretch,
+  'pull-back': pullBack,
 } as const;

@@ -6152,6 +6152,43 @@
               "musicStart": {
                 "description": "'firstDownbeat' (default), 'fromStart' or a second of the song."
               },
+              "voiceover": {
+                "type": "string",
+                "description": "The user's own narration (assetId from voiceovers): plays whole at full level, never cut or ducked; its words become captions. The sections must add up to at least its length. Never pass it as music."
+              },
+              "voiceoverStart": {
+                "type": "number",
+                "description": "Second of the voiceover file to start from (default 0)."
+              },
+              "captions": {
+                "description": "Caption style id for the voiceover's words (default highlight-word), or false for none."
+              },
+              "lyrics": {
+                "description": "A lyric reel: the song's sung words appear one at a time as they are sung, huge and behind the person (style lyrics-behind). true, or { text, language, color, style }. text = the lyrics the user gave (laid onto the sung timing; transcription mishears singing, so ask for them); language = what it is sung in (hi, mr, en; hi when text is Devanagari). Needs music. Put the clearest single-person shots under the sung lines.",
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "text": {
+                        "type": "string"
+                      },
+                      "language": {
+                        "type": "string"
+                      },
+                      "color": {
+                        "type": "string"
+                      },
+                      "style": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
+              },
               "look": {
                 "type": "string",
                 "description": "Optional look id from reels_director_options."

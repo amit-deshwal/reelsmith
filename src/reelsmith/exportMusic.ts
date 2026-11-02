@@ -8,7 +8,8 @@ export interface TimelineSong { name: string; /** the file it plays (bundled son
 
 /** The reel's song: the music item a recipe or the director laid (id "...music"), else the longest audio from the start. */
 export function songOnTimeline(state: Pick<TimelineState, 'items' | 'fps'>): TimelineSong | undefined {
-  const audio = state.items.filter((i) => i.kind === 'audio');
+  // RS-1251: the user's own voiceover is not a song (no music-picker or muting advice about it)
+  const audio = state.items.filter((i) => i.kind === 'audio' && !(i as { props?: { rsVoiceover?: boolean } }).props?.rsVoiceover);
   if (!audio.length) return undefined;
   const reelEnd = Math.max(1, ...state.items.map((i) => i.startFrame + i.durationInFrames));
   const laid = audio.find((i) => /(^|-)music$/.test(i.id));

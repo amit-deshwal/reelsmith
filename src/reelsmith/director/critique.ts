@@ -32,7 +32,7 @@ export function critiquePlan(plan: ReelPlan, spans: readonly Span[], treatment?:
   if (n >= 4 && moving === 0) out.push({ issue: 'every section comes in on a hard cut', fix: 'one transition family on the 2-3 changes that matter: into the drop, a new place, the ending' });
   if (n >= 5 && moving > Math.ceil(n * 0.7)) out.push({ issue: `${moving} of ${n - 1} section changes have a transition`, fix: 'keep plain beat cuts as the default; transitions only where something changes' });
   const timed = plan.sections.some((s) => (s.effects ?? []).some((e) => e.timing && e.timing !== 'steady'));
-  if (!timed && n >= 4) out.push({ issue: 'no effect moves with the music', fix: 'time one effect to the drop (zoom-blur or light-rays, timing drop) and let the section before it build' });
+  if (!timed && n >= 4 && plan.music) out.push({ issue: 'no effect moves with the music', fix: 'time one effect to the drop (zoom-blur or light-rays, timing drop) and let the section before it build' });
   const hook = plan.sections[0];
   const hookLen = spans[0] ? spans[0].to - spans[0].from : 0;
   if (hook && PLAIN_MOVES.has(hook.move) && hookLen > 3.5) out.push({ section: 0, issue: `the reel opens on ${hookLen.toFixed(1)} s of one ${hook.move}`, fix: 'open on movement or a reveal in under 2-3 s, then the setup' });

@@ -55,7 +55,9 @@ export function reviewDirectorPlan(r: ReviewInput): ReviewFinding[] {
   }
   // one signature moment makes a reel feel directed; most reels over 10 s should have one
   if (total > 10 && !plan.sections.some((s) => SIGNATURE_MOVES.has(s.move)) && !plan.sections.some((s) => (s.effects ?? []).some((e) => e.timing && e.timing !== 'steady'))) {
-    out.push({ issue: 'no signature moment: every section is a plain cut, hold or burst and no effect moves with the music', fix: 'add one: velocity on the best action shot, photo-3d on a portrait, a freeze-intro for a person, or one effect timed to the drop' });
+    out.push(plan.voiceover && !plan.music
+      ? { issue: 'no signature moment: every section is a plain cut, hold or burst', fix: 'add one on the voiceover\'s key line: velocity on the best action shot, photo-3d on a portrait, a freeze-intro for a person, or one effect with timing "drop" on that section' }
+      : { issue: 'no signature moment: every section is a plain cut, hold or burst and no effect moves with the music', fix: 'add one: velocity on the best action shot, photo-3d on a portrait, a freeze-intro for a person, or one effect timed to the drop' });
   }
   // pacing: long holds on a fast song read as dead air
   const beatSec = r.song?.bpm ? 60 / r.song.bpm : 0.5;
@@ -108,7 +110,8 @@ export function reviewDirectorPlan(r: ReviewInput): ReviewFinding[] {
   // RS-1225: someone talks for most of a shot with their voice off: a muted mouth reads as a mistake. Phone footage
   // talks a lot (half the trek clips did), so only the longest such shot is named, and only when nothing is heard yet
   const muted = (r.voices ?? []).filter((v) => !plan.sections[v.section]?.naturalSound).sort((a, b) => b.seconds - a.seconds)[0];
-  if (muted && !plan.sections.some((x) => x.naturalSound)) {
+  // RS-1251: under the user's voiceover the clips stay silent on purpose
+  if (muted && !plan.voiceover && !plan.sections.some((x) => x.naturalSound)) {
     out.push({ section: muted.section, issue: `someone talks through the ${muted.seconds} s shot at ${muted.at} s (section ${muted.section}) with their sound off under the song`, fix: 'if what they say matters, set naturalSound "under" on that section (the song dips and they are heard); otherwise cast a moment where nobody talks' });
   }
   // RS-1226: a loop replays from the first frame; the ending must hand straight back to it
