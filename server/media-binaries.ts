@@ -56,10 +56,12 @@ export function whisperCliBin(): string {
   const platformKey = `${process.platform}-${process.arch}`;
   const suffix = process.platform === 'win32' ? '.exe' : '';
   const relative = join('whisper-cli', platformKey, `whisper-cli${suffix}`);
+  // Electron sets process.resourcesPath in packaged builds; the server tsconfig has no Electron types.
+  const resourcesPath = (process as { resourcesPath?: string }).resourcesPath ?? '';
   const candidates = [
     join(import.meta.dirname, '..', 'public', relative),
-    join(process.resourcesPath ?? '', 'dist', relative),
-    join(process.resourcesPath ?? '', relative),
+    join(resourcesPath, 'dist', relative),
+    join(resourcesPath, relative),
   ];
   for (const candidate of candidates) {
     if (existsSync(candidate)) return candidate;
