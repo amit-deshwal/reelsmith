@@ -22,6 +22,7 @@ import { readJsonBody, sendJson } from '../plugins/export-http.ts';
 import { detectDropBeat } from '../../src/reelsmith/assembler/drop.ts';
 import { analyzeBeatsFile } from './beatDetect.ts';
 import { extractClipFeatures, extractReferenceCuts } from './clipFeatures.ts';
+import { readFrameRate } from './mediaFps.ts';
 import { finalizeForInstagram } from './instagramFinalize.ts';
 import { upscaleAvailable, upscalePhoto } from './upscale.ts';
 import { extractStill, frameJpeg } from './stillFrame.ts';
@@ -84,6 +85,14 @@ export function reelsmithAnalyzePlugin(): Plugin {
         }
         const features = await work;
         return { features: { ...features, assetId: String(body.assetId ?? features.assetId) } };
+      });
+      // RS-1250: each clip's frame rate (null when unreadable), for the Director's timeline rate
+      route('/api/reelsmith/media-fps', async (body) => {
+        const srcs = Array.isArray(body.srcs) ? body.srcs.slice(0, 200) : [];
+        return { fps: await Promise.all(srcs.map(async (src) => {
+          const file = localFile(src);
+          return typeof file === 'string' ? readFrameRate(file) : null;
+        })) };
       });
       route('/api/reelsmith/reference-cuts', async (body) => {
         const file = localFile(body.src);

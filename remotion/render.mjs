@@ -265,7 +265,8 @@ export async function renderTimeline({
       ...proresOptions,
       // Reelsmith RS-803: bt709 so Instagram finalize can copy the picture; RS_RENDER_COLOR_SPACE=default keeps Remotion's own.
       ...(codec === 'h264' && process.env.RS_RENDER_COLOR_SPACE !== 'default' ? { colorSpace: 'bt709' } : {}),
-      // Reelsmith: each frame passes through a Chrome JPEG before the encoder; Remotion's default q80 softens grass and fog.
+      // Reelsmith: frames normally reach ffmpeg raw through shared memory (no image step; JPEG and PNG renders are
+      // byte-identical on macOS). When shared-memory capture is unavailable they fall back to Chrome JPEGs: q95, not q80.
       ...(codec !== 'prores' ? { jpegQuality: 95 } : {}),
       chromiumOptions: { gl: resolveRenderGlBackend() },
       browserExecutable: browserExecutable(),

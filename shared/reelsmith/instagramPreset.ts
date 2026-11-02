@@ -32,6 +32,8 @@ export const REEL_PRESETS: Record<string, ReelPreset> = {
   'instagram-reel': { ...base, id: 'instagram-reel', label: 'Instagram Reel (1080×1920, 30 fps)', fps: 30, level: '4.0' },
   'instagram-reel-60': { ...base, id: 'instagram-reel-60', label: 'Instagram Reel (1080×1920, 60 fps)', fps: 60, level: '4.2' },
   'instagram-reel-silent': { ...base, id: 'instagram-reel-silent', label: 'Instagram Reel, no music (add audio in Instagram)', fps: 30, level: '4.0', lufs: null },
+  // RS-1250: a 60 fps reel with no music stayed 60 fps only until finalize, which resampled it to 30
+  'instagram-reel-silent-60': { ...base, id: 'instagram-reel-silent-60', label: 'Instagram Reel 60 fps, no music (add audio in Instagram)', fps: 60, level: '4.2', lufs: null },
 };
 
 export function withSrt(p: ReelPreset, on: boolean): ReelPreset {

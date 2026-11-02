@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { finalizeExportForInstagram } from './instagramExport';
+import { finalizeExportForInstagram, presetIdFor } from './instagramExport';
 import type { TimelineState } from '../editor/types';
 import type { ExportJobResult } from '../export/exportWorkflowTypes';
 
@@ -29,4 +29,8 @@ await finalizeExportForInstagram(state, failed, 'h264', undefined, {
   fetcher: fetcher({ result: { ok: false, reencoded: true, first: pass, second: pass, failedPath: '/tmp/y.failed.mp4' }, width: 1080, height: 1920 }),
 });
 assert.deepEqual([failed.width, failed.height], [2160, 3840]);
+// RS-1250: no music keeps the reel's 60 fps
+assert.equal(presetIdFor(60, true), 'instagram-reel-silent-60');
+assert.equal(presetIdFor(30, true), 'instagram-reel-silent');
+assert.equal(presetIdFor(60, false), 'instagram-reel-60');
 console.log('instagramExport.verify: ok');

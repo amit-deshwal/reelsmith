@@ -36,6 +36,8 @@ export interface AnalyzeApi {
   referenceCuts?(asset: MediaAsset, fps: number): Promise<{ cutsFrame: number[]; color?: { r: number; g: number; b: number } } | null>;
   /** RS-1239: the brand kit of one public page the user named (promo reels) */
   brandKit?(url: string): Promise<BrandKit | { error: string }>;
+  /** RS-1250: each source's frame rate, in order (null when unreadable) */
+  mediaFps?(srcs: string[]): Promise<Array<number | null>>;
   selectionSheet?(items: Array<{ asset: MediaAsset; atSec: number; label: string }>): Promise<{ sheets: Array<{ base64: string; labels: string[] }>; skipped: string[] } | null>;
 }
 

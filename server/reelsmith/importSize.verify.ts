@@ -4,7 +4,10 @@ import assert from 'node:assert/strict';
 import { capImportSize, importMaxPx } from './importSize.ts';
 import { clockwiseRotation, vtTranscodeArgs, vtTransposeDir } from './vtNormalize.ts';
 
-assert.deepEqual(capImportSize(2160, 3840, 52_000_000, 1_500_000, 2560), { w: 1440, h: 2560, bitrate: 23_111_111 });
+// RS-1250: 2.5x the pixel-scaled rate, never above the source's
+assert.deepEqual(capImportSize(2160, 3840, 36_600_000, 1_500_000, 2560), { w: 1440, h: 2560, bitrate: 36_600_000 });
+assert.deepEqual(capImportSize(2160, 3840, 52_000_000, 1_500_000, 2560), { w: 1440, h: 2560, bitrate: 52_000_000 });
+assert.deepEqual(capImportSize(4320, 7680, 120_000_000, 1_500_000, 2560), { w: 1440, h: 2560, bitrate: 33_333_333 });
 assert.deepEqual(capImportSize(1080, 1920, 11_000_000, 1_500_000, 2560), { w: 1080, h: 1920, bitrate: 11_000_000 }, '1080p untouched');
 assert.deepEqual(capImportSize(2160, 3840, 52_000_000, 1_500_000, 0), { w: 2160, h: 3840, bitrate: 52_000_000 }, '0 turns it off');
 assert.equal(importMaxPx({}), 2560);

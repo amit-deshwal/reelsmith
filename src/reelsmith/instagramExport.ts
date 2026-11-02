@@ -47,7 +47,7 @@ export const isVertical = (s: Pick<TimelineState, 'width' | 'height'>) => Math.a
 export const isSupportedShape = (s: Pick<TimelineState, 'width' | 'height'>) => ratioOf(s.width, s.height) !== undefined;
 
 export function presetIdFor(fps: number, silent: boolean): string {
-  if (silent) return 'instagram-reel-silent';
+  if (silent) return fps >= 50 ? 'instagram-reel-silent-60' : 'instagram-reel-silent';
   return fps >= 50 ? 'instagram-reel-60' : 'instagram-reel';
 }
 

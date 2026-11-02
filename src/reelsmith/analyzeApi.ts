@@ -39,6 +39,7 @@ export function createAnalyzeApi(fetcher: typeof fetch = fetch, subjects: typeof
       const r = await response.json().catch(() => ({})) as { src?: string; width?: number; height?: number; frames?: number; error?: string };
       return response.ok && r.src && r.width && r.height && r.frames ? { src: r.src, width: r.width, height: r.height, frames: r.frames } : { error: r.error ?? `reverse failed (${response.status})` };
     },
+    mediaFps: async (srcs) => (await post<{ fps: Array<number | null> }>('/api/reelsmith/media-fps', { srcs }))?.fps ?? srcs.map(() => null),
     brandKit: async (url) => {
       const response = await fetcher('/api/reelsmith/brand-kit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
       const r = await response.json().catch(() => ({})) as { kit?: BrandKit; error?: string };

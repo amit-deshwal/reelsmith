@@ -30,6 +30,7 @@ import type { Defect } from '../director/critique';
 import { songMap, songMapText } from '../director/songMap';
 import { songReportLine } from '../exportMusic';
 import { brandAction, brandKitText, brandWords, type BrandKit } from '../../../shared/reelsmith/brandKit';
+import { directorTimelineFps } from '../director/footageRate';
 
 const VISUAL = new Set(['video', 'image']);
 const secs = (frames: number, fps: number) => Math.round((frames / fps) * 10) / 10;
@@ -150,10 +151,24 @@ function warmShotTags(assets: MediaAsset[], ctx: AgentContext, deps: ReelsDeps):
   return work;
 }
 
+/** RS-1250: an empty timeline takes the footage's 60 fps before anything is analysed or placed (the note says so). */
+async function matchFootageRate(ctx: AgentContext, deps: ReelsDeps): Promise<string | undefined> {
+  const state = ctx.getState();
+  if (state.fps >= 50 || !deps.api.mediaFps) return undefined;
+  const videos = (ctx.getDoc().assets ?? []).filter((a) => a.kind === 'video' && a.src);
+  if (!videos.length) return undefined;
+  const rates = await deps.api.mediaFps(videos.map((a) => a.src)).catch(() => [] as Array<number | null>);
+  const want = directorTimelineFps(ctx.getDoc(), state.fps, rates);
+  if (!want) return undefined;
+  ctx.commands.setProjectFps(want);
+  return ctx.getState().fps === want ? `The timeline is now ${want} fps to match the clips (they were shot at ${want}).` : undefined;
+}
+
 /** Cells of the reference sheet: one a shot, at most this many. */
 const REFERENCE_CELLS = 15;
 
 export async function directorOptions(args: Record<string, unknown>, ctx: AgentContext, deps: ReelsDeps): Promise<unknown> {
+  const rateNote = await matchFootageRate(ctx, deps);
   const fps = ctx.getState().fps;
   const assets = (ctx.getDoc().assets ?? []).filter((a) => VISUAL.has(a.kind) || a.kind === 'audio');
   // RS-1217: a reference reel is studied, never cast; it leaves the numbered clip list
@@ -210,6 +225,7 @@ export async function directorOptions(args: Record<string, unknown>, ctx: AgentC
     ...(brand ? { brand: brandKitText(brand) } : {}),
     ...(brandResult && 'error' in brandResult ? { brandError: `${brandResult.error}. Ask the user for the name, the one action (e.g. "Join on WhatsApp") and the handle, or build from their story.` } : {}),
     timelineIsEmpty: ctx.getState().items.length === 0,
+    ...(rateNote ? { frameRate: `${rateNote} Tell the user in your report.` } : {}),
     next: `${args.askFirst === true ? 'The user wants to approve the treatment before anything is built. ' : ''}Stage 2: write the treatment (two concepts, the tone, hero shots, the arc on the song with each part's purpose, the signature, the kit from the menu in the skill${reference ? ', and the styleGuide from the reference' : ''}) and call reels_director_treatment. Do not write the plan yet.`,
   };
 }
