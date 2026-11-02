@@ -9,6 +9,8 @@ import { isolateVerifyHome } from '../shared/verify-home.ts';
 
 const throwawayHome = mkdtempSync(join(tmpdir(), 'xai-oauth-verify-'));
 isolateVerifyHome(throwawayHome);
+// Reelsmith: the keystore writes <cwd>/.env.local; run from the fixture so the checkout's file is never touched.
+process.chdir(throwawayHome);
 // Intentionally dynamic: the module resolves its profile paths (home-rooted)
 // at import time, so the throwaway home must exist before it loads.
 const mod = await import('./xai-oauth-session.ts');

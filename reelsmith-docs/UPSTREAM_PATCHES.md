@@ -497,3 +497,15 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 - The gate has no allowlist, so our `server/reelsmith/` call sites moved to `ffmpegBin()`/`ffprobeBin()` too (`beatDetect.ts` runs in the app; the rest are dev scripts and fixtures).
 - Still not taken: `5cac33fa` (AAC encoder delay, reverted in `bb2a9321`, ours does it), `d9b517ae` (Portuguese ASR), `ee45a703`/`526dbfb4` (Windows only), `5b542cf7` (Doubao), README "Pro" links.
 - `server/media-binaries.ts` `whisperCliBin()`: reads `process.resourcesPath` through a local cast. The server tsconfig has no Electron types, so `tsc -b` (and with it `npm run build` / `desktop:dist`) failed with TS2339 on those two lines.
+
+## Faster test loop (2026-11-02)
+
+- `scripts/run-affected-verifies.mjs`: selection follows a reverse import graph (our `scripts/import-graph.mjs`) instead of the nearest directory; the directory rule is only the fallback for files nothing reaches. `shared/` and imported `assets/` files are no longer automatic full-gate refusals; top-level and `reelsmith-docs/` Markdown count as docs; skill folder files select the skill suites plus the tool-catalog check; `EXTRA_COMMANDS` are selected like suites. Runs through the shared pool in our `scripts/verify-timings.mjs`.
+- `scripts/run-affected-verifies.verify.mjs`: directory-count assertions replaced by graph assertions (cross-directory importers selected, narrower than the directory, skills/schemas/docs covered, runner tables not consumers); the fixture repo is a Git repo before selecting and copies the two new modules.
+- `scripts/run-tests.mjs`: `--fast` leaves out `SLOW_VERIFIES`; longest-first order comes from recorded timings (`node_modules/.cache/reelsmith/verify-timings.json`) instead of the hand-kept `SLOW_FIRST` list.
+- `scripts/verify-discovery.mjs`: `SLOW_VERIFIES` + `isSlowSegment`; `EXTRA_COMMANDS` gains `generate-tool-catalog.mts --check`.
+- `package.json`: `test:fast` script; `verify:affected` defaults to 8 parallel like `npm test`.
+- `.gitignore`: `!/scripts/import-graph.mjs`, `!/scripts/verify-timings.mjs`.
+- `server/media-normalization.ts`: our RS-1248 `encodeOnVideoToolbox` moved to `server/reelsmith/vtNormalize.ts` (takes the normaliser's runner as a callback); the file was over the 500-line gate.
+- `server/outbound-proxy.verify.ts`, `server/xai-oauth-session.verify.ts` (chdir to the fixture), `server/plugins/import-url-errors.verify.ts`, `desktop/embedded-project-store-http.verify.ts` (isolated dev profile id): they wrote the checkout's real `.env.local` through `setKeys` (import-url-errors cleared `UI_LOCALE`), which also made Vite-based suites restart mid-run and fail at random.
+

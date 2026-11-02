@@ -9,6 +9,9 @@ import { isolateVerifyHome } from '../shared/verify-home.ts';
 async function main(): Promise<void> {
   const root = mkdtempSync(join(tmpdir(), 'occ-proxy-verify-'));
   const restoreHome = isolateVerifyHome(root);
+  // Reelsmith: the keystore writes <cwd>/.env.local; run from the fixture so the checkout's file is never touched.
+  const previousCwd = process.cwd();
+  process.chdir(root);
   const previousEnv: Record<string, string | undefined> = {};
   for (const name of ['HTTPS_PROXY', 'https_proxy', 'HTTP_PROXY', 'http_proxy']) {
     previousEnv[name] = process.env[name];
@@ -54,6 +57,7 @@ async function main(): Promise<void> {
       else process.env[name] = value;
     }
     restoreHome();
+    process.chdir(previousCwd);
     rmSync(root, { recursive: true, force: true });
   }
 }

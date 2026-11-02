@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -8,6 +9,8 @@ import { join } from 'node:path';
 // module graph loads (keystore resolves its profile at import time) so a developer's own
 // PROXY_URL cannot change what this check sees; the env proxy is controlled explicitly.
 process.env.OPENCHATCUT_DATA_DIR = mkdtempSync(join(tmpdir(), 'import-url-errors-'));
+// Reelsmith: an isolated dev profile, so the keystore writes under this fixture, not the checkout's .env.local.
+process.env.OPENCHATCUT_DEV_PROFILE_ID = randomUUID();
 const PROXY_NAMES = ['HTTPS_PROXY', 'https_proxy', 'HTTP_PROXY', 'http_proxy', 'ALL_PROXY', 'all_proxy', 'PROXY_URL'] as const;
 for (const name of PROXY_NAMES) delete process.env[name];
 

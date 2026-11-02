@@ -17,7 +17,7 @@ import {
   throwIfNormalizationAborted,
 } from './media-normalization-admission.ts';
 import { ffmpegThreadArgs, spawnMediaProcess } from './media-process.ts';
-import { clockwiseRotation, vtFfmpeg, vtTranscodeArgs } from './reelsmith/vtNormalize.ts';
+import { clockwiseRotation, encodeOnVideoToolbox } from './reelsmith/vtNormalize.ts';
 export {
   createNormalizeAdmission,
   normalizationAbortError,
@@ -365,41 +365,6 @@ export function normalizeReason(
   return null;
 }
 
-/** Reelsmith RS-1248: the whole conversion on the Mac's media engine; false (and no output) when it cannot run. */
-async function encodeOnVideoToolbox(
-  ffmpeg: string,
-  audioArgs: string[],
-  outputArgs: string[],
-  options: TranscodeVideoOptions,
-  outputPath: string,
-  preferred: Awaited<ReturnType<typeof resolveH264Encoder>>,
-  proxyQuality: Awaited<ReturnType<typeof probeEncoderQualityMode>>,
-  signal?: AbortSignal,
-): Promise<boolean> {
-  if (preferred !== 'h264_videotoolbox' || !options.inputPath) return false;
-  const vt = await vtFfmpeg(ffmpeg);
-  if (!vt) return false;
-  const args = vtTranscodeArgs({
-    inputPath: options.inputPath, hasAudio: options.hasAudio === true, rotation: options.rotation ?? 0,
-    targetW: options.targetW, targetH: options.targetH, targetFps: options.targetFps, convertToCfr: options.convertToCfr,
-    hdr: options.hdr === true, audioArgs, outputArgs,
-    encodeArgs: h264EncodingArgs({
-      encoder: preferred, targetBitrate: options.targetBitrate, maxBitrate: options.targetBitrate, bufferSize: options.targetBitrate * 2,
-      ...(proxyQuality ? { hardwareQuality: 23, qualityMode: proxyQuality } : {}),
-    }),
-  });
-  if (!args) return false;
-  try {
-    await run(vt, args, FFMPEG_TIMEOUT_MS, signal);
-    return true;
-  } catch (error) {
-    throwIfNormalizationAborted(signal);
-    console.warn(`[normalize-media] VideoToolbox path failed (${error instanceof Error ? error.message.slice(0, 200) : String(error)}); using the CPU path`);
-    await unlink(outputPath).catch(() => {});
-    return false;
-  }
-}
-
 interface TranscodeVideoOptions {
   readonly targetW: number;
   readonly targetH: number;
@@ -432,7 +397,8 @@ async function encodeTranscodedVideo(
   throwIfNormalizationAborted(signal);
   const proxyQuality = await probeEncoderQualityMode(ffmpeg, preferred);
   throwIfNormalizationAborted(signal);
-  if (await encodeOnVideoToolbox(ffmpeg, audioArgs, outputArgs, options, outputPath, preferred, proxyQuality, signal)) return;
+  const runFfmpeg = (cmd: string, args: string[]) => run(cmd, args, FFMPEG_TIMEOUT_MS, signal);
+  if (await encodeOnVideoToolbox({ ffmpeg, audioArgs, outputArgs, options, outputPath, preferred, proxyQuality, run: runFfmpeg, signal })) return;
   let lastError: unknown;
   for (const encoder of h264EncoderAttempts(preferred)) {
     const args = [

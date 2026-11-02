@@ -10,7 +10,40 @@ import { fileURLToPath } from 'node:url';
 export const VERIFY_FILE = /\.verify\.(?:tsx|mts|cjs|mjs|ts|js)$/;
 
 /** Non-test segments of the gate that are still run with it. */
-export const EXTRA_COMMANDS = ['node scripts/check-i18n.mjs', 'node --import tsx server/reelsmith/avsync.mts'];
+export const EXTRA_COMMANDS = [
+  'node scripts/check-i18n.mjs',
+  'node --import tsx server/reelsmith/avsync.mts',
+  // Reelsmith: a tool schema edit without `npm run generate:server-tool-catalog` fails here, not in the app.
+  'node --import tsx server/agent-runs/generate-tool-catalog.mts --check',
+];
+
+/**
+ * Reelsmith: suites `npm run test:fast` leaves out: renders, exports, CLI and server end-to-end runs, each 5 s or
+ * more in a full 8-parallel run (M-series Mac, 2026-11-02). Together they were ~450 of the suite's ~720 CPU-seconds.
+ * `npm test` and `verify:affected` still run them. Entries are verify files or the file an EXTRA_COMMANDS entry runs.
+ */
+export const SLOW_VERIFIES = [
+  'server/agent-runs/routes.verify.ts',
+  'server/reelsmith/exportFixtures.verify.ts',
+  'cli/cli.verify.ts',
+  'server/reelsmith/instagramFinalize.verify.ts',
+  'server/external-agent/broker.verify.ts',
+  'server/external-agent/mcp.verify.ts',
+  'server/reelsmith/avsync.mts',
+  'src/gl/clipFxExport.offthread.verify.mjs',
+  'src/gl/clipFxExport.verify.mjs',
+  'remotion/video-decoder-render.verify.mjs',
+  'server/plugins/hf-proxy.verify.ts',
+  'server/reelsmith/previewRender.verify.ts',
+  'server/reelsmith/reverseRender.verify.ts',
+  'server/reelsmith/sharedGroupLayer.verify.ts',
+  'server/reelsmith/exportValidate.verify.ts',
+  'server/reelsmith/orphanGuard.verify.ts',
+  'server/reelsmith/parityCheck.verify.ts',
+  'server/reelsmith/repeatedFrames.verify.ts',
+  'server/reelsmith/captionBehindRender.verify.ts',
+];
+export const isSlowSegment = (segment) => SLOW_VERIFIES.some((slow) => segment === slow || segment.endsWith(` ${slow}`));
 
 /** launcher prefix -> suites that cannot run under the default one (tsconfig paths, Vite `?raw` imports, ESM loader). */
 export const LAUNCHERS = {

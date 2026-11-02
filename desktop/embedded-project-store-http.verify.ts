@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -12,6 +13,8 @@ process.env.OPENCHATCUT_DATA_DIR = join(root, 'store');
 process.env.HOME = root;
 process.env.APPDATA = root;
 process.env.LOCALAPPDATA = root;
+// Reelsmith: an isolated dev profile, so the keystore writes under this fixture, not the checkout's .env.local.
+process.env.OPENCHATCUT_DEV_PROFILE_ID = randomUUID();
 
 try {
   const distDir = join(root, 'dist');

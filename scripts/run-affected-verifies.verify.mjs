@@ -8,6 +8,7 @@
 // suite runs under `npx tsx`, which is false for the ones importing Vite-only
 // `?raw`/`.frag` modules.
 // node scripts/run-affected-verifies.verify.mjs
+// import-graph: no-path-literals (the paths below are fixtures, not dependencies)
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
@@ -17,53 +18,64 @@ import { affectedSelection, gitChanged, matchingVerifies, verifyCommand } from '
 
 const countIn = (dir, re = /\.verify\.(ts|tsx|mjs)$/) => readdirSync(dir).filter((n) => re.test(n)).length;
 
-// ── a per-file verify wins: just that one, nothing else in the directory ────
+// ── selection follows imports, wherever the importing suite lives ───────────
 {
   const picked = matchingVerifies(['src/export/browserExport.ts']);
-  assert.deepEqual(picked, ['src/export/browserExport.verify.ts'],
-    'an exact same-name verify is the whole selection');
+  assert.ok(picked.includes('src/export/browserExport.verify.ts'), 'the same-name verify is selected');
+  assert.ok(picked.some((p) => !p.startsWith('src/export/')),
+    'suites in other directories that import the file are selected too');
+
+  // Precision: a director module selects the suites that reach it, not its whole 25-suite directory.
+  const director = matchingVerifies(['src/reelsmith/director/approvalGate.ts']);
+  assert.ok(director.includes('src/reelsmith/director/approvalGate.verify.ts'));
+  assert.ok(director.length < countIn('src/reelsmith/director'),
+    'an import-graph selection is narrower than the directory');
+
+  // A widely imported module reaches its distant suites (the directory rule ran shared/ as the full gate).
+  const shared = affectedSelection(['shared/reelsmith/instagramPreset.ts']);
+  assert.deepEqual(shared.requiresFullGate, []);
+  assert.ok(shared.verifies.includes('server/reelsmith/instagramFinalize.verify.ts'));
 }
 
-// ── no per-file verify: the directory suite runs, however big ───────────────
+// ── a file nothing reaches keeps the directory fallback ────────────────────
 {
-  // src/components/timeline holds 17 verifies; the old >8 bail-out returned [].
-  const picked = matchingVerifies(['src/components/timeline/useTimelineController.ts']);
-  const expected = countIn('src/components/timeline');
-  assert.ok(expected > 8, 'fixture directory must be past the old cutoff');
-  assert.equal(picked.length, expected,
-    'a directory larger than the old cutoff must run, not silently select nothing');
-  assert.ok(picked.every((p) => p.startsWith('src/components/timeline/')), 'stays in the directory');
-}
-
-{
-  // The largest directory in the repo, and the one most edited.
-  const picked = matchingVerifies(['src/agent/tools/beat-tools.ts']);
-  assert.equal(picked.length, countIn('src/agent/tools'));
-  assert.ok(picked.length > 40, 'src/agent/tools is the worst case and must not be skipped');
+  assert.ok(matchingVerifies(['desktop/prepare-target.mts']).includes('desktop/desktop.verify.ts'),
+    '.mts sources nothing imports reach their directory suites');
 }
 
 // ── .tsx and .mjs suites are reachable ─────────────────────────────────────
 {
-  const picked = matchingVerifies(['remotion/render-timeout.mjs']);
-  assert.deepEqual(picked, ['remotion/render-timeout.verify.mjs'],
+  assert.ok(matchingVerifies(['remotion/render-timeout.mjs']).includes('remotion/render-timeout.verify.mjs'),
     'an .mjs verify matches its .mjs source');
-
   const preview = matchingVerifies(['src/components/preview/previewCanvasGeometry.ts']);
-  assert.ok(preview.some((p) => p.endsWith('.verify.tsx')),
-    '.tsx verifies must be selectable');
+  assert.ok(preview.some((p) => p.endsWith('.verify.tsx')), '.tsx verifies must be selectable');
 }
 
-// ── runtime assets/global changes need an explicit broader gate ────────────
+// ── docs, skills, schemas and root configuration ───────────────────────────
 {
-  assert.deepEqual(affectedSelection(['README.md']), { verifies: [], requiresFullGate: [] });
+  for (const doc of ['README.md', 'UPSTREAM_README.md', 'reelsmith-docs/UPSTREAM_PATCHES.md']) {
+    assert.deepEqual(affectedSelection([doc]), { verifies: [], commands: [], requiresFullGate: [] }, doc);
+  }
   for (const file of ['assets/x.png', 'package.json', 'package-lock.json', 'config/vite.config.ts',
-    'shared/project-version.ts', 'no/such/dir/file.ts', 'src/agent/skills/new/SKILL.md']) {
+    'tsconfig.app.json', 'no/such/dir/file.ts']) {
     assert.ok(affectedSelection([file]).requiresFullGate.includes(file), `${file} cannot silently pass`);
   }
+  const catalog = 'node --import tsx server/agent-runs/generate-tool-catalog.mts --check';
+  const skill = affectedSelection(['src/agent/skills/reels-director/SKILL.md']);
+  assert.deepEqual(skill.requiresFullGate, [], 'a skill edit is covered, not a full-gate refusal');
+  assert.ok(skill.verifies.includes('server/external-agent/external-skill.verify.mjs'));
+  assert.ok(skill.verifies.includes('src/agent/skills/skill-loading.verify.ts'));
+  assert.ok(skill.verifies.includes('src/reelsmith/director/catalogText.verify.ts'), 'suites naming the skill run');
+  assert.ok(skill.commands.includes(catalog));
+  const schemas = affectedSelection(['assets/agent/openchatcut-tool-schemas.json']);
+  assert.deepEqual(schemas.requiresFullGate, [], 'an imported asset is covered by its readers');
+  assert.ok(schemas.commands.includes(catalog), 'the generated catalog is checked against the schemas');
+  assert.ok(affectedSelection(['src/agent/tools/beat-tools.ts']).commands.includes(catalog),
+    'a tool schema edit runs the catalog check');
   assert.ok(matchingVerifies(['src/gl/fx/invert.frag']).includes('src/gl/clipFxExport.verify.mjs'),
     'shader changes reach the render verification in the parent directory');
-  assert.ok(matchingVerifies(['desktop/prepare-target.mts']).includes('desktop/desktop.verify.ts'),
-    '.mts sources reach their directory suites');
+  assert.ok(!matchingVerifies(['src/app/EditorGuards.tsx']).includes('scripts/verify-gate-coverage.verify.mjs'),
+    'a table of verify paths (the runners) is not a consumer of every suite');
 }
 
 // ── the command matches what the suite itself uses ─────────────────────────
@@ -103,14 +115,14 @@ try {
   for (const extension of ['mts', 'js', 'cjs']) {
     writeFileSync(join(temporary, `src/example.verify.${extension}`), '');
   }
+  const git = (...args) => execFileSync('git', ['-C', temporary, ...args], { stdio: 'pipe' });
+  git('init', '-q');
   assert.equal(affectedSelection(['src/example.js'], temporary).verifies.length, 3,
     'all supported same-name suites run, not just the first directory entry');
   assert.deepEqual(affectedSelection(['src/example.verify.cjs'], temporary).verifies,
     ['src/example.verify.cjs'], 'an edited verify runs itself');
 
   // A real isolated Git repository proves both tracked and untracked collection.
-  const git = (...args) => execFileSync('git', ['-C', temporary, ...args], { stdio: 'pipe' });
-  git('init', '-q');
   git('-c', 'user.name=Verify', '-c', 'user.email=verify@example.invalid',
     '-c', 'commit.gpgsign=false', 'commit', '--allow-empty', '-qm', 'test fixture');
   git('add', 'src/example.verify.js');
@@ -119,7 +131,7 @@ try {
   ]);
 
   // Execute only tiny fixture suites, never the real expensive selected suite.
-  for (const runner of ['run-tests.mjs', 'run-affected-verifies.mjs', 'verify-discovery.mjs']) {
+  for (const runner of ['run-tests.mjs', 'run-affected-verifies.mjs', 'verify-discovery.mjs', 'import-graph.mjs', 'verify-timings.mjs']) {
     copyFileSync(new URL(runner, import.meta.url), join(temporary, 'scripts', runner));
   }
   writeFileSync(join(temporary, 'src/example.verify.cjs'), `console.log('fixture passed');`);
@@ -152,4 +164,4 @@ try {
   rmSync(temporary, { recursive: true, force: true });
 }
 
-console.log('run-affected-verifies.verify: affected selection never shrinks silently');
+console.log('run-affected-verifies.verify: affected selection follows imports and never shrinks silently');

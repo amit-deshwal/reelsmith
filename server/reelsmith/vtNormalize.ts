@@ -6,6 +6,9 @@
 // ffmpeg is used when present. Any failure falls back to the CPU path.
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { unlink } from 'node:fs/promises';
+import { h264EncodingArgs, type probeEncoderQualityMode, type resolveH264Encoder } from '../media-acceleration.ts';
+import { throwIfNormalizationAborted } from '../media-normalization-admission.ts';
 
 const CANDIDATES = ['/opt/homebrew/bin/ffmpeg', '/usr/local/bin/ffmpeg'];
 let cached: Promise<string | null> | null = null;
@@ -107,4 +110,48 @@ export function vtTranscodeArgs(o: VtTranscodeOptions): string[] | null {
     ...(o.convertToCfr ? ['-fps_mode', 'cfr'] : []),
     ...o.audioArgs, ...o.outputArgs,
   ];
+}
+
+export interface VtEncodeRequest {
+  ffmpeg: string;
+  audioArgs: string[];
+  outputArgs: string[];
+  options: {
+    readonly targetW: number; readonly targetH: number; readonly targetBitrate: number; readonly targetFps: number;
+    readonly convertToCfr: boolean; readonly hdr?: boolean; readonly inputPath?: string; readonly hasAudio?: boolean;
+    readonly rotation?: number;
+  };
+  outputPath: string;
+  preferred: Awaited<ReturnType<typeof resolveH264Encoder>>;
+  proxyQuality: Awaited<ReturnType<typeof probeEncoderQualityMode>>;
+  /** the normaliser's ffmpeg runner (timeout, abort, stderr capture) */
+  run: (cmd: string, args: string[]) => Promise<unknown>;
+  signal?: AbortSignal;
+}
+
+/** The whole conversion on the Mac's media engine; false (and no output) when it cannot run. */
+export async function encodeOnVideoToolbox(r: VtEncodeRequest): Promise<boolean> {
+  const { options } = r;
+  if (r.preferred !== 'h264_videotoolbox' || !options.inputPath) return false;
+  const vt = await vtFfmpeg(r.ffmpeg);
+  if (!vt) return false;
+  const args = vtTranscodeArgs({
+    inputPath: options.inputPath, hasAudio: options.hasAudio === true, rotation: options.rotation ?? 0,
+    targetW: options.targetW, targetH: options.targetH, targetFps: options.targetFps, convertToCfr: options.convertToCfr,
+    hdr: options.hdr === true, audioArgs: r.audioArgs, outputArgs: r.outputArgs,
+    encodeArgs: h264EncodingArgs({
+      encoder: r.preferred, targetBitrate: options.targetBitrate, maxBitrate: options.targetBitrate, bufferSize: options.targetBitrate * 2,
+      ...(r.proxyQuality ? { hardwareQuality: 23, qualityMode: r.proxyQuality } : {}),
+    }),
+  });
+  if (!args) return false;
+  try {
+    await r.run(vt, args);
+    return true;
+  } catch (error) {
+    throwIfNormalizationAborted(r.signal);
+    console.warn(`[normalize-media] VideoToolbox path failed (${error instanceof Error ? error.message.slice(0, 200) : String(error)}); using the CPU path`);
+    await unlink(r.outputPath).catch(() => {});
+    return false;
+  }
 }
