@@ -17,8 +17,8 @@ import { HistoryTap } from './HistoryTap';
 import { LruCache } from './frameCache';
 import { textCellFor } from './textLayer';
 import { fxUniform } from './fx/uniforms';
-import { envelopeFrame, mixUniformsAt } from '../reelsmith/effectMix';
-import { depthRequestFor, depthSrcOf, requestDepthMap } from '../reelsmith/depthMaps';
+import { envelopeFrame, isPersonRegion, isSkyRegion, mixUniformsAt } from '../reelsmith/effectMix';
+import { depthRequestFor, depthSrcOf, parseSkyModel, requestDepthMap, skyModelSrcFor, skyModelUniforms, skySrcFor, type SkyModel } from '../reelsmith/depthMaps';
 import { depthDetail, visibleWindow } from '../reelsmith/depthView';
 
 // mattes of recent source frames, so echo trails segment each frame once while the playhead moves on
@@ -35,6 +35,26 @@ function flatDepth(): HTMLCanvasElement {
   }
   return flatDepthCanvas;
 }
+
+// Reelsmith RS-1261: no sky (black) until the sky map is loaded, or when the clip has none
+let noSkyCanvas: HTMLCanvasElement | null = null;
+function noSky(): HTMLCanvasElement {
+  if (!noSkyCanvas) {
+    noSkyCanvas = document.createElement('canvas');
+    noSkyCanvas.width = 2;
+    noSkyCanvas.height = 2;
+    const ctx = noSkyCanvas.getContext('2d');
+    if (ctx) { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 2, 2); }
+  }
+  return noSkyCanvas;
+}
+
+const loadImage = (src: string, what: string): Promise<HTMLImageElement | null> => new Promise((resolve) => {
+  const image = new Image();
+  image.onload = () => resolve(image);
+  image.onerror = () => { console.warn(`[clip-fx] ${what} failed to load:`, src); resolve(null); };
+  image.src = src;
+});
 
 // One video/image clip rendered through a builtin:fx-* single-input WebGL pass.
 // Mounts a hidden, frame-synced media
@@ -120,7 +140,7 @@ export function ClipFx({ item, fit, width: boxWidth, height: boxHeight, frameOff
 
   const active = useMemo(() => glEffects(item), [item]);
   // Reelsmith: effects that need the person matte load the segmenter once; undefined = still loading, null = unavailable
-  const wantsMask = useMemo(() => active.some(({ def, fx }) => def.needsMask || (fx.mix?.region ?? 'all') !== 'all'), [active]);
+  const wantsMask = useMemo(() => active.some(({ def, fx }) => def.needsMask || isPersonRegion(fx.mix?.region)), [active]);
   // the effects' "Find people" slider: 0 = one person, sharp edges (default); 1 = groups and people far away, rougher edges
   const maskModel: PersonModel = active.some(({ def, fx }) => def.needsMask && Number(fx.overrides?.detect) >= 0.5) ? 'deeplab' : 'selfie';
   const [maskProvider, setMaskProvider] = useState<PersonMaskProvider | null | undefined>(undefined);
@@ -134,32 +154,32 @@ export function ClipFx({ item, fit, width: boxWidth, height: boxHeight, frameOff
   // Reelsmith RS-1238: depth effects read the clip's depth map; the preview asks for one the clip does not carry yet,
   // an export always carries it (withDepthMaps). undefined = still loading, null = none (flat depth)
   const wantsDepth = useMemo(() => active.some(({ def }) => def.needsDepth), [active]);
-  const depthReq = wantsDepth ? depthRequestFor(item, fps) : null;
+  // RS-1261: the sky map is saved beside the depth map, so a sky effect (or one kept to the land or the sky) asks for that
+  const wantsSkyMap = useMemo(() => active.some(({ def, fx }) => def.needsSky || isSkyRegion(fx.mix?.region)), [active]);
+  const wantsMaps = wantsDepth || wantsSkyMap;
+  const depthReq = wantsMaps ? depthRequestFor(item, fps) : null;
   const carriedDepth = depthSrcOf(item);
-  const depthKey = wantsDepth ? (carriedDepth ?? (depthReq && !isRendering ? `ask|${depthReq.src}|${depthReq.atSec ?? ''}` : '')) : '';
-  const [depthImage, setDepthImage] = useState<{ key: string; image: HTMLImageElement | null } | undefined>(undefined);
+  const depthKey = wantsMaps ? `${wantsDepth ? 'd' : ''}${wantsSkyMap ? 's' : ''}|${carriedDepth ?? (depthReq && !isRendering ? `ask|${depthReq.src}|${depthReq.atSec ?? ''}` : '')}` : '';
+  const [depthImage, setDepthImage] = useState<{ key: string; image: HTMLImageElement | null; sky: HTMLImageElement | null; skyModel: SkyModel | null } | undefined>(undefined);
   useEffect(() => {
-    if (!depthKey) return;
+    if (!depthKey || depthKey.endsWith('|')) return; // nothing carried, and a render may not ask
     let alive = true;
     let handle = isRendering ? delayRender(`clip-fx depth ${depthKey}`) : null;
     const release = () => { if (handle != null) { continueRender(handle); handle = null; } };
-    const done = (image: HTMLImageElement | null) => {
-      if (alive) setDepthImage({ key: depthKey, image });
-      release();
-    };
     void (async () => {
       const src = carriedDepth ?? (depthReq ? await requestDepthMap(depthReq) : null);
-      if (!src) { done(null); return; }
-      const image = new Image();
-      image.onload = () => done(image);
-      image.onerror = () => { console.warn('[clip-fx] depth map failed to load; the move stays flat:', src); done(null); };
-      image.src = src;
+      const loadModel = async (url: string) => { try { const r = await fetch(url); return r.ok ? parseSkyModel(await r.json()) : null; } catch { return null; } };
+      const [image, sky, skyModel] = src
+        ? await Promise.all([wantsDepth ? loadImage(src, 'depth map (the move stays flat)') : null, wantsSkyMap ? loadImage(skySrcFor(src), 'sky map (no sky)') : null, wantsSkyMap ? loadModel(skyModelSrcFor(src)) : null])
+        : [null, null, null];
+      if (alive) setDepthImage({ key: depthKey, image, sky, skyModel });
+      release();
     })();
     return () => { alive = false; release(); };
     // depthKey names everything this loads (the carried map, or the photo and moment to ask about, and whether it may ask)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [depthKey]);
-  const depthReady = !wantsDepth || !depthKey || depthImage?.key === depthKey;
+  const depthReady = !wantsMaps || depthKey.endsWith('|') || depthImage?.key === depthKey;
   const depthStaging = useMemo(() => {
     if (!wantsDepth) return null;
     const c = document.createElement('canvas');
@@ -167,6 +187,13 @@ export function ClipFx({ item, fit, width: boxWidth, height: boxHeight, frameOff
     c.height = height;
     return c;
   }, [wantsDepth, width, height]);
+  const skyStaging = useMemo(() => {
+    if (!wantsSkyMap) return null;
+    const c = document.createElement('canvas');
+    c.width = width;
+    c.height = height;
+    return c;
+  }, [wantsSkyMap, width, height]);
   const cropPosition = cropPositionFromProps(item.props);
   // effects that look at earlier frames (echo trails): how many afterimages, and how many frames apart
   const historyFx = active.find(({ def }) => def.history);
@@ -318,6 +345,13 @@ export function ClipFx({ item, fit, width: boxWidth, height: boxHeight, frameOff
           const image = depthKey && depthImage?.key === depthKey ? depthImage.image : null;
           if (image && depthStaging && depthCtx) { drawFit(depthCtx, image, fit, cropPosition); extras.u_depth = depthStaging; } else extras.u_depth = flatDepth();
         }
+        if (wantsSkyMap) {
+          const skyCtx = skyStaging?.getContext('2d');
+          const sky = depthKey && depthImage?.key === depthKey ? depthImage.sky : null;
+          if (sky && skyStaging && skyCtx) { drawFit(skyCtx, sky, fit, cropPosition); extras.u_sky = skyStaging; } else extras.u_sky = noSky();
+        }
+        const hasSky = extras.u_sky && extras.u_sky !== noSky() ? 1 : 0;
+        const skyU = skyModelUniforms(hasSky && depthImage?.key === depthKey ? depthImage.skyModel : null);
         tapStaging.forEach((canvas, i) => {
           extras[`u_hist${i}`] = canvas;
           extras[`u_histMask${i}`] = matteAt(canvas, sourceFrameAt(item, frameOffset + Math.max(0, frame - frameOffset - (i + 1) * tapLag))).mask;
@@ -329,11 +363,12 @@ export function ClipFx({ item, fit, width: boxWidth, height: boxHeight, frameOff
             return {
             def,
             overrides: env.overrides,
-            ...(env.mix ? { mix: { ...env.mix, hasMask: maskFrame && maskProvider ? 1 : 0 } } : {}),
-            ...((def.needsMask && maskFrame) || (def.needsText && textCell) || def.needsDepth
+            ...(env.mix ? { mix: { ...env.mix, hasMask: maskFrame && maskProvider ? 1 : 0, hasSky, sky: skyU } } : {}),
+            ...((def.needsMask && maskFrame) || (def.needsText && textCell) || def.needsDepth || def.needsSky
               ? { extraUniforms: {
                 ...(def.needsMask && maskFrame ? subjectUniforms(maskFrame.subject) : {}),
                 ...(def.needsText && textCell ? { u_textAspect: textCell.aspect } : {}),
+                ...(def.needsSky ? { u_hasSky: hasSky, ...skyU } : {}),
                 ...(def.needsDepth ? { u_progress: Math.min(1, Math.max(0, frame / Math.max(1, item.durationInFrames - 1))), u_hasDepth: extras.u_depth === flatDepth() ? 0 : 1, u_view: view ?? [0, 0, 1, 1] } : {}),
               } }
               : {}),
@@ -363,7 +398,7 @@ export function ClipFx({ item, fit, width: boxWidth, height: boxHeight, frameOff
     };
     tick();
     return () => { cancelAnimationFrame(raf); finish(); };
-  }, [active, definitionKey, fit, cropPosition.x, cropPosition.y, staging, item.id, item.kind, frame, fps, isRendering, renderKey, onPreviewStatus, wantsMask, maskProvider, maskModel, tapStaging, tapLag, historyDef, frameOffset, width, height, wantsDepth, depthReady, depthKey, depthImage, depthStaging, item.durationInFrames, view?.join(',')]);
+  }, [active, definitionKey, fit, cropPosition.x, cropPosition.y, staging, item.id, item.kind, frame, fps, isRendering, renderKey, onPreviewStatus, wantsMask, maskProvider, maskModel, tapStaging, tapLag, historyDef, frameOffset, width, height, wantsDepth, wantsSkyMap, depthReady, depthKey, depthImage, depthStaging, skyStaging, item.durationInFrames, view?.join(',')]);
 
   useEffect(() => () => {
     disposeRuntimeSlot(runtimeRef);

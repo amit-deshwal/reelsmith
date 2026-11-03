@@ -28,6 +28,8 @@ import { resolveClipRef, songSuggestion } from '../../src/reelsmith/agent/direct
 import { pickFindings } from '../../src/reelsmith/director/pickAudit.ts';
 import { finalizeForInstagram } from './instagramFinalize.ts';
 import { reverseSpan } from './reverseClip.ts';
+import { depthMapFor, depthPackInstalled } from './depthMap.ts';
+import { withDepthMaps } from '../../src/reelsmith/depthMaps.ts';
 import { smoothSlowSpan } from './smoothSlow.ts';
 import { rewindClips } from '../../src/reelsmith/agent/rewindClips.ts';
 import { smoothSlowClips } from '../../src/reelsmith/agent/smoothSlowClips.ts';
@@ -122,7 +124,17 @@ h = historyReduce(h, { type: 'batch', label: 'pool', actions: [...assets, song].
 h = historyReduce(h, bindTracks(out.action, activeTimeline(h.present)));
 const doc = h.present;
 const tl = activeTimeline(doc);
-const submission = await acceptExportSubmission({ state: { ...tl, assets: doc.assets }, project: doc, timelineId: tl.id, format: 'video', codec: 'h264', resolution: '1080p' } as never);
+// depth and sky maps, as the app's export fills them in (withDepthMaps), made here directly instead of through its route
+// (the render reads the project's timeline, so the project carries them too)
+const depthFetcher = async (_url: string, init: RequestInit) => {
+  const req = JSON.parse(String(init.body)) as { src: string; atSec?: number };
+  if (!depthPackInstalled()) return { ok: true, json: async () => ({ available: false }) };
+  const r = await depthMapFor(join(media, decodeURIComponent(req.src.replace('/media/uploads/', ''))), req.atSec);
+  return { ok: true, json: async () => ({ available: true, src: `/media/uploads/${encodeURIComponent(r.name)}` }) };
+};
+const exportState = await withDepthMaps({ ...tl, assets: doc.assets }, depthFetcher);
+const exportProject = await withDepthMaps(doc, depthFetcher);
+const submission = await acceptExportSubmission({ state: exportState, project: exportProject, timelineId: tl.id, format: 'video', codec: 'h264', resolution: '1080p' } as never);
 try {
   const p = submission.plan;
   const opts = await h264RenderOptions(p.media.codec, { preferSpeed: true });

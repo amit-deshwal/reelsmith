@@ -3,8 +3,10 @@
 // effects, so every slider stays editable afterwards, and applying another look replaces only the effects a look added.
 import type { AtomicAction } from '../editor/reducerActions';
 import type { ClipEffect, TimelineItem } from '../editor/types';
+import type { EffectRegion } from './effectMix';
 
-export interface ReelLookStep { assetId: string; overrides?: Record<string, number | number[]> }
+/** `region`: RS-1261, a step kept to the land (or the sky) by the clip's sky map; with no sky map it applies everywhere. */
+export interface ReelLookStep { assetId: string; overrides?: Record<string, number | number[]>; region?: Extract<EffectRegion, 'land' | 'sky'> }
 /** `avoid`: footage the look spoils, shown to the director so it picks by the shots rather than by the topic. */
 export interface ReelLook { id: string; name: string; mood: string; description: string; avoid?: string; steps: ReelLookStep[] }
 
@@ -14,11 +16,12 @@ export const REEL_LOOKS: ReelLook[] = [
   {
     id: 'cinematic-travel', name: 'Cinematic travel', mood: 'travel, trips, landscapes',
     description: 'Teal and orange grade, warm halation on the highlights, a soft mist glow, a gentle vignette and a touch of grain.',
-    avoid: 'Midday shots with the sun or a bright blue sky in frame: the sky turns beige and the sun blooms into an orange haze.',
+    avoid: 'Only without the Photo depth model: then a bright blue midday sky turns beige and the sun blooms orange.',
+    // RS-1261: the grade and the halation stay off the sky (a blue sky turned beige under them, and the sun bloomed orange)
     steps: [
       // lighter since an AMK trek reel (2026-10-21): 0.6 halation + 0.25 mist washed sunny daylight into a golden haze
-      { assetId: 'builtin:look-teal-orange', overrides: { intensity: 0.5, contrast: 1.1 } },
-      { assetId: 'builtin:fx-halation', overrides: { intensity: 0.35 } },
+      { assetId: 'builtin:look-teal-orange', overrides: { intensity: 0.5, contrast: 1.1 }, region: 'land' },
+      { assetId: 'builtin:fx-halation', overrides: { intensity: 0.35 }, region: 'land' },
       { assetId: 'builtin:fx-pro-mist', overrides: { intensity: 0.12 } },
       { assetId: 'builtin:fx-soft-vignette', overrides: { strength: 0.35 } },
       { assetId: 'builtin:fx-fine-grain', overrides: { strength: 0.05 } },
@@ -157,6 +160,7 @@ export function lookEffects(look: ReelLook): ClipEffect[] {
     id: `${LOOK_EFFECT_PREFIX}${look.id}_${i}`,
     assetId: step.assetId,
     overrides: step.overrides ? { ...step.overrides } : {},
+    ...(step.region ? { mix: { region: step.region } } : {}),
   }));
 }
 

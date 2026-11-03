@@ -4,12 +4,13 @@
 // (a static bundle with no /api) finds it among the uploads like any other media file.
 // Nothing is downloaded here: with the pack absent the route answers `available: false` and the effect stays a flat push.
 import { existsSync } from 'node:fs';
-import { stat } from 'node:fs/promises';
+import { stat, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
 import { modelPackDefinition } from '../../shared/model-packs/catalog.ts';
 import { modelCacheDir } from '../plugins/hf-proxy.ts';
 import { extractStill } from './stillFrame.ts';
 import { depthToGray } from './depthMath.ts';
+import { skyFromDepth } from './skyMath.ts';
 
 export const DEPTH_PACK_ID = 'depth-lite';
 const MODEL_DTYPE = 'fp32';
@@ -26,6 +27,11 @@ export function depthName(sourceName: string, atSec?: number): string {
   return atSec === undefined ? `${base}.depth.png` : `${base}.depth-${Math.max(0, Math.round(atSec * 1000))}.png`;
 }
 
+/** RS-1261: the sky map saved beside a depth map (white = sky), found from the depth map's name or /media/uploads path. */
+export function skyName(depthFileOrSrc: string): string {
+  return depthFileOrSrc.replace(/\.png$/i, '.sky.png');
+}
+
 export function depthPackInstalled(cacheDir = modelCacheDir()): boolean {
   const pack = modelPackDefinition(DEPTH_PACK_ID);
   return !!pack && pack.files.every((f) => existsSync(join(cacheDir, pack.modelId, ...f.path.split('/'))));
@@ -38,7 +44,7 @@ interface SharpImage {
   removeAlpha(): SharpImage;
   raw(): SharpImage;
   png(): SharpImage;
-  toBuffer(o: { resolveWithObject: true }): Promise<{ data: Buffer; info: { width: number; height: number } }>;
+  toBuffer(o: { resolveWithObject: true }): Promise<{ data: Buffer; info: { width: number; height: number; channels: number } }>;
   toFile(path: string): Promise<unknown>;
   metadata(): Promise<{ width?: number; height?: number }>;
 }
@@ -86,6 +92,15 @@ export function depthMapFor(file: string, atSec?: number): Promise<DepthMap> {
     const sharp = await loadSharp();
     if (existsSync(out) && (await stat(out)).mtimeMs >= (await stat(file)).mtimeMs) {
       const meta = await sharp(out).metadata();
+      // depth maps made before the sky map existed get theirs now, from the saved map and the picture
+      if (!existsSync(skyName(out)) || !existsSync(skyModelName(skyName(out)))) {
+        const picture = atSec === undefined ? file : join(dirname(file), (await extractStill(file, atSec)).name);
+        const depth = await sharp(out).raw().toBuffer({ resolveWithObject: true });
+        const w = depth.info.width, h = depth.info.height;
+        const guide = await sharp(picture).rotate().resize({ width: w, height: h, fit: 'fill' }).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+        const gray = depth.info.channels === 1 ? new Uint8Array(depth.data) : Uint8Array.from({ length: w * h }, (_, p) => depth.data[p * depth.info.channels]!);
+        await writeSky(sharp, skyName(out), gray, new Uint8Array(guide.data.buffer, guide.data.byteOffset, guide.data.length), w, h);
+      }
       return { name, width: meta.width ?? 0, height: meta.height ?? 0, cached: true };
     }
     if (!depthPackInstalled()) throw new Error('the depth-lite model pack is not installed');
@@ -104,8 +119,23 @@ export function depthMapFor(file: string, atSec?: number): Promise<DepthMap> {
       radius: 12, eps: 1e-2, grow: 1, blur: 2,
     });
     await sharp(Buffer.from(gray), { raw: { width: guide.info.width, height: guide.info.height, channels: 1 } }).png().toFile(out);
+    await writeSky(sharp, skyName(out), gray, new Uint8Array(guide.data.buffer, guide.data.byteOffset, guide.data.length), guide.info.width, guide.info.height);
     return { name, width: guide.info.width, height: guide.info.height, cached: false };
   })();
   flights.set(out, work);
   return work.finally(() => flights.delete(out));
 }
+
+/** The sky map (always written: all black when the frame has no sky, so a clip never waits for one that will not come):
+ *  red = the sky in this frame, green = where it can be in other frames of the shot; and beside it `.sky.json`, the sky's
+ *  colour, which the renderer uses to find it again in each frame (null without a sky). */
+async function writeSky(sharp: Sharp, path: string, depth: Uint8Array, rgb: Uint8Array, w: number, h: number): Promise<void> {
+  const { mask, gate, model } = skyFromDepth(depth, rgb, w, h);
+  const out = Buffer.alloc(w * h * 3);
+  for (let p = 0; p < w * h; p++) { out[p * 3] = mask[p]!; out[p * 3 + 1] = gate[p]!; }
+  await sharp(out, { raw: { width: w, height: h, channels: 3 } }).png().toFile(path);
+  await writeFile(skyModelName(path), JSON.stringify(model));
+}
+
+/** The sky's colour model beside its map. */
+export const skyModelName = (skyPath: string) => skyPath.replace(/\.png$/i, '.json');

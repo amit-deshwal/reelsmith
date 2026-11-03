@@ -13,7 +13,7 @@ export const EFFECT_TOOL_SCHEMAS: AgentToolSchema[] = [
         effectId: { type: 'string', description: 'update/remove: target effect instance id. Omit to target the first effect.' },
         assetId: { type: 'string', description: 'add: which effect, e.g. "builtin:fx-luma-key". Get ids from action="list" or browse_library.' },
         propertyOverrides: { type: 'object', description: 'add/update: sparse patch. Numeric properties use numbers; colors use RGB arrays in 0..1, e.g. {"color":[1,0,0]}. Omit for defaults.' },
-        mix: { type: 'object', description: 'add/update: how strongly the effect shows over time and where, in seconds from the clip start: {amount 0-1, region "all"|"subject"|"background" (person matte), span [from,to], fadeIn, fadeOut, ramp "up"|"down", hits [seconds where it punches to full, e.g. the beats], decay (seconds a punch falls back), floor 0-1 (strength between punches)}. {} clears it (full strength everywhere).' },
+        mix: { type: 'object', description: 'add/update: how strongly the effect shows over time and where, in seconds from the clip start: {amount 0-1, region "all"|"subject"|"background" (person matte)|"land"|"sky" (sky map), span [from,to], fadeIn, fadeOut, ramp "up"|"down", hits [seconds where it punches to full, e.g. the beats], decay (seconds a punch falls back), floor 0-1 (strength between punches)}. {} clears it (full strength everywhere).' },
       },
       required: ['action'],
     },

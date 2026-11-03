@@ -4,6 +4,7 @@
 import type { TimelineItem } from '../editor/types';
 import { sourceFrameAt } from '../editor/sourceLimit';
 import { glEffects } from '../gl/clipEffects';
+import { isSkyRegion } from './effectMix';
 
 export const DEPTH_SRC_PROP = 'rsDepthSrc';
 
@@ -13,6 +14,33 @@ type DepthItem = Omit<TimelineItem, 'startFrame'>;
 /** The clip has an effect that reads the depth map. */
 export function wantsDepth(item: DepthItem): boolean {
   return (item.kind === 'image' || item.kind === 'video') && !!item.src && glEffects(item as TimelineItem).some(({ def }) => def.needsDepth);
+}
+
+/** RS-1261: the clip has an effect that reads the sky map (a sky effect, or any effect kept to the land or the sky). The sky
+ *  map is made with the depth map and saved beside it, so such a clip asks for the depth map too. */
+export function wantsSky(item: DepthItem): boolean {
+  return (item.kind === 'image' || item.kind === 'video') && !!item.src
+    && glEffects(item as TimelineItem).some(({ def, fx }) => def.needsSky || isSkyRegion(fx.mix?.region));
+}
+
+/** The sky map beside a depth map (server/reelsmith/depthMap.ts `skyName`), and its colour model beside that. */
+export const skySrcFor = (depthSrc: string) => depthSrc.replace(/\.png$/i, '.sky.png');
+export const skyModelSrcFor = (depthSrc: string) => depthSrc.replace(/\.png$/i, '.sky.json');
+
+export interface SkyModel { chroma: [number, number]; spread: [number, number]; limit: number; lumaFloor: number; paleFloor: number }
+
+/** The shader uniforms of a sky colour model (src/gl/fx/skyAt.glsl.txt); without one the map is used as it is. */
+export function skyModelUniforms(model: SkyModel | null | undefined): Record<string, number | number[]> {
+  if (!model) return { u_hasSkyModel: 0, u_skyChroma: [1 / 3, 1 / 3], u_skySpread: [1, 1], u_skyLimit: 0, u_skyLuma: [0, 0] };
+  return { u_hasSkyModel: 1, u_skyChroma: [...model.chroma], u_skySpread: [...model.spread], u_skyLimit: model.limit, u_skyLuma: [model.lumaFloor, model.paleFloor] };
+}
+
+/** A sky model read from JSON, or null when it is missing or malformed. */
+export function parseSkyModel(raw: unknown): SkyModel | null {
+  const m = raw as Partial<SkyModel> | null;
+  const pair = (v: unknown) => Array.isArray(v) && v.length === 2 && v.every((x) => typeof x === 'number' && Number.isFinite(x));
+  if (!m || !pair(m.chroma) || !pair(m.spread) || ![m.limit, m.lumaFloor, m.paleFloor].every((x) => typeof x === 'number' && Number.isFinite(x))) return null;
+  return { chroma: m.chroma as [number, number], spread: m.spread as [number, number], limit: m.limit!, lumaFloor: m.lumaFloor!, paleFloor: m.paleFloor! };
 }
 
 export function depthSrcOf(item: DepthItem): string | undefined {
@@ -55,7 +83,7 @@ export function requestDepthMap(req: { src: string; atSec?: number }, fetcher: F
 
 /** The clip with its depth map attached (unchanged when it needs none, has one, or none can be made). */
 export async function withDepthMap<T extends DepthItem>(item: T, fps: number, fetcher?: Fetcher): Promise<T> {
-  if (!wantsDepth(item) || depthSrcOf(item)) return item;
+  if (!(wantsDepth(item) || wantsSky(item)) || depthSrcOf(item)) return item;
   const req = depthRequestFor(item, fps);
   const src = req ? await requestDepthMap(req, fetcher) : null;
   return src ? { ...item, props: { ...item.props, [DEPTH_SRC_PROP]: src } } : item;

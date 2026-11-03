@@ -48,6 +48,9 @@ export interface FxDef {
   /** Reelsmith: the shader reads u_depth (the photo's depth map, white = near; flat grey until there is one) and u_progress
    * (0..1 through the clip) */
   needsDepth?: boolean;
+  /** Reelsmith RS-1261: the shader reads u_sky (the sky map made with the depth map, white = sky; black until there is one)
+   * and u_hasSky */
+  needsSky?: boolean;
   /** Reelsmith: the shader also reads u_text (a word drawn by the renderer, see ../textLayer.ts) and u_textAspect */
   needsText?: boolean;
   /** Reelsmith: which word list `word` indexes ('title' = the movie titles, default = the behind-you words) */
@@ -70,8 +73,8 @@ export interface SerializableFxDef {
   cube?: string;
 }
 
-/** Reelsmith: an effect's envelope at this frame (see src/reelsmith/effectMix.ts); region 0 all, 1 person, 2 background. */
-export interface FxMix { amount: number; region: number; hasMask?: number }
+/** Reelsmith: an effect's envelope at this frame (see src/reelsmith/effectMix.ts); region 0 all, 1 person, 2 background, 3 land, 4 sky. */
+export interface FxMix { amount: number; region: number; hasMask?: number; hasSky?: number; /** the sky's colour model (skyModelUniforms) */ sky?: Record<string, UniformValue> }
 
 // Clamp properties[name] to the declared minimum and maximum.
 export function fxUniform(p: FxProperty, overrides?: Record<string, UniformValue>): UniformValue {
@@ -126,7 +129,7 @@ export function fxPasses(
           : undefined,
       });
     }
-    if (blend) out.push({ frag: reelMixFrag, uniforms: { u_amount: mix!.amount, u_region: mix!.region, u_hasMask: mix!.hasMask ?? 0 }, samplers: { u_before: before } });
+    if (blend) out.push({ frag: reelMixFrag, uniforms: { u_amount: mix!.amount, u_region: mix!.region, u_hasMask: mix!.hasMask ?? 0, u_hasSky: mix!.hasSky ?? 0, ...(mix!.sky ?? { u_hasSkyModel: 0 }) }, samplers: { u_before: before } });
   }
   // every effect is at zero strength right now: still draw the clip
   if (!out.length && effects.length) out.push({ frag: reelCopyFrag });

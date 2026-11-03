@@ -53,8 +53,8 @@ export interface PlanEffect {
   params?: Record<string, number>;
   /** 0..1, default 1 */
   strength?: number;
-  /** only on the person, or only behind them (default everywhere) */
-  region?: 'all' | 'subject' | 'background';
+  /** only on the person, only behind them, only on the land or only on the sky (default everywhere) */
+  region?: 'all' | 'subject' | 'background' | 'land' | 'sky';
   timing?: EffectTiming;
   /** beats between punches for timing 'beat' (default 1) */
   every?: number;
@@ -219,7 +219,7 @@ export function parsePlan(raw: unknown): { ok: true; plan: ReelPlan } | { ok: fa
         }
         const fw = `${w}.effects[${k}]`;
         const strength = e.strength === undefined ? undefined : typeof e.strength === 'number' && e.strength >= 0 && e.strength <= 1 ? e.strength : (errors.push(`${fw}.strength must be 0 to 1`), undefined);
-        const region = e.region === undefined ? undefined : e.region === 'all' || e.region === 'subject' || e.region === 'background' ? e.region : (errors.push(`${fw}.region must be all, subject or background`), undefined);
+        const region = e.region === undefined ? undefined : ['all', 'subject', 'background', 'land', 'sky'].includes(e.region as string) ? e.region as PlanEffect['region'] : (errors.push(`${fw}.region must be all, subject, background, land or sky`), undefined);
         const timing = e.timing === undefined ? undefined : (EFFECT_TIMINGS as readonly unknown[]).includes(e.timing) ? e.timing as EffectTiming : (errors.push(`${fw}.timing must be one of ${EFFECT_TIMINGS.join(', ')}`), undefined);
         const every = e.every === undefined ? undefined : typeof e.every === 'number' && e.every >= 0.25 && e.every <= 16 ? e.every : (errors.push(`${fw}.every must be 0.25 to 16 beats`), undefined);
         effects.push({

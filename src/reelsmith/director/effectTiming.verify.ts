@@ -27,6 +27,6 @@ assert.ok(mixAmountAt(build, 0.2, 2) < mixAmountAt(build, 1.8, 2));
 // plan parsing
 const ok = parsePlan({ sections: [{ move: 'cut', effects: [{ id: 'glitch', timing: 'beat', every: 2, strength: 0.7, region: 'background' }] }] });
 assert.ok(ok.ok && ok.plan.sections[0]!.effects![0]!.timing === 'beat');
-const bad = parsePlan({ sections: [{ move: 'cut', effects: [{ id: 'glitch', timing: 'wobble', strength: 3, region: 'sky', every: 0 }] }] });
+const bad = parsePlan({ sections: [{ move: 'cut', effects: [{ id: 'glitch', timing: 'wobble', strength: 3, region: 'water', every: 0 }] }] });
 assert.ok(!bad.ok && bad.errors.length === 4, JSON.stringify(bad));
 console.log('effectTiming: ok');

@@ -1,8 +1,9 @@
 // Effect envelopes (RS-1203): how strongly a clip effect shows at each moment and where. An effect without a mix is on at
 // full strength for the whole clip, as before. With one it can fade in and out, build up, punch on the song's beats and
-// fall back between them, and stay on the person or behind them (the person matte). Times are seconds from the clip's start.
+// fall back between them, and stay on the person or behind them (the person matte), or on the land or the sky (RS-1261: the
+// sky map made with the clip's depth map). Times are seconds from the clip's start.
 
-export type EffectRegion = 'all' | 'subject' | 'background';
+export type EffectRegion = 'all' | 'subject' | 'background' | 'land' | 'sky';
 
 export interface EffectMix {
   /** peak strength 0..1 (default 1) */
@@ -23,7 +24,12 @@ export interface EffectMix {
   floor?: number;
 }
 
-export const REGION_CODE: Record<EffectRegion, number> = { all: 0, subject: 1, background: 2 };
+export const REGION_CODE: Record<EffectRegion, number> = { all: 0, subject: 1, background: 2, land: 3, sky: 4 };
+export const EFFECT_REGIONS = Object.keys(REGION_CODE) as EffectRegion[];
+/** The region reads the person matte. */
+export const isPersonRegion = (r: EffectRegion | undefined) => r === 'subject' || r === 'background';
+/** The region reads the sky map. */
+export const isSkyRegion = (r: EffectRegion | undefined) => r === 'land' || r === 'sky';
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 const smooth = (x: number) => { const t = clamp01(x); return t * t * (3 - 2 * t); };
@@ -111,7 +117,7 @@ export function parseEffectMix(raw: unknown): { ok: true; mix: EffectMix } | { o
   const fadeOut = num('fadeOut', 0, 600); if (fadeOut !== undefined) out.fadeOut = fadeOut;
   const decay = num('decay', 0.01, 10); if (decay !== undefined) out.decay = decay;
   const floor = num('floor', 0, 1); if (floor !== undefined) out.floor = floor;
-  if (r.region !== undefined) { if (r.region === 'all' || r.region === 'subject' || r.region === 'background') out.region = r.region; else errors.push('mix.region must be all, subject or background'); }
+  if (r.region !== undefined) { if (EFFECT_REGIONS.includes(r.region as EffectRegion)) out.region = r.region as EffectRegion; else errors.push(`mix.region must be ${EFFECT_REGIONS.join(', ')}`); }
   if (r.ramp !== undefined) { if (r.ramp === 'up' || r.ramp === 'down') out.ramp = r.ramp; else errors.push('mix.ramp must be up or down'); }
   if (r.span !== undefined) {
     const s = r.span;

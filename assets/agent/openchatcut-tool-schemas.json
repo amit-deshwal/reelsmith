@@ -2413,7 +2413,7 @@
           },
           "mix": {
             "type": "object",
-            "description": "add/update: how strongly the effect shows over time and where, in seconds from the clip start: {amount 0-1, region \"all\"|\"subject\"|\"background\" (person matte), span [from,to], fadeIn, fadeOut, ramp \"up\"|\"down\", hits [seconds where it punches to full, e.g. the beats], decay (seconds a punch falls back), floor 0-1 (strength between punches)}. {} clears it (full strength everywhere)."
+            "description": "add/update: how strongly the effect shows over time and where, in seconds from the clip start: {amount 0-1, region \"all\"|\"subject\"|\"background\" (person matte)|\"land\"|\"sky\" (sky map), span [from,to], fadeIn, fadeOut, ramp \"up\"|\"down\", hits [seconds where it punches to full, e.g. the beats], decay (seconds a punch falls back), floor 0-1 (strength between punches)}. {} clears it (full strength everywhere)."
           }
         },
         "required": [
@@ -6135,9 +6135,11 @@
                             "enum": [
                               "all",
                               "subject",
-                              "background"
+                              "background",
+                              "land",
+                              "sky"
                             ],
-                            "description": "Only on the person or only behind them (person matte); default all."
+                            "description": "Only on the person or only behind them (person matte), or only on the land or the sky (sky map); default all."
                           },
                           "timing": {
                             "type": "string",
@@ -6335,7 +6337,9 @@
             "enum": [
               "all",
               "subject",
-              "background"
+              "background",
+              "land",
+              "sky"
             ]
           },
           "params": {

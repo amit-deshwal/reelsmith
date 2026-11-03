@@ -19,6 +19,8 @@ export const DIRECTOR_EFFECTS: readonly DirectorEffect[] = [
   fx('light-rays', 'grade', 'God rays streaming from bright areas.', 'Sun through trees, fog, a summit at sunrise.'),
   fx('anamorphic-flare', 'lens', 'Long horizontal blue streaks from lights.', 'Night city, car lights, a cinematic hero shot.'),
   fx('light-leak', 'grade', 'Drifting film light leak bands.', 'Warm memories, an intro or outro, between happy moments.'),
+  fx('sky-recover', 'grade', 'A washed-out sky gets its blue and clouds back; the land is untouched.', 'Bright phone skies on treks, beaches, viewpoints.'),
+  fx('sky-swap', 'grade', 'The sky becomes a sunset or deep blue with drifting clouds (params style 0/1).', 'A flat white sky on a hero view; only when the reel asks for it.'),
   fx('duotone', 'stylise', 'Shadows and highlights mapped to two colours.', 'A bold graphic section, title backgrounds, fashion.'),
   fx('sepia', 'retro', 'Brown vintage tint.', 'Flashbacks, old stories.'),
   fx('soft-vignette', 'grade', 'Gently darker corners.', 'Any shot that needs focus on the middle; safe everywhere.'),

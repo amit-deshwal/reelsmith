@@ -21,6 +21,7 @@ import { SUBJECT_FX_EFFECTS, SUBJECT_FX_ORDER } from './subjectFx';
 import { TITLE_FX_EFFECTS, TITLE_FX_ORDER } from './titleFx';
 import { CREATOR_FX_EFFECTS, CREATOR_FX_ORDER } from './creatorFx';
 import { DEPTH_FX_EFFECTS, DEPTH_FX_ORDER } from './depthFx';
+import { SKY_FX_EFFECTS, SKY_FX_ORDER } from './skyFx';
 import softVignetteFrag from './reel-soft-vignette.frag.ts';
 import fineGrainFrag from './reel-fine-grain.frag.ts';
 
@@ -44,6 +45,7 @@ export const REEL_FX_EFFECTS: Record<string, FxDef> = {
   ...TITLE_FX_EFFECTS,
   ...CREATOR_FX_EFFECTS,
   ...DEPTH_FX_EFFECTS,
+  ...SKY_FX_EFFECTS,
   'builtin:fx-halation': {
     id: 'builtin:fx-halation',
     name: 'Halation',
@@ -250,4 +252,5 @@ export const REEL_FX_ORDER = [
   ...TITLE_FX_ORDER,
   ...CREATOR_FX_ORDER,
   ...DEPTH_FX_ORDER,
+  ...SKY_FX_ORDER,
 ] as const;

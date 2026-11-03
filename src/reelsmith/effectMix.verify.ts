@@ -38,7 +38,7 @@ assert.deepEqual(mixUniformsAt({ region: 'background', amount: 0.5 }, 0, 1), { a
 assert.ok(parseEffectMix({ amount: 0.5, region: 'subject', hits: [1, 0.5], fadeIn: 0.2 }).ok);
 const parsed = parseEffectMix({ hits: [1, 0.5] });
 assert.ok(parsed.ok && parsed.mix.hits![0] === 0.5);
-const bad = parseEffectMix({ amount: 2, region: 'sky', span: [2, 1] });
+const bad = parseEffectMix({ amount: 2, region: 'water', span: [2, 1] });
 assert.ok(!bad.ok && bad.errors.length === 3);
 
 // the pass graph: full-strength effects are unchanged; a partial one gets a copy of its input and a blend after it

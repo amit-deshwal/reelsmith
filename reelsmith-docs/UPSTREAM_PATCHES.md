@@ -544,3 +544,12 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 - `src/gl/GlTransition.tsx`: when the definition has `needsMask`, loads the selfie segmenter (`loadPersonMask`), mattes the outgoing staging frame each frame and passes `u_mask` plus `portalUniforms` (`src/reelsmith/portalSubject.ts`); other transitions are unchanged.
 - `src/gl/transitionThumb.ts`: a `needsMask` transition's card uses the synthetic head-and-shoulders matte.
 - `src/editor/transitionTypes.ts`: `silhouette-portal` in the type, the GLSL set, labels, order and `REEL_TRANSITION_SECONDS` (0.6 s); `src/editor/transitionPreview.ts`: its CSS stand-in (`luma-blend`).
+
+## Sky mask (RS-1261, 2026-11-03)
+
+- `src/gl/ClipFx.tsx`: a clip whose effects read the sky (`FxDef.needsSky`, or any effect with `mix.region` `land`/`sky`) asks for the depth map as a depth effect does, then loads the `.sky.png` and `.sky.json` beside it; the map is placed like the picture and bound as `u_sky`, the colour model goes to the mix pass and to sky effects as uniforms (`skyModelUniforms`). The person matte is now loaded only for the person regions (`isPersonRegion`), not for every region other than `all`.
+- `src/gl/fx/uniforms.ts`: `FxDef.needsSky`; `FxMix.hasSky` and `FxMix.sky` (passed to the mix pass).
+- `src/gl/fx/reel-mix.frag` (ours): regions 3 (land) and 4 (sky) from the sky map, with the per-frame sky test (`skyAt`, kept identical with `src/gl/fx/skyAt.glsl.txt`).
+- `src/gl/fx/reelFx.ts` (ours): registers `skyFx.ts` (Sky recover, Sky swap).
+- `src/export/serverExportOperation.ts`: the depth-map pre-fill (RS-1238) now also fills the project sent with the export. With a project, the render takes the timeline from it and never reads the state, so until now the maps (photo parallax included) never reached an app export.
+- `src/agent/tools/schemas/effect-tools.ts`: `mix.region` description lists `land` and `sky`; `assets/agent/openchatcut-tool-schemas.json` regenerated.

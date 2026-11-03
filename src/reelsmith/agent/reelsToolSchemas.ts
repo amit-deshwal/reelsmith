@@ -104,7 +104,7 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
         timing: { type: 'string', enum: ['steady', 'fade', 'beat', 'drop', 'build'] },
         every: { type: 'number', description: 'Beats between punches for timing beat (default 1; 2 = every other beat, 4 = on the bar).' },
         strength: { type: 'number', description: '0-1, default 1.' },
-        region: { type: 'string', enum: ['all', 'subject', 'background'] },
+        region: { type: 'string', enum: ['all', 'subject', 'background', 'land', 'sky'] },
         params: { type: 'object', additionalProperties: { type: 'number' }, description: "The effect's own sliders." },
         itemIds: { type: 'array', items: { type: 'string' } },
         fromSec: { type: 'number', description: 'Timeline seconds where the timing starts (a drop lands here).' },

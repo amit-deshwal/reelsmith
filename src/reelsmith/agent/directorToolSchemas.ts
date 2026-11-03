@@ -182,7 +182,7 @@ export const DIRECTOR_TOOL_SCHEMAS: AgentToolSchema[] = [
                         id: { type: 'string', description: 'An effects id, or a custom:fx-* id from reels_custom_shader.' },
                         params: { type: 'object', additionalProperties: { type: 'number' } },
                         strength: { type: 'number', description: '0-1, default 1.' },
-                        region: { type: 'string', enum: ['all', 'subject', 'background'], description: 'Only on the person or only behind them (person matte); default all.' },
+                        region: { type: 'string', enum: ['all', 'subject', 'background', 'land', 'sky'], description: 'Only on the person or only behind them (person matte), or only on the land or the sky (sky map); default all.' },
                         timing: { type: 'string', enum: ['steady', 'fade', 'beat', 'drop', 'build'], description: 'steady (default) all through; fade in and out; beat = punch on every `every` beats and fall back; drop = hit on the first beat and fall away; build = grow into the next section.' },
                         every: { type: 'number', description: 'Beats between punches for timing beat (default 1).' },
                       },

@@ -237,8 +237,12 @@ async function exportMedia(
   signal?: AbortSignal,
 ): Promise<ExportJobResult> {
   if (format === 'video') context.setRenderEngine('server');
-  // Reelsmith RS-1238: clips with a depth effect carry their depth maps (the render page cannot ask for them)
-  if (format === 'video') context = { ...context, options: { ...context.options, state: await withDepthMaps(context.options.state) } };
+  // Reelsmith RS-1238/1261: clips with a depth or sky effect carry their depth maps (the render page cannot ask for them).
+  // The project too: when it is sent, the render takes the timeline from it and the state is not read.
+  if (format === 'video') {
+    const [state, project] = await Promise.all([withDepthMaps(context.options.state), context.options.project ? withDepthMaps(context.options.project) : undefined]);
+    context = { ...context, options: { ...context.options, state, ...(project ? { project } : {}) } };
+  }
   const codec = format === 'audio' ? 'mp3' : context.options.codec;
   const startedAt = performance.now();
   let { renderId, completed } = await renderCompleted(context, format, codec, signal);
