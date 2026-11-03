@@ -51,6 +51,9 @@ export interface FxDef {
   /** Reelsmith RS-1261: the shader reads u_sky (the sky map made with the depth map, white = sky; black until there is one)
    * and u_hasSky */
   needsSky?: boolean;
+  /** Reelsmith RS-1260: with needsDepth, a video reads a depth map per frame (its depth track) instead of one still map,
+   * and the shader also gets u_subject (the depth of the shot's subject at this frame, 0 far .. 1 near) */
+  depthTrack?: boolean;
   /** Reelsmith: the shader also reads u_text (a word drawn by the renderer, see ../textLayer.ts) and u_textAspect */
   needsText?: boolean;
   /** Reelsmith: which word list `word` indexes ('title' = the movie titles, default = the behind-you words) */

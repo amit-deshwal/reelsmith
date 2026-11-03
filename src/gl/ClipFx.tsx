@@ -18,7 +18,9 @@ import { LruCache } from './frameCache';
 import { textCellFor } from './textLayer';
 import { fxUniform } from './fx/uniforms';
 import { envelopeFrame, isPersonRegion, isSkyRegion, mixUniformsAt } from '../reelsmith/effectMix';
-import { depthRequestFor, depthSrcOf, parseSkyModel, requestDepthMap, skyModelSrcFor, skyModelUniforms, skySrcFor, type SkyModel } from '../reelsmith/depthMaps';
+import { depthRequestFor, depthSrcOf, depthTrackRequestFor, depthTrackSrcOf, parseSkyModel, requestDepthMap, requestDepthTrack, skyModelSrcFor, skyModelUniforms, skySrcFor, type SkyModel } from '../reelsmith/depthMaps';
+import { depthTrackMetaName, parseDepthTrackMeta, subjectAt, tileRect, tilesAt, type DepthTrackMeta } from '../../shared/reelsmith/depthTrack';
+import { drawFitTile, subjectOfImage } from './depthTrackDraw';
 import { depthDetail, visibleWindow } from '../reelsmith/depthView';
 
 // mattes of recent source frames, so echo trails segment each frame once while the playhead moves on
@@ -154,13 +156,18 @@ export function ClipFx({ item, fit, width: boxWidth, height: boxHeight, frameOff
   // Reelsmith RS-1238: depth effects read the clip's depth map; the preview asks for one the clip does not carry yet,
   // an export always carries it (withDepthMaps). undefined = still loading, null = none (flat depth)
   const wantsDepth = useMemo(() => active.some(({ def }) => def.needsDepth), [active]);
+  // RS-1260: on a video, lens blur, haze and relight read a depth map per frame (the depth track); photo parallax and a
+  // photo read the still map
+  const wantsTrack = useMemo(() => item.kind === 'video' && active.some(({ def }) => def.needsDepth && def.depthTrack), [active, item.kind]);
+  const wantsStill = useMemo(() => active.some(({ def }) => def.needsDepth && !(def.depthTrack && item.kind === 'video')), [active, item.kind]);
+  const subjectWanted = useMemo(() => active.some(({ def }) => def.depthTrack), [active]);
   // RS-1261: the sky map is saved beside the depth map, so a sky effect (or one kept to the land or the sky) asks for that
   const wantsSkyMap = useMemo(() => active.some(({ def, fx }) => def.needsSky || isSkyRegion(fx.mix?.region)), [active]);
-  const wantsMaps = wantsDepth || wantsSkyMap;
+  const wantsMaps = wantsStill || wantsSkyMap;
   const depthReq = wantsMaps ? depthRequestFor(item, fps) : null;
   const carriedDepth = depthSrcOf(item);
-  const depthKey = wantsMaps ? `${wantsDepth ? 'd' : ''}${wantsSkyMap ? 's' : ''}|${carriedDepth ?? (depthReq && !isRendering ? `ask|${depthReq.src}|${depthReq.atSec ?? ''}` : '')}` : '';
-  const [depthImage, setDepthImage] = useState<{ key: string; image: HTMLImageElement | null; sky: HTMLImageElement | null; skyModel: SkyModel | null } | undefined>(undefined);
+  const depthKey = wantsMaps ? `${wantsStill ? 'd' : ''}${wantsSkyMap ? 's' : ''}|${carriedDepth ?? (depthReq && !isRendering ? `ask|${depthReq.src}|${depthReq.atSec ?? ''}` : '')}` : '';
+  const [depthImage, setDepthImage] = useState<{ key: string; image: HTMLImageElement | null; sky: HTMLImageElement | null; skyModel: SkyModel | null; subject: number } | undefined>(undefined);
   useEffect(() => {
     if (!depthKey || depthKey.endsWith('|')) return; // nothing carried, and a render may not ask
     let alive = true;
@@ -170,9 +177,9 @@ export function ClipFx({ item, fit, width: boxWidth, height: boxHeight, frameOff
       const src = carriedDepth ?? (depthReq ? await requestDepthMap(depthReq) : null);
       const loadModel = async (url: string) => { try { const r = await fetch(url); return r.ok ? parseSkyModel(await r.json()) : null; } catch { return null; } };
       const [image, sky, skyModel] = src
-        ? await Promise.all([wantsDepth ? loadImage(src, 'depth map (the move stays flat)') : null, wantsSkyMap ? loadImage(skySrcFor(src), 'sky map (no sky)') : null, wantsSkyMap ? loadModel(skyModelSrcFor(src)) : null])
+        ? await Promise.all([wantsStill ? loadImage(src, 'depth map (the move stays flat)') : null, wantsSkyMap ? loadImage(skySrcFor(src), 'sky map (no sky)') : null, wantsSkyMap ? loadModel(skyModelSrcFor(src)) : null])
         : [null, null, null];
-      if (alive) setDepthImage({ key: depthKey, image, sky, skyModel });
+      if (alive) setDepthImage({ key: depthKey, image, sky, skyModel, subject: image && subjectWanted ? subjectOfImage(image) : 0.7 });
       release();
     })();
     return () => { alive = false; release(); };
@@ -180,6 +187,29 @@ export function ClipFx({ item, fit, width: boxWidth, height: boxHeight, frameOff
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [depthKey]);
   const depthReady = !wantsMaps || depthKey.endsWith('|') || depthImage?.key === depthKey;
+  // RS-1260: the depth track (atlas and index) of the span this clip shows; like the still map, a render only reads one
+  // the clip carries
+  const trackReq = wantsTrack ? depthTrackRequestFor(item, fps) : null;
+  const carriedTrack = depthTrackSrcOf(item);
+  const trackKey = wantsTrack ? `t|${carriedTrack ?? (trackReq && !isRendering ? `ask|${trackReq.src}|${trackReq.fromSec}|${trackReq.toSec}` : '')}` : '';
+  const [depthTrack, setDepthTrack] = useState<{ key: string; atlas: HTMLImageElement; meta: DepthTrackMeta } | { key: string; atlas: null; meta: null } | undefined>(undefined);
+  useEffect(() => {
+    if (!trackKey || trackKey.endsWith('|')) return;
+    let alive = true;
+    let handle = isRendering ? delayRender(`clip-fx depth track ${trackKey}`) : null;
+    const release = () => { if (handle != null) { continueRender(handle); handle = null; } };
+    void (async () => {
+      const src = carriedTrack ?? (trackReq ? await requestDepthTrack(trackReq) : null);
+      const meta = src ? await (async () => { try { const r = await fetch(depthTrackMetaName(src)); return r.ok ? parseDepthTrackMeta(await r.json()) : null; } catch { return null; } })() : null;
+      const atlas = src && meta ? await loadImage(src, 'depth track (lens blur, haze and relight stay off)') : null;
+      if (alive) setDepthTrack(atlas && meta ? { key: trackKey, atlas, meta } : { key: trackKey, atlas: null, meta: null });
+      release();
+    })();
+    return () => { alive = false; release(); };
+    // trackKey names what this loads
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trackKey]);
+  const trackReady = !wantsTrack || trackKey.endsWith('|') || depthTrack?.key === trackKey;
   const depthStaging = useMemo(() => {
     if (!wantsDepth) return null;
     const c = document.createElement('canvas');
@@ -314,7 +344,7 @@ export function ClipFx({ item, fit, width: boxWidth, height: boxHeight, frameOff
       if (!mediaReady) { reportWaiting(); raf = requestAnimationFrame(tick); return; }
       if (active.some(({ def }) => def.cube && !cubeSettled(def.cube))) { reportWaiting(); raf = requestAnimationFrame(tick); return; }
       if (wantsMask && maskProvider === undefined) { reportWaiting(); raf = requestAnimationFrame(tick); return; }
-      if (!depthReady) { reportWaiting(); raf = requestAnimationFrame(tick); return; }
+      if (!depthReady || !trackReady) { reportWaiting(); raf = requestAnimationFrame(tick); return; }
       if (decodedVideo && tapStaging.some((_, i) => tapKeysRef.current[i] !== renderKey)) { reportWaiting(); raf = requestAnimationFrame(tick); return; }
       try {
         const runtime = ensureRuntimeSlot(runtimeRef, () => createGlRuntime(canvas));
@@ -339,11 +369,25 @@ export function ClipFx({ item, fit, width: boxWidth, height: boxHeight, frameOff
         const extras: Record<string, TexImageSource> = {};
         if (maskFrame) extras.u_mask = maskFrame.mask;
         if (textCell) extras.u_text = textCell.canvas;
+        let subject = 0.7;
         if (wantsDepth) {
           // the depth map placed exactly like the picture (same fit and crop), so each pixel reads its own depth
           const depthCtx = depthStaging?.getContext('2d');
           const image = depthKey && depthImage?.key === depthKey ? depthImage.image : null;
-          if (image && depthStaging && depthCtx) { drawFit(depthCtx, image, fit, cropPosition); extras.u_depth = depthStaging; } else extras.u_depth = flatDepth();
+          const track = wantsTrack && depthTrack?.key === trackKey && depthTrack.atlas ? depthTrack : null;
+          if (track && depthStaging && depthCtx) {
+            // RS-1260: this frame's depth, between the two tiles either side of it
+            const sourceSec = sourceFrameAt(item, frame) / fps;
+            const { a, b, t } = tilesAt(track.meta, sourceSec);
+            drawFitTile(depthCtx, track.atlas, tileRect(track.meta, a), fit, cropPosition, 1);
+            if (t > 0.002) drawFitTile(depthCtx, track.atlas, tileRect(track.meta, b), fit, cropPosition, t);
+            extras.u_depth = depthStaging;
+            subject = subjectAt(track.meta, sourceSec);
+          } else if (image && depthStaging && depthCtx && wantsStill) {
+            drawFit(depthCtx, image, fit, cropPosition);
+            extras.u_depth = depthStaging;
+            subject = depthImage?.subject ?? 0.7;
+          } else extras.u_depth = flatDepth();
         }
         if (wantsSkyMap) {
           const skyCtx = skyStaging?.getContext('2d');
@@ -369,7 +413,7 @@ export function ClipFx({ item, fit, width: boxWidth, height: boxHeight, frameOff
                 ...(def.needsMask && maskFrame ? subjectUniforms(maskFrame.subject) : {}),
                 ...(def.needsText && textCell ? { u_textAspect: textCell.aspect } : {}),
                 ...(def.needsSky ? { u_hasSky: hasSky, ...skyU } : {}),
-                ...(def.needsDepth ? { u_progress: Math.min(1, Math.max(0, frame / Math.max(1, item.durationInFrames - 1))), u_hasDepth: extras.u_depth === flatDepth() ? 0 : 1, u_view: view ?? [0, 0, 1, 1] } : {}),
+                ...(def.needsDepth ? { u_progress: Math.min(1, Math.max(0, frame / Math.max(1, item.durationInFrames - 1))), u_hasDepth: extras.u_depth === flatDepth() ? 0 : 1, u_view: view ?? [0, 0, 1, 1], ...(def.depthTrack ? { u_subject: subject } : {}) } : {}),
               } }
               : {}),
             };
@@ -398,7 +442,7 @@ export function ClipFx({ item, fit, width: boxWidth, height: boxHeight, frameOff
     };
     tick();
     return () => { cancelAnimationFrame(raf); finish(); };
-  }, [active, definitionKey, fit, cropPosition.x, cropPosition.y, staging, item.id, item.kind, frame, fps, isRendering, renderKey, onPreviewStatus, wantsMask, maskProvider, maskModel, tapStaging, tapLag, historyDef, frameOffset, width, height, wantsDepth, wantsSkyMap, depthReady, depthKey, depthImage, depthStaging, skyStaging, item.durationInFrames, view?.join(',')]);
+  }, [active, definitionKey, fit, cropPosition.x, cropPosition.y, staging, item.id, item.kind, frame, fps, isRendering, renderKey, onPreviewStatus, wantsMask, maskProvider, maskModel, tapStaging, tapLag, historyDef, frameOffset, width, height, wantsDepth, wantsSkyMap, depthReady, depthKey, depthImage, depthStaging, skyStaging, item.durationInFrames, view?.join(','), wantsTrack, wantsStill, trackReady, trackKey, depthTrack]);
 
   useEffect(() => () => {
     disposeRuntimeSlot(runtimeRef);

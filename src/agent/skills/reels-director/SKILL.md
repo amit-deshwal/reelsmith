@@ -124,5 +124,5 @@ For any change to a reel you built ("slower ending", "more royal", "this looks b
 - **Moves**: `cut` `flash-cuts` `zoom-punch` `hold` `speed-ramp` `velocity` `photo-3d` `freeze-intro` `match-cut` `talk-zoom` `rewind` `world-swap` `photo-drift` `photo-parallax` `photo-stack` `split` `break-in` `compare` `strips-reveal` `postcard-band` `cards-finale` `black`
 - **Text styles**: `title-shuffle` `words-on-beat` `big-title` `caption` `top-band` `cinematic-title` `tracking-in` `typewriter` `location-tag` `rise-lines` `slam` `count-up` `wave` `glitch` `neon` `split-reveal` `highlight` `draw-on` `shine` `pop-words` `punch-caps` `behind-you` `landscape-title` `follow-tag`
 - **Graphics**: `route-map` `boarding-pass` `chat-bubbles` `notification` `annotate` `sticker` `confetti` `countdown` `hud-stats` `chapter-bar` `loading-bar` `camcorder` `type-stack` `cta-card` `handle-tag`
-- **Effects, transitions, looks**: 60 effects, 76 transitions and 14 looks, in the catalogue file.
+- **Effects, transitions, looks**: 63 effects, 76 transitions and 14 looks, in the catalogue file.
 <!-- director-catalog:end -->

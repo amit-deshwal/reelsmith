@@ -41,7 +41,8 @@ export function smoothedItem<T extends TimelineItem>(item: T, copy: SmoothedSour
     // a new revision, so cached frames of the slowed clip are not shown for the copy
     sourceRevision: createMediaSourceRevision({ src: copy.src, kind: 'video', durationInFrames: copy.frames, width: copy.width, height: copy.height }),
     sourceFilename: decodeURIComponent(copy.src.split('/').pop() ?? ''),
-    props: { ...(item.props ?? {}), rsSmooth: from },
+    // RS-1260: a depth track covers a span of the old file; the copy gets its own
+    props: { ...Object.fromEntries(Object.entries(item.props ?? {}).filter(([k]) => k !== 'rsDepthTrackSrc')), rsSmooth: from },
   } as unknown as T;
 }
 

@@ -12,7 +12,7 @@ import type { AssembleInput, AssembleReport, AssembleResult, AssemblyClip, Assem
 import { textStyleById, type MoveDef } from './moves';
 import { BAND_STYLE_ID, underBand } from './bandText';
 import { isClipTextStyle } from './textStyles';
-import { effectMixFor } from './effectTiming';
+import { effectMixFor, momentParamsFor } from './effectTiming';
 import { isSfxCue, sfxActions, TRANSITION_CUES, type SfxEvent } from './sfx';
 import { serializableDefsFor } from '../../gl/fx/effects';
 import { customTransitionUniforms, getCustomTransition } from '../../gl/customTransitions';
@@ -278,7 +278,7 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
       ...((item.effects as unknown[]) ?? []),
       ...(s.effects ?? []).map((e, k) => {
         const mix = effectMixFor(e, sectionClock, at, item.durationInFrames);
-        return { id: id('fx', k), assetId: effectAsset(e.id)!, overrides: { ...(e.params ?? {}) }, ...(mix ? { mix } : {}) };
+        return { id: id('fx', k), assetId: effectAsset(e.id)!, overrides: { ...(e.params ?? {}), ...momentParamsFor(e, sectionClock, at, item.durationInFrames) }, ...(mix ? { mix } : {}) };
       }),
       // look effect ids keep their look_ prefix so the Looks panel can replace them later
       ...lookList.map((e) => ({ ...e, overrides: { ...e.overrides } })),

@@ -18,11 +18,11 @@ const HISTORY = new Set(['u_hist0', 'u_hist1', 'u_hist2', 'u_hist3', 'u_histMask
 const DEPTH = new Set(['u_depth', 'u_progress', 'u_hasDepth', 'u_view']);
 // effects with needsSky get the sky map, whether it is real, and the sky's colour model (RS-1261, skyModelUniforms)
 const SKY = new Set(['u_sky', 'u_hasSky', 'u_hasSkyModel', 'u_skyChroma', 'u_skySpread', 'u_skyLimit', 'u_skyLuma']);
-const supplied = (def: { needsMask?: boolean; needsText?: boolean; needsDepth?: boolean; needsSky?: boolean; history?: unknown }, n: string) => (def.needsMask && MASK.has(n)) || (def.needsText && TEXT.has(n)) || (def.needsDepth && DEPTH.has(n)) || (def.needsSky && SKY.has(n)) || (!!def.history && HISTORY.has(n));
+const supplied = (def: { needsMask?: boolean; needsText?: boolean; needsDepth?: boolean; needsSky?: boolean; depthTrack?: boolean; history?: unknown }, n: string) => (def.needsMask && MASK.has(n)) || (def.needsText && TEXT.has(n)) || (def.needsDepth && DEPTH.has(n)) || (def.depthTrack && n === 'u_subject') || (def.needsSky && SKY.has(n)) || (!!def.history && HISTORY.has(n));
 const declared = (frag: string) => [...frag.matchAll(/^uniform\s+\w+\s+(u_\w+)/gm)].map((m) => m[1]!);
 const source = (frag: string) => frag;
 
-assert.equal(REEL_FX_ORDER.length, 47); // + sky recover, sky swap (RS-1261)
+assert.equal(REEL_FX_ORDER.length, 50); // + sky recover, sky swap (RS-1261); lens blur, depth haze, relight (RS-1260)
 for (const id of REEL_FX_ORDER) {
   const def = REEL_FX_EFFECTS[id]!;
   assert.ok(def, `${id} defined`);

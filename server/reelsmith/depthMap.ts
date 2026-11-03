@@ -38,7 +38,7 @@ export function depthPackInstalled(cacheDir = modelCacheDir()): boolean {
 }
 
 // sharp ships with transformers.js; its typings do not resolve through its package exports, so the few calls used here
-interface SharpImage {
+export interface SharpImage {
   rotate(): SharpImage;
   resize(o: { width: number; height: number; fit: 'outside' | 'fill'; withoutEnlargement?: boolean }): SharpImage;
   removeAlpha(): SharpImage;
@@ -48,8 +48,8 @@ interface SharpImage {
   toFile(path: string): Promise<unknown>;
   metadata(): Promise<{ width?: number; height?: number }>;
 }
-type Sharp = (input: string | Buffer, o?: { raw: { width: number; height: number; channels: 1 | 3 } }) => SharpImage;
-const loadSharp = async (): Promise<Sharp> => ((await import('sharp' as string)) as { default: Sharp }).default;
+export type Sharp = (input: string | Buffer, o?: { raw: { width: number; height: number; channels: 1 | 3 } }) => SharpImage;
+export const loadSharp = async (): Promise<Sharp> => ((await import('sharp' as string)) as { default: Sharp }).default;
 
 interface DepthModel { run: (rgb: Uint8Array, width: number, height: number) => Promise<{ depth: Float32Array; width: number; height: number }> }
 
@@ -80,6 +80,14 @@ function depthModel(): Promise<DepthModel> {
 
 // one photo at a time: the model is a few hundred MB of activations, and a director build asks for several at once
 let queue: Promise<unknown> = Promise.resolve();
+
+/** One run of the depth model (relative inverse depth, bigger = nearer), queued behind every other run. RS-1260's
+ *  per-frame depth of a video span (depthTrack.ts) shares the queue. */
+export function runDepthModel(rgb: Uint8Array, width: number, height: number): Promise<{ depth: Float32Array; width: number; height: number }> {
+  const run = queue.then(async () => (await depthModel()).run(rgb, width, height));
+  queue = run.catch(() => undefined);
+  return run;
+}
 const flights = new Map<string, Promise<DepthMap>>();
 
 /** The depth map of a photo (or of the frame at `atSec` of a video), made once and reused while newer than its source. */
@@ -108,9 +116,7 @@ export function depthMapFor(file: string, atSec?: number): Promise<DepthMap> {
     // the photo as the browser shows it (EXIF orientation applied), short edge at the model's size
     const { data, info } = await sharp(picture).rotate().resize({ width: INPUT_SHORT_EDGE, height: INPUT_SHORT_EDGE, fit: 'outside', withoutEnlargement: false })
       .removeAlpha().raw().toBuffer({ resolveWithObject: true });
-    const run = queue.then(async () => (await depthModel()).run(new Uint8Array(data.buffer, data.byteOffset, data.length), info.width, info.height));
-    queue = run.catch(() => undefined);
-    const result = await run;
+    const result = await runDepthModel(new Uint8Array(data.buffer, data.byteOffset, data.length), info.width, info.height);
     // the photo's colours at the output size guide the map's edges
     const guide = await sharp(picture).rotate().resize({ width: OUTPUT_SHORT_EDGE, height: OUTPUT_SHORT_EDGE, fit: 'outside' })
       .removeAlpha().raw().toBuffer({ resolveWithObject: true });

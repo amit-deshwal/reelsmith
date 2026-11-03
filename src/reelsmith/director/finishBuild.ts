@@ -9,26 +9,31 @@ import { smoothSlowClips } from '../agent/smoothSlowClips';
 import { clearCaptionsOfPeople } from './clearOfPeople';
 import { findPeople } from '../peopleFinder';
 import { DIRECTOR_PROP, type SavedDirector } from './directorSession';
-import { depthSrcOf, wantsDepth, withDepthMap } from '../depthMaps';
+import { depthSrcOf, depthTrackSrcOf, wantsDepthTrack, wantsStillDepth, withDepthMap } from '../depthMaps';
 
-/** RS-1238: every clip with a depth effect gets its photo's depth map (so the review frames and the export show the move). */
+/** RS-1238: every clip with a depth effect gets its photo's depth map (so the review frames and the export show the move);
+ *  RS-1260: a video with lens blur, haze or relight gets its depth track (after slow motion is smoothed: the track follows
+ *  the file and span the clip plays). */
 export async function attachDepthMaps(actions: AtomicAction[], fps: number, onProgress?: (text: string) => void, fetcher?: Parameters<typeof withDepthMap>[2]): Promise<string[]> {
-  const adds = actions.filter((a): a is Extract<AtomicAction, { type: 'add' }> => a.type === 'add' && wantsDepth(a.item) && !depthSrcOf(a.item));
+  const needs = (item: Extract<AtomicAction, { type: 'add' }>['item']) => (wantsStillDepth(item) && !depthSrcOf(item)) || (wantsDepthTrack(item) && !depthTrackSrcOf(item));
+  const adds = actions.filter((a): a is Extract<AtomicAction, { type: 'add' }> => a.type === 'add' && needs(a.item));
   if (!adds.length) return [];
-  onProgress?.('Reading the depth of the photos');
+  onProgress?.(adds.some((a) => wantsDepthTrack(a.item)) ? 'Reading the depth of the shots' : 'Reading the depth of the photos');
   const missing: string[] = [];
   for (const a of adds) {
     const item = await withDepthMap(a.item, fps, fetcher);
-    if (depthSrcOf(item)) a.item = item; else missing.push(a.item.name ?? a.item.id);
+    a.item = item;
+    if (needs(item)) missing.push(a.item.name ?? a.item.id);
   }
   return missing.length
-    ? [`${missing.length} photo${missing.length === 1 ? '' : 's'} move${missing.length === 1 ? 's' : ''} without depth (a flat push or pan): the Photo depth model is not installed (Settings → Local models → Photo depth)`]
+    ? [`${missing.length} clip${missing.length === 1 ? '' : 's'} with a depth effect ${missing.length === 1 ? 'has' : 'have'} no depth (photo moves stay a flat push or pan, lens blur, haze and relight leave the shot as it is): the Photo depth model is not installed (Settings → Local models → Photo depth)`]
     : [];
 }
 
 /**
- * Markers aimed at the person they name, rewind sections reversed, depth maps attached, captions moved off faces, slow
- * motion smoothed (last: the copies are not pool media, so finding people under a caption reads the clips before it).
+ * Markers aimed at the person they name, rewind sections reversed, captions moved off faces, slow motion smoothed (the
+ * copies are not pool media, so finding people under a caption reads the clips before it), depth maps attached (last: a
+ * depth track follows the file a clip plays).
  * Returns notes.
  */
 export async function finishDirectorActions(actions: AtomicAction[], assets: readonly MediaAsset[], api: Pick<AnalyzeApi, 'reverseClip' | 'smoothSlow'>, fps: number, onProgress?: (text: string) => void): Promise<string[]> {
@@ -36,10 +41,10 @@ export async function finishDirectorActions(actions: AtomicAction[], assets: rea
   if (actions.some((a) => a.type === 'add' && (a.item as { props?: { rsAim?: unknown } }).props?.rsAim)) onProgress?.('Finding who the markers point at');
   notes.push(...await aimMarkers(actions, findPeople));
   notes.push(...await rewindClips(actions, api, fps, onProgress));
-  notes.push(...await attachDepthMaps(actions, fps, onProgress));
   const canvas = actions.find((a): a is Extract<AtomicAction, { type: 'setCanvas' }> => a.type === 'setCanvas');
   if (canvas) { onProgress?.('Keeping captions off faces'); await clearCaptionsOfPeople(actions, assets, canvas, fps, findPeople); }
   notes.push(...await smoothSlowClips(actions, api, fps, onProgress));
+  notes.push(...await attachDepthMaps(actions, fps, onProgress));
   return notes;
 }
 

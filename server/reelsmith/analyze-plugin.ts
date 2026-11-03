@@ -10,6 +10,7 @@
 //   POST /api/reelsmith/reverse-clip   { src, startSec, frames, fps } -> that span played backwards, saved next to the video
 //   POST /api/reelsmith/smooth-slow    { src, startSec, rate, frames, fps } -> that span slowed with in-between frames (RS-1259)
 //   POST /api/reelsmith/depth-map      { src, atSec? } -> the photo's depth map saved next to it (`{ available:false }` without the depth-lite pack)
+//   POST /api/reelsmith/depth-track    { src, fromSec, toSec } -> RS-1260: a depth map per frame of a video span (an atlas and its index)
 //   POST /api/reelsmith/no-sound-copy  { src } -> RS-1241: <name>.no-sound.mp4 next to the export (picture copied, no audio)
 //   POST /api/reelsmith/speech-share   { src } -> RS-1251: { share } of seconds that are speech (narration vs song)
 //   POST /api/reelsmith/brand-kit      { url } -> RS-1239: name, tagline, lines, facts, actions, links, colours of the one page the user named
@@ -30,6 +31,7 @@ import { extractStill, frameJpeg } from './stillFrame.ts';
 import { reverseSpan } from './reverseClip.ts';
 import { smoothSlowSpan } from './smoothSlow.ts';
 import { depthMapFor, depthPackInstalled } from './depthMap.ts';
+import { depthTrackFor } from './depthTrack.ts';
 import { exportParity } from './exportParity.ts';
 import { fetchBrandKit } from './brandFetch.ts';
 import { noSoundCopy } from './noSoundCopy.ts';
@@ -153,6 +155,15 @@ export function reelsmithAnalyzePlugin(): Plugin {
         if (atSec !== undefined && !(atSec >= 0)) throw new Error('atSec must be a number of seconds');
         const r = await depthMapFor(file, atSec);
         return { available: true, src: `/media/uploads/${encodeURIComponent(r.name)}`, width: r.width, height: r.height, cached: r.cached };
+      });
+      route('/api/reelsmith/depth-track', async (body) => {
+        if (!depthPackInstalled()) return { available: false };
+        const file = localFile(body.src);
+        if (typeof file !== 'string') throw new Error(file.error);
+        const fromSec = Number(body.fromSec), toSec = Number(body.toSec);
+        if (!(fromSec >= 0) || !(toSec >= fromSec)) throw new Error('fromSec and toSec must be seconds, toSec not before fromSec');
+        const r = await depthTrackFor(file, fromSec, toSec);
+        return { available: true, src: `/media/uploads/${encodeURIComponent(r.name)}`, count: r.meta.count, cached: r.cached, ms: r.ms };
       });
       route('/api/reelsmith/upscale', async (body) => {
         if (!upscaleAvailable()) return { available: false };

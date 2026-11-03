@@ -16,9 +16,35 @@ export interface SectionClock {
 
 const round = (x: number) => Math.round(x * 1000) / 1000;
 
+/** RS-1260: effects that happen once at a moment (a focus pull, a light coming on): timing `drop` or `beat` sets that
+ *  moment (the `at` param, seconds from the clip's start) instead of punching the effect's strength. */
+const MOMENT_EFFECTS: Record<string, Record<string, number>> = {
+  'lens-blur': { pullTo: 0.1 },
+  relight: {},
+};
+
+const effectName = (id: string) => id.replace(/^builtin:fx-/, '');
+
+export const isMomentEffect = (id: string) => effectName(id) in MOMENT_EFFECTS;
+
+/**
+ * The params a moment effect gets from its timing: `drop` on the section's first beat, `beat` on its `every`-th beat
+ * (default the second bar: beat 4), each from this clip's start (clamped into the clip). Lens blur also pulls to the
+ * view unless the plan says where. Empty for other effects and timings.
+ */
+export function momentParamsFor(e: PlanEffect, clock: SectionClock, itemStart: number, itemFrames: number): Record<string, number> {
+  const extra = MOMENT_EFFECTS[effectName(e.id)];
+  if (!extra || (e.timing !== 'drop' && e.timing !== 'beat')) return {};
+  const beat = e.timing === 'drop' ? 0 : Math.min(Math.max(0, clock.beats - 1), e.every ?? 4);
+  const dur = itemFrames / clock.fps;
+  const at = Math.min(Math.max(0, dur - 0.3), Math.max(0, round((clock.beatAt(beat) - itemStart) / clock.fps)));
+  return { ...extra, ...(e.params ?? {}), at: e.params?.at ?? at };
+}
+
 export function effectMixFor(e: PlanEffect, clock: SectionClock, itemStart: number, itemFrames: number): EffectMix | undefined {
   const { fps } = clock;
-  const timing = e.timing ?? 'steady';
+  // a moment effect's drop or beat is its `at` (momentParamsFor), not a punch: it stays steady
+  const timing = isMomentEffect(e.id) && (e.timing === 'drop' || e.timing === 'beat') ? 'steady' : e.timing ?? 'steady';
   const region = e.region && e.region !== 'all' ? { region: e.region } : {};
   const amount = e.strength !== undefined && e.strength < 1 ? { amount: e.strength } : {};
   if (timing === 'steady') return amount.amount !== undefined || region.region ? { ...amount, ...region } : undefined;

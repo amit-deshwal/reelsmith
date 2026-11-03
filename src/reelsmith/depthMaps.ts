@@ -7,6 +7,8 @@ import { glEffects } from '../gl/clipEffects';
 import { isSkyRegion } from './effectMix';
 
 export const DEPTH_SRC_PROP = 'rsDepthSrc';
+/** RS-1260: the depth track (one map per frame) of the span a video clip shows, made for effects marked `depthTrack`. */
+export const DEPTH_TRACK_PROP = 'rsDepthTrackSrc';
 
 /** A clip, placed on the timeline or not yet (a build's add actions carry no startFrame). */
 type DepthItem = Omit<TimelineItem, 'startFrame'>;
@@ -14,6 +16,20 @@ type DepthItem = Omit<TimelineItem, 'startFrame'>;
 /** The clip has an effect that reads the depth map. */
 export function wantsDepth(item: DepthItem): boolean {
   return (item.kind === 'image' || item.kind === 'video') && !!item.src && glEffects(item as TimelineItem).some(({ def }) => def.needsDepth);
+}
+
+/** RS-1260: a video clip with an effect that reads a depth map per frame (lens blur, haze, relight). A photo, or a video
+ *  whose depth effects take one map (photo parallax on a steady shot), uses the still map. */
+export function wantsDepthTrack(item: DepthItem): boolean {
+  return item.kind === 'video' && !!item.src && glEffects(item as TimelineItem).some(({ def }) => def.needsDepth && def.depthTrack);
+}
+
+/** The clip needs the still depth map: a photo with a depth effect, a video with a depth effect that takes one map, or
+ *  any clip with a sky effect (the sky map is made with the still map). */
+export function wantsStillDepth(item: DepthItem): boolean {
+  if (wantsSky(item)) return true;
+  if (!wantsDepth(item)) return false;
+  return item.kind !== 'video' || glEffects(item as TimelineItem).some(({ def }) => def.needsDepth && !def.depthTrack);
 }
 
 /** RS-1261: the clip has an effect that reads the sky map (a sky effect, or any effect kept to the land or the sky). The sky
@@ -41,6 +57,41 @@ export function parseSkyModel(raw: unknown): SkyModel | null {
   const pair = (v: unknown) => Array.isArray(v) && v.length === 2 && v.every((x) => typeof x === 'number' && Number.isFinite(x));
   if (!m || !pair(m.chroma) || !pair(m.spread) || ![m.limit, m.lumaFloor, m.paleFloor].every((x) => typeof x === 'number' && Number.isFinite(x))) return null;
   return { chroma: m.chroma as [number, number], spread: m.spread as [number, number], limit: m.limit!, lumaFloor: m.lumaFloor!, paleFloor: m.paleFloor! };
+}
+
+export function depthTrackSrcOf(item: DepthItem): string | undefined {
+  const v = item.props?.[DEPTH_TRACK_PROP];
+  return typeof v === 'string' && v ? v : undefined;
+}
+
+/** The source span a video clip shows, in source seconds (what its depth track covers). */
+export function depthTrackRequestFor(item: DepthItem, fps: number): { src: string; fromSec: number; toSec: number } | null {
+  if (item.kind !== 'video' || !item.src) return null;
+  const sec = (f: number) => Math.round((f / Math.max(1, fps)) * 1000) / 1000;
+  const fromSec = sec(sourceFrameAt(item, 0));
+  return { src: item.src, fromSec, toSec: Math.max(fromSec, sec(sourceFrameAt(item, Math.max(0, item.durationInFrames - 1)))) };
+}
+
+const trackRequests = new Map<string, Promise<string | null>>();
+
+/** The depth track's atlas /media/uploads path, or null without the depth model. Its index is beside it (depthTrackMetaName). */
+export function requestDepthTrack(req: { src: string; fromSec: number; toSec: number }, fetcher: Fetcher = (i, init) => fetch(i, init)): Promise<string | null> {
+  const key = `${req.src}|${req.fromSec}|${req.toSec}`;
+  let pending = trackRequests.get(key);
+  if (!pending) {
+    pending = (async () => {
+      try {
+        const res = await fetcher('/api/reelsmith/depth-track', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(req) });
+        const body = await res.json() as { available?: boolean; src?: string };
+        return res.ok && body.available && typeof body.src === 'string' ? body.src : null;
+      } catch {
+        return null;
+      }
+    })();
+    trackRequests.set(key, pending);
+    void pending.then((src) => { if (!src) trackRequests.delete(key); });
+  }
+  return pending;
 }
 
 export function depthSrcOf(item: DepthItem): string | undefined {
@@ -81,12 +132,19 @@ export function requestDepthMap(req: { src: string; atSec?: number }, fetcher: F
   return pending;
 }
 
-/** The clip with its depth map attached (unchanged when it needs none, has one, or none can be made). */
+/** The clip with its depth map (and RS-1260 depth track) attached (unchanged when it needs none, has them, or none can be made). */
 export async function withDepthMap<T extends DepthItem>(item: T, fps: number, fetcher?: Fetcher): Promise<T> {
-  if (!(wantsDepth(item) || wantsSky(item)) || depthSrcOf(item)) return item;
-  const req = depthRequestFor(item, fps);
-  const src = req ? await requestDepthMap(req, fetcher) : null;
-  return src ? { ...item, props: { ...item.props, [DEPTH_SRC_PROP]: src } } : item;
+  const needStill = wantsStillDepth(item) && !depthSrcOf(item);
+  const needTrack = wantsDepthTrack(item) && !depthTrackSrcOf(item);
+  if (!needStill && !needTrack) return item;
+  const stillReq = needStill ? depthRequestFor(item, fps) : null;
+  const trackReq = needTrack ? depthTrackRequestFor(item, fps) : null;
+  const [src, track] = await Promise.all([
+    stillReq ? requestDepthMap(stillReq, fetcher) : null,
+    trackReq ? requestDepthTrack(trackReq, fetcher) : null,
+  ]);
+  if (!src && !track) return item;
+  return { ...item, props: { ...item.props, ...(src ? { [DEPTH_SRC_PROP]: src } : {}), ...(track ? { [DEPTH_TRACK_PROP]: track } : {}) } };
 }
 
 /**

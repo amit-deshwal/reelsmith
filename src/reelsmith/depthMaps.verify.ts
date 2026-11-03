@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { TimelineItem } from '../editor/types';
-import { depthRequestFor, requestDepthMap, wantsDepth, withDepthMap, withDepthMaps } from './depthMaps';
+import { depthRequestFor, depthTrackRequestFor, requestDepthMap, wantsDepth, wantsDepthTrack, wantsStillDepth, withDepthMap, withDepthMaps } from './depthMaps';
 
 const fx = [{ id: 'fx1', assetId: 'builtin:fx-photo-parallax', overrides: { move: 1 } }];
 const photo = { id: 'p1', track: 'V1', kind: 'image', name: 'view', src: '/media/uploads/view.jpg', startFrame: 0, durationInFrames: 90, effects: fx } as unknown as TimelineItem;
@@ -46,4 +46,29 @@ assert.equal(out.captions, state.captions);
 assert.equal((out.sequenceTimelines.s1.items[0] as TimelineItem).props?.rsDepthSrc, '/media/uploads/trail.depth.png');
 const already = { fps: 30, items: [plain] };
 assert.equal(await withDepthMaps(already, fetcher), already);
+
+// RS-1260: a video with lens blur gets a depth track of the span it shows, not a still map; a photo with lens blur the still map
+const blurFx = [{ id: 'lb', assetId: 'builtin:fx-lens-blur', overrides: {} }];
+const blurVideo = { ...video, id: 'v3', src: '/media/uploads/walk.mp4', effects: blurFx, srcInFrame: 30, durationInFrames: 61, playbackRate: 1 } as unknown as TimelineItem;
+const blurPhoto = { ...photo, id: 'p4', effects: blurFx } as unknown as TimelineItem;
+assert.ok(wantsDepthTrack(blurVideo) && !wantsStillDepth(blurVideo));
+assert.ok(!wantsDepthTrack(blurPhoto) && wantsStillDepth(blurPhoto));
+assert.ok(!wantsDepthTrack(video) && wantsStillDepth(video), 'photo parallax on a video keeps its one map');
+assert.deepEqual(depthTrackRequestFor(blurVideo, 30), { src: '/media/uploads/walk.mp4', fromSec: 1, toSec: 3 });
+// at half speed the clip shows half as much of its source
+assert.deepEqual(depthTrackRequestFor({ ...blurVideo, playbackRate: 0.5 } as TimelineItem, 30), { src: '/media/uploads/walk.mp4', fromSec: 1, toSec: 2 });
+const trackAsked: Array<{ url: string; body: Record<string, unknown> }> = [];
+const trackFetcher = async (url: string, init: RequestInit) => {
+  const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+  trackAsked.push({ url, body });
+  return { ok: true, json: async () => ({ available: true, src: url.endsWith('/depth-track') ? '/media/uploads/walk.depthv-1000-3000.png' : '/media/uploads/x.depth.png' }) };
+};
+const tracked = await withDepthMap(blurVideo, 30, trackFetcher);
+assert.equal(tracked.props?.rsDepthTrackSrc, '/media/uploads/walk.depthv-1000-3000.png');
+assert.equal(tracked.props?.rsDepthSrc, undefined);
+assert.deepEqual(trackAsked.map((a) => a.url), ['/api/reelsmith/depth-track']);
+assert.equal(await withDepthMap(tracked, 30, trackFetcher), tracked);
+// lens blur and a sky effect on one video: both
+const both = await withDepthMap({ ...blurVideo, id: 'v4', src: '/media/uploads/walk2.mp4', effects: [...blurFx, { id: 's', assetId: 'builtin:fx-sky-recover', overrides: {} }] } as unknown as TimelineItem, 30, trackFetcher);
+assert.ok(both.props?.rsDepthTrackSrc && both.props?.rsDepthSrc);
 console.log('depthMaps.verify: ok');

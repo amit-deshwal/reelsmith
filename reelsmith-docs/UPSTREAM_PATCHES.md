@@ -553,3 +553,8 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 - `src/gl/fx/reelFx.ts` (ours): registers `skyFx.ts` (Sky recover, Sky swap).
 - `src/export/serverExportOperation.ts`: the depth-map pre-fill (RS-1238) now also fills the project sent with the export. With a project, the render takes the timeline from it and never reads the state, so until now the maps (photo parallax included) never reached an app export.
 - `src/agent/tools/schemas/effect-tools.ts`: `mix.region` description lists `land` and `sky`; `assets/agent/openchatcut-tool-schemas.json` regenerated.
+
+## Depth on video (RS-1260, 2026-11-03)
+
+- `src/gl/ClipFx.tsx`: on a video, effects marked `FxDef.depthTrack` (lens blur, depth haze, relight) read a depth map per frame: the clip's depth track (`props.rsDepthTrackSrc`, an atlas of tiles and its `.json` index, `shared/reelsmith/depthTrack.ts`) is loaded like the still map (asked for in the preview, carried in an export), and each frame the two tiles either side of it are blended into the depth staging canvas bound as `u_depth` (`src/gl/depthTrackDraw.ts`, ours). Such effects also get `u_subject` (the subject's depth at that frame; from the still map on a photo). The still map is now asked for only when an effect needs it (photo parallax, a photo, a sky effect or region).
+- `src/gl/fx/uniforms.ts`: `FxDef.depthTrack`.

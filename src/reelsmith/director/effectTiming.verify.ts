@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { effectMixFor } from './effectTiming';
+import { effectMixFor, momentParamsFor } from './effectTiming';
 import { mixAmountAt } from '../effectMix';
 import { parsePlan } from '../../../shared/reelsmith/directorPlan';
 
@@ -29,4 +29,17 @@ const ok = parsePlan({ sections: [{ move: 'cut', effects: [{ id: 'glitch', timin
 assert.ok(ok.ok && ok.plan.sections[0]!.effects![0]!.timing === 'beat');
 const bad = parsePlan({ sections: [{ move: 'cut', effects: [{ id: 'glitch', timing: 'wobble', strength: 3, region: 'water', every: 0 }] }] });
 assert.ok(!bad.ok && bad.errors.length === 4, JSON.stringify(bad));
+
+// RS-1260: lens blur and relight happen at a moment. A drop is the section's first beat, from the clip's start; a beat
+// timing is its `every`-th beat (default 4, clamped to the section); the strength stays steady (no punches)
+assert.deepEqual(momentParamsFor({ id: 'lens-blur', timing: 'drop' }, clock, 30, 60), { pullTo: 0.1, at: 0 });
+assert.deepEqual(momentParamsFor({ id: 'relight', timing: 'beat', every: 2 }, clock, 30, 60), { at: 1 });
+assert.deepEqual(momentParamsFor({ id: 'relight', timing: 'beat' }, clock, 30, 60), { at: 1.5 });
+// a clip that starts after the drop: at its start; the plan's own params win
+assert.deepEqual(momentParamsFor({ id: 'lens-blur', timing: 'drop' }, clock, 45, 45), { pullTo: 0.1, at: 0 });
+assert.deepEqual(momentParamsFor({ id: 'lens-blur', timing: 'beat', every: 1, params: { pullTo: 0.9 } }, clock, 30, 60), { pullTo: 0.9, at: 0.5 });
+assert.deepEqual(momentParamsFor({ id: 'lens-blur' }, clock, 30, 60), {}, 'steady: a blur with no pull');
+assert.deepEqual(momentParamsFor({ id: 'glitch', timing: 'drop' }, clock, 30, 60), {});
+assert.equal(effectMixFor({ id: 'lens-blur', timing: 'drop' }, clock, 30, 60), undefined);
+assert.deepEqual(effectMixFor({ id: 'relight', timing: 'beat', strength: 0.7 }, clock, 30, 60), { amount: 0.7 });
 console.log('effectTiming: ok');
