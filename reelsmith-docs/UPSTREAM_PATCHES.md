@@ -536,3 +536,11 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 - `remotion/render.mjs` (stills): `renderTimelineStills` takes `concurrency` (default `stillConcurrency()`: 3, env `RS_STILL_CONCURRENCY`, 1 = the old one-by-one loop) and renders the requested stills in that many tabs of its one browser, keeping their order. 18 critique frames: 12.6 s → 6.7 s (with the three sheets requested at once, ~5 s).
 - `src/library/LibraryPanel.tsx`: passes `projectId={semanticScopeId}` and `fps` to `DirectorPanel` (one line), which starts stage 1's clip analysis while the story is written.
 - `assets/agent/openchatcut-tool-schemas.json`: regenerated (`reels_director_options` `find`; build, critique and find-shots descriptions).
+
+## Silhouette portal (RS-1262, 2026-11-03)
+
+- `src/gl/runtimeTypes.ts`, `src/gl/runtime.ts`: `render` and `renderTransitionWithFx` take an optional `extraTextures` map, bound after the two inputs (from unit 2) by the existing `bindExtraTextures`, as the effect passes already do.
+- `src/gl/transitions.ts`: `GlslTransitionDef.needsMask?` and the `silhouette-portal` entry (`shaders/silhouette-portal.frag`, ours).
+- `src/gl/GlTransition.tsx`: when the definition has `needsMask`, loads the selfie segmenter (`loadPersonMask`), mattes the outgoing staging frame each frame and passes `u_mask` plus `portalUniforms` (`src/reelsmith/portalSubject.ts`); other transitions are unchanged.
+- `src/gl/transitionThumb.ts`: a `needsMask` transition's card uses the synthetic head-and-shoulders matte.
+- `src/editor/transitionTypes.ts`: `silhouette-portal` in the type, the GLSL set, labels, order and `REEL_TRANSITION_SECONDS` (0.6 s); `src/editor/transitionPreview.ts`: its CSS stand-in (`luma-blend`).

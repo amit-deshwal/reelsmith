@@ -2,6 +2,8 @@ import type { GlslTransitionType } from '../editor/types';
 import { createGlRuntime, type GlRuntime } from './runtime';
 import { clearSampleFrames, ensureSampleFrame, getSampleFrame, SAMPLE_H, SAMPLE_W } from './sampleFrames';
 import { GLSL_TRANSITIONS } from './transitions';
+import { syntheticMaskFrame } from './personMask';
+import { portalUniforms } from '../reelsmith/portalSubject';
 
 // Photoreal A/B samples (outdoor → warm interior) so transition motion is
 // obvious. Hover plays full 0→1 with a short hold, then loops.
@@ -95,6 +97,7 @@ function paintTransition(
   progress: number,
   extra: Record<string, import('./runtime').UniformValue>,
   fallbackType: GlslTransitionType | 'custom',
+  extraTextures?: Record<string, TexImageSource>,
 ): boolean {
   const sampleA = getSampleFrame('out');
   const sampleB = getSampleFrame('in');
@@ -109,7 +112,7 @@ function paintTransition(
       drawFallback(ctx, w, h, sampleA, sampleB, progress, fbType);
       return true;
     }
-    rt.render(frag, sampleA, sampleB, progress, extra);
+    rt.render(frag, sampleA, sampleB, progress, extra, extraTextures);
     ctx.fillStyle = '#141414';
     ctx.fillRect(0, 0, w, h);
     ctx.drawImage(glCanvas, 0, 0, w, h);
@@ -132,6 +135,11 @@ export function drawTransitionFrame(
   const def = GLSL_TRANSITIONS[type];
   const aspect = THUMB_W / THUMB_H;
   const extra = def?.uniforms({ time: progress * 2, aspect, direction: 'left' }) ?? {};
+  if (def?.needsMask) {
+    // a head-and-shoulders stand-in for the person the real transition finds in the outgoing frame
+    const stand = syntheticMaskFrame(THUMB_W, THUMB_H);
+    return paintTransition(dest, def.frag, progress, { ...extra, ...portalUniforms(stand.subject) }, type, { u_mask: stand.mask });
+  }
   return paintTransition(dest, def?.frag ?? null, progress, extra, type);
 }
 

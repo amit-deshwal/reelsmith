@@ -15,6 +15,8 @@ import { sourceSize, useCapturedFrame, type CapturedFrame } from './capturedFram
 import type { AspectFit, GlslTransitionType, TimelineItem, TransitionDirection } from '../editor/types';
 import { backgroundFillAppearanceFor, backgroundFillFilter } from '../editor/backgroundFill';
 import { clipOpacityAt } from '../editor/clipFade';
+import { fullFrameMask, loadPersonMask, type PersonMaskProvider } from './personMask';
+import { portalUniforms } from '../reelsmith/portalSubject';
 import { offthreadTrimBefore, offthreadVideoTransparent, useRuntimeVideoDecoder, type ServerVideoDecoder } from '../editor/serverVideoDecoder';
 
 // One GLSL transition window straddling the cut from R to R+L. A muted,
@@ -167,6 +169,15 @@ export function GlTransition({ type, direction, L, windowStart, outgoing, incomi
         : GLSL_TRANSITIONS[type]),
     [type, customFrag, customUniforms, width, height],
   );
+  // Reelsmith (RS-1262): transitions that read the outgoing frame's person matte (the silhouette portal).
+  const wantsMask = !!(def && 'needsMask' in def && def.needsMask);
+  const [maskProvider, setMaskProvider] = useState<PersonMaskProvider | null | undefined>(undefined);
+  useEffect(() => {
+    if (!wantsMask) return;
+    let alive = true;
+    void loadPersonMask('selfie').then((provider) => { if (alive) setMaskProvider(provider); });
+    return () => { alive = false; };
+  }, [wantsMask]);
   const outgoingEffects = useMemo(() => glEffects(outgoing), [outgoing]);
   const incomingEffects = useMemo(() => glEffects(incoming), [incoming]);
   const definitionKey = useMemo(
@@ -256,7 +267,7 @@ export function GlTransition({ type, direction, L, windowStart, outgoing, incomi
     const tick = () => {
       const outgoingSource = inputSource(outgoing, outRef, outCapturedRef.current);
       const incomingSource = inputSource(incoming, inRef, inCapturedRef.current);
-      if (!outgoingSource || !incomingSource
+      if (!outgoingSource || !incomingSource || (wantsMask && maskProvider === undefined)
         || activeEffects.some(({ def: effect }) => effect.cube && !cubeSettled(effect.cube))) {
         hideCanvas();
         reportWaiting();
@@ -287,6 +298,7 @@ export function GlTransition({ type, direction, L, windowStart, outgoing, incomi
           incomingBackgroundFill,
           incomingOpacity,
         );
+        const maskFrame = wantsMask ? (maskProvider ? maskProvider.frameFor(staging.out) : null) : undefined;
         const transitionFrame = buildTransitionShaderFrame(def, {
           sequenceFrame: frame,
           durationInFrames: L,
@@ -313,8 +325,9 @@ export function GlTransition({ type, direction, L, windowStart, outgoing, incomi
           outgoingFrame.passes,
           incomingFrame.passes,
           transitionFrame.progress,
-          transitionFrame.uniforms,
+          maskFrame === undefined ? transitionFrame.uniforms : { ...transitionFrame.uniforms, ...portalUniforms(maskFrame?.subject ?? null) },
           { outgoing: outgoingOpacity, incoming: incomingOpacity },
+          maskFrame === undefined ? undefined : { u_mask: (maskFrame ?? fullFrameMask()).mask },
         );
         canvas.style.opacity = '1';
         if (!hasRenderedFrameRef.current) {
@@ -338,7 +351,7 @@ export function GlTransition({ type, direction, L, windowStart, outgoing, incomi
       finish();
     };
   }, [
-    definitionKey, def, direction, fit, fps, frame, height, incoming, incomingBackgroundFill, inCapturedRef,
+    definitionKey, def, direction, fit, fps, frame, height, incoming, wantsMask, maskProvider, incomingBackgroundFill, inCapturedRef,
     incomingEffects, L, onPreviewStatus, onReadyChange, outCapturedRef, outgoing, outgoingBackgroundFill, outgoingEffects,
     previewTargetId, rendering, staging, type, width, windowStart,
   ]);

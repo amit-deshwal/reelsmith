@@ -22,6 +22,8 @@ export interface GlRuntime {
     incoming: TexImageSource,
     progress: number,
     extra?: Record<string, UniformValue>,
+    /** extra named 2D textures for the transition shader, e.g. { u_mask } (Reelsmith: the silhouette portal) */
+    extraTextures?: Record<string, TexImageSource>,
   ) => void;
   renderTransitionWithFx: (
     frag: string,
@@ -32,6 +34,7 @@ export interface GlRuntime {
     progress: number,
     extra?: Record<string, UniformValue>,
     sourceOpacity?: TransitionSourceOpacity,
+    extraTextures?: Record<string, TexImageSource>,
   ) => void;
   renderFx: (
     frag: string,

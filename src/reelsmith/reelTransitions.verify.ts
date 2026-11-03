@@ -14,9 +14,9 @@ import { RECIPE_TRANSITIONS } from './assembler/transitions';
 import { RECIPE_SCHEMA } from '../../shared/reelsmith/recipe-schema';
 
 const TYPES = Object.keys(REEL_TRANSITION_SECONDS) as Array<keyof typeof REEL_TRANSITION_SECONDS & string>;
-assert.equal(TYPES.length, 16);
+assert.equal(TYPES.length, 17);
 const DIRECTIONS = ['left', 'right', 'up', 'down'] as const;
-const declared = (src: string) => [...src.matchAll(/^uniform\s+\w+\s+(u_\w+)/gm)].map((m) => m[1]!);
+const declared = (src: string) => [...src.matchAll(/^uniform\s+(?!sampler)\w+\s+(u_\w+)/gm)].map((m) => m[1]!);
 const file = (name: string) => readFileSync(new URL(`../gl/shaders/${name}.frag`, import.meta.url), 'utf8');
 
 const GLSL = GLSL_TRANSITIONS as unknown as Record<string, { frag: string; uniforms: (o: { time: number; aspect: number; direction: string }) => Record<string, unknown> }>;

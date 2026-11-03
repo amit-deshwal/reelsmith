@@ -42,6 +42,7 @@ export type GlslTransitionType =
   | 'mirror-flip'
   | 'prism-flash'
   | 'brush-wipe'
+  | 'silhouette-portal'
   | GltTransitionId;
 
 /** Audio-only transitions (preset `trAudioCrossFade`) — no picture. */
@@ -58,7 +59,7 @@ export const GLSL_TRANSITION_TYPES: ReadonlySet<string> = new Set<string>([
   'circle-wipe', 'radial-blur', 'glitch-cut', 'dip-to-color',
   'bars', 'wide-bars', 'window',
   'zoom-through', 'whip-blur', 'spin-zoom', 'light-leak', 'chroma-glitch', 'fluted-glass', 'ripple-dissolve', 'tile-pop', 'cube-turn', 'slide-over',
-  'pixelate', 'film-burn', 'flip-3d', 'mirror-flip', 'prism-flash', 'brush-wipe',
+  'pixelate', 'film-burn', 'flip-3d', 'mirror-flip', 'prism-flash', 'brush-wipe', 'silhouette-portal',
   ...GLT_TRANSITIONS.map((t) => t.id), // Reelsmith: imported GL Transitions
   'custom-shader', // takes the GL render path; frag comes from the item, not GLSL_TRANSITIONS
 ]);
@@ -117,6 +118,7 @@ export const TRANSITION_LABELS: Record<TransitionType, string> = {
   'mirror-flip': 'Mirror flip',
   'prism-flash': 'Prism flash',
   'brush-wipe': 'Brush wipe',
+  'silhouette-portal': 'Silhouette portal',
   ...(Object.fromEntries(GLT_TRANSITIONS.map((t) => [t.id, t.label])) as Record<GltTransitionId, string>),
   /** preset.name.trAudioCrossFade */
   'audio-cross-fade': 'Audio crossfade',
@@ -161,6 +163,7 @@ export const TRANSITION_ORDER: readonly GlslTransitionType[] = [
   'mirror-flip',
   'prism-flash',
   'brush-wipe',
+  'silhouette-portal',
   ...GLT_TRANSITIONS.map((t) => t.id),
 ];
 
@@ -191,6 +194,7 @@ export const REEL_TRANSITION_SECONDS: Readonly<Record<string, number>> = {
   'mirror-flip': 0.3,
   'prism-flash': 0.4,
   'brush-wipe': 0.55,
+  'silhouette-portal': 0.6,
 };
 
 /** Default length in seconds for the transitions Reelsmith added (null = the editor's own default). */

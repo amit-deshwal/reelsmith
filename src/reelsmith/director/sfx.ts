@@ -72,7 +72,7 @@ export const TRANSITION_CUES: Record<string, SfxCue | null> = {
   crossfade: null, dipToBlack: null, dipToWhite: 'whoosh-soft', flash: 'shutter', slideLeft: 'whoosh', zoomIn: 'whoosh-heavy',
   'zoom-through': 'whoosh-heavy', 'whip-blur': 'whoosh', 'swipe-up': 'whoosh', 'swipe-down': 'whoosh', slideUp: 'whoosh', 'spin-zoom': 'whoosh-heavy', bars: 'shutter', 'wide-bars': 'shutter', window: 'whoosh-soft',
   'light-leak': null, 'chroma-glitch': 'glitch', 'fluted-glass': 'whoosh-soft', 'ripple-dissolve': null, 'tile-pop': 'pop', 'cube-turn': 'whoosh', 'slide-over': 'whoosh',
-  pixelate: 'glitch', 'film-burn': 'whoosh-soft', 'flip-3d': 'whoosh', 'mirror-flip': 'whoosh-soft', 'prism-flash': 'whoosh-soft', 'brush-wipe': 'whoosh-soft',
+  pixelate: 'glitch', 'film-burn': 'whoosh-soft', 'flip-3d': 'whoosh', 'mirror-flip': 'whoosh-soft', 'prism-flash': 'whoosh-soft', 'brush-wipe': 'whoosh-soft', 'silhouette-portal': 'whoosh-soft',
   'blur-focus': null, 'radial-blur': 'whoosh-heavy', 'page-curl': 'whoosh-soft', 'circle-wipe': 'pop', 'light-dissolve': null, 'impact-shake': 'hit',
   'glitch-cut': 'glitch', 'line-wipe': 'whoosh-soft', 'luma-blend': null,
   ...Object.fromEntries(GLT_TRANSITIONS.map((t) => [t.id, t.cue])),

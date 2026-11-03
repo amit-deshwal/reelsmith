@@ -22,6 +22,7 @@ export const BREAK_IN_INFO: Record<string, string> = {
   'mirror-flip': "Reels transition (0.3 s): the frame flips like a flat coin on the beat, squeezing to a bright line and opening out as the next shot. Before/after reveals, outfit changes, a drop. up/down flips top over bottom.",
   'prism-flash': "Reels transition (0.4 s): a bright band of light sweeps across, splitting into rainbow prism fringes, with the next shot behind it. Fashion, nights out, a polished cut. direction sets the sweep.",
   'brush-wipe': "Reels transition (0.55 s): the next shot is painted on in four thick brush strokes, alternating direction, with ragged bristle edges and an ink line at each front. Art, journals, handmade and scrapbook stories.",
+  'silhouette-portal': "Reels transition (0.6 s): the next shot appears inside the outgoing shot's person, in their outline, which grows until it fills the frame. Needs one clear person in the outgoing shot (found per frame); without one it plays as a circle wipe. Introducing a place, a dream, 'this is where I went'. direction is ignored.",
   ...Object.fromEntries(GLT_TRANSITIONS.map((t) => [t.id, `Reels transition (${t.seconds} s): ${t.looks} ${t.use} direction is ignored.`])),
 };
 

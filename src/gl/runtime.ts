@@ -246,6 +246,7 @@ export function createGlRuntime(canvas: HTMLCanvasElement): GlRuntime {
     incoming: WebGLTexture,
     progress: number,
     extra?: Record<string, UniformValue>,
+    extraTextures?: Record<string, TexImageSource>,
   ) => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.viewport(0, 0, canvas.width, canvas.height);
@@ -261,6 +262,7 @@ export function createGlRuntime(canvas: HTMLCanvasElement): GlRuntime {
     gl.bindTexture(gl.TEXTURE_2D, incoming);
     const locIn = gl.getUniformLocation(prog, 'u_incoming');
     if (locIn) gl.uniform1i(locIn, 1);
+    bindExtraTextures(prog, 2, extraTextures);
 
     // Preserve exact 0/1 endpoints so the neighboring ordinary frames cannot snap.
     setUniform(prog, 'u_progress', Math.max(0, Math.min(1, progress)));
@@ -353,11 +355,11 @@ export function createGlRuntime(canvas: HTMLCanvasElement): GlRuntime {
 
   return {
     canvas,
-    render(frag, outgoing, incoming, progress, extra) {
+    render(frag, outgoing, incoming, progress, extra, extraTextures) {
       assertContextAvailable();
       upload(texOut, 0, outgoing);
       upload(texIn, 1, incoming);
-      drawTransitionFromTextures(frag, texOut, texIn, progress, extra);
+      drawTransitionFromTextures(frag, texOut, texIn, progress, extra, extraTextures);
     },
     renderTransitionWithFx(
       frag,
@@ -368,6 +370,7 @@ export function createGlRuntime(canvas: HTMLCanvasElement): GlRuntime {
       progress,
       extra,
       sourceOpacity,
+      extraTextures,
     ) {
       assertContextAvailable();
       upload(texOut, 0, outgoing);
@@ -395,6 +398,7 @@ export function createGlRuntime(canvas: HTMLCanvasElement): GlRuntime {
         compositedIncoming,
         progress,
         extra,
+        extraTextures,
       );
     },
     renderFx(frag, input, extra, lut3d, extras) {

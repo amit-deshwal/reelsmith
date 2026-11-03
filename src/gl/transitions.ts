@@ -38,6 +38,7 @@ import flip3d from './shaders/flip-3d.frag.ts';
 import mirrorFlip from './shaders/mirror-flip.frag.ts';
 import prismFlash from './shaders/prism-flash.frag.ts';
 import brushWipe from './shaders/brush-wipe.frag.ts';
+import silhouettePortal from './shaders/silhouette-portal.frag.ts';
 import { GLT_FRAGS } from './shaders/glt/frags.ts';
 import { GLT_TRANSITIONS, type GltTransitionId } from '../reelsmith/glTransitionsMeta';
 
@@ -45,6 +46,9 @@ export interface GlslTransitionDef {
   frag: string;
   /** per-frame uniforms beyond u_progress/u_resolution/u_aspect */
   uniforms: (ctx: { time: number; aspect: number; direction: TransitionDirection }) => Record<string, UniformValue>;
+  /** Reelsmith: the shader reads u_mask, the outgoing frame's person matte, and the u_hasPerson / u_subject* uniforms
+   *  (GlTransition fills them per frame; the defaults from uniforms() mean "nobody found"). */
+  needsMask?: boolean;
 }
 
 export const GLSL_TRANSITIONS: Record<GlslTransitionType, GlslTransitionDef> = {
@@ -253,6 +257,12 @@ export const GLSL_TRANSITIONS: Record<GlslTransitionType, GlslTransitionDef> = {
   'brush-wipe': {
     frag: brushWipe,
     uniforms: () => ({ u_strokes: 4 }),
+  },
+  // RS-1262: the next shot inside the person's outline, growing to fill the frame; a circle wipe when nobody is clear
+  'silhouette-portal': {
+    frag: silhouettePortal,
+    needsMask: true,
+    uniforms: ({ aspect }) => ({ u_aspect: aspect, u_hasPerson: 0, u_subjectCenter: [0.5, 0.5], u_subjectSize: [0.4, 0.6] }),
   },
   // Reelsmith: imported GL Transitions (shaders/glt), tuned values are constants in the shader
   ...(Object.fromEntries(GLT_TRANSITIONS.map((t) => [t.id, { frag: GLT_FRAGS[t.id], uniforms: ({ aspect }: { aspect: number }) => ({ u_aspect: aspect }) }])) as unknown as Record<GltTransitionId, GlslTransitionDef>),

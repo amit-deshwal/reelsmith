@@ -36,6 +36,7 @@ export const RECIPE_TRANSITIONS: Record<string, Spec> = {
   'mirror-flip': { type: 'mirror-flip', seconds: 0.3 },
   'prism-flash': { type: 'prism-flash', seconds: 0.4 },
   'brush-wipe': { type: 'brush-wipe', seconds: 0.55 },
+  'silhouette-portal': { type: 'silhouette-portal', seconds: 0.6 },
   ...Object.fromEntries(GLT_TRANSITIONS.map((t) => [t.id, { type: t.id, seconds: t.seconds }])),
   // the editor's own transitions, for the director
   'blur-focus': { type: 'rack-focus', seconds: 0.45 },
