@@ -12,11 +12,18 @@ export interface NaturalWindow { from: number; to: number; solo: boolean; songFa
 export const NATURAL_UNDER = 0.25;
 
 /**
- * RS-1258: the level a heard clip is brought to, in the clip analysis' `level` (dBFS of the speech band, 90th percentile):
- * a voice close to the phone. Measured on the 20 trek clips, talking reads -9 (a shout at the mic) to -34 (the selfie
- * the user found nearly silent under a solo at about -30).
+ * RS-1258: the level a heard clip is brought to, in the clip analysis' `level` (dBFS of the speech band, 90th percentile).
+ * Measured on the 20 trek clips, talking reads -9 (a shout at the mic) to -34 (the selfie the user found nearly silent
+ * under a solo at about -30). Calibrated on exports with the Swades test song: under the usual dip an untouched clip sits
+ * about (level + 22) dB against the song, so -16 puts a voice about 6 dB over it (-20 left a -23 talking clip level with
+ * the song in the vlog test, voice -1.3 dB).
  */
-export const NATURAL_TARGET_DB = -20;
+export const NATURAL_TARGET_DB = -16;
+/**
+ * Quieter than this is near-silence (wind, a distant field: the trek clips with nobody talking read -41 to -61): raising
+ * it only raises hiss, and in a section with a talking clip it would sink the song 8 dB further for nothing.
+ */
+export const NATURAL_FLOOR_DB = -40;
 /** The most a clip is raised: the editor's volume tops out at 2 (+6 dB). */
 const MAX_CLIP_GAIN_DB = 6;
 /** The most the song dips below its usual level under a clip that is still too quiet after that. */
@@ -37,7 +44,7 @@ export function sourceLevel(windows: ReadonlyArray<{ startFrame: number; endFram
  * the song dips further under it (up to 8 dB more). Never turned down: a shout should be loud. Unknown level: as before.
  */
 export function levelNatural(level: number | undefined): { clipGain: number; songFactor: number } {
-  if (level === undefined) return { clipGain: 1, songFactor: 1 };
+  if (level === undefined || level < NATURAL_FLOOR_DB) return { clipGain: 1, songFactor: 1 };
   const need = NATURAL_TARGET_DB - level;
   if (need <= 0) return { clipGain: 1, songFactor: 1 };
   const clipDb = Math.min(MAX_CLIP_GAIN_DB, need);

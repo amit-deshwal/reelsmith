@@ -103,9 +103,14 @@ assert.deepEqual(songDuck([{ from: 60, to: 90, solo: false }, { from: 92, to: 12
   const { levelNatural, sourceLevel } = await import('./naturalSound');
   assert.deepEqual(levelNatural(undefined), { clipGain: 1, songFactor: 1 }, 'not measured: as before');
   assert.deepEqual(levelNatural(-12), { clipGain: 1, songFactor: 1 }, 'a shout stays as it is');
-  assert.deepEqual(levelNatural(-23), { clipGain: 1.41, songFactor: 1 }, '+3 dB on the clip');
-  assert.deepEqual(levelNatural(-30), { clipGain: 2, songFactor: 0.631 }, 'the -30 dB selfie: +6 dB, and the song 4 dB lower');
-  assert.deepEqual(levelNatural(-45), { clipGain: 2, songFactor: 0.398 }, 'capped at +6 and 8 dB more dip');
+  assert.deepEqual(levelNatural(-16), { clipGain: 1, songFactor: 1 }, 'at the target: untouched');
+  assert.deepEqual(levelNatural(-19), { clipGain: 1.41, songFactor: 1 }, '+3 dB on the clip');
+  assert.deepEqual(levelNatural(-23), { clipGain: 2, songFactor: 0.891 }, 'the vlog\'s talking dad: +6 dB, and the song 1 dB lower');
+  assert.deepEqual(levelNatural(-26), { clipGain: 2, songFactor: 0.631 }, '+6 dB, and the song 4 dB lower');
+  assert.deepEqual(levelNatural(-30), { clipGain: 2, songFactor: 0.398 }, 'the -30 dB selfie: capped at +6 and 8 dB more dip');
+  // near-silence (wind, a distant field) is left as it is: raising it raises hiss, and it must not sink the song
+  assert.deepEqual(levelNatural(-46), { clipGain: 1, songFactor: 1 });
+  assert.deepEqual(levelNatural(-40), { clipGain: 2, songFactor: 0.398 }, 'the floor itself still counts');
   const wins = [{ startFrame: 0, endFrame: 60, level: -34 }, { startFrame: 60, endFrame: 120, level: -27 }, { startFrame: 120, endFrame: 180 }];
   assert.equal(sourceLevel(wins, 30, 90), -27, 'the loudest window it overlaps');
   assert.equal(sourceLevel(wins, 125, 170), undefined, 'a silent stretch has no level');
@@ -113,7 +118,7 @@ assert.deepEqual(songDuck([{ from: 60, to: 90, solo: false }, { from: 92, to: 12
   // the song under a quiet clip, and two merged stretches dip as far as the quieter needs
   assert.deepEqual(songDuck([{ from: 60, to: 90, solo: false, songFactor: 0.5 }], 1, 300, 30).find((k) => k.frame === 60)?.value, 0.125);
   assert.equal(songDuck([{ from: 60, to: 90, solo: false, songFactor: 0.8 }, { from: 92, to: 120, solo: false, songFactor: 0.5 }], 1, 300, 30).find((k) => k.frame === 60)?.value, 0.125);
-  // through the build: the quiet talking clip (-30) plays at 2 with its ramps, the song at 0.25 x 0.631 under it
+  // through the build: the quiet talking clip (-30) plays at 2 with its ramps, the song at 0.25 x 0.398 under it
   const quiet = clip('selfie', 10, { speech: true, focusRect: mid, level: -30 });
   const plan = (parsePlan({ music: 'song', sections: [{ move: 'hold', beats: 4, clips: ['view'] }, { move: 'hold', beats: 4, clips: ['selfie'], naturalSound: 'under' }, { move: 'hold', beats: 4, clips: ['view'] }] }) as { plan: ReelPlan }).plan;
   const res = assemble({ recipe: directorRecipe(plan), clips: [...clips, quiet], music, texts: {}, params: {}, seed: 3, plan });
@@ -123,7 +128,7 @@ assert.deepEqual(songDuck([{ from: 60, to: 90, solo: false }, { from: 92, to: 12
   assert.equal(volumeAtFrame(selfie, 0), 0, 'still no click at the cut');
   assert.equal(volumeAtFrame(selfie, Math.floor(selfie.durationInFrames / 2)), 2);
   const song = adds.find((a) => a.item.kind === 'audio' && a.item.track === 'A1')!.item;
-  assert.ok(Math.abs(volumeAtFrame(song, f(6)) - 0.25 * 0.631) < 1e-6, `the song dips further (${volumeAtFrame(song, f(6))})`);
+  assert.ok(Math.abs(volumeAtFrame(song, f(6)) - 0.25 * 0.398) < 1e-6, `the song dips further (${volumeAtFrame(song, f(6))})`);
   // a clip at a normal talking level keeps volume 1 and the usual dip
   assert.equal(heard.section(2)[0].item.volume, 1);
 }
