@@ -32,6 +32,7 @@ const raw = {
     { move: 'cut', beats: 8, params: { every: 2 }, text: 'we almost turned back here', textStyle: 'caption' },
     { move: 'flash-cuts', beats: 2 },
     { move: 'split', beats: 4, params: { layout: 'split3v' }, clips: ['group', 'food', 'sign'] },
+    { move: 'world-swap', beats: 4, clips: ['walker', 'group', 'trail'] }, // RS-1263 (checked in director/worldSwap.verify.ts)
     { move: 'break-in', beats: 12, params: { every: 4, kind: 'mix' } },
     { move: 'photo-drift', beats: 8, clips: ['photo1', 'photo2'], text: '2 days 6000 calories', textStyle: 'words-on-beat' },
     { move: 'hold', beats: 6, clips: ['ridge'] },
@@ -51,9 +52,9 @@ assert.ok(res.action, res.report.warnings.join('; '));
 const acts = res.action!.actions as any[];
 const adds = acts.filter((a) => a.type === 'add');
 
-// sections back to back on the beat grid: total = 92 beats from the first beat
+// sections back to back on the beat grid: total = 96 beats from the first beat
 const clock = beatClock(music, 0.2);
-assert.equal(res.report.totalFrames, Math.round(clock(92) * fps));
+assert.equal(res.report.totalFrames, Math.round(clock(96) * fps));
 const firstOf = (n: number) => Math.min(...adds.filter((a) => a.item.props?.rsSection?.startsWith(`${n}-`)).map((a) => a.startFrame));
 let beat = 0;
 raw.sections.forEach((s, i) => { assert.equal(firstOf(i + 1), Math.round(clock(beat) * fps), `section ${i + 1} starts on beat ${beat}`); beat += s.beats; });
