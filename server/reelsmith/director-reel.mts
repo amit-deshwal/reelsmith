@@ -1,4 +1,4 @@
-// A director plan built and exported headlessly, through the same steps as the app (real clip analysis with face finding,
+// A director plan built and exported headlessly, through the same steps as the app (real clip analysis (no face finding: that needs a browser),
 // beat detection, the director compiler, track binding, the export renderer). For checking director features (RS-1213
 // graphics) on real footage without the agent in the loop.
 //   node --import tsx server/reelsmith/director-reel.mts <clips folder> <song file> <plan.json> <out.mp4>
@@ -25,6 +25,10 @@ import { defaultValues } from '../../src/reelsmith/setupForm.ts';
 import { bindTracks } from '../../src/reelsmith/trackBinding.ts';
 import { directorRecipe } from '../../src/reelsmith/director/assembleDirector.ts';
 import { resolveClipRef, songSuggestion } from '../../src/reelsmith/agent/directorTools.ts';
+import { pickFindings } from '../../src/reelsmith/director/pickAudit.ts';
+import { finalizeForInstagram } from './instagramFinalize.ts';
+import { REEL_PRESETS, presetForCanvas } from '../../shared/reelsmith/instagramPreset.ts';
+import type { ClipFeatures } from '../../src/reelsmith/assembler/scoring.ts';
 
 const FPS = 30;
 const [folderArg, songArg, planArg, outArg] = process.argv.slice(2);
@@ -53,8 +57,9 @@ const songFile = resolve(songArg);
 link(songFile, `song${extname(songFile).toLowerCase()}`);
 const song = { id: 'song', name: 'song', kind: 'audio', src: `/media/uploads/song${extname(songFile).toLowerCase()}`, durationInFrames: Math.floor(Number(probe(songFile).format.duration) * FPS) } as MediaAsset;
 const byFile = (a: MediaAsset) => join(media, a.src.replace('/media/uploads/', ''));
+const analysed = new Map<string, ClipFeatures>();
 const api: AnalyzeApi = {
-  clipFeatures: (a, fps) => extractClipFeatures(byFile(a), a.id, fps, { maxSec: 10 }),
+  clipFeatures: async (a, fps) => { const f = await extractClipFeatures(byFile(a), a.id, fps, { maxSec: 10 }); if (f) analysed.set(a.id, f); return f; },
   musicGrid: async (a) => {
     const g = await analyzeBeatsFile(byFile(a));
     if (!g) return null;
@@ -85,6 +90,9 @@ const started = Date.now();
 const out = await runRecipe(api, { recipe, values, assets: [...assets, song], fps: FPS, replaceTimeline: true, plan, seed: 7 });
 if (!out.action) throw new Error(out.messages.join('; '));
 for (const m of out.messages) console.log(`note: ${m}`);
+// RS-1255: the pick audit the build review runs in the app
+console.log(`pick audit: ${out.result.report.momentUse?.length ?? 0} shots checked against ${analysed.size} analysed clips`);
+for (const f of pickFindings({ used: out.result.report.momentUse ?? [], features: analysed, fps: FPS, usedIds: new Set(out.result.report.usedAssetIds), clipCount: assets.length, label: (id) => `#${assets.findIndex((a) => a.id === id) + 1}`, isImage: (id) => assets.find((a) => a.id === id)?.kind === 'image' })) console.log(`pick audit: ${f.issue} -> ${f.fix}`);
 let h: History = { past: [], present: emptyProjectDoc(), future: [] };
 h = historyReduce(h, { type: 'batch', label: 'pool', actions: [...assets, song].map((asset) => ({ type: 'addAsset', asset })) } as never);
 h = historyReduce(h, bindTracks(out.action, activeTimeline(h.present)));
@@ -96,5 +104,12 @@ try {
   const opts = await h264RenderOptions(p.media.codec, { preferSpeed: true });
   await withExportPermit(() => renderTimeline({ state: p.state, project: p.project, timelineId: p.timelineId, outputLocation: resolve(outArg), codec: p.media.codec, frameRange: p.frameRange, scale: p.scale, videoBitrate: p.videoBitrate, ...opts }));
 } finally { await submission.cleanup(); }
+// the app's "Make it Instagram-ready": check the file against the Instagram rules, fix only the sound when that is all that fails
+{
+  const preset = presetForCanvas(REEL_PRESETS['instagram-reel']!, tl.width, tl.height) ?? REEL_PRESETS['instagram-reel']!;
+  const fin = await finalizeForInstagram(resolve(outArg), preset);
+  console.log(`instagram check: ${fin.ok ? (fin.reencoded ? 'fixed (sound re-encoded)' : 'passed as rendered') : 'FAILED'}`);
+  for (const c of (fin.second ?? fin.first).checks) console.log(`  ${c.id} ${c.status} ${c.detail}`);
+}
 console.log(`exported ${resolve(outArg)} (${(out.result.report.totalFrames / FPS).toFixed(1)} s) in ${((Date.now() - started) / 1000).toFixed(0)} s`);
 rmSync(work, { recursive: true, force: true });

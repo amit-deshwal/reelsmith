@@ -1,5 +1,4 @@
 import type { Recipe } from '../../../shared/reelsmith/recipe';
-import type { ReelsBrief } from '../../../shared/reelsmith/brief';
 import type { BatchAction } from '../../editor/reducerActions';
 import type { ShotTag } from '../shotTags';
 import type { FocusRect } from '../cropFocus';
@@ -88,16 +87,6 @@ export interface AssembleInput {
   texts: Record<string, string>;
   params: Record<string, string | number | boolean>;
   seed: number;
-  /** validated AI picks, in shot order (RS-106); gaps are filled by the heuristic */
-  preferredAssetIds?: string[];
-  /** The user's chosen opening clip: it becomes the first shot (beat-montage recipes). */
-  openerAssetId?: string;
-  /** Optional B-roll order for captioned stories. */
-  preferredBrollAssetIds?: string[];
-  /** RS-108: regenerate one section only, never reusing clips placed elsewhere */
-  /** 0..1: how much randomness (from the seed) may override score when picking; 0 = pure score */
-  variety?: number;
-  onlySection?: { name: string; excludeAssetIds: string[] };
   /** RS-1201: the agent's plan, for director@1 */
   plan?: ReelPlan;
 }
@@ -124,6 +113,8 @@ export interface AssembleReport {
   /** director@1 (RS-1216): each section's clips as cast and the source frame of each shot, so a fix can rebuild them unchanged */
   sectionClips?: string[][];
   sectionMoments?: number[][];
+  /** RS-1255: every footage shot placed: its clip, where in the clip it starts (source frame) and how long it plays, for the pick audit */
+  momentUse?: Array<{ section: number; assetId: string; inFrame: number; frames: number }>;
   /** seconds of each shot (cuts on the base lane), for the pace check against a reference reel */
   shotSec?: number[];
   /** RS-1228: how far the subject jumps across the frame at each fast cut (0..1 of the frame), by section */
@@ -145,15 +136,6 @@ export interface RecipeRunRecord {
   assetIds: string[];
   /** RS-108: asset ids per recipe input, so the run can be rebuilt from chat */
   media?: Record<string, string[]>;
-  preferredAssetIds?: string[];
-  preferredBrollAssetIds?: string[];
-  /** The clip the user chose to open the reel with */
-  openerAssetId?: string;
-  selectionRationale?: string;
-  /** RS-1002: the guide shown while preparing this recipe run. */
-  brief?: ReelsBrief;
-  /** RS-1002: clip requests the user confirmed by hand when no shot classifier was available. */
-  briefConfirmedShotRequests?: number[];
 }
 
 export interface AssembleResult {

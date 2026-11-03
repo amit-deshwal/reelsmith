@@ -53,7 +53,7 @@ assert.deepEqual((cleared.actions[1] as unknown as { effects: Array<{ id: string
 assert.equal(planLook(items, lookById('retro-vhs')!, ['b']).clips, 1, 'scope: one clip');
 
 // the agent tool: one undo step, scope and errors
-const deps: ReelsDeps = { api: {} as never, recipes: [], kv: { get: async () => undefined, set: async () => undefined } };
+const deps: ReelsDeps = { api: {} as never };
 let h: History = { past: [], present: emptyProjectDoc(), future: [] };
 for (const [id, start] of [['v1', 0], ['v2', 60]] as const) h = historyReduce(h, { type: 'add', startFrame: start, item: { id, track: 'V1', kind: 'video', name: id, src: `/${id}.mp4`, durationInFrames: 60 } } as never);
 let selectedId: string | null = null;

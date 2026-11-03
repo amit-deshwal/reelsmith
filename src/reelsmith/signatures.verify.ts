@@ -7,14 +7,12 @@ import { activeTimeline, type TimelineItem } from '../editor/types';
 import { REEL_LOOKS, isLookEffect } from './looks';
 import { SIGNATURES, planSignature, signatureById } from './signatures';
 import { REELS_TOOL_NAMES } from './agent/reelsToolSchemas';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 
 assert.ok(REELS_TOOL_NAMES.has('reels_apply_signature'));
 assert.ok(SIGNATURES.length >= 4 && SIGNATURES.length <= 6, 'a few distinct styles, not a catalogue');
-const recipeIds = new Set(readdirSync('recipes').filter((f) => f.endsWith('.recipe.json')).map((f) => f.replace('.recipe.json', '')));
 for (const s of SIGNATURES) {
   assert.ok(REEL_LOOKS.some((l) => l.id === s.look), `${s.id}: look exists`);
-  assert.ok(s.recipes.length > 0 && s.recipes.every((r) => recipeIds.has(r)), `${s.id}: recipes exist`);
   assert.ok(!s.hook || /^builtin:fx-/.test(s.hook.assetId), `${s.id}: hook is a clip effect`);
 }
 assert.equal(new Set(SIGNATURES.map((s) => s.transition ?? 'hard')).size, SIGNATURES.length, 'each signature has its own cut style');
@@ -41,7 +39,7 @@ assert.ok(items.every((i) => i.effects?.some(isLookEffect)), 'every clip has the
 assert.equal((state().transitions ?? []).length, plan.cuts);
 assert.ok((state().transitions ?? []).every((t) => t.type === 'chroma-glitch'));
 
-// another signature replaces this one; existing transitions are left to the recipe
+// another signature replaces this one; existing transitions are left alone
 const retro = planSignature(state(), signatureById('retro-tape')!);
 assert.equal(retro.cuts, 0, 'transitions already placed are not doubled');
 h = historyReduce(h, { type: 'batch', label: retro.label, actions: retro.actions });

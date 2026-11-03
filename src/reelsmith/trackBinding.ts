@@ -28,14 +28,28 @@ export function bindTracks(action: BatchAction, tl: TimelineState, newId: () => 
   const known = new Set(timelineTrackIds(tl));
   const map = new Map<string, TrackId>();
   const creates: AtomicAction[] = [];
+  const unresolved: string[] = [];
   for (const name of [...names].sort(laneOrder)) {
     const kind = symbolicKind(name);
     const existing = resolveTrackId(tl, name, kind);
     if (existing && trackKind(tl, existing) === kind) { map.set(name, existing); continue; }
     if (known.has(name)) { map.set(name, name); continue; }
+    unresolved.push(name);
+  }
+  // lanes with no matching alias (titles, tiles) take a spare video lane left by an earlier build (empty, or about to
+  // be cleared) that sits above the lanes already bound, so rebuilding a reel does not pile up empty lanes
+  const clearing = action.actions[0]?.type === 'clear';
+  const busy = new Set(tl.items.map((item) => item.track));
+  const topFirst = timelineTrackIds(tl);
+  const mappedAt = [...map.values()].map((id) => topFirst.indexOf(id)).filter((i) => i >= 0);
+  const ceiling = mappedAt.length ? Math.min(...mappedAt) : topFirst.length;
+  const spare = topFirst.slice(0, ceiling).filter((id) => trackKind(tl, id) === 'video' && !new Set(map.values()).has(id) && (clearing || !busy.has(id))).reverse();
+  for (const name of unresolved) {
+    const reuse = symbolicKind(name) === 'video' ? spare.shift() : undefined;
+    if (reuse) { map.set(name, reuse); continue; }
     const id = newId();
     map.set(name, id);
-    creates.push({ type: 'track.create', track: { id, kind } });
+    creates.push({ type: 'track.create', track: { id, kind: symbolicKind(name) } });
   }
   // caption settings with no track (Captioned Story) need a caption track to live on; without one the
   // captions are stored nowhere the Captions panel or preview can see. Reuse the timeline's caption track if it has one.

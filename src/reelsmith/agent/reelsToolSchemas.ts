@@ -14,41 +14,6 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
     input_schema: { type: 'object', properties: {} },
   },
   {
-    name: 'reels_plan_options',
-    description: [
-      'Plan a reel step 1: one call returns every imported asset (assetId, name, kind, seconds, orientation) and every bundled recipe with its',
-      'ratios, target length, media inputs (accept, min, max), text inputs (maxLength) and params. Songs (imported ones and libraryMusic) say beat steady/none/unknown and recipes say needsBeat: never pair a needsBeat recipe with a song whose beat is none. Use it to pick the recipe that fits what the user',
-      'wants and what they imported, and to check there is enough footage, before calling reels_plan_assemble.',
-    ].join(' '),
-    input_schema: { type: 'object', properties: {} },
-  },
-  {
-    name: 'reels_plan_assemble',
-    description: [
-      'Plan a reel step 2: build the reel from your plan with a bundled recipe, as one undo step, and remember the run so reels_recut_section and',
-      'propose_selection work afterwards. Media you do not name is filled automatically (unused clips for clip inputs, the only song for a song input).',
-      'Refuses with a clear error when footage is too short or a value is invalid; nothing is changed then. When the timeline already has items, ask the',
-      'user first and pass replaceTimeline true.',
-    ].join(' '),
-    input_schema: {
-      type: 'object',
-      properties: {
-        recipeId: { type: 'string', description: 'Recipe id from reels_plan_options.' },
-        ratio: { type: 'string', description: 'One of the recipe ratios, e.g. 9:16 (default: the recipe default).' },
-        media: { type: 'object', additionalProperties: { type: 'array', items: { type: 'string' } }, description: 'Optional: input id to assetIds in the order you want. Omit an input to fill it automatically.' },
-        texts: { type: 'object', additionalProperties: { type: 'string' }, description: "Recipe text inputs by id (e.g. the Travel Diary line). Use the user's own words; within maxLength." },
-        params: { type: 'object', additionalProperties: {}, description: 'Optional recipe params by id (see params in reels_plan_options).' },
-        targetSec: { type: 'number', description: 'Length the user asked for, in seconds (kept inside the recipe limits). Recipes marked lengthFixed ignore it; the result says the real length (seconds) and a lengthNote when it misses by more than 1.5 s.' },
-        music: { type: 'string', description: 'Optional song: a name or id from libraryMusic or an imported song. Omit it and a recipe that needs a song uses the first library song with a steady beat, added for you. Never add songs with add_audio for a plan.' },
-        fallbackRecipeId: { type: 'string', description: 'Optional recipe that needs no beat (needsBeat false); built instead, in the same call, if the song turns out to have no steady beat.' },
-        enhanceSmallPhotos: { type: 'boolean', description: 'Optional: true upscales photos that would be enlarged a lot (small or messaged photos) 2x with a local model before building, so they stay sharp and full-frame. Slower (seconds per photo); use it only when the user asks for best quality or the photos are small (see size in reels_plan_options). Does nothing if the enhancer is not installed; the result messages say how many were enhanced.' },
-        seed: { type: 'number', description: 'Optional seed; same plan and seed give the same reel.' },
-        replaceTimeline: { type: 'boolean', description: 'Pass true only after the user agreed to replace what is on the timeline.' },
-      },
-      required: ['recipeId'],
-    },
-  },
-  {
     name: 'reels_apply_look',
     description: [
       'Apply a reel look: one undo step that stacks grade, glow, lens and texture effects on every video/photo clip (or only the selected one).',
@@ -77,7 +42,7 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
       'Choose by what the footage shows, not only the words: neon-pulse is for dark night footage only (it washes daylight and white clothes magenta); bright daytime footage is cinematic-drift (the default for "unique/thrilling/bold") or golden-memory.',
       'cinematic-drift (travel, landscapes, calm: teal/orange, flare on the opening, whip-blur cuts), neon-pulse (nightlife, parties, energetic: bloom, zoom-blur punch, chroma-glitch cuts),',
       'golden-memory (couples, sunsets, friends, nostalgic: warm grade, light-leak cuts), retro-tape (throwback, funny: VHS, flash cuts), clean-minimal (lifestyle, portraits, fashion: soft colour, hard cuts, nothing else).',
-      'Transitions are only added when the reel has none yet (Travel Diary already places its own); pass transitions false to keep hard cuts. Replaces a previous signature or look.',
+      'Transitions are only added when the reel has none yet (a directed reel places its own); pass transitions false to keep hard cuts. Replaces a previous signature or look.',
     ].join(' '),
     input_schema: {
       type: 'object',
@@ -86,32 +51,6 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
         transitions: { type: 'boolean', description: 'false: look and accent only, keep hard cuts. Default true.' },
       },
       required: ['signature'],
-    },
-  },
-  {
-    name: 'reels_run_info',
-    description: [
-      'Read which Reelsmith recipe built this timeline: recipe id/version, assembler, seed, params, texts, the chosen media per input,',
-      'and the recipe sections present on the timeline with their clip counts. Returns run:null when the timeline was not built by a recipe.',
-      'Call this before reels_recut_section or reels_selection_candidates.',
-    ].join(' '),
-    input_schema: { type: 'object', properties: {} },
-  },
-  {
-    name: 'reels_recut_section',
-    description: [
-      'Re-cut one section of a recipe-built reel (e.g. "body", "intro", "drop") with a fresh pick of shots, as one undo step.',
-      'Clips in other sections and anything the user added by hand are kept; clips used elsewhere are not reused.',
-      'Use when the user asks things like "re-cut the body" or "different shots for the intro". Section names come from reels_run_info.',
-    ].join(' '),
-    input_schema: {
-      type: 'object',
-      properties: {
-        section: { type: 'string', description: 'Section name from reels_run_info.sections.' },
-        seed: { type: 'number', description: 'Optional seed; omit for a new random variation.' },
-        useNewClips: { type: 'boolean', description: 'Default true: clips imported after the reel was built can be picked too. Pass false to use only the clips the reel was built from.' },
-      },
-      required: ['section'],
     },
   },
   {
@@ -146,44 +85,6 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
         flashSec: { type: 'number', description: 'Length of one flash in seconds, 0.3 to 0.6 (default 0.5).' },
         accent: { type: 'boolean', description: 'White flash between shots (default true).' },
       },
-    },
-  },
-  {
-    name: 'reels_selection_candidates',
-    description: [
-      'For "let my agent choose the shots": list the candidate clips of the recipe run as a compact table (assetId, name, seconds,',
-      'heuristic score 0..1, near-duplicate groupId, best window start, capture time) plus how many shots (slots) the reel needs.',
-      'Returns selectionKey, framesAllowed and separate B-roll candidates/slot counts for captioned stories. When framesAllowed, call reels_selection_sheet once to see the best candidates in one image, then call propose_selection with the returned selectionKey.',
-    ].join(' '),
-    input_schema: { type: 'object', properties: {} },
-  },
-  {
-    name: 'reels_selection_sheet',
-    description: [
-      'One look at the candidates: returns numbered contact sheet image(s) of the best ~40 candidate clips (one frame each, at its best window)',
-      'plus a legend mapping each cell number to assetId, name and score. Call it once after reels_selection_candidates instead of inspecting clips',
-      'one by one (that is slow), judge every cell in this single look, then call propose_selection with the same selectionKey.',
-      'Needs frame sharing on; otherwise choose from the candidate table.',
-    ].join(' '),
-    input_schema: { type: 'object', properties: {} },
-  },
-  {
-    name: 'propose_selection',
-    description: [
-      'Answer a shot-selection request: the assetIds to use, in shot order (at most `slots` from reels_selection_candidates).',
-      'Unknown, repeated or near-duplicate picks are rejected and reported; empty slots are filled by the heuristic.',
-      'Works across all recipes; captioned stories accept separate brollAssetIds; texts can set the recipe text inputs (textInputs) in the same rebuild. Valid picks lead, remaining slots use the heuristic. Pass selectionKey from the latest candidates call: stale picks are refused. The rebuild is one undo step and manual items are kept; no usable picks leave the current reel unchanged.',
-    ].join(' '),
-    input_schema: {
-      type: 'object',
-      properties: {
-        selectionKey: { type: 'string', description: 'Exact selectionKey from the latest reels_selection_candidates response. Refresh candidates after any timeline/media change.' },
-        assetIds: { type: 'array', items: { type: 'string' }, description: 'Chosen primary asset ids in shot order.' },
-        brollAssetIds: { type: 'array', items: { type: 'string' }, description: 'Optional captioned-story B-roll ids, in slot order; use brollCandidates and brollSlots.' },
-        texts: { type: 'object', additionalProperties: { type: 'string' }, description: "Optional text inputs to set in the same rebuild, keyed by the textInputs ids from reels_selection_candidates (e.g. the Travel Diary line, five phrases split with '/'). Keep the user's words; within maxLength." },
-        rationale: { type: 'string', description: 'One or two sentences on why, shown to the user.' },
-      },
-      required: ['selectionKey', 'assetIds'],
     },
   },
   ...DIRECTOR_TOOL_SCHEMAS,
@@ -301,5 +202,5 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
 ];
 
 export const REELS_TOOL_NAMES = new Set(REELS_TOOL_SCHEMAS.map((t) => t.name));
-export const REELS_READ_TOOL_NAMES = ['reels_review_export', 'reels_lint', 'reels_plan_options', 'reels_director_options', 'reels_director_treatment', 'reels_director_critique', 'reels_run_info', 'reels_selection_candidates', 'reels_selection_sheet'] as const;
-export const REELS_EDIT_TOOL_NAMES = ['reels_plan_assemble', 'reels_director_build', 'reels_director_fix', 'reels_director_reshape', 'reels_custom_shader', 'reels_custom_graphic', 'reels_time_effect', 'reels_freeze_frame', 'reels_reverse', 'reels_clean_speech', 'reels_restyle_text', 'reels_apply_look', 'reels_apply_signature', 'reels_recut_section', 'reels_snap_cuts_to_beats', 'reels_strobe', 'propose_selection'] as const;
+export const REELS_READ_TOOL_NAMES = ['reels_review_export', 'reels_lint', 'reels_director_options', 'reels_find_shots', 'reels_director_treatment', 'reels_director_critique'] as const;
+export const REELS_EDIT_TOOL_NAMES = ['reels_director_build', 'reels_director_fix', 'reels_director_reshape', 'reels_custom_shader', 'reels_custom_graphic', 'reels_time_effect', 'reels_freeze_frame', 'reels_reverse', 'reels_clean_speech', 'reels_restyle_text', 'reels_apply_look', 'reels_apply_signature', 'reels_snap_cuts_to_beats', 'reels_strobe'] as const;

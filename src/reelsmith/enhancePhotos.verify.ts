@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { parseRecipe } from '../../shared/reelsmith/recipe';
 import type { MediaAsset } from '../editor/types';
 import { ENHANCE_ABOVE, ENHANCE_PHOTOS_PARAM, coverEnlargement, prepareAssembly, type AnalyzeApi } from './runRecipe';
+import { sampleRecipe } from './runFixtures';
 import { defaultValues } from './setupForm';
 import { upscaleName } from '../../server/reelsmith/upscale';
 
@@ -11,8 +10,7 @@ assert.equal(coverEnlargement(800, 600, { width: 1080, height: 1920 }), 3.2);
 assert.ok(coverEnlargement(4000, 3000, { width: 1080, height: 1920 }) < ENHANCE_ABOVE, 'a 12 MP photo is never enhanced');
 assert.ok(coverEnlargement(1080, 1920, { width: 1080, height: 1920 }) <= 1);
 
-const r = parseRecipe(readFileSync('recipes/photo-dump.recipe.json', 'utf8'));
-assert.ok(r.ok);
+const recipe = sampleRecipe();
 const photo = (id: string, width: number, height: number): MediaAsset => ({ id, name: id, kind: 'image', src: `/media/uploads/${id}.jpg`, width, height, durationInFrames: 90 });
 const assets = [photo('small', 800, 600), photo('big', 4000, 3000), photo('portrait', 900, 1200), photo('p2', 3000, 4000), photo('p3', 3000, 4000), photo('p4', 3000, 4000)];
 const calls: string[] = [];
@@ -21,12 +19,12 @@ const api: AnalyzeApi = {
   musicGrid: async () => null,
   upscale: async (a) => { calls.push(a.id); return a.id === 'portrait' ? null : { src: `/media/uploads/${a.id}.x2.jpg`, width: a.width! * 2, height: a.height! * 2 }; },
 };
-const inputId = r.recipe.inputs.find((i) => i.kind === 'media' && i.id !== r.recipe.music?.inputId)!.id;
+const inputId = recipe.inputs.find((i) => i.kind === 'media' && i.id !== recipe.music?.inputId)!.id;
 const run = async (enhance: boolean) => {
-  const values = defaultValues(r.recipe);
+  const values = defaultValues(recipe);
   values.media[inputId] = assets.map((a) => ({ assetId: a.id, kind: 'image' as const }));
   values.params[ENHANCE_PHOTOS_PARAM] = enhance;
-  return prepareAssembly(api, { recipe: r.recipe, values, assets, fps: 30, replaceTimeline: true, seed: 1 });
+  return prepareAssembly(api, { recipe, values, assets, fps: 30, replaceTimeline: true, seed: 1 });
 };
 
 const off = await run(false);

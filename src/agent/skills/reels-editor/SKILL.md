@@ -1,7 +1,7 @@
 ---
 name: reels-editor
 description: |
-  Edit Instagram Reels (9:16, 1080x1920) in Reelsmith: beat-aware cuts, the Instagram safe zone, recipe-built reels (re-cut a section, re-pick shots), and a lint pass before finishing. Use for any reel, Instagram, 9:16, vertical short, "plan a reel", "make me a reel about…", "re-cut the body", "snap to the beat", or "choose the shots" request.
+  Edit Instagram Reels (9:16, 1080x1920) in Reelsmith: beat-aware cuts, the Instagram safe zone, directed reels (changes go through the director), and a lint pass before finishing. Use for any reel, Instagram, 9:16, vertical short, "make me a reel about…", "snap to the beat", or a change to a reel that is already built.
 ---
 
 # Reels editor
@@ -18,20 +18,13 @@ You are editing a short vertical video for Instagram Reels. The user cares about
 6. **Say what changed, in plain words.** Two or three short lines: what you cut, moved or added, and where (seconds, not frames).
 7. **Say when something is impossible.** If the footage is too short, a clip is missing, or a request conflicts with the safe zone or the beat, say so plainly and offer the closest option. Never pad with repeated clips without asking.
 
-## Plan a reel (the user describes an idea; you build it)
+## A new reel (the user describes an idea; you direct it)
 
-The user should not have to write a prompt for you. When they describe a reel ("trip to Goa, 12 clips, chill, under 20 s") or say "plan a reel":
+A new reel is always directed: load the `reels-director` skill and run its stages (`reels_director_options` to watch the footage, `reels_director_treatment`, `reels_director_build`, then `reels_director_critique` and `reels_director_fix`). The user should not have to write a prompt for you. When they describe a reel ("trip to Goa, 12 clips, chill, under 20 s"), ask only what is missing (what it is about, the vibe or pace, and the song if none is imported), never more than three questions, and skip every question already answered. If nothing is imported yet, say what to import and stop. If the timeline is not empty, ask before replacing it.
 
-1. **One look.** Call `reels_plan_options` once: it lists the imported media and every recipe with its inputs, text limits and params. If nothing is imported yet, say what to import (and how many clips) and stop.
-2. **Ask only what is missing**, in one short message, never more than three questions: what the reel is about / the line they want on screen, the vibe or pace, and the song if none is imported and the recipe needs one. Skip every question the user already answered.
-3. **Pick one recipe** by fit: footage count and type (photos only → Photo Dump / Collage; talking clips → Captioned Story; trip clips + a song → Travel Diary / Travel Beat Montage; a day in order → Mini Day Vlog; a group → Gang Reel). Check min/max against what was imported; if the footage is too short, say so and offer the closest recipe.
-4. **Write the text inputs** in the user's own words and tone; describe only what the clips show; stay inside `maxLength`. Set params only when the user's vibe asks for it.
-5. **Build once** with `reels_plan_assemble` (name the media only when order matters). If the timeline is not empty, ask before passing `replaceTimeline: true`.
-6. **Finish**: `reels_lint`, then two or three plain lines: the recipe and why, length in seconds, and what they can ask next ("re-cut the body", "different opener", "snap to the beat"). Offer `propose_selection` only if they want you to choose the shots.
+Songs: do not use `list_audio` / `add_audio` for a directed reel; the plan names the imported song. Small photos are enlarged 2x with a local model only when the user asks for best quality. Beat check: never cut hard on a song whose beat is `none`; tell the user and keep the clips' own sound or ask for another song.
 
-Songs: do not use `list_audio` / `add_audio` for a plan. `reels_plan_options` lists `libraryMusic` (with its beat status); `reels_plan_assemble` adds a library song by itself when the recipe needs music and none is imported, or the one you name in `music`. Small photos: `enhanceSmallPhotos: true` on `reels_plan_assemble` upscales photos that would be enlarged a lot 2x with a local model (seconds each, originals untouched); use it for "best quality" or when `size` shows photos under ~1500 px; it does nothing if the enhancer is not installed. Length: for photo reels `targetSec` picks an evenly spread subset of photos that fits (the result says `trimmedToPhotos`).
-
-Beat check: `reels_plan_options` marks songs `beat` steady/none/unknown and recipes `needsBeat`. Never pair a `needsBeat` recipe (Beat Cut, Gang Reel, Travel Beat Montage, Travel Diary, Place Stats) with a song whose beat is none; pass a beat-free recipe such as Mini Day Vlog as `fallbackRecipeId` when the song is unknown. Plain plan request: no look, no effects and no `view_timeline_frames`; suggest them in the last lines. When the user asks for effects or a mood ("best effects", "unique", "thrilling", "cinematic"), do apply them: one `reels_apply_look` that fits, plus one or two effects from the lists below with `manage_effects`; never none. Length: pass the user's seconds as `targetSec`; recipes marked `lengthFixed` (Travel Diary) follow the song tempo, so pick another recipe when the length matters, and tell the user the real length from `seconds`.
+When the reel is built, finish with `reels_lint` and two or three plain lines: what it is, the length in seconds, and what they can ask next ("make the ending stronger", "different opener", "snap to the beat").
 
 ## Work fast (every model turn costs seconds)
 
@@ -51,7 +44,7 @@ Reels cut hard by default. When the user asks for a transition ("add a bars tran
 - **Reels transitions (cinematic, 0.3–0.6 s):** `zoom-through` (punch in/out with streaks), `whip-blur` (a whip with motion blur, any direction), `spin-zoom` (spin and scale), `light-leak` (warm film bloom, from the side given by `direction`), `chroma-glitch` (RGB tear), `fluted-glass` (ribbed glass), `ripple-dissolve` (water ring from the centre), `tile-pop` (mosaic of rounded windows), `cube-turn` (a cube turns, left/right/up/down), `slide-over` (clean slide with parallax and shadow), `pixelate` (pixel dissolve), `film-burn` (warm film burn from a corner), `flip-3d` (3D card spin), `mirror-flip` (flat coin flip), `prism-flash` (light band with rainbow fringes) and `brush-wipe` (painted on in brush strokes). Add them like the others (`assetId:"builtin:tr-<type>"`, no `durationInFrames`); set `direction` for the directional ones.
 - **Pick by the reel's mood, one family per reel:** fast/energetic or a beat drop → `zoom-through`, `whip-blur`, `spin-zoom`; techy or gaming → `chroma-glitch`, `pixelate`; travel, golden hour, calm → `light-leak`, `film-burn`, `ripple-dissolve`, `fluted-glass`; fashion or nights out → `prism-flash`; art and journals → `brush-wipe`; sports → `flip-3d`; before/after → `mirror-flip`; friends, photo dumps, collages → `tile-pop`; place changes or before/after → `cube-turn`; vlogs and talking reels → `slide-over` or `whip-blur`. Put the transition's peak on a beat (cut on the beat first) and keep them off shots under about 0.6 s.
 - **Break in on the beat:** put the cut on a beat first (`reels_snap_cuts_to_beats`), then add the transition into the clip that starts on it.
-- **One style per reel.** Pick one break-in and repeat it, or vary only when the user asks for variety. Recipes that say `auto` rotate styles on purpose.
+- **One style per reel.** Pick one break-in and repeat it, or vary only when the user asks for variety. 
 - **Hard cut for fast flashes.** Shots under about 0.6 s (strobe hooks, beat-by-beat drops) stay hard cuts or use the plain `flash` transition; do not put a bars or window break-in on them.
 - A transition needs two adjacent clips on the same track; if there is a gap, say so instead of moving clips.
 
@@ -61,7 +54,7 @@ When the user asks for a mood, a vibe or "make it look cinematic/retro/…", cal
 
 ## Signature styles (one considered treatment)
 
-`reels_apply_signature` is the answer to "unique", "thrilling", "cinematic", "bold" or "use the best effects": one look on every clip, one accent effect on the opening shot only, and one transition type on the cuts, in one undo step. Pick by mood: `cinematic-drift` (travel, landscapes, calm), `neon-pulse` (nightlife, parties, energetic), `golden-memory` (couples, sunsets, friends, nostalgic), `retro-tape` (throwback, funny), `clean-minimal` (portraits, lifestyle, fashion: soft colour, hard cuts). `reels_plan_options` lists them with the recipes that suit each. Choose by what the footage shows, not only the user's words: `neon-pulse` is for dark night footage only (on daylight it turns white clothes and sky magenta), bright daytime footage takes `cinematic-drift` (the default for "unique/thrilling/bold") or `golden-memory`. Call it once after the build and add nothing on top: restraint is what makes a reel look expensive, and more effects only make it look busy. Never stack a signature, a look and hand-added effects.
+`reels_apply_signature` is the answer to "unique", "thrilling", "cinematic", "bold" or "use the best effects": one look on every clip, one accent effect on the opening shot only, and one transition type on the cuts, in one undo step. Pick by mood: `cinematic-drift` (travel, landscapes, calm), `neon-pulse` (nightlife, parties, energetic), `golden-memory` (couples, sunsets, friends, nostalgic), `retro-tape` (throwback, funny), `clean-minimal` (portraits, lifestyle, fashion: soft colour, hard cuts). Choose by what the footage shows, not only the user's words: `neon-pulse` is for dark night footage only (on daylight it turns white clothes and sky magenta), bright daytime footage takes `cinematic-drift` (the default for "unique/thrilling/bold") or `golden-memory`. Call it once after the build and add nothing on top: restraint is what makes a reel look expensive, and more effects only make it look busy. Never stack a signature, a look and hand-added effects.
 
 Picture quality: `reels_lint` reports shots enlarged more than 2x (soft) or 3x (blocky). Replace that shot, zoom it less or say the source is too small; never ship a blocky shot.
 
@@ -80,24 +73,13 @@ Apply with `manage_effects` (see `browse_library category=fx`). All have sliders
 - **Timed to the music (use this instead of a plain effect whenever the user mentions the beat, the drop, a build, "on the music", "only behind me"):** `reels_time_effect` with `timing` beat (punches on every `every` beats: `glitch`, `rgb-split`, `zoom-blur`, `shake`, `bounce`, `blackout`, `edge-glow`), drop (one hit that falls away: `zoom-blur`, `light-rays`, `bloom`; set `fromSec` to the drop), build (grows into `toSec`: `shake`, `zoom-blur`, `vignette`), fade (`light-leak`, `pro-mist`), steady. `strength` 0.6-0.8 usually looks better than 1. `region: "background"` keeps the person natural while the world changes (`duotone`, `sepia`, `thermal`, `pencil-sketch`); `region: "subject"` treats only them. Never compute beat times yourself; never stack two timed effects on the same beat.
 - **Creator effects:** `bounce` and `blackout` only through `reels_time_effect` with timing beat; `sparkle` (glints on small highlights: water, lights, jewellery), `flare-sweep` (a sun flare drifting across; golden hour, open sky). A label that follows a person (`follow-tag`) or a line behind the person is drawn by the director; to add one to a reel the director built, change that section of the plan (`textStyle: "follow-tag"`, or `textBehind: true`) with `reels_director_fix` (only that section is rebuilt; one undo step) rather than faking it with a text item.
 
-## Recipe-built reels
+## Changes to a built reel
 
-A reel made from the Recipes tab remembers its recipe run.
-
-- `reels_run_info`: which recipe, its params and texts, and the sections on the timeline (e.g. `intro`, `body`, `outro`, `drop`).
-- `reels_recut_section`: fresh shots for one section ("re-cut the body"). Other sections and clips the user added by hand are kept. Clips imported after the reel was built are picked from too (pass `useNewClips:false` to use only the original set).
-- To change rhythm ("cut every beat in the body"), re-cut the section, then `reels_snap_cuts_to_beats` with the wanted `every`.
+- A directed reel is changed with `reels_director_fix` (only the changed sections are rebuilt; with no arguments it returns the treatment and plan saved with the reel, also in a new chat). To change rhythm ("cut every beat in the body"), change that section's `params.every` there, then `reels_snap_cuts_to_beats` if the user wants cuts on the grid.
 - Talking clips ("remove the ums", "cut my retakes", "tighten my talking"): `reels_clean_speech` (level balanced unless they ask for more; `pauses` true when they want it tighter). Report the words it cut.
 - Backwards ("reverse that", "rewind the jump"): `reels_reverse` on the clip, or `fromSec`/`toSec` for a stretch of it; picture and sound play backwards, everything else stays. `forwards` true undoes it. Never fake it with keyframes or a negative speed.
 - Hook or closer ("add a flash opener"): `reels_strobe` with `mode` opener or closer. It adds 3 beat-cut flashes of different footage with white flashes between, on its own track above the reel. Needs music with a beat grid; keep the default 1.5 s unless asked.
 
-## Choosing the shots ("let my agent choose")
-
-1. `reels_selection_candidates` gives `selectionKey`, primary `slots` and candidates, optional `brollSlots`/`brollCandidates`, and `framesAllowed`. Scores, near-duplicate groups, best windows, capture times and short transcript excerpts help you choose.
-2. When `framesAllowed` is true, call `reels_selection_sheet` once: it returns numbered contact sheets of the best ~40 candidates and a legend of cell number to `assetId`. Judge all cells in that one look; do not inspect clips one by one with `view_asset_frames` (slow). When false, choose from text facts without requesting pictures.
-3. Call `propose_selection` with the exact `selectionKey`, primary `assetIds` in shot order (at most `slots`) and optional `brollAssetIds` (at most `brollSlots`). Never choose two from the same `groupId`. Keep vlog capture-time order; keep talking clips coherent. Refresh candidates when a stale-selection error occurs. Give a one-line rationale.
-4. Report the accepted picks, rejected picks and heuristic fills. If none are usable or the agent is unavailable, the current assembled reel remains usable.
-
-## Without a recipe
+## Without a directed reel
 
 Use the normal editing tools (`edit_item`, `split_item`, `move_item`, `apply_layout`, `edit_captions`). Music analysis lives in `music-intelligence`; for beat snapping on a hand-made timeline, `reels_snap_cuts_to_beats` analyses the song once and stores the grid on the music clip.

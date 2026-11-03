@@ -515,3 +515,17 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 - `src/generate/media-export.ts`: `applyExportGeometry` (set the canvas height to the preset and the timeline fps to the override) replaced by `exportOutputGeometry`, which only reports the output size; `resolution` and `fps` now go to `/export`, which scales by the shorter side and retimes. A 9:16 reel at 1080p came out 608x1080, laid out on a smaller canvas, and a 60 fps timeline exported at 30 played at half speed.
 - `src/generate/media-export.geometry.verify.ts`: asserts the new behaviour (9:16 at 1080p is 1080x1920; the timeline's own size and rate without overrides).
 - `assets/agent/openchatcut-tool-schemas.json`: regenerated (plan `voiceover`, `voiceoverStart`, `captions`).
+
+## Recipes removed (RS-1254, 2026-11-03)
+- `src/components/chat/chatPanelController.ts`: the `useTrendCapture(...)` call and its import are gone again (Trend Scout was removed); the file matches upstream apart from earlier patches.
+- `src/components/dashboard/DashboardViews.tsx`: `<RecipeHome ... />` became `<ReelHome onStart={...} />` (one import, one element).
+- `src/components/dashboard/useDashboardModel.ts`: the prop `onStartRecipe` (it carried a recipe id, a brief and a prompt) is `onStartReel?: (ratio) => Promise<void>` (RS-1257).
+- `src/app/useDashboardActions.ts`: `onStartReel(ratio)` starts a directed project (`directorProjectDoc`); the bundled catalogue and saved reels are gone (RS-1257).
+- `src/library/LibraryPanel.tsx`: the main tab `Recipes` is `Director` and renders `DirectorPanel` (was `RecipesPanel`) with `initialRatio`, `assets`, `items`, `selectedItem`, `onApply`, `onAskAgent`; the handoff is `pendingDirectorStart`/`clearDirectorStart` from `directorStart.ts` (RS-1257).
+- `server/plugins/index.ts`: `userRecipesPlugin()` and its import removed (RS-1257); `server/data-dir.ts`: the `user-recipes` entry of the relocation list removed.
+- `server/reelsmith/analyze-plugin.ts` (ours): the route `/api/reelsmith/preview` and its import are gone with `previewRender.ts`.
+- `src/agent/skills/skills-catalog.ts`: the `reels-trends` entry removed; the counts in `skills-catalog.verify.ts`, `skill-loading.verify.ts`, `plugin-skills.verify.ts` and `components/chat/workflow-starters.verify.tsx` follow (one skill fewer).
+- `src/agent/external-tool-policy.ts`: the seven recipe tools are out of the lists, `reels_find_shots` is in the read-only list.
+- `src/agent/tools.ts`: one comment.
+- `scripts/verify-discovery.mjs`: the deleted `recipeGallery.verify.tsx` is out of the slow list.
+- `assets/agent/openchatcut-tool-schemas.json`: regenerated (seven tools out, `reels_find_shots` in).

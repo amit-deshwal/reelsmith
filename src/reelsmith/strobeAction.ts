@@ -26,7 +26,7 @@ export function strobeForTimeline(
 ): StrobeOutcome {
   const music = findMusicItem(state);
   const grid = readBeatGrid(music);
-  if (!music || !grid) return { ok: false, error: 'the strobe hook needs music with a beat grid; run reels_snap_cuts_to_beats once, or assemble a recipe with a song' };
+  if (!music || !grid) return { ok: false, error: 'the strobe hook needs music with a beat grid; run reels_snap_cuts_to_beats once, or direct a reel with a song' };
   const bar = Math.max(1, grid.beatsPerBar);
   const frames = timelineBeatFrames(music, grid, state.fps, 1);
   const firstDownbeat = timelineBeatFrames(music, grid, state.fps, bar)[0];

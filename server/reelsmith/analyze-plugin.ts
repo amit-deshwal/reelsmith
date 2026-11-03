@@ -5,7 +5,6 @@
 //   POST /api/reelsmith/export-parity  { src, state } -> V8 check: 5 editor stills vs the same frames of the exported file
 //   POST /api/reelsmith/selection-sheet { items: [{ src, kind, atSec, label }] } -> numbered contact sheets for agent shot selection
 //   POST /api/reelsmith/upscale        { src, width, height } -> 2x enhanced copy of a small photo (`{ available:false }` when not installed)
-//   POST /api/reelsmith/preview        { project, seconds } -> 360x640 muted loop of an assembled recipe
 //   POST /api/reelsmith/still-frame    { src, atSec } -> a still of that moment saved next to the video (freeze frames)
 //   POST /api/reelsmith/frame-jpeg     { src, atSec } -> that frame at full size as base64 JPEG (the export's cover)
 //   POST /api/reelsmith/reverse-clip   { src, startSec, frames, fps } -> that span played backwards, saved next to the video
@@ -33,7 +32,6 @@ import { exportParity } from './exportParity.ts';
 import { fetchBrandKit } from './brandFetch.ts';
 import { noSoundCopy } from './noSoundCopy.ts';
 import { buildSelectionSheets, MAX_SHEET_CELLS } from './selectionSheet.ts';
-import { renderRecipePreview, type PreviewRequest } from './previewRender.ts';
 import { REEL_PRESETS, presetForCanvas } from '../../shared/reelsmith/instagramPreset.ts';
 
 const BUILTIN_AUDIO_DIR = fileURLToPath(new URL('../../assets/audio/', import.meta.url));
@@ -156,7 +154,6 @@ export function reelsmithAnalyzePlugin(): Plugin {
         const r = await upscalePhoto(file, { width, height });
         return { available: true, src: `/media/uploads/${encodeURIComponent(r.name)}`, width: r.width, height: r.height, cached: r.cached };
       });
-      route('/api/reelsmith/preview', async (body) => renderRecipePreview(body as unknown as PreviewRequest));
       route('/api/reelsmith/no-sound-copy', async (body) => {
         const file = localFile(body.src);
         if (typeof file !== 'string') throw new Error(file.error);

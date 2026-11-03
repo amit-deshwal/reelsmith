@@ -57,3 +57,23 @@ export async function loadShotTags(scopeId: string, assets: MediaAsset[], onProg
   if (!records.length || !promptCache) return new Map();
   return tagClips(records, promptCache);
 }
+
+/**
+ * RS-1256: the clips' frame vectors and the given phrases as vectors, for finding the shots that show a line. Clips not
+ * yet read are read first (the same pass as the shot tags, so a director run pays for it once). Null when the visual
+ * model is not installed; nothing is downloaded.
+ */
+export async function loadSemanticFrames(scopeId: string, assets: MediaAsset[], texts: string[]): Promise<{ frames: Array<{ assetId: string; sampleTime: number; vector: ArrayLike<number> }>; queries: number[][] } | null> {
+  if (!await packInstalled()) return null;
+  await loadShotTags(scopeId, assets).catch(() => undefined);
+  const revisions = new Map(assets.map((a) => [a.id, sourceRevisionOf(a)]));
+  const frames = (await readSemanticVectors(scopeId)).filter((r) => revisions.has(r.assetId) && r.sourceRevision === revisions.get(r.assetId));
+  if (!frames.length) return null;
+  const client = new SemanticClient();
+  try {
+    await client.load(typeof navigator !== 'undefined' && 'gpu' in navigator ? 'webgpu' : 'wasm');
+    const queries: number[][] = [];
+    for (const text of texts) queries.push(await client.embedText(text));
+    return { frames: frames.map((r) => ({ assetId: r.assetId, sampleTime: r.sampleTime, vector: r.vector })), queries };
+  } catch { return null; } finally { client.dispose(); }
+}

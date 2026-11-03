@@ -13,6 +13,7 @@ import { listCustomTransitions } from '../../gl/customTransitions';
 import { adoptCustomGraphics, listCustomGraphics } from '../director/customGraphics';
 import { commit, projectId, type ReelsDeps } from './reelsTools';
 import { reviewDirectorPlan } from '../director/review';
+import { pickFindings } from '../director/pickAudit';
 import { finishDirectorActions, sectionSpans, stampDirector } from '../director/finishBuild';
 import { lintReel } from '../reelLint';
 import { execFramesTool } from '../../agent/tools/frames-tool';
@@ -259,7 +260,7 @@ async function watchReference(asset: MediaAsset, fps: number, footage: ShotLogCl
 }
 
 /** The pictures the director sees, numbered #1.. in this order (options and build must agree); never the reference reel. */
-function directorVisuals(ctx: AgentContext): MediaAsset[] {
+export function directorVisuals(ctx: AgentContext): MediaAsset[] {
   const reference = directorSession(projectId(ctx))?.reference?.assetId;
   return (ctx.getDoc().assets ?? []).filter((a) => VISUAL.has(a.kind) && a.id !== reference).slice(0, 60);
 }
@@ -375,6 +376,15 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
     plan, spans, musicStartSec: report.musicStartSec, ...(song ? { song } : {}), ...(map ? { songMap: map } : {}),
     ...(report.eyeJumps?.length ? { eyeJumps: report.eyeJumps } : {}), ...(report.voices?.length ? { voices: report.voices } : {}),
   });
+  // RS-1255: are the picks the best of the footage? Soft or dark stretches, and strong clips left out
+  {
+    const features = new Map<string, ClipFeatures>();
+    visual.forEach((a, k) => { const f = session?.clips[k]?.features; if (f) features.set(a.id, f); });
+    findings.push(...pickFindings({
+      used: report.momentUse ?? [], features, fps, usedIds: new Set(report.usedAssetIds), clipCount: visual.length,
+      label: (assetId) => `#${visual.findIndex((a) => a.id === assetId) + 1}`, isImage: (assetId) => visual.find((a) => a.id === assetId)?.kind === 'image',
+    }));
+  }
   // RS-1220: the reel with eyes closed, against the song's beat grid
   const beatFrames = (grid?.beatTimesSec ?? []).map((t) => Math.round((t - report.musicStartSec) * fps)).filter((f) => f >= 0 && f <= report.totalFrames + fps);
   const sound = soundCheck({

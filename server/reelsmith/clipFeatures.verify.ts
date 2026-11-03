@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { captureTimeFromMetadata, extractClipFeatures } from './clipFeatures.ts';
 import { sourcePlacement } from '../../src/reelsmith/assembler/sourcePlacement';
-import { pickClips } from '../../src/reelsmith/assembler/beatMontage';
+import { pickClips } from '../../src/reelsmith/assembler/strobe';
 import { toAssemblyClips, groupNearDuplicates } from '../../src/reelsmith/assembler/scoring.ts';
 
 const dir = mkdtempSync(join(tmpdir(), 'rs-feat-'));

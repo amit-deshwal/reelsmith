@@ -1,13 +1,7 @@
-// RS-412: per-cut transitions named by the recipe. A section's `transition` is one of the names below or "auto",
-// which rotates through a list (default: bars, wide bars, window, flash) so no style repeats back to back.
-// An optional recipe param (assembler.options.transitionParam) lets the user override the whole reel in the setup form.
+// RS-412: per-cut transitions by name. A director section's `transition` is one of the names below.
 import type { AtomicAction } from '../../editor/reducerActions';
 import type { TransitionDirection, TransitionType } from '../../editor/types';
 import { GLT_TRANSITIONS } from '../glTransitionsMeta';
-import { stableId } from './rng';
-import type { PlannedShot } from './types';
-
-export const AUTO_TRANSITIONS = ['bars', 'wide-bars', 'window', 'flash'] as const;
 
 interface Spec { type: TransitionType; seconds: number; /** set on the transition after it is added (whip-blur up/down) */ direction?: TransitionDirection }
 /** Recipe names -> editor transitions. `cut` is absent: no transition item. */
@@ -58,54 +52,4 @@ export const RECIPE_TRANSITIONS: Record<string, Spec> = {
 /** The addTransition for a recipe name, followed by its direction when the name carries one (addTransition has no direction). */
 export function addRecipeTransition(spec: Spec, add: Extract<AtomicAction, { type: 'addTransition' }>): AtomicAction[] {
   return spec.direction ? [add, { type: 'setTransition', id: add.id, patch: { direction: spec.direction } }] : [add];
-}
-
-export interface TransitionContext {
-  options?: Record<string, unknown>;
-  params: Record<string, string | number | boolean>;
-  seed: number;
-  fps: number;
-  /** the recipe keeps the older solid flash accents (param flashOnBars) for `flash` sections */
-  legacyFlash: boolean;
-}
-
-/**
- * The transition into each shot (null = hard cut). Shot 0 never has one. `auto` cuts rotate through the list,
- * starting at an offset from the seed; with an override param set to a single name that name is used instead.
- */
-export function pickTransitions(shots: PlannedShot[], ctx: TransitionContext): Array<string | null> {
-  const listOpt = ctx.options?.autoTransitions;
-  const list = (Array.isArray(listOpt) ? listOpt.filter((x): x is string => typeof x === 'string' && x in RECIPE_TRANSITIONS) : []).length
-    ? (listOpt as string[]).filter((x) => x in RECIPE_TRANSITIONS)
-    : [...AUTO_TRANSITIONS];
-  const paramId = typeof ctx.options?.transitionParam === 'string' ? ctx.options.transitionParam : undefined;
-  const override = paramId ? String(ctx.params[paramId] ?? 'auto') : 'auto';
-  let rotation = Math.abs(Math.trunc(ctx.seed)) % list.length;
-  return shots.map((shot, i) => {
-    if (i === 0 || !shot.transition) return null;
-    let name = shot.transition;
-    if (name === 'auto') {
-      if (override === 'cut') return null;
-      name = override !== 'auto' ? override : list[rotation++ % list.length]!;
-    }
-    if (name === 'cut' || !(name in RECIPE_TRANSITIONS)) return null;
-    if (name === 'flash' && ctx.legacyFlash) return null;
-    return name;
-  });
-}
-
-/** addTransition actions for the picked names. `ids[i]` is the clip id of shot i; neighbours must be adjacent. */
-export function transitionActions(shots: PlannedShot[], ids: string[], names: Array<string | null>, ctx: TransitionContext, tag: string, scope: string | number): AtomicAction[] {
-  const out: AtomicAction[] = [];
-  names.forEach((name, i) => {
-    if (!name || i === 0) return;
-    const prev = shots[i - 1]!;
-    const shot = shots[i]!;
-    if (prev.startFrame + prev.durationInFrames < shot.startFrame - 2) return; // not adjacent
-    const spec = RECIPE_TRANSITIONS[name]!;
-    // at most half the shorter shot, so beat-length shots still hold still between transitions
-    const length = Math.max(2, Math.min(Math.round(spec.seconds * ctx.fps), Math.floor(Math.min(prev.durationInFrames, shot.durationInFrames) / 2)));
-    out.push(...addRecipeTransition(spec, { type: 'addTransition', id: stableId('rs-tr', tag, scope, i), incomingItemId: ids[i]!, transType: spec.type, durationInFrames: length }));
-  });
-  return out;
 }

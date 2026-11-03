@@ -1,32 +1,12 @@
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync } from 'node:fs';
-import { parseRecipe, type Recipe } from '../../shared/reelsmith/recipe';
+import type { Recipe } from '../../shared/reelsmith/recipe';
 import { RECIPE_SCHEMA } from '../../shared/reelsmith/recipe-schema';
 import type { AtomicAction } from '../editor/reducerActions';
-import { ALL_FX } from '../gl/fx/effects';
 import { isLookEffect, lookById, planLook } from './looks';
 import { SECTION_EFFECT_PREFIX, withRecipeLook } from './recipeLook';
 
 // every look a recipe may name exists
 for (const id of RECIPE_SCHEMA.properties.look.properties.reelLook.enum) assert.ok(lookById(id), `reelLook ${id} is a built-in look`);
-
-// every effect a bundled recipe names exists, with real parameter names inside their ranges
-const recipes: Recipe[] = readdirSync('recipes').filter((f) => f.endsWith('.recipe.json')).map((f) => {
-  const r = parseRecipe(readFileSync(`recipes/${f}`, 'utf8')); assert.ok(r.ok, f); return r.recipe;
-});
-for (const recipe of recipes) {
-  for (const fx of [...(recipe.look?.effects ?? []), ...recipe.structure.flatMap((s) => s.effects ?? [])]) {
-    const def = ALL_FX[fx.assetId];
-    assert.ok(def, `${recipe.id}: unknown effect ${fx.assetId}`);
-    for (const [key, value] of Object.entries(fx.overrides ?? {})) {
-      const prop = def.props?.find((p) => p.key === key);
-      assert.ok(prop, `${recipe.id}: ${fx.assetId} has no parameter ${key}`);
-      if (typeof value === 'number' && 'min' in prop && typeof prop.min === 'number' && typeof prop.max === 'number') {
-        assert.ok(value >= prop.min && value <= prop.max, `${recipe.id}: ${fx.assetId}.${key}=${value} outside ${prop.min}..${prop.max}`);
-      }
-    }
-  }
-}
 
 const add = (id: string, kind: string, section: string, effects?: unknown[]) => ({ type: 'add', item: { id, kind, track: 'V1', durationInFrames: 30, props: { rsSection: section }, ...(effects ? { effects } : {}) }, startFrame: 0 }) as unknown as AtomicAction;
 const actions = [add('v', 'video', 'drop', [{ id: 'match', assetId: 'builtin:match', overrides: {} }]), add('p', 'image', 'build'), add('t', 'text', 'drop'), add('m', 'audio', 'drop'), { type: 'clear' } as AtomicAction];

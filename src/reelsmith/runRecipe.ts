@@ -17,8 +17,6 @@ import { UPSCALE_SOFT } from './qualityLint';
 import { focusForRange, withTitleClear } from './titleClear';
 import { matchEffect, planShotMatch, type ColorStats } from './shotMatch';
 import { withRecipeLook } from './recipeLook';
-import { LINES_INPUT, reelTemplateOf, remixPlan } from './director/reelRecipe';
-import { ratioOf } from '../../shared/reelsmith/ratios';
 import type { BrandKit } from '../../shared/reelsmith/brandKit';
 
 export interface AnalyzeApi {
@@ -57,17 +55,12 @@ export interface RunOptions {
   /** clear existing items first */
   replaceTimeline: boolean;
   seed?: number;
-  /** validated AI picks (RS-106), in shot order */
-  preferredAssetIds?: string[];
-  /** the clip the user wants as the first shot */
-  openerAssetId?: string;
   /** RS-1201: the agent's plan for a director@1 run */
   plan?: ReelPlan;
   /** RS-1251: the plan's voiceover, resolved to its file and transcript */
   voiceover?: AssemblyVoiceover;
   /** RS-1253: the song's words for a lyric reel (ms in the song file) */
   lyrics?: AssemblyMusic['lyrics'];
-  preferredBrollAssetIds?: string[];
   onProgress?: (text: string) => void;
 }
 
@@ -78,7 +71,7 @@ export interface RunOutcome {
   messages: string[];
   /** what to save with the project (RS-108) */
   run: RecipeRunRecord;
-  /** director@1: the plan that was built (a remixed reel's is made from its template) */
+  /** director@1: the plan that was built */
   plan?: ReelPlan;
 }
 
@@ -92,20 +85,11 @@ const ANALYSIS_CONCURRENCY = 3;
 const timelineKind = (a: MediaAsset): 'video' | 'image' | null => (a.kind === 'video' ? 'video' : a.kind === 'image' ? 'image' : null);
 
 /** Analyse the chosen media and build the assembler input (no timeline changes). */
-/** Recipe param (boolean): leave out photos that do not fit the frame instead of cropping them badly. */
+/** Recipe param (boolean): enhance photos that would be enlarged a lot (2x, slower). */
 export const ENHANCE_PHOTOS_PARAM = 'enhanceSmallPhotos';
 /** A photo whose cover crop would be enlarged more than this is worth enhancing (below it plain resizing is fine). */
 export const ENHANCE_ABOVE = 1.4;
 export const coverEnlargement = (w: number, h: number, canvas: { width: number; height: number }) => (w > 0 && h > 0 ? Math.max(canvas.width / w, canvas.height / h) : 0);
-
-export const SKIP_MISMATCHED_PARAM = 'skipMismatchedPhotos';
-/** How different a photo's shape may be from the frame's (1 = same, 2 = twice as wide). Phone portrait in 4:5 is 1.42; landscape 4:3 in 4:5 is 1.67. */
-export const MISMATCH_LIMIT = 1.6;
-export function aspectMismatch(width: number | undefined, height: number | undefined, frameAspect: number): number {
-  if (!width || !height || !(frameAspect > 0)) return 1;
-  const ratio = width / height / frameAspect;
-  return ratio >= 1 ? ratio : 1 / ratio;
-}
 
 export async function prepareAssembly(api: AnalyzeApi, o: RunOptions): Promise<Prepared> {
   const shaped = o.ratio ? recipeForRatio(o.recipe, o.ratio) : o.recipe;
@@ -125,15 +109,6 @@ export async function prepareAssembly(api: AnalyzeApi, o: RunOptions): Promise<P
     for (const a of pick(input.id)) {
       const kind = timelineKind(a);
       if (kind) base.push({ assetId: a.id, name: a.name, src: a.src, kind, width: a.width, height: a.height, durationInFrames: a.durationInFrames, input: input.id, ...(a.transcript?.length ? { transcript: a.transcript } : {}) });
-    }
-  }
-  // a photo whose shape is far from the frame (a landscape photo in 4:5) loses its subject when cropped: leave it out
-  const frameAspect = recipe.canvas.width / recipe.canvas.height;
-  if (o.values.params[SKIP_MISMATCHED_PARAM] === true) {
-    const skipped = base.filter((b) => b.kind === 'image' && aspectMismatch(b.width, b.height, frameAspect) > MISMATCH_LIMIT);
-    if (skipped.length) {
-      for (const s of skipped) base.splice(base.indexOf(s), 1);
-      messages.push(`Skipped ${skipped.length} photo${skipped.length === 1 ? '' : 's'} that do not fit the frame without cutting off the subject: ${skipped.slice(0, 6).map((s) => s.name).join(', ')}${skipped.length > 6 ? '…' : ''}.`);
     }
   }
   // a few clips at a time: each is one ffmpeg decode, and 3 in flight is ~2x faster than 1 on 4K footage
@@ -189,39 +164,21 @@ export async function prepareAssembly(api: AnalyzeApi, o: RunOptions): Promise<P
     else messages.push('Could not find a steady beat in the song');
   }
 
-  // a saved reel remixed (reelRecipe.ts): the plan comes from its template, cast with this footage
-  let plan = o.plan;
-  const template = plan ? undefined : reelTemplateOf(recipe);
-  if (template) {
-    const remix = remixPlan(template, { ratio: ratioOf(recipe.canvas.width, recipe.canvas.height) ?? template.plan.ratio, clips: primary, music: music?.assetId, lines: o.values.texts[LINES_INPUT] });
-    plan = remix.plan;
-    messages.push(...remix.notes);
-  }
-
   return {
     messages,
     input: {
       recipe, clips: primary, broll: secondary, music,
-      texts: o.values.texts, params: withLocalTimezone(recipe, o.values.params), seed: o.seed ?? 1,
-      ...(o.preferredAssetIds?.length ? { preferredAssetIds: o.preferredAssetIds } : {}),
-      ...(o.openerAssetId ?? o.values.openerAssetId ? { openerAssetId: (o.openerAssetId ?? o.values.openerAssetId)! } : {}),
-      ...(o.preferredBrollAssetIds?.length ? { preferredBrollAssetIds: o.preferredBrollAssetIds } : {}),
-      ...(plan ? { plan } : {}),
+      texts: o.values.texts, params: o.values.params, seed: o.seed ?? 1,
+      ...(o.plan ? { plan: o.plan } : {}),
       ...(o.voiceover ? { voiceover: o.voiceover } : {}),
     },
   };
 }
 
-/** Time labels (story-vlog) are shown in the user's own timezone unless a run says otherwise; saved with the run so re-cuts match. */
-export function withLocalTimezone(recipe: { assembler: { strategy: string } }, params: Record<string, string | number | boolean>, now = new Date()): Record<string, string | number | boolean> {
-  if (!recipe.assembler.strategy.startsWith('story-vlog') || params.tzOffsetMin !== undefined) return params;
-  return { ...params, tzOffsetMin: -now.getTimezoneOffset() };
-}
-
 /** The saved run: the assembler's record plus which assets went into which input. */
 export function runRecord(result: AssembleResult, values: SetupValues): RecipeRunRecord {
   const media = Object.fromEntries(Object.entries(values.media).map(([k, v]) => [k, v.map((m) => m.assetId)]));
-  return { ...result.run, media, ...(values.openerAssetId ? { openerAssetId: values.openerAssetId } : {}) };
+  return { ...result.run, media };
 }
 
 /** Put the song's beat grid on the music clip so snapping (RS-403) works without re-analysis. */

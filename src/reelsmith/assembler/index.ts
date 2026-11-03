@@ -1,50 +1,25 @@
-// RS-104: deterministic assembler framework. Same inputs + params + analysis + seed => same actions.
+// RS-104: deterministic assembler framework (now one strategy: director@1). Same inputs + params + analysis + seed => same actions.
 // The output is one BatchAction, so dispatching it is a single undo step. No AI involved.
 import type { AssembleInput, AssembleResult } from './types';
-import { assembleBeatMontage } from './beatMontage';
-import { assembleStoryVlog } from './storyVlog';
-import { assembleCollageGrid } from './collageGrid';
-import { assembleCaptionedStory } from './captionedStory';
-import { assembleTravelDiary } from './travelDiary';
-import { assemblePhotoDump } from './photoDump';
-import { assemblePostcardCollage } from './postcardCollage';
 import { assembleDirector } from '../director/assembleDirector';
 import { ratioOf } from '../../../shared/reelsmith/ratios';
-import { withMusicOverrides } from '../musicPolicy';
 import { withScriptFonts } from '../scriptFonts';
 
 export type { AssembleInput, AssembleResult, AssemblyClip, AssemblyMusic, RecipeRunRecord, AssembleReport } from './types';
 
 export function assemble(raw: AssembleInput): AssembleResult {
-  // RS-602: the setup form's music start/end choices (saved in params) override the recipe's own
-  const input: AssembleInput = { ...raw, recipe: withMusicOverrides(raw.recipe, raw.params) };
+  const input: AssembleInput = raw;
   let result: AssembleResult;
-  switch (input.recipe.assembler.strategy) {
-    case 'beat-montage@1':
-      result = assembleBeatMontage(input); break;
-    case 'story-vlog@1':
-      result = assembleStoryVlog(input); break;
-    case 'collage-grid@1':
-      result = assembleCollageGrid(input); break;
-    case 'captioned-story@1':
-      result = assembleCaptionedStory(input); break;
-    case 'travel-diary@1':
-      result = assembleTravelDiary(input); break;
-    case 'photo-dump@1':
-      result = assemblePhotoDump(input); break;
-    case 'postcard-collage@1':
-      result = assemblePostcardCollage(input); break;
-    case 'director@1':
-      result = assembleDirector(input); break;
-    default:
-      result = {
-        action: null,
-        report: { shots: 0, usedAssetIds: [], musicStartSec: 0, totalFrames: 0, warnings: [`strategy ${input.recipe.assembler.strategy} not implemented yet`] },
-        run: {
-          recipeId: input.recipe.id, recipeVersion: input.recipe.version, assembler: input.recipe.assembler.strategy,
-          seed: input.seed, params: input.params, texts: input.texts, assetIds: input.clips.map((c) => c.assetId).sort(),
-        },
-      };
+  if (input.recipe.assembler.strategy === 'director@1') result = assembleDirector(input);
+  else {
+    result = {
+      action: null,
+      report: { shots: 0, usedAssetIds: [], musicStartSec: 0, totalFrames: 0, warnings: [`strategy ${input.recipe.assembler.strategy} is not supported: only directed reels (director@1) can be built`] },
+      run: {
+        recipeId: input.recipe.id, recipeVersion: input.recipe.version, assembler: input.recipe.assembler.strategy,
+        seed: input.seed, params: input.params, texts: input.texts, assetIds: input.clips.map((c) => c.assetId).sort(),
+      },
+    };
   }
   const ratio = ratioOf(input.recipe.canvas.width, input.recipe.canvas.height);
   if (ratio) result.run = { ...result.run, ratio };

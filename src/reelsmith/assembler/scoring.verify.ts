@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { bestWindow, groupNearDuplicates, hammingDistance, scoreWindow, toAssemblyClips, type ClipFeatures, type WindowFeatures } from './scoring';
-import { pickClips } from './beatMontage';
+import { pickClips } from './strobe';
 
 const win = (start: number, end: number, o: Partial<WindowFeatures> = {}): WindowFeatures => ({
   startFrame: start, endFrame: end, sharpness: 0.5, exposure: 0.5, motion: 0.5, subject: 0.1, speech: false, ...o,

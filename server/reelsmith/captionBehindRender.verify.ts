@@ -20,7 +20,7 @@ import { ffmpegBin } from '../media-binaries.ts';
 // @ts-expect-error — plain .mjs render pipeline has no .d.ts
 import { renderTimelineStills } from '../../remotion/render.mjs';
 
-const POSTER = fileURLToPath(new URL('../../assets/recipe-previews/captioned-story.jpg', import.meta.url));
+const POSTER = fileURLToPath(new URL('./fixtures/group-selfie.jpg', import.meta.url));
 const W = 360, H = 640, FRAME = 20;
 const work = mkdtempSync(join(tmpdir(), 'rs-caption-behind-'));
 try {

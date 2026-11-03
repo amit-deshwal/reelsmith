@@ -18,6 +18,21 @@ export const DIRECTOR_TOOL_SCHEMAS: AgentToolSchema[] = [
     } },
   },
   {
+    name: 'reels_find_shots',
+    description: [
+      'Which clips show this? Give up to eight short phrases (what a shot should show: "climbing a rock face", "friends laughing around a fire",',
+      '"the view from the top") and the visual model returns, for each, the best moments across the numbered clips as ready "#n@seconds" refs,',
+      'one per clip so the answers are different shots, each marked `shows` sure, maybe or weak. Use it after',
+      'stage 1 for every part of the arc and every line that names something to see; cast the sure refs in the plan\'s clips and check a maybe on',
+      'its sheet cell. When even the best is weak (`none`) the footage does not show it: leave the line out, use a graphic, or ask. Read-only; needs',
+      'the visual model (it says when it is missing).',
+    ].join(' '),
+    input_schema: { type: 'object', properties: {
+      queries: { type: 'array', items: { type: 'string' }, description: 'One to eight short phrases, in plain words, each describing what one shot should show.' },
+      limit: { type: 'number', description: 'Moments per phrase, 1 to 8 (default 4).' },
+    }, required: ['queries'] },
+  },
+  {
     name: 'reels_director_treatment',
     description: [
       'Director stage 2, before any plan: decide what the reel is. Give two different concepts and pick one, the tone, the hero shots, the arc',

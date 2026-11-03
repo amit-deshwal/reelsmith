@@ -6,9 +6,9 @@ import type { Recipe } from '../../../shared/reelsmith/recipe';
 import { RATIO_SIZES } from '../../../shared/reelsmith/ratios';
 import type { ReelPlan } from '../../../shared/reelsmith/directorPlan';
 import { dbToGain, fpsOf } from '../assembler/common';
-import { pickMoment } from '../assembler/travelDiary';
+import { pickMoment } from '../assembler/moments';
 import { stableId } from '../assembler/rng';
-import type { AssembleInput, AssembleResult, AssemblyClip, AssemblyMusic } from '../assembler/types';
+import type { AssembleInput, AssembleReport, AssembleResult, AssemblyClip, AssemblyMusic } from '../assembler/types';
 import { textStyleById, type MoveDef } from './moves';
 import { BAND_STYLE_ID, underBand } from './bandText';
 import { isClipTextStyle } from './textStyles';
@@ -190,6 +190,7 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
   const sfx: SfxEvent[] = [];
   const sectionClips: string[][] = [];
   const sectionMoments: number[][] = [];
+  const momentUse: NonNullable<AssembleReport['momentUse']> = [];
   resolved.forEach((r, i) => {
     const { s, move } = r!;
     // RS-1249: a shot list moves only as the user asked
@@ -249,6 +250,7 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
           m = { inFrame: again, loop: clip.durationInFrames - again < frames };
         } else m = momentOf(clip, frames);
         moments.push(m.inFrame);
+        momentUse.push({ section: i, assetId: clip.baseAssetId ?? clip.assetId, inFrame: m.inFrame, frames });
         return m;
       },
       emit: (a) => actions.push(a.type === 'add' ? { ...a, item: withSpeed({ ...a.item, props: { ...(a.item.props ?? {}), rsSection: `${i + 1}-${move.id}` } }, s.speed) } as AtomicAction : a),
@@ -462,6 +464,6 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
   if (unusedClips) warnings.push(`${unusedClips} clip${unusedClips === 1 ? ' was' : 's were'} not used.`);
   return {
     action: { type: 'batch', actions: plan.tone ? applyMotionRules(actions, plan.tone, fps) : actions, label: 'Director: build reel' }, run,
-    report: { shots: shotsCount, usedAssetIds: [...usedIds], musicStartSec: startSec, totalFrames: total, warnings, sectionClips: Array.from({ length: resolved.length }, (_, k) => sectionClips[k] ?? []), sectionMoments: Array.from({ length: resolved.length }, (_, k) => sectionMoments[k] ?? []), shotSec, ...(eyeJumps.length ? { eyeJumps } : {}), ...(voices.length ? { voices } : {}) },
+    report: { shots: shotsCount, usedAssetIds: [...usedIds], musicStartSec: startSec, totalFrames: total, warnings, sectionClips: Array.from({ length: resolved.length }, (_, k) => sectionClips[k] ?? []), sectionMoments: Array.from({ length: resolved.length }, (_, k) => sectionMoments[k] ?? []), momentUse, shotSec, ...(eyeJumps.length ? { eyeJumps } : {}), ...(voices.length ? { voices } : {}) },
   };
 }

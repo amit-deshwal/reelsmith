@@ -10,7 +10,7 @@ const READ_ONLY_TOOL_NAMES = new Set([
   'search_media', 'search_stock_media', 'search_fonts', 'analyze_music', 'inspect_music', 'music_edit_plan', 'music_image_plan',
   'read_agent_artifact', 'browse_local_media',
   // Reelsmith
-  'reels_review_export', 'reels_lint', 'reels_plan_options', 'reels_director_options', 'reels_director_treatment', 'reels_director_critique', 'reels_run_info', 'reels_selection_candidates', 'reels_selection_sheet',
+  'reels_review_export', 'reels_lint', 'reels_director_options', 'reels_find_shots', 'reels_director_treatment', 'reels_director_critique', 
 ]);
 
 const DRAFT_EDIT_TOOL_NAMES = new Set([
@@ -26,7 +26,7 @@ const DRAFT_EDIT_TOOL_NAMES = new Set([
   // itself is a library write, reviewed in offline-tool-authorization.ts.
   'import_asset', 'import_assets', 'import_folder',
   // Reelsmith: timeline edits through the draft's commands (browser-side; they call the local analysis routes)
-  'reels_plan_assemble', 'reels_director_build', 'reels_director_fix', 'reels_director_reshape', 'reels_custom_shader', 'reels_custom_graphic', 'reels_time_effect', 'reels_freeze_frame', 'reels_reverse', 'reels_clean_speech', 'reels_restyle_text', 'reels_apply_look', 'reels_apply_signature', 'reels_recut_section', 'reels_snap_cuts_to_beats', 'reels_strobe', 'propose_selection',
+  'reels_director_build', 'reels_director_fix', 'reels_director_reshape', 'reels_custom_shader', 'reels_custom_graphic', 'reels_time_effect', 'reels_freeze_frame', 'reels_reverse', 'reels_clean_speech', 'reels_restyle_text', 'reels_apply_look', 'reels_apply_signature', 'reels_snap_cuts_to_beats', 'reels_strobe', 
 ]);
 
 const SERVER_DIRECT_READ_TOOL_NAMES: Record<string, true> = {

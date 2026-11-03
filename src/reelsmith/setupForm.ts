@@ -1,27 +1,22 @@
-// RS-103: the setup form model. Built from a recipe's inputs/params; says whether "Assemble" is allowed and why not.
-import type { Recipe, RecipeMediaInput, RecipeParam } from '../../shared/reelsmith/recipe';
-import { musicDefaults, musicFormErrors } from './musicPolicy';
+// The setup values of a run (picked media, lines, params) and their checks. The director builds them from its plan.
+import type { Recipe, RecipeParam } from '../../shared/reelsmith/recipe';
 
-export type PickKind = 'off' | 'claude';
 type AvailableAsset = { id: string; kind: string };
 
 export interface SetupValues {
   media: Record<string, Array<{ assetId: string; kind: 'video' | 'image' | 'audio' }>>;
   texts: Record<string, string>;
   params: Record<string, string | number | boolean>;
-  agentPick: PickKind;
-  /** the clip chosen to open the reel (empty = the assembler decides) */
-  openerAssetId?: string;
 }
 
 export interface FieldError { field: string; message: string }
 
 export function defaultValues(recipe: Recipe): SetupValues {
-  const params: SetupValues['params'] = musicDefaults(recipe);
+  const params: SetupValues['params'] = {};
   for (const p of recipe.params) params[p.id] = p.default as string | number | boolean;
   const texts: SetupValues['texts'] = {};
   for (const input of recipe.inputs) if (input.kind === 'text' && input.default) texts[input.id] = input.default;
-  return { media: {}, texts, params, agentPick: 'off' };
+  return { media: {}, texts, params };
 }
 
 function paramError(p: RecipeParam, v: unknown): string | null {
@@ -63,28 +58,5 @@ export function validateSetup(recipe: Recipe, v: SetupValues, assets?: readonly 
     const e = paramError(p, v.params[p.id]);
     if (e) errors.push({ field: p.id, message: e });
   }
-  errors.push(...musicFormErrors(v.params));
-  if (v.agentPick !== 'off' && v.agentPick !== 'claude') errors.push({ field: 'agentPick', message: 'choose Off or Claude' });
-  const aiAllowed = recipe.assembler.aiSelection ?? 'optional';
-  if (v.agentPick !== 'off' && aiAllowed === 'off') errors.push({ field: 'agentPick', message: 'this recipe does not use an agent' });
   return errors;
 }
-
-export function canAssemble(recipe: Recipe, v: SetupValues, assets?: readonly AvailableAsset[]): boolean {
-  return validateSetup(recipe, v, assets).length === 0;
-}
-
-/** Widget a param needs, for the form renderer. */
-export function widgetFor(p: RecipeParam): 'toggle' | 'select' | 'color' | 'font' | 'slider' | 'stepper' {
-  switch (p.type) {
-    case 'boolean': return 'toggle';
-    case 'enum': return 'select';
-    case 'color': return 'color';
-    case 'font': return 'font';
-    case 'integer': return 'stepper';
-    default: return p.min !== undefined && p.max !== undefined ? 'slider' : 'stepper';
-  }
-}
-
-export const mediaInputs = (recipe: Recipe): RecipeMediaInput[] =>
-  recipe.inputs.filter((i): i is RecipeMediaInput => i.kind === 'media');

@@ -192,7 +192,7 @@ export const TOOL_SCHEMAS: AgentToolSchema[] = [
   ...TIMELINE_IMPORT_TOOL_SCHEMAS,
   // Optional advisory review of multi-scene plans; it has no runtime enforcement role.
   ...SCENE_QUALITY_TOOL_SCHEMAS,
-  // Reelsmith: recipe run info, section re-cut, snap cuts to beats, agent shot selection.
+  // Reelsmith: the director's tools, snap cuts to beats, looks, timed effects.
   ...REELS_TOOL_SCHEMAS,
   // ToolSearch — keyword discovery over this catalog
   {

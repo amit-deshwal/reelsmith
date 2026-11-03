@@ -1,4 +1,4 @@
-import { clearRecipeStart, pendingRecipeHandoff } from '../reelsmith/recipeStart';
+import { clearDirectorStart, pendingDirectorStart } from '../reelsmith/directorStart';
 import type { RatioId } from '../../shared/reelsmith/ratios';
 import { useEffect, useMemo, useState, type RefObject } from 'react';
 import type { SequenceLibraryOption } from './sequenceOptions';
@@ -19,7 +19,7 @@ import { newManualCaptions } from '../captions/manualCaptions';
 import { MediaPoolPanel } from '../media/MediaPoolPanel';
 import { useDirectoryImport } from '../media/useDirectoryImport';
 import { SkillsTabPanel } from './SkillsTabPanel';
-import { RecipesPanel } from '../reelsmith/ui/RecipesPanel';
+import { DirectorPanel } from '../reelsmith/ui/DirectorPanel';
 import type { BatchAction } from '../editor/reducerActions';
 import { TemplateBrowser } from './TemplateBrowser';
 import { ResourceBrowser, type ResourceItem } from './ResourceBrowser';
@@ -128,7 +128,7 @@ interface LibraryPanelProps {
   onAskAgent?: (text: string, opts?: { autoSend?: boolean }) => void;
 }
 
-const MAIN_TABS = ['我的素材', 'Recipes', '序列', '资源库', '文字稿', '字幕', '技能'] as const;
+const MAIN_TABS = ['我的素材', 'Director', '序列', '资源库', '文字稿', '字幕', '技能'] as const;
 const SUB_TABS = ['MG 动画', '音效', '转场', '特效', '缩放', 'LUT'] as const;
 function localizeDefaultSequenceName(name: string, t: ReturnType<typeof useT>): string {
   const match = /^序列 (\d+)$/.exec(name);
@@ -138,10 +138,9 @@ export function LibraryPanel({ semanticScopeId, canvasRatio, templates, onAddTem
   const t = useT();
   const selKind = selectedItem?.kind ?? null;
   const isVisual = selKind != null && selKind !== 'audio';
-  const [recipeHandoff] = useState(() => pendingRecipeHandoff(semanticScopeId));
-  const initialRecipeId = recipeHandoff?.recipeId;
-  const [mainTab, setMainTab] = useState<(typeof MAIN_TABS)[number]>(initialRecipeId ? 'Recipes' : '我的素材');
-  useEffect(() => { clearRecipeStart(semanticScopeId); }, [semanticScopeId]);
+  const [directorStart] = useState(() => pendingDirectorStart(semanticScopeId));
+  const [mainTab, setMainTab] = useState<(typeof MAIN_TABS)[number]>(directorStart ? 'Director' : '我的素材');
+  useEffect(() => { clearDirectorStart(semanticScopeId); }, [semanticScopeId]);
   const [subTab, setSubTab] = useState<(typeof SUB_TABS)[number]>('MG 动画');
   const [extensionOpen, setExtensionOpen] = useState(false);
   const [directoryImportError, setDirectoryImportError] = useState<string | null>(null);
@@ -177,8 +176,8 @@ export function LibraryPanel({ semanticScopeId, canvasRatio, templates, onAddTem
   const isSequences = mainTab === '序列';
   const sequenceOptions = useMemo(() => isSequences ? getSequenceOptions() : [], [isSequences, getSequenceOptions]);
   const isSkills = mainTab === '技能';
-  const isRecipes = mainTab === 'Recipes';
-  const [recipesOpened, setRecipesOpened] = useState(mainTab === 'Recipes');
+  const isRecipes = mainTab === 'Director';
+  const [recipesOpened, setRecipesOpened] = useState(mainTab === 'Director');
   useEffect(() => { if (isRecipes) setRecipesOpened(true); }, [isRecipes]);
   const openCaptionStyles = (sourceItemIds: string[]) => {
     const target = captionTracks[0];
@@ -212,7 +211,7 @@ export function LibraryPanel({ semanticScopeId, canvasRatio, templates, onAddTem
       </div>
       {recipesOpened && (
         <div style={{ flex: 1, display: isRecipes && !extensionOpen ? 'flex' : 'none', flexDirection: 'column', minHeight: 0, borderTop: `0.5px solid ${theme.border}` }}>
-          <RecipesPanel onImportMedia={onImportMedia} initialRecipeId={initialRecipeId} initialRatio={recipeHandoff?.ratio ?? canvasRatio} initialBrief={recipeHandoff?.brief} initialPrompt={recipeHandoff?.prompt} initialTexts={recipeHandoff?.texts} projectId={semanticScopeId} assets={assets} itemCount={items.length} items={items} selectedItem={selectedItem} fps={fps} onApply={onApplyRecipe} onAskAgent={onAskAgent} />
+          <DirectorPanel initialRatio={directorStart?.ratio ?? canvasRatio} assets={assets} items={items} selectedItem={selectedItem} onApply={onApplyRecipe} onAskAgent={onAskAgent} />
         </div>
       )}
       {extensionOpen ? (

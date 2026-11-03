@@ -9,7 +9,6 @@ import { lookById, planLook, type ReelLookStep } from './looks';
 export interface ReelSignature {
   id: string; name: string; mood: string; description: string;
   /** recipe ids that suit it best, in order of preference (all of them work with it) */
-  recipes: string[];
   look: string;
   /** one accent on the first shot only */
   hook?: ReelLookStep;
@@ -21,29 +20,29 @@ export const SIGNATURES: ReelSignature[] = [
   {
     id: 'cinematic-drift', name: 'Cinematic drift', mood: 'daytime trips, landscapes, friends, outdoors, trek, calm, bold, thrilling, unique, premium, default for bright footage',
     description: 'Teal and orange grade with soft halation, an anamorphic flare on the opening shot and whip-blur cuts.',
-    recipes: ['travel-diary', 'travel-beat-montage', 'mini-vlog'], look: 'cinematic-travel',
+    look: 'cinematic-travel',
     hook: { assetId: 'builtin:fx-anamorphic-flare', overrides: { intensity: 0.5 } }, transition: 'whip-blur',
   },
   {
     id: 'neon-pulse', name: 'Neon pulse', mood: 'dark or night footage only: nightlife, parties, city lights, concerts, neon (never daylight or bright beach footage)',
     description: 'Cyber grade with bloom, a zoom-blur punch on the opening shot and chroma-glitch cuts.',
-    recipes: ['beat-cut', 'gang-reel', 'travel-beat-montage'], look: 'neon-night',
+    look: 'neon-night',
     hook: { assetId: 'builtin:fx-zoom-blur', overrides: {} }, transition: 'chroma-glitch',
   },
   {
     id: 'golden-memory', name: 'Golden memory', mood: 'couples, sunsets, family, nostalgic, warm, friends trip',
     description: 'Warm sunset grade with mist and a light leak on every cut.',
-    recipes: ['photo-dump', 'mini-vlog', 'travel-diary'], look: 'golden-hour', transition: 'light-leak',
+    look: 'golden-hour', transition: 'light-leak',
   },
   {
     id: 'retro-tape', name: 'Retro tape', mood: 'throwback, 2000s, funny, friends, casual',
     description: 'VHS wobble and colour bleed with flash cuts, the whole reel looking like old camcorder footage.',
-    recipes: ['gang-reel', 'beat-cut', 'photo-dump'], look: 'retro-vhs', transition: 'flash',
+    look: 'retro-vhs', transition: 'flash',
   },
   {
     id: 'clean-minimal', name: 'Clean minimal', mood: 'lifestyle, portraits, fashion, food, aesthetic, selfies',
     description: 'Soft pastel colour and nothing else: hard cuts, no effects, the footage does the work.',
-    recipes: ['photo-dump', 'mini-vlog', 'collage-grid'], look: 'soft-pastel',
+    look: 'soft-pastel',
   },
 ];
 

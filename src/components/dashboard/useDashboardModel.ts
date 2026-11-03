@@ -3,13 +3,13 @@ import { getAgentModelSnapshot, subscribeAgentModels, type AgentModelSnapshot } 
 import { useT } from '../../i18n/locale';
 import { loadProject, loadProjectThumb, saveProjectThumb } from '../../persist/projectStore';
 import type { ProjectMeta } from '../../persist/projectStoreCoordinators';
-import type { ReelsBrief } from '../../../shared/reelsmith/brief';
+import type { RatioId } from '../../../shared/reelsmith/ratios';
 
 export interface DashboardProps {
   projects: ProjectMeta[];
   onOpen: (id: string) => void;
   onNew: () => void;
-  onStartRecipe?: (recipeId: string, details?: { brief?: ReelsBrief; prompt?: string }) => Promise<void>;
+  onStartReel?: (ratio: RatioId) => Promise<void>;
   onRename: (id: string, name: string) => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => Promise<void>;

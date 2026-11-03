@@ -1,5 +1,5 @@
 // The steps after a director plan is compiled that need the media (people, reversed copies), shared by the agent's
-// build (reels_director_build/fix) and a remixed reel recipe built from the Recipes panel without an agent.
+// build (reels_director_build/fix).
 import type { AtomicAction } from '../../editor/reducerActions';
 import type { MediaAsset } from '../../editor/types';
 import type { AnalyzeApi } from '../runRecipe';

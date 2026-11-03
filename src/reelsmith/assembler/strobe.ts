@@ -3,9 +3,29 @@
 // Pure planner: recipes (RS-412) and agent tools place the returned actions.
 import type { AtomicAction } from '../../editor/reducerActions';
 import { clipItem } from './common';
-import { pickClips } from './beatMontage';
-import { stableId } from './rng';
+import { makeRng, stableId } from './rng';
 import type { AssemblyClip } from './types';
+
+
+/** Pick `count` clips: drop near-duplicates (best of each group), top scores, then chronological if asked. */
+export function pickClips(clips: AssemblyClip[], count: number, chronological: boolean, seed: number, variety = 0): AssemblyClip[] {
+  if (count <= 0) return [];
+  const rng = makeRng(seed);
+  const jitter = new Map(clips.map((c) => [c.assetId, rng()]));
+  const eff = (c: AssemblyClip) => c.score * (1 - variety) + jitter.get(c.assetId)! * variety;
+  const rank = (a: AssemblyClip, b: AssemblyClip) =>
+    eff(b) - eff(a) || (jitter.get(a.assetId)! - jitter.get(b.assetId)!) || a.assetId.localeCompare(b.assetId);
+  const bestPerGroup = new Map<string, AssemblyClip>();
+  const ungrouped: AssemblyClip[] = [];
+  for (const c of [...clips].sort(rank)) {
+    if (!c.groupId) ungrouped.push(c);
+    else if (!bestPerGroup.has(c.groupId)) bestPerGroup.set(c.groupId, c);
+  }
+  const pool = [...ungrouped, ...bestPerGroup.values()].sort(rank).slice(0, count);
+  if (!chronological) return pool;
+  return pool.sort((a, b) =>
+    (a.captureTimeMs ?? Infinity) - (b.captureTimeMs ?? Infinity) || a.name.localeCompare(b.name) || a.assetId.localeCompare(b.assetId));
+}
 
 export const STROBE_DEFAULTS = { lengthSec: 1.5, flashSec: 0.5, accent: true, clipGainDb: -96 } as const;
 export const FLASH_MIN_SEC = 0.3;
