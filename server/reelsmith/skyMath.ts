@@ -12,6 +12,9 @@ export interface SkyOptions {
   edgeLimit?: number;
   /** soften the outline by this many pixels */
   blur?: number;
+  /** how far the gate reaches past the sky, as a share of the short edge (default 0.05: one map for a whole shot; a map
+   *  per frame needs only the motion between two maps) */
+  gateReach?: number;
 }
 
 export interface SkyMask {
@@ -68,10 +71,31 @@ export function skyFromDepth(depth: Uint8Array, rgb: Uint8Array, w: number, h: n
   if (count < w * band * 0.05) return empty;
   const median = (v: number[]) => { const s = v.slice().sort((a, b) => a - b); return s[s.length >> 1]!; };
   const mean = [median(cr), median(cg)];
+  // A sky is blue, grey, white or warm, never green: a top band of far, bright leaves (a pan past trees, blurred so the
+  // depth model reads it far) would otherwise make every green thing in the frame "sky".
+  if (mean[1]! - Math.max(mean[0]!, 1 - mean[0]! - mean[1]!) > 0.03) return empty;
   const sd = [cr, cg].map((v, k) => Math.max(0.012, 1.4826 * median(v.map((x) => Math.abs(x - mean[k]!)))));
   // nothing much darker than the sky itself: dark foliage and rock are not sky even when grey
   const lumaFloor = Math.max(0.22, median(lumas) * 0.55);
   const paleFloor = median(lumas) * 0.92;
+  // The sky is not one brightness across the frame (it darkens toward one side, away from the sun, or under the lens's
+  // vignette), so haze at the darker side's horizon is judged against the sky above it: the floor of each column from
+  // the top band within an eighth of the width, never above the frame's own.
+  const paleAt = new Float32Array(w).fill(paleFloor);
+  {
+    const win = Math.max(1, Math.round(w / 8)), stride = Math.max(1, Math.round(w / 32));
+    const colMedian = new Float32Array(w).fill(NaN);
+    for (let cx = 0; cx < w; cx += stride) {
+      const v: number[] = [];
+      for (let y = 0; y < band; y++) for (let x = Math.max(0, cx - win); x <= Math.min(w - 1, cx + win); x += 2) { const p = y * w + x; if (isSkyish(p)) v.push(luma(p)); }
+      if (v.length >= band * win * 0.25) colMedian[cx] = median(v) * 0.92;
+    }
+    for (let x = 0; x < w; x++) {
+      const k = Math.min(w - 1, Math.round(x / stride) * stride);
+      const local = colMedian[k - (k % stride)]!;
+      if (Number.isFinite(local)) paleAt[x] = Math.max(lumaFloor, Math.min(paleFloor, local));
+    }
+  }
   const accept = (p: number) => {
     if (depth[p]! > depthMax || luma(p) < lumaFloor) return false;
     // a sky pales toward the horizon and into haze and cloud: its colours run along the line from its own colour to grey,
@@ -81,7 +105,7 @@ export function skyFromDepth(depth: Uint8Array, rgb: Uint8Array, w: number, h: n
     const t = Math.min(1, Math.max(0, ((c[0]! - ax) * bx + (c[1]! - ay) * by) / Math.max(1e-9, bx * bx + by * by)));
     if (Math.hypot((c[0]! - ax - t * bx) / sd[0]!, (c[1]! - ay - t * by) / sd[1]!) > colorLimit) return false;
     // paler than the sky's own colour must be as bright as the sky: haze and cloud are, a hazy valley far below is not
-    return t <= 0.2 || luma(p) >= paleFloor;
+    return t <= 0.2 || luma(p) >= paleAt[p % w]!;
   };
   const step = (a: number, b: number) => Math.abs(rgb[a * 3]! - rgb[b * 3]!) + Math.abs(rgb[a * 3 + 1]! - rgb[b * 3 + 1]!) + Math.abs(rgb[a * 3 + 2]! - rgb[b * 3 + 2]!);
 
@@ -107,7 +131,7 @@ export function skyFromDepth(depth: Uint8Array, rgb: Uint8Array, w: number, h: n
     const mx = Math.max(r, g, b);
     return mx > 0 && (mx - Math.min(r, g, b)) / mx <= 0.22;
   };
-  const haze = (p: number) => depth[p]! <= depthMax && luma(p) >= Math.max(lumaFloor, paleFloor) && neutral(p);
+  const haze = (p: number) => depth[p]! <= depthMax && luma(p) >= Math.max(lumaFloor, paleAt[p % w]!) && neutral(p);
   for (let k = 0; k < tail; k++) {
     const p = queue[k]!;
     const x = p % w, y = (p - x) / w;
@@ -137,10 +161,15 @@ export function skyFromDepth(depth: Uint8Array, rgb: Uint8Array, w: number, h: n
   const soft = boxBlur(mask, w, h, o.blur ?? 3);
   let total = 0;
   for (let p = 0; p < n; p++) total += soft[p]!;
-  const reach = Math.max(2, Math.round(Math.min(w, h) * 0.05));
-  const gate = boxBlur(maxFilter(mask, w, h, reach), w, h, Math.round(reach / 2));
+  const gate = skyGate(mask, w, h, o.gateReach);
   const model: SkyModel = { chroma: [mean[0]!, mean[1]!], spread: [sd[0]!, sd[1]!], limit: colorLimit, lumaFloor, paleFloor };
   return { mask: soft, share: total / 255 / n, gate, model };
+}
+
+/** Where the sky can be in other frames: the mask widened by `reach` of the short edge, softly. */
+export function skyGate(mask: Uint8Array, w: number, h: number, reach = 0.05): Uint8Array {
+  const r = Math.max(2, Math.round(Math.min(w, h) * reach));
+  return boxBlur(maxFilter(mask, w, h, r), w, h, Math.round(r / 2));
 }
 
 /** Regions of 0 that do not reach the bottom edge are set to 1 when `fill` says so. */

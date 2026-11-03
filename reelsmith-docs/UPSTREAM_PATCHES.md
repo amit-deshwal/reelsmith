@@ -553,6 +553,7 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 - `src/gl/fx/reelFx.ts` (ours): registers `skyFx.ts` (Sky recover, Sky swap).
 - `src/export/serverExportOperation.ts`: the depth-map pre-fill (RS-1238) now also fills the project sent with the export. With a project, the render takes the timeline from it and never reads the state, so until now the maps (photo parallax included) never reached an app export.
 - `src/agent/tools/schemas/effect-tools.ts`: `mix.region` description lists `land` and `sky`; `assets/agent/openchatcut-tool-schemas.json` regenerated.
+- Sky per frame (2026-11-04): on a video, `src/gl/ClipFx.tsx` takes the sky from the depth track instead (the track is loaded for a sky effect too; its `.sky.png` atlas beside it, laid out like the depth atlas, and the per-tile sky colours in its index): each frame the two sky tiles either side are blended into `u_sky` and their colour models mixed (`skyModelBetween`). A still sky map the clip already carries is the fallback for a track made before the sky atlas; a photo keeps the still map.
 
 ## Depth on video (RS-1260, 2026-11-03)
 

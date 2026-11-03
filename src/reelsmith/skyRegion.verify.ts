@@ -10,7 +10,7 @@ import { SKY_RECOVER_FX, SKY_SWAP_FX } from '../gl/fx/skyFx';
 import type { TimelineItem } from '../editor/types';
 import { isPersonRegion, isSkyRegion, mixUniformsAt, parseEffectMix, REGION_CODE } from './effectMix';
 import { lookById, lookEffects } from './looks';
-import { parseSkyModel, skyModelSrcFor, skyModelUniforms, skySrcFor, wantsDepth, wantsSky, withDepthMap, withDepthMaps } from './depthMaps';
+import { parseSkyModel, skyModelSrcFor, skyModelUniforms, skySrcFor, wantsDepth, wantsDepthTrack, wantsSky, wantsStillDepth, withDepthMap, withDepthMaps } from './depthMaps';
 import { directorEffectById } from './director/catalog';
 
 assert.deepEqual([REGION_CODE.land, REGION_CODE.sky], [3, 4]);
@@ -39,14 +39,21 @@ assert.ok(wantsSky(clip(travel)) && !wantsDepth(clip(travel)));
 assert.ok(wantsSky(clip([{ id: 's', assetId: SKY_RECOVER_FX }])));
 assert.ok(!wantsSky(clip([{ id: 'h', assetId: 'builtin:fx-halation' }])));
 assert.equal(skySrcFor('/media/uploads/a.depth-1000.png'), '/media/uploads/a.depth-1000.sky.png');
+// a video's sky comes with its depth track (the sky of every frame, RS-1261 per frame); a photo's with its still map
 const asked: string[] = [];
-const fetched = await withDepthMap(clip(travel), 30, async (_url, init) => { asked.push(String(init.body)); return { ok: true, json: async () => ({ available: true, src: '/media/uploads/a.depth-1000.png' }) }; });
-assert.equal(fetched.props?.rsDepthSrc, '/media/uploads/a.depth-1000.png', 'an export carries the map for a land-only look');
-assert.deepEqual(JSON.parse(asked[0]!), { src: '/media/uploads/a.mov', atSec: 1 });
-// an export sends the project, and the render reads the timeline from it: the project's clips carry the map too
+const fetched = await withDepthMap(clip(travel), 30, async (url, init) => { asked.push(`${url} ${String(init.body)}`); return { ok: true, json: async () => ({ available: true, src: '/media/uploads/a.depthv-1000-3967.png' }) }; });
+assert.equal(fetched.props?.rsDepthTrackSrc, '/media/uploads/a.depthv-1000-3967.png', 'an export carries the track for a land-only look');
+assert.equal(fetched.props?.rsDepthSrc, undefined, 'and no still map');
+assert.deepEqual(asked, ['/api/reelsmith/depth-track {"src":"/media/uploads/a.mov","fromSec":1,"toSec":3.967}']);
+assert.ok(wantsDepthTrack(clip(travel)) && !wantsStillDepth(clip(travel)));
+const photo = { ...clip(travel), kind: 'image', src: '/media/uploads/p.jpg' } as TimelineItem;
+assert.ok(!wantsDepthTrack(photo) && wantsStillDepth(photo));
+const photoFilled = await withDepthMap(photo, 30, async () => ({ ok: true, json: async () => ({ available: true, src: '/media/uploads/p.depth.png' }) }));
+assert.equal(photoFilled.props?.rsDepthSrc, '/media/uploads/p.depth.png');
+// an export sends the project, and the render reads the timeline from it: the project's clips carry the track too
 const project = { version: 1, timelines: [{ id: 't', fps: 30, items: [clip(travel)] }] };
-const filled = await withDepthMaps(project, async () => ({ ok: true, json: async () => ({ available: true, src: '/media/uploads/a.depth-1000.png' }) }));
-assert.equal((filled as typeof project).timelines[0]!.items[0]!.props?.rsDepthSrc, '/media/uploads/a.depth-1000.png');
+const filled = await withDepthMaps(project, async () => ({ ok: true, json: async () => ({ available: true, src: '/media/uploads/a.depthv-1000-3967.png' }) }));
+assert.equal((filled as typeof project).timelines[0]!.items[0]!.props?.rsDepthTrackSrc, '/media/uploads/a.depthv-1000-3967.png');
 
 // the sky effects read the sky map and the director can use them, and plans can keep effects to the land or the sky
 for (const id of [SKY_RECOVER_FX, SKY_SWAP_FX]) {

@@ -68,7 +68,10 @@ assert.equal(tracked.props?.rsDepthTrackSrc, '/media/uploads/walk.depthv-1000-30
 assert.equal(tracked.props?.rsDepthSrc, undefined);
 assert.deepEqual(trackAsked.map((a) => a.url), ['/api/reelsmith/depth-track']);
 assert.equal(await withDepthMap(tracked, 30, trackFetcher), tracked);
-// lens blur and a sky effect on one video: both
+// lens blur and a sky effect on one video: one track serves both (RS-1261: the sky of every frame is saved with it)
 const both = await withDepthMap({ ...blurVideo, id: 'v4', src: '/media/uploads/walk2.mp4', effects: [...blurFx, { id: 's', assetId: 'builtin:fx-sky-recover', overrides: {} }] } as unknown as TimelineItem, 30, trackFetcher);
-assert.ok(both.props?.rsDepthTrackSrc && both.props?.rsDepthSrc);
+assert.ok(both.props?.rsDepthTrackSrc && !both.props?.rsDepthSrc);
+// a sky effect alone on a video asks for the track, not a still map
+const skyOnly = await withDepthMap({ ...blurVideo, id: 'v5', src: '/media/uploads/walk3.mp4', effects: [{ id: 's', assetId: 'builtin:fx-sky-recover', overrides: {} }] } as unknown as TimelineItem, 30, trackFetcher);
+assert.ok(skyOnly.props?.rsDepthTrackSrc && !skyOnly.props?.rsDepthSrc);
 console.log('depthMaps.verify: ok');

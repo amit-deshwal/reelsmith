@@ -19,15 +19,16 @@ export function wantsDepth(item: DepthItem): boolean {
 }
 
 /** RS-1260: a video clip with an effect that reads a depth map per frame (lens blur, haze, relight). A photo, or a video
- *  whose depth effects take one map (photo parallax on a steady shot), uses the still map. */
+ *  whose depth effects take one map (photo parallax on a steady shot), uses the still map. RS-1261: a video with a sky
+ *  effect reads the sky of every frame, which is saved with the depth track. */
 export function wantsDepthTrack(item: DepthItem): boolean {
-  return item.kind === 'video' && !!item.src && glEffects(item as TimelineItem).some(({ def }) => def.needsDepth && def.depthTrack);
+  return item.kind === 'video' && !!item.src && (glEffects(item as TimelineItem).some(({ def }) => def.needsDepth && def.depthTrack) || wantsSky(item));
 }
 
 /** The clip needs the still depth map: a photo with a depth effect, a video with a depth effect that takes one map, or
- *  any clip with a sky effect (the sky map is made with the still map). */
+ *  a photo with a sky effect (the sky map is made with the still map; a video's sky comes with its depth track). */
 export function wantsStillDepth(item: DepthItem): boolean {
-  if (wantsSky(item)) return true;
+  if (item.kind === 'image' && wantsSky(item)) return true;
   if (!wantsDepth(item)) return false;
   return item.kind !== 'video' || glEffects(item as TimelineItem).some(({ def }) => def.needsDepth && !def.depthTrack);
 }

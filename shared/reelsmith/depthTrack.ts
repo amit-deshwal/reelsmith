@@ -17,7 +17,14 @@ export interface DepthTrackMeta {
   tileHeight: number;
   /** per tile: the depth (0 far .. 1 near) of the shot's subject (the near thing in the middle of the frame) */
   subject: number[];
+  /** RS-1261: per tile, the sky's colour (null: no sky in that tile). With it, the sky atlas `<atlas>.sky.png` (red the sky
+   *  of each tile, green where it can be until the next) sits beside the depth atlas, laid out the same. Tracks made
+   *  before it have neither. */
+  sky?: (TrackSkyModel | null)[];
 }
+
+/** The sky's colour (as server/reelsmith/skyMath.ts SkyModel and src/reelsmith/depthMaps.ts SkyModel). */
+export interface TrackSkyModel { chroma: [number, number]; spread: [number, number]; limit: number; lumaFloor: number; paleFloor: number }
 
 /** Tiles a second of the span; a longer span gets fewer (down to MIN_RATE), and the longest is MAX_TRACK_SEC. */
 export const TRACK_RATE = 8;
@@ -101,7 +108,28 @@ export function parseDepthTrackMeta(raw: unknown): DepthTrackMeta | null {
   if (!m || m.version !== 1 || ![m.fromSec, m.step, m.count, m.cols, m.rows, m.tileWidth, m.tileHeight].every(num)) return null;
   if (!Array.isArray(m.subject) || m.subject.length !== m.count || !m.subject.every(num)) return null;
   if (m.count! < 1 || m.cols! < 1 || m.tileWidth! < 1 || m.tileHeight! < 1) return null;
+  if (m.sky !== undefined) {
+    const pair = (v: unknown) => Array.isArray(v) && v.length === 2 && v.every(num);
+    const model = (v: unknown) => v === null || (!!v && typeof v === 'object' && pair((v as TrackSkyModel).chroma) && pair((v as TrackSkyModel).spread)
+      && [(v as TrackSkyModel).limit, (v as TrackSkyModel).lumaFloor, (v as TrackSkyModel).paleFloor].every(num));
+    // a malformed sky index drops the sky, not the depth
+    if (!Array.isArray(m.sky) || m.sky.length !== m.count || !m.sky.every(model)) { const { sky: _drop, ...rest } = m; return rest as DepthTrackMeta; }
+  }
   return m as DepthTrackMeta;
+}
+
+/** RS-1261: the sky atlas beside a depth track's atlas. */
+export const depthTrackSkyName = (atlasFileOrSrc: string) => atlasFileOrSrc.replace(/\.png$/i, '.sky.png');
+
+/** The sky's colour at a moment between two tiles (`t` from a to b); a missing side takes the other's. */
+export function skyModelBetween(a: TrackSkyModel | null | undefined, b: TrackSkyModel | null | undefined, t: number): TrackSkyModel | null {
+  if (!a || !b) return a ?? b ?? null;
+  const mix = (x: number, y: number) => x * (1 - t) + y * t;
+  return {
+    chroma: [mix(a.chroma[0], b.chroma[0]), mix(a.chroma[1], b.chroma[1])],
+    spread: [mix(a.spread[0], b.spread[0]), mix(a.spread[1], b.spread[1])],
+    limit: mix(a.limit, b.limit), lumaFloor: mix(a.lumaFloor, b.lumaFloor), paleFloor: mix(a.paleFloor, b.paleFloor),
+  };
 }
 
 /** The index beside an atlas. */

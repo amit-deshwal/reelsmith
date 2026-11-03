@@ -59,4 +59,10 @@ let wider = 0;
 for (let p = 0; p < w * h; p++) { assert.ok(full.gate[p]! >= full.mask[p]! - 40); if (full.gate[p]! > 127 && full.mask[p]! < 127) wider++; }
 assert.ok(wider > 0, 'the gate reaches past the sky');
 assert.equal(wall.model, null);
+// a top band of far, bright leaves (a pan past trees) is not a sky, though far and light
+{
+  const leafDepth = new Uint8Array(w * h).fill(2), leaves = new Uint8Array(w * h * 3);
+  for (let p = 0; p < w * h; p++) leaves.set([110 + (p % 7), 170, 90], p * 3);
+  assert.equal(skyFromDepth(leafDepth, leaves, w, h).share, 0, 'green leaves are not sky');
+}
 console.log('skyMath: ok');

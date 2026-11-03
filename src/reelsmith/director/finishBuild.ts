@@ -13,7 +13,7 @@ import { depthSrcOf, depthTrackSrcOf, wantsDepthTrack, wantsStillDepth, withDept
 
 /** RS-1238: every clip with a depth effect gets its photo's depth map (so the review frames and the export show the move);
  *  RS-1260: a video with lens blur, haze or relight gets its depth track (after slow motion is smoothed: the track follows
- *  the file and span the clip plays). */
+ *  the file and span the clip plays); RS-1261: so does a video with a sky effect (the sky of every frame comes with it). */
 export async function attachDepthMaps(actions: AtomicAction[], fps: number, onProgress?: (text: string) => void, fetcher?: Parameters<typeof withDepthMap>[2]): Promise<string[]> {
   const needs = (item: Extract<AtomicAction, { type: 'add' }>['item']) => (wantsStillDepth(item) && !depthSrcOf(item)) || (wantsDepthTrack(item) && !depthTrackSrcOf(item));
   const adds = actions.filter((a): a is Extract<AtomicAction, { type: 'add' }> => a.type === 'add' && needs(a.item));
