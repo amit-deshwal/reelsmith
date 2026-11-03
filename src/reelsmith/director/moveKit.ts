@@ -2,6 +2,8 @@
 import type { AtomicAction } from '../../editor/reducerActions';
 import type { AssemblyClip } from '../assembler/types';
 import type { PlanValue } from '../../../shared/reelsmith/directorPlan';
+import { POSTCARD_GRAPHIC_CODE, type GraphicSource, type GraphicWindow } from '../postcardGraphics';
+import { focusForRange } from '../titleClear';
 
 export interface MoveParam {
   id: string;
@@ -82,3 +84,24 @@ export function solid(ctx: MoveContext, layer: number, key: Array<string | numbe
   return id;
 }
 
+
+/** A clip as a source of the window-player graphic: a fresh moment of `sec` seconds, starting at graphic second `fromSec`. */
+export function source(ctx: MoveContext, clip: AssemblyClip, sec: number, fromSec: number): GraphicSource {
+  const m = ctx.moment(clip, Math.round(sec * ctx.fps));
+  const r = clip.kind === 'video' ? focusForRange(clip, m.inFrame, m.inFrame + Math.round(sec * ctx.fps)) : undefined;
+  return {
+    src: clip.src, kind: clip.kind, width: clip.width ?? ctx.W, height: clip.height ?? ctx.H, inSec: m.inFrame / ctx.fps, fromSec,
+    ...(m.loop ? { loop: true } : {}), ...(r ? { focus: [r.x + r.w / 2, r.y + r.h / 2] as [number, number] } : {}),
+  };
+}
+
+/** One window-player graphic (postcardGraphics.ts) over [from, to): the sources play in keyframed windows. */
+export function graphic(ctx: MoveContext, layer: number, key: Array<string | number>, name: string, from: number, to: number, sources: Record<string, GraphicSource>, windows: GraphicWindow[], background?: string): void {
+  ctx.emit({
+    type: 'add', startFrame: from,
+    item: {
+      id: ctx.id(...key), track: ctx.layer(layer), kind: 'motion-graphic', name, code: POSTCARD_GRAPHIC_CODE,
+      durationInFrames: Math.max(1, to - from), width: ctx.W, height: ctx.H, props: { sources, windows, ...(background ? { background } : {}) },
+    } as never,
+  });
+}

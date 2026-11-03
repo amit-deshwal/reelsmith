@@ -33,6 +33,8 @@ const raw = {
     { move: 'flash-cuts', beats: 2 },
     { move: 'split', beats: 4, params: { layout: 'split3v' }, clips: ['group', 'food', 'sign'] },
     { move: 'world-swap', beats: 4, clips: ['walker', 'group', 'trail'] }, // RS-1263 (checked in director/worldSwap.verify.ts)
+    { move: 'pip', beats: 4, clips: ['ridge', 'walker'], params: { swap: true } }, // checked in director/frameMoves.verify.ts
+    { move: 'film-strip', beats: 6, clips: ['fort', 'group', 'trail', 'food'] },
     { move: 'break-in', beats: 12, params: { every: 4, kind: 'mix' } },
     { move: 'photo-drift', beats: 8, clips: ['photo1', 'photo2'], text: '2 days 6000 calories', textStyle: 'words-on-beat' },
     { move: 'hold', beats: 6, clips: ['ridge'] },
@@ -52,9 +54,9 @@ assert.ok(res.action, res.report.warnings.join('; '));
 const acts = res.action!.actions as any[];
 const adds = acts.filter((a) => a.type === 'add');
 
-// sections back to back on the beat grid: total = 96 beats from the first beat
+// sections back to back on the beat grid: total = 106 beats from the first beat
 const clock = beatClock(music, 0.2);
-assert.equal(res.report.totalFrames, Math.round(clock(96) * fps));
+assert.equal(res.report.totalFrames, Math.round(clock(106) * fps));
 const firstOf = (n: number) => Math.min(...adds.filter((a) => a.item.props?.rsSection?.startsWith(`${n}-`)).map((a) => a.startFrame));
 let beat = 0;
 raw.sections.forEach((s, i) => { assert.equal(firstOf(i + 1), Math.round(clock(beat) * fps), `section ${i + 1} starts on beat ${beat}`); beat += s.beats; });
@@ -78,7 +80,7 @@ assert.equal(adds.filter((a) => /^Band /.test(a.item.name)).length, 2);
 assert.equal(adds.filter((a) => a.item.name === 'Flash').length, 4);
 assert.equal(acts.filter((a) => a.type === 'addTransition').length, 2, '12 beats at 4 a shot: 3 shots, 2 break-ins');
 assert.ok(acts.filter((a) => a.type === 'reframeKeyframe').length >= 4, 'photos drift');
-assert.equal(adds.filter((a) => a.item.kind === 'motion-graphic').length, 2, 'strips and finale');
+assert.equal(adds.filter((a) => a.item.kind === 'motion-graphic').length, 3, 'strips, the film strip and finale');
 // texts: caption, words on the beat, big title, and the shuffling title over sections 2-3
 const texts = adds.filter((a) => a.item.kind === 'text');
 assert.ok(texts.some((t) => t.item.props.text === 'we almost turned back here'));

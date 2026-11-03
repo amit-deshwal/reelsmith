@@ -85,7 +85,7 @@ export const TONE_KIT: Record<Tone, { prefer: string[]; avoid: string[] }> = {
     avoid: [...PLAYFUL_TEXT, ...GLITCHY, ...CARTOONY, ...PARTY, ...BOUNCY, 'slam', 'words-on-beat', 'flash-cuts', 'zoom-punch', 'shake', 'impact-shake'],
   },
   nostalgic: {
-    prefer: ['typewriter', 'draw-on', 'rise-lines', 'camcorder', 'film-burn', 'light-leak', 'dipToWhite', 'blur-focus', 'film-grain', 'sepia', 'vhs', 'film-damage', 'pro-mist', 'photo-stack', 'photo-drift'],
+    prefer: ['typewriter', 'draw-on', 'rise-lines', 'camcorder', 'film-burn', 'light-leak', 'dipToWhite', 'blur-focus', 'film-grain', 'sepia', 'vhs', 'film-damage', 'pro-mist', 'photo-stack', 'film-strip', 'photo-drift'],
     avoid: ['glitch', 'neon', 'glitch-cut', 'prism-flash', 'chroma-glitch', ...CARTOONY, ...PARTY, 'slam'],
   },
   romantic: {
@@ -321,7 +321,7 @@ function checkTreatmentAll(t: Treatment, ctx: TreatmentContext): TreatmentFindin
     }
   }
   // RS-1245: a big line needs one clean picture under it; "~2,300 TREKKERS" sat on a split grid filling tile by tile
-  const BUSY = new Set(['split', 'break-in', 'postcard-band', 'photo-stack', 'cards-finale', 'strips-reveal']);
+  const BUSY = new Set(['split', 'break-in', 'postcard-band', 'photo-stack', 'cards-finale', 'strips-reveal', 'film-strip', 'pip']);
   const busy = t.textStyles.some((x) => ['punch-caps', 'slam', 'big-title', 'type-stack'].includes(x)) ? t.parts.map((p, i) => (p.line && BUSY.has(p.move) && p.role !== 'hook' ? i : -1)).filter((i) => i >= 0) : [];
   if (busy.length) out.push({ issue: `part${busy.length > 1 ? 's' : ''} ${busy.join(', ')} put${busy.length > 1 ? '' : 's'} a big line over a multi-picture move (${busy.map((i) => t.parts[i]!.move).join(', ')})`, fix: 'a big line reads on one full-frame shot: use cut, zoom-punch or hold under it, and keep grids and collages for parts without words' });
   // the drop

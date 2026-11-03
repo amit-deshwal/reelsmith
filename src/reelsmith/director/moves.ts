@@ -7,7 +7,7 @@ import { placeInSlot } from '../../editor/layouts';
 import type { AssemblyClip } from '../assembler/types';
 import { LAYOUT_SLOTS, withGutter } from '../assembler/collageGrid';
 import { BAR_STEPS, isCloseUp, postcardOrder } from '../assembler/postcardCollage';
-import { FINALE, FINALE_GRID_FROM_SEC, FINALE_NEEDS_SEC, FINALE_ROLES, finaleWindows, POSTCARD_GRAPHIC_CODE, stripWindows, type GraphicSource, type GraphicWindow } from '../postcardGraphics';
+import { FINALE, FINALE_GRID_FROM_SEC, FINALE_NEEDS_SEC, FINALE_ROLES, finaleWindows, stripWindows, type GraphicSource } from '../postcardGraphics';
 import { REVEAL_FRAG, REVEAL_LABELS, revealUniforms, type RevealKind } from '../travelDiaryReveal';
 import { kenBurnsActions, type KenBurnsPreset } from '../kenBurns';
 import { addRecipeTransition, RECIPE_TRANSITIONS } from '../assembler/transitions';
@@ -17,7 +17,8 @@ import { topBand } from './bandText';
 import { CREATOR_MOVES } from './creatorMoves';
 import { worldSwap } from './worldSwap';
 import { photoParallax } from './depthMoves';
-import { bool, clipAt, num, solid, str, type MoveContext, type MoveDef } from './moveKit';
+import { bool, clipAt, graphic, num, solid, source, str, type MoveContext, type MoveDef } from './moveKit';
+import { filmStrip, pictureInPicture } from './frameMoves';
 
 export type { MoveContext, MoveDef, MoveParam } from './moveKit';
 import { bigTitle, caption, titleShuffle, wordsOnBeat, type TextStyleDef } from './basicTextStyles';
@@ -25,25 +26,6 @@ import { CLIP_TEXT_STYLES, ENGINE_STYLES } from './textStyles';
 import { punchCaps } from './punchCaps';
 
 // ---- item helpers ----------------------------------------------------------------------------------------------------
-
-function source(ctx: MoveContext, clip: AssemblyClip, sec: number, fromSec: number): GraphicSource {
-  const m = ctx.moment(clip, Math.round(sec * ctx.fps));
-  const r = clip.kind === 'video' ? focusForRange(clip, m.inFrame, m.inFrame + Math.round(sec * ctx.fps)) : undefined;
-  return {
-    src: clip.src, kind: clip.kind, width: clip.width ?? ctx.W, height: clip.height ?? ctx.H, inSec: m.inFrame / ctx.fps, fromSec,
-    ...(m.loop ? { loop: true } : {}), ...(r ? { focus: [r.x + r.w / 2, r.y + r.h / 2] as [number, number] } : {}),
-  };
-}
-
-function graphic(ctx: MoveContext, layer: number, key: Array<string | number>, name: string, from: number, to: number, sources: Record<string, GraphicSource>, windows: GraphicWindow[], background?: string): void {
-  ctx.emit({
-    type: 'add', startFrame: from,
-    item: {
-      id: ctx.id(...key), track: ctx.layer(layer), kind: 'motion-graphic', name, code: POSTCARD_GRAPHIC_CODE,
-      durationInFrames: Math.max(1, to - from), width: ctx.W, height: ctx.H, props: { sources, windows, ...(background ? { background } : {}) },
-    } as never,
-  });
-}
 
 /** Shots back to back on one lane, one clip each, cut at the given beats. Returns their item ids. */
 function shots(ctx: MoveContext, layer: number, cutsBeats: number[], tag: string, extra: (i: number) => Record<string, unknown> = () => ({})): string[] {
@@ -473,7 +455,7 @@ const compare: MoveDef = {
   },
 };
 
-export const MOVES: readonly MoveDef[] = [cut, flashCuts, zoomPunch, hold, speedRamp, ...CREATOR_MOVES, worldSwap, photoDrift, photoParallax, photoStack, split, breakIn, compare, stripsReveal, postcardBand, cardsFinale, black];
+export const MOVES: readonly MoveDef[] = [cut, flashCuts, zoomPunch, hold, speedRamp, ...CREATOR_MOVES, worldSwap, photoDrift, photoParallax, photoStack, filmStrip, split, pictureInPicture, breakIn, compare, stripsReveal, postcardBand, cardsFinale, black];
 export const moveById = (id: string) => MOVES.find((m) => m.id === id);
 export const ALL_STRIP_TIMES = STRIP_AT;
 
