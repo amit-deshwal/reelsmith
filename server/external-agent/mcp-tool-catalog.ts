@@ -10,6 +10,7 @@ import {
   projectMcpToolExposure,
 } from './mcp-tool-exposure.ts';
 import type { McpSession } from './mcp.ts';
+import { withAlwaysLoad } from '../reelsmith/alwaysLoadTools.ts';
 
 /** The tool catalog a transport session advertises, split out of mcp.ts
  * (transport, binding and dispatch) to keep that file inside the 500-line
@@ -40,7 +41,8 @@ export function fullMcpTools(session?: McpSession): Tool[] {
       },
     },
   }));
-  return [...MCP_CONTROL_TOOLS, ...editorTools];
+  // Reelsmith (RS-1258): the director's tools are listed up front instead of behind the CLI's ToolSearch
+  return [...MCP_CONTROL_TOOLS, ...editorTools].map(withAlwaysLoad);
 }
 
 export function mcpTools(session?: McpSession): Tool[] {

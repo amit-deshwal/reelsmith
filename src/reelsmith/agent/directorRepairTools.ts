@@ -17,19 +17,23 @@ import { projectId, type ReelsDeps } from './reelsTools';
 /** Frames the frame tool renders in one call (one contact sheet each). */
 const FRAMES_PER_SHEET = 8;
 
-/** Render frames in sheets of eight, labelled for the agent ("image 2: [1] 4.5s s1 hold mid · ..."). */
-async function frameSheets(picks: Array<{ frame: number; label: string }>, fps: number, ctx: AgentContext): Promise<{ images: unknown[]; sheets: string[] }> {
+/**
+ * Render frames in sheets of eight, labelled for the agent ("image 2: [1] 4.5s s1 hold mid · ..."). RS-1258: the sheets
+ * render at once (each in a few tabs on the server): 18 critique frames took 12.6 s one sheet after another, ~5 s now.
+ */
+export async function frameSheets(picks: Array<{ frame: number; label: string }>, fps: number, ctx: AgentContext, render: (frames: number[]) => Promise<unknown> = (frames) => execFramesTool('view_timeline_frames', { frames }, ctx)): Promise<{ images: unknown[]; sheets: string[] }> {
   const images: unknown[] = [];
   const sheets: string[] = [];
   if (!framesAllowed(projectId(ctx))) return { images, sheets };
-  for (let i = 0; i < picks.length; i += FRAMES_PER_SHEET) {
-    const chunk = picks.slice(i, i + FRAMES_PER_SHEET);
-    ctx.onToolProgress?.(`Looking closer (${Math.min(picks.length, i + FRAMES_PER_SHEET)}/${picks.length} frames)`);
-    const out = await execFramesTool('view_timeline_frames', { frames: chunk.map((p) => p.frame) }, ctx).catch(() => null) as { __images?: unknown[] } | null;
-    if (!out?.__images?.length) continue;
+  const chunks: Array<typeof picks> = [];
+  for (let i = 0; i < picks.length; i += FRAMES_PER_SHEET) chunks.push(picks.slice(i, i + FRAMES_PER_SHEET));
+  ctx.onToolProgress?.(`Looking closer (${picks.length} frames)`);
+  const rendered = await Promise.all(chunks.map((chunk) => render(chunk.map((p) => p.frame)).catch(() => null) as Promise<{ __images?: unknown[] } | null>));
+  rendered.forEach((out, i) => {
+    if (!out?.__images?.length) return;
     images.push(...out.__images);
-    sheets.push(`image ${images.length}: ${chunk.map((p, j) => `[${j + 1}] ${(p.frame / fps).toFixed(1)}s ${p.label}`).join(' · ')}`);
-  }
+    sheets.push(`image ${images.length}: ${chunks[i]!.map((p, j) => `[${j + 1}] ${(p.frame / fps).toFixed(1)}s ${p.label}`).join(' · ')}`);
+  });
   return { images, sheets };
 }
 
@@ -59,6 +63,25 @@ const treatmentBrief = (t?: Treatment) => (t ? {
  * largest defects, which reels_director_fix repairs section by section.
  */
 export async function directorCritique(ctx: AgentContext): Promise<unknown> {
+  const critique = await critiqueOfLastBuild(ctx);
+  if ('error' in critique) return critique;
+  const { images, body } = critique;
+  return {
+    ...(images.length ? { __images: images } : {}),
+    ...body,
+    next: `Name the three largest defects (section, at, evidence, fix) and call reels_director_fix with them and the changed sections only; every other section comes back exactly as it is. If nothing is wrong, ${FINISH}` + songReportLine(ctx.getState()),
+  };
+}
+
+/** How every director stage that can end the run says to end it (RS-1258: the report was 1-4k characters, 7-20 s). */
+export const FINISH = 'finish: review_edit_session if you opened an edit session (nothing reaches the timeline until it returns applied), then report in at most three short lines (under 60 words: the concept and structure, the length and song, two things they could ask next).';
+
+/**
+ * The critique of the last build: about three frames a section and each line at its fullest, the checks frames cannot
+ * show and the critic's checklist. RS-1258: the first build of a run returns it itself (the agent always called the
+ * critique next without a thought: 2-5 s of model time and a second render of frames).
+ */
+export async function critiqueOfLastBuild(ctx: AgentContext): Promise<{ error: string } | { images: unknown[]; body: Record<string, unknown> }> {
   const id = projectId(ctx);
   const session = restoreDirectorSession(id, ctx.getState().items as never);
   const built = session?.lastBuild;
@@ -69,14 +92,15 @@ export async function directorCritique(ctx: AgentContext): Promise<unknown> {
   const lint = lintReel(ctx.getState());
   const brief = treatmentBrief(session.treatment);
   return {
-    ...(images.length ? { __images: images } : {}),
-    frames: images.length ? sheets : 'frames unavailable: judge from the plan and the checks',
-    sections: built.spans.map((sp, k) => `s${k} ${built.plan.sections[k]!.move} ${sp.from.toFixed(1)}-${sp.to.toFixed(1)} s`),
-    ...buildChecks(session),
-    textWarnings: lint.issues.slice(0, 8).map((x) => x.message),
-    ...(brief ? { treatment: brief } : {}),
-    checklist: criticBrief(session.treatment),
-    next: 'Name the three largest defects (section, at, evidence, fix) and call reels_director_fix with them and the changed sections only; every other section comes back exactly as it is. If nothing is wrong, finish (review_edit_session if you opened an edit session, then report).' + songReportLine(ctx.getState()),
+    images,
+    body: {
+      frames: images.length ? sheets : 'frames unavailable: judge from the plan and the checks',
+      sections: built.spans.map((sp, k) => `s${k} ${built.plan.sections[k]!.move} ${sp.from.toFixed(1)}-${sp.to.toFixed(1)} s`),
+      ...buildChecks(session),
+      textWarnings: lint.issues.slice(0, 8).map((x) => x.message),
+      ...(brief ? { treatment: brief } : {}),
+      checklist: criticBrief(session.treatment),
+    },
   };
 }
 
@@ -156,8 +180,8 @@ export async function directorFix(args: Record<string, unknown>, ctx: AgentConte
     ...buildChecks(directorSession(id)!),
     review: out.findings, notes: out.notes,
     next: (last1
-      ? 'That was the last fix round: finish, and tell the user in one line what still looks off, if anything.'
+      ? 'That was the last fix round: finish, and say in one line what still looks off, if anything.'
       : 'Judge only these frames: is each defect gone, and is nothing new broken? If so, finish. If not, name what remains (up to three, worst first) and call reels_director_fix again.')
-      + ' To finish: call review_edit_session if you opened an edit session, then report to the user in three short lines.' + songReportLine(ctx.getState()),
+      + ` To ${FINISH}` + songReportLine(ctx.getState()),
   };
 }

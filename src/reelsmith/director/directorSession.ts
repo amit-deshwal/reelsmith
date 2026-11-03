@@ -28,6 +28,12 @@ export interface DirectorBuildRecord {
 
 export interface DirectorSession {
   fps: number;
+  /**
+   * RS-1250/1258: the rate stage 1 chose for an empty timeline (the footage's 60 fps). Stage 1 only decides it and
+   * analyses at it; the build switches the timeline. A stage 1 that changed the draft could not follow the live project
+   * while it watched the clips, so any change there (an upload finishing, a transcript saved) made the run go stale.
+   */
+  timelineFps?: number;
   clips: ShotLogClip[];
   song?: { assetId: string; bpm?: number; beatsFor18s?: number; dropAtBeat?: number };
   treatment?: Treatment;

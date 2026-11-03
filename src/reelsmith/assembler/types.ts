@@ -33,7 +33,7 @@ export interface AssemblyClip {
   /** Scored source windows and hard cuts, retained for duration-aware placement. */
   sourceAnalysis?: {
     minShotFrames: number;
-    windows: Array<{ startFrame: number; endFrame: number; score: number; focusRect?: FocusRect; speech?: boolean }>;
+    windows: Array<{ startFrame: number; endFrame: number; score: number; focusRect?: FocusRect; speech?: boolean; level?: number }>;
     shotBoundariesFrame: number[];
   };
   /** RS-109: what the clip shows, from the local visual model (absent when the model is not installed) */

@@ -21,7 +21,7 @@ import { lookById, lookEffects } from '../looks';
 import { focusForRange } from '../titleClear';
 import { buildGraphics, coverFocus } from './graphics';
 import { MOTION_RULES, applyMotionRules, toneParams } from './motionRules';
-import { heardClip, songDuck, type NaturalWindow } from './naturalSound';
+import { continuingSound, heardClip, jCutLeadIn, levelNatural, songDuck, sourceLevel, type NaturalWindow } from './naturalSound';
 import { overSpeech, speechWindows, voiceFrames, voiceoverActions } from './voiceover';
 import { lyricsCaptions, reelLyrics } from './lyrics';
 import { traceShots } from './shotTrace';
@@ -411,14 +411,29 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
       if (r!.s.naturalSound) warnings.push(`sections[${i}] (${r!.move.id}): naturalSound left off: the voiceover is speaking there (the clips' sound may only play in its pauses).`);
       return;
     }
-    natural.push({ from: frame(spans[i]!.b0), to: Math.max(frame(spans[i]!.b0) + 1, frame(spans[i]!.b1)), solo: mode === 'solo' });
+    const window: NaturalWindow = { from: frame(spans[i]!.b0), to: Math.max(frame(spans[i]!.b0) + 1, frame(spans[i]!.b1)), solo: mode === 'solo' };
+    natural.push(window);
     let any = false;
     onClips(i, true, (item) => {
       if (item.kind !== 'video' || item.props?.rsRewind) return item;
       any = true;
-      return heardClip(item);
+      // RS-1258: a quiet clip is raised toward a voice close to the phone, and the song dips further under it
+      const it = item as { sourceAssetId?: string; srcInFrame?: number; durationInFrames: number; playbackRate?: number };
+      const clip = input.clips.find((x) => x.assetId === it.sourceAssetId);
+      const from = it.srcInFrame ?? 0;
+      const lv = levelNatural(sourceLevel(clip?.sourceAnalysis?.windows, from, from + it.durationInFrames * (it.playbackRate ?? 1)));
+      window.songFactor = Math.min(window.songFactor ?? 1, lv.songFactor);
+      return heardClip(item, lv.clipGain);
     });
     if (!any) warnings.push(`sections[${i}] (${r!.move.id}): naturalSound needs video footage; its photos have no sound.`);
+    // RS-1258: a J-cut: the first clip's sound comes in a moment before its picture (the song is already down for it)
+    const first = firstBase(i);
+    const lead = first && first.item.kind === 'video' && !first.item.props?.rsRewind ? jCutLeadIn(first as never, fps, stableId('rs-dir', tag, seed, 'jcut', i)) : null;
+    if (first && lead) {
+      actions[actions.indexOf(first)] = { ...first, item: continuingSound(first.item as never) } as AtomicAction;
+      actions.push(lead as unknown as AtomicAction);
+      if (!window.solo) window.from = lead.startFrame;
+    }
   });
 
   // 5. sound effects under the song (hand-placed ones always; the rest unless the plan turns them off)

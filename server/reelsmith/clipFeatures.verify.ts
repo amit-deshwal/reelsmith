@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { captureTimeFromMetadata, extractClipFeatures } from './clipFeatures.ts';
+import { bandLevel, captureTimeFromMetadata, extractClipFeatures } from './clipFeatures.ts';
 import { sourcePlacement } from '../../src/reelsmith/assembler/sourcePlacement';
 import { pickClips } from '../../src/reelsmith/assembler/strobe';
 import { toAssemblyClips, groupNearDuplicates } from '../../src/reelsmith/assembler/scoring.ts';
@@ -98,6 +98,19 @@ try {
   const photoGroups = groupNearDuplicates([p, p2, pb]);
   assert.equal(photoGroups.get('photo'), photoGroups.get('photo-copy'));
   assert.equal(photoGroups.has('blank-photo'), false);
+
+  // RS-1258: how loud a stretch gets (dBFS of the speech band, 90th percentile of 20 ms steps), for levelling natural sound
+  {
+    const rate = 8000;
+    const tone = (amp: number, sec: number) => Int16Array.from({ length: sec * rate }, (_, i) => Math.round(Math.sin(i * 0.6) * amp));
+    const pcm = new Int16Array([...tone(16000, 1), ...tone(1000, 1), ...tone(0, 1)]);
+    const level = bandLevel(pcm);
+    assert.equal(level(0, 1), -9, 'a loud second (half scale sine: -9 dBFS)');
+    assert.equal(level(1, 2), -33, 'a quiet one');
+    assert.equal(level(0, 2), -9, 'the loud part decides');
+    assert.equal(level(2, 3), undefined, 'silence has no level');
+    assert.equal(level(0, 0.1), undefined, 'too short to say');
+  }
 
   console.log('clipFeatures.verify: ok');
 } finally {

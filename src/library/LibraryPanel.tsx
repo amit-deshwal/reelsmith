@@ -211,7 +211,7 @@ export function LibraryPanel({ semanticScopeId, canvasRatio, templates, onAddTem
       </div>
       {recipesOpened && (
         <div style={{ flex: 1, display: isRecipes && !extensionOpen ? 'flex' : 'none', flexDirection: 'column', minHeight: 0, borderTop: `0.5px solid ${theme.border}` }}>
-          <DirectorPanel initialRatio={directorStart?.ratio ?? canvasRatio} assets={assets} items={items} selectedItem={selectedItem} onApply={onApplyRecipe} onAskAgent={onAskAgent} />
+          <DirectorPanel initialRatio={directorStart?.ratio ?? canvasRatio} assets={assets} items={items} selectedItem={selectedItem} onApply={onApplyRecipe} onAskAgent={onAskAgent} projectId={semanticScopeId} fps={fps} />
         </div>
       )}
       {extensionOpen ? (

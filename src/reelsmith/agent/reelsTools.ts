@@ -12,7 +12,7 @@ import { bindTracks } from '../trackBinding';
 import { directorBuild, directorOptions, directorTreatment } from './directorTools';
 import { findShots } from './directorSearchTool';
 import type { FrameVector } from '../director/shotSearch';
-import { directorCritique, directorFix } from './directorRepairTools';
+import { critiqueOfLastBuild, directorCritique, directorFix } from './directorRepairTools';
 import { customShaderTool } from './customShaderTool';
 import { customGraphicTool } from './customGraphicTool';
 import { parseTimeEffectArgs, planTimedEffect } from './timeEffectTool';
@@ -58,10 +58,12 @@ export async function execReelsTool(name: string, args: Args, ctx: AgentContext,
       return applySignatureTool(args, ctx);
 
     case 'reels_director_options':
-      return directorOptions(args, ctx, deps);
+      // RS-1258: `find` phrases are searched in the same call
+      return directorOptions(args, ctx, deps, findShots);
 
     case 'reels_director_build':
-      return directorBuild(args, ctx, deps);
+      // RS-1258: the first build of a directed reel returns the critique with it
+      return directorBuild(args, ctx, deps, critiqueOfLastBuild);
 
     case 'reels_director_treatment':
       return directorTreatment(args, ctx);

@@ -1,9 +1,10 @@
 // Director tab: tell the story and the agent directs the reel; reshape a directed reel and put a look on a clip.
 // The agent does the work (src/reelsmith/agent, src/reelsmith/director); this file is only the form.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { RatioId } from '../../../shared/reelsmith/ratios';
 import { directorPrompt, reshapePrompt, STORY_MAX } from '../director/directorPrompt';
 import { findSavedDirector } from '../director/directorSession';
+import { warmDirectorInApp } from '../agent/reelsToolsApp';
 import type { BatchAction } from '../../editor/reducerActions';
 import type { MediaAsset, TimelineItem } from '../../editor/types';
 import { theme } from '../../theme';
@@ -19,7 +20,13 @@ export interface DirectorPanelProps {
   onAskAgent?: (text: string, opts?: { autoSend?: boolean }) => void;
   /** the shape the reel was started in (the home screen's choice) */
   initialRatio?: RatioId;
+  /** RS-1258: the project and the timeline's rate, so the clips are watched while the story is written */
+  projectId?: string;
+  fps?: number;
 }
+
+/** Wait for imports to settle before watching the clips (a batch of 20 lands one by one). */
+const WARM_DELAY_MS = 1500;
 
 const SHAPES = ['9:16', '4:5', '1:1', '16:9'] as const;
 const label: React.CSSProperties = { fontSize: 11.5, color: theme.textDim };
@@ -27,11 +34,21 @@ const input: React.CSSProperties = {
   background: theme.inset, color: theme.text, border: `0.5px solid ${theme.border}`, borderRadius: 5, padding: '5px 7px', fontSize: 12.5,
 };
 
-export function DirectorPanel({ assets, items, selectedItem, onApply, onAskAgent, initialRatio }: DirectorPanelProps) {
+export function DirectorPanel({ assets, items, selectedItem, onApply, onAskAgent, initialRatio, projectId, fps }: DirectorPanelProps) {
   const [story, setStory] = useState('');
   const [referenceId, setReferenceId] = useState('');
   const [directorRatio, setDirectorRatio] = useState<RatioId>(SHAPES.find((r) => r === initialRatio) ?? '9:16');
   const [askFirst, setAskFirst] = useState(false);
+  // RS-1258: stage 1's analysis starts here, while the story is written; the agent's first call picks it up
+  const mediaKey = assets.filter((a) => a.kind === 'video' || a.kind === 'image').map((a) => `${a.id}:${a.src}`).join(',');
+  const hasItems = (items?.length ?? 0) > 0;
+  useEffect(() => {
+    if (!projectId || !fps || !mediaKey || !onAskAgent) return undefined;
+    const timer = setTimeout(() => { void warmDirectorInApp({ projectId, assets, fps, timelineHasItems: hasItems, ...(referenceId ? { referenceId } : {}) }); }, WARM_DELAY_MS);
+    return () => clearTimeout(timer);
+    // assets are read through mediaKey: a re-render with the same media does not start it again
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId, fps, mediaKey, hasItems, referenceId, onAskAgent]);
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'grid', gap: 10, alignContent: 'start' }}>
       {onAskAgent && <section aria-label="Direct my reel" style={{ display: 'grid', gap: 6, padding: 10, border: `0.5px solid ${theme.border}`, borderRadius: 8 }}>

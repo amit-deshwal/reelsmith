@@ -1,14 +1,14 @@
 ---
 name: reels-director
 description: |
-  Direct a reel from the user's story, media and song (director mode) as a four-stage pipeline: watch the footage (reels_director_options), write a treatment (reels_director_treatment), plan and build (reels_director_build), then critique (reels_director_critique) and repair the largest defects section by section (reels_director_fix). Also for later changes to a reel the director built (reels_director_fix). Use for any new reel the user describes ("make a reel of my trek", "here are my clips and song, the story is…") unless they name a recipe.
+  Direct a reel from the user's story, media and song (director mode) as a four-stage pipeline: watch the footage (reels_director_options), write a treatment (reels_director_treatment), plan and build (reels_director_build, whose first build brings the critique), then repair the largest defects section by section (reels_director_fix). Also for later changes to a reel the director built (reels_director_fix). Use for any new reel the user describes ("make a reel of my trek", "here are my clips and song, the story is…") unless they name a recipe.
 ---
 
 # Reels director
 
-The user brings three things: **a story** (a line or a few sentences), **their media** and **a song**. You are the director: you decide what the reel is, its structure, its effects, its clips and its words. The user should not have to know the moves exist. They want the best cut possible, one that looks paid-for and fits their story, not a template; a run takes a few minutes and that is fine.
+The user brings three things: **a story** (a line or a few sentences), **their media** and **a song**. You are the director: you decide what the reel is, its structure, its effects, its clips and its words. The user should not have to know the moves exist. They want the best cut possible, one that looks paid-for and fits their story, not a template. Think once per stage, then act; the tools do the arithmetic and checks.
 
-**Load the menu before stage 2, in two calls** (one result each stays readable): `load_skill(name="reels-director", files=["references/catalogue.md"])` (moves, text styles, graphics; add `"references/promo.md"` to it for a promo reel), then `load_skill(name="reels-director", files=["references/catalogue-fx.md"])` (effects, transitions, looks). `references/examples.md` has a worked treatment and plan. This file stays short so it loads whole.
+**Load the menu while stage 1 runs**, in the same message as the `reels_director_options` call, as two calls (one result each stays readable): `load_skill(name="reels-director", files=["references/catalogue.md"])` (moves, text styles, graphics; add `"references/promo.md"` for a promo reel) and `load_skill(name="reels-director", files=["references/catalogue-fx.md"])` (effects, transitions, looks). `references/examples.md` has a worked treatment and plan.
 
 Work in four stages, each with its own tool. Do the thinking each stage asks for before calling its tool; never skip a stage on a new reel.
 
@@ -21,18 +21,18 @@ Work in four stages, each with its own tool. Do the thinking each stage asks for
 
 ## Stage 1: watch the footage (`reels_director_options`)
 
-Call it once (with `reference` when the user gave a reel to match). It takes up to 90 s (it watches every clip) and returns:
+Call it once, with `find`: a short phrase for each thing the story names to see ("climbing a rock face", "the view from the top"), and `reference` when the user gave a reel to match. It returns:
 - **the shot log**: each clip as `#n`, its length and shape, what it shows, its **best moments** (`best @12 @3`: sharp, lit, a subject, some life; best first), where it **moves**, where someone **talks**, the **soft/dark** seconds to avoid, and cuts inside it;
 - **contact sheets** taken at those best moments (cells "n·seconds");
-- **the songs** with bpm, drop and `suggest` (`musicStart`, `beatsFor18s`, `dropAtBeat`, and `energy`: the song bar by bar from the reel start, 1 quiet to 5 loudest, in phrases of four bars, and where it lifts). Use them as given. Without a song a beat is 0.5 s and every clip keeps its sound.
+- **the songs** with bpm, drop and `suggest` (`musicStart`, `beatsFor18s`, `dropAtBeat`, `energy`: the song bar by bar from the reel start, 1 quiet to 5 loudest, where it lifts). Use them as given. Without a song a beat is 0.5 s and every clip keeps its sound.
 
 - **"filmed"** on a log line: the true clock time the clip was shot ("filmed 4:12 am").
 - **the brand kit**, with `brandUrl`: what the page says and asks, and its colours (`brandError` when the page could not be read: ask for the name, action and handle).
 - **the reference**, when given: its pace (seconds and beats a shot), motion and colour, and one sheet. It is never footage and is not in the clip list.
 
-**Find the shots** (`reels_find_shots`, after the sheets): one call with a short phrase for each part of the arc and each line that names something to see ("climbing a rock face", "friends laughing at camp"). It returns the best moments across all clips as `#n@s` refs, one per clip; cast those. `shows: sure` is a match; check a `maybe` on its sheet; `none`: no clip shows it, so leave the line out, use a graphic, or ask. If the model is missing, use the log and sheets.
+**The shots** (`shots`, for `find`): the best moments across all clips as `#n@s` refs, one per clip; cast those. `shows: sure` is a match; check a `maybe` on its sheet; `none`: no clip shows it, so leave the line out, use a graphic, or ask. `reels_find_shots` searches more phrases later. Without the visual model, use the log and sheets.
 
-Read the sheets with the log: who is in each shot (and where in the frame), which shots are wide views with open sky, which are selfies or people sitting, which have real action. Use `view_asset_frames` only when two clips are truly impossible to tell apart.
+Read the sheets with the log: who is in each shot (and where in the frame), which shots are wide views with open sky, which are selfies or people sitting, which have real action. `view_asset_frames` only when two clips are impossible to tell apart.
 
 ## Stage 2: the treatment (`reels_director_treatment`)
 
@@ -74,7 +74,7 @@ The tool returns **findings** (a slow hook, a plain arc, parts with no purpose, 
 
 Turn each part into one or two sections and build once. (Ask before replacing a non-empty timeline, unless the user asked for the reel.)
 - **Cast with the log.** Name `clips` by number in the order the move uses them (each move's `use` says the order). Start each at its best moment: `"#7@4"` (every use of that reference starts there; leave the shot's length after it). The hook and the drop get moving, sharp moments; the ending the most beautiful one; never the same moment in neighbouring sections; skip the soft/dark seconds. **Few clips** (one to three videos): cast different moments (`"#1@0.5"`, `"#1@4"`, at least a second apart) and keep the reel no longer than the footage can fill. Portrait clips suit 9:16; landscape suits 16:9. Leave `clips` out only for montage moves (`postcard-band`).
-- **Words.** The user's phrases, trimmed, never reworded; never add numbers, names or claims they did not give. Lines of your own only when asked ("make it funny"), in their language and slang. One line per section, readable in its time. Repeat the treatment's styles; change only for a title, number or punchline. The styles already keep text off faces and in the safe area. Style params go in the section's `params` (a style takes only the params its entry lists; `every` is beats per shot for `cut` and beats per word for `slam`). A line across several sections is an overlay: `"overlays": [{ "text": "Harishchandragad", "style": "title-shuffle", "from": 1, "to": 2 }]` (section indexes from 0, both included). A line "above the video" for the whole reel is ONE `top-band` overlay from section 0 to the last (keep full-frame graphic moves out of those sections).
+- **Words.** The user's phrases, trimmed, never reworded; never add numbers, names or claims they did not give. Lines of your own only when asked ("make it funny"), in their language and slang. One line per section, readable in its time. Repeat the treatment's styles; change only for a title, number or punchline. The styles already keep text off faces and in the safe area. Style params go in the section's `params` (the move and the style each take the values they can use: `every: 4` on a `cut` is its beats per shot; `x`/`y` 0-1 place any line). A line across several sections is an overlay: `"overlays": [{ "text": "Harishchandragad", "style": "title-shuffle", "from": 1, "to": 2 }]` (section indexes from 0, both included). A line "above the video" for the whole reel is ONE `top-band` overlay from section 0 to the last (keep full-frame graphic moves out of those sections).
 - **Pick text styles by what the words are**: a place → `landscape-title` (open sky), `cinematic-title` or `location-tag`; a number → `count-up`; a punchline → `slam` on the drop (not in royal, calm or emotional reels); a statement → `rise-lines`; a note or a time → `typewriter`; a spoken sentence → `pop-words` or `caption` (playful and funny reels); one mood word on a clear person → `behind-you`; a triumph → `shine` or `tracking-in`.
 - **Transitions** from your kit only where something changes: into the hook's reveal, the drop, a new place or day, the ending. Plain cuts on the beat everywhere else.
 - **Effects move with the song**: `timing` `beat` (punches every `every` beats: rgb-split, zoom-blur, shake, edge-glow), `drop` (hits the section's first beat: zoom-blur, light-rays, bloom), `build` (grows into the next section: shake, zoom-blur, vignette), `fade` (light-leak, pro-mist). `strength` 0.5-0.8 is the paid-for look; a steady full-strength stylise effect is the cheap one. `region: "background"` keeps the person natural while the world changes; "needs a person" means one person, big in frame.
@@ -84,18 +84,18 @@ Turn each part into one or two sections and build once. (Ask before replacing a 
 - **Graphics** placed by section: `{ "graphic": "annotate", "from": 1, "beats": 4, "text": "bro", "params": { "shape": "arrow" } }`. Every person in the shot is found and the arrow lands on one (the label "me" the nearest, any other the next nearest); when that is not who you mean, set `who` (front, back, left, right, middle) as you see them on the sheet. Never guess `x`/`y`.
 - **Signature extras, when the catalogue lacks what the story needs**: one `reels_custom_graphic` (a Remotion component: an altitude profile drawing itself, a scoreboard) and one `reels_custom_shader` (an effect or transition: a campfire burn, wet glass) per reel; check their frames in the critique and fix them once or drop them.
 
-The build returns one frame per section, the lint and review findings. Do not rebuild yet.
+The first build returns stage 4's critique with it (no separate call); do not rebuild before judging it.
 
 ## Stage 4: critique, then repair the defects (`reels_director_critique`, `reels_director_fix`)
 
-Call the critique right after the first build. It returns about three frames a section and every line at its fullest, the plan checked against your treatment, the **sound findings** (the reel with eyes closed: a sound on no cut, a drop on nothing, a line between beats, an ending mid-bar), the **reference findings** (its pace and colour against yours) and a critic's checklist. Judge only the rendered frames, as a picky creative director seeing the reel cold, not what you meant to make.
+The first build carries the critique (`reels_director_critique` looks again later): about three frames a section and every line at its fullest, the plan checked against your treatment, the **sound findings** (the reel with eyes closed: a sound on no cut, a drop on nothing, a line between beats, an ending mid-bar), the **reference findings** (its pace and colour against yours) and a critic's checklist. Judge only the rendered frames, as a picky creative director seeing it cold.
 
 Then name the **three largest defects**, worst first, each `{ section, at, evidence, fix }`: `{ "section": 0, "at": 0.4, "evidence": "image 1 [1]: the line runs off the right edge", "fix": "rise-lines at x 0.08, two lines" }`. Call `reels_director_fix` with them and the **changed sections only** (`"sections": { "0": <the whole new section> }`, reel-wide changes in `plan`). Every other section comes back with the same clips and moments; the result shows the changed sections again. If a defect remains or a new one shows, name what remains and fix again (three rounds at most); when the frames show no defect, finish. When an arrow found nobody, set `x`/`y` on their head. Treat lint text-position warnings as notes. Never call `view_timeline_frames` or `reels_lint` separately.
 
 ## Finish
 
 - **Finish the edit session** if you opened one: call `review_edit_session` (the build is only a draft until it returns `applied`; skipping it leaves the timeline empty). Loudness and exports act on the live project: call them only after it, with no edits pending in another session, or that draft goes stale.
-- **Report in three lines**: the concept and structure in plain words, the length and song, and two or three things they could ask next ("slower ending", "different opener", "add a look"). When the song is a commercial track (an artist's song, not one of the bundled ones), add one line: Instagram may mute or limit a reel with it baked in; the Instagram-ready export also saves a no-sound copy, and in Instagram's music picker they start the song at `musicStart` (as m:ss) so the cuts land on its beat.
+- **Report in at most three short lines** (under 60 words): the concept and structure in plain words, the length and song, and two things they could ask next ("slower ending", "add a look"). No lists of what you checked. When the song is a commercial track (an artist's song, not one of the bundled ones), add one line: Instagram may mute or limit a reel with it baked in; the Instagram-ready export also saves a no-sound copy, and in Instagram's music picker they start the song at `musicStart` (as m:ss) so the cuts land on its beat.
 
 ## Changing a built reel
 
@@ -116,7 +116,7 @@ For any change to a reel you built ("slower ending", "more royal", "this looks b
 
 ## Rules
 
-- Four stages on every new reel: options, treatment, build, critique and one rebuild (a second only for something clearly broken). Decide from the log, the sheets and the catalogue without re-reading them.
+- Four stages on every new reel: options (with `find`), treatment, build (with its critique), then fix rounds for the largest defects. Decide from the log, the sheets and the catalogue without re-reading them.
 - Never invent footage, songs or facts. If the footage cannot carry a move (no wide shot of a person for `strips-reveal`), choose another.
 
 <!-- director-catalog:start (generated by src/reelsmith/director/sync-director-catalog.mts; do not edit by hand) -->

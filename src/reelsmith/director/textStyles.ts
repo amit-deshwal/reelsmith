@@ -3,7 +3,7 @@
 import type { AtomicAction } from '../../editor/reducerActions';
 import type { PlanValue } from '../../../shared/reelsmith/directorPlan';
 import { TEXT_GRAPHIC_CODE, type TextGraphicProps, type TextPreset } from './textGraphic';
-import { wrapToFit } from './basicTextStyles';
+import { POS_PARAMS, wrapToFit } from './basicTextStyles';
 import type { MoveParam, TextContext, TextStyleDef } from './moves';
 
 const num = (v: PlanValue | undefined, d: number) => (typeof v === 'number' && Number.isFinite(v) ? v : d);
@@ -83,7 +83,7 @@ function engine(ctx: TextContext, look: Look, extra: Partial<TextGraphicProps> =
 const COLOR: MoveParam = { id: 'color', type: 'color', label: 'Text colour', default: '#ffffff' };
 const ACCENT = (d: string): MoveParam => ({ id: 'accent', type: 'color', label: 'Accent colour', default: d });
 const SIZE: MoveParam = { id: 'size', type: 'number', label: 'Size (1 = normal)', default: 1, min: 0.4, max: 2 };
-const POS: MoveParam[] = [{ id: 'x', type: 'number', label: 'Across (0 left .. 1 right)', default: -1, min: -1, max: 1 }, { id: 'y', type: 'number', label: 'Down (0 top .. 1 bottom)', default: -1, min: -1, max: 1 }];
+const POS: MoveParam[] = POS_PARAMS;
 // -1 means "the style's own place"
 const place = (ctx: TextContext): TextContext => {
   const { x, y, ...rest } = ctx.params;

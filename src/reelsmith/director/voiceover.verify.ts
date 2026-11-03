@@ -148,10 +148,14 @@ assert.equal(speechShareOfPcm(new Int16Array(0)), null);
     { id: 'vo2', name: 'Take 2.m4a', kind: 'audio', src: '/vo2.m4a', durationInFrames: 600 },
   ];
   const saved: Record<string, unknown> = {};
-  const ctx: any = { getState: () => ({ fps: 30, items: [] }), getDoc: () => ({ assets }), audio: [], commands: { setAssetTranscription: (id: string, patch: any) => { saved[id] = patch; } } };
+  const fpsSet: number[] = [];
+  const ctx: any = {
+    getState: () => ({ fps: 30, items: [] }), getDoc: () => ({ assets, timelines: [] }), audio: [],
+    commands: { setAssetTranscription: (id: string, patch: any) => { saved[id] = patch; }, setProjectFps: (f: number) => { fpsSet.push(f); } },
+  };
   const transcribed: string[] = [];
   const api: any = {
-    musicGrid: async () => null, clipFeatures: async () => null,
+    musicGrid: async () => null, clipFeatures: async () => null, mediaFps: async (srcs: string[]) => srcs.map(() => 60),
     speechShare: async (a: any) => ({ vo: 0.87, song: 0.25, vo2: 0.8 } as Record<string, number>)[a.id] ?? null,
     transcribe: async (a: any) => { transcribed.push(a.id); if (a.id === 'vo2') throw new Error('no speech model installed'); return words; },
   };
@@ -162,7 +166,20 @@ assert.equal(speechShareOfPcm(new Int16Array(0)), null);
   assert.match(out.voiceovers[1].transcriptError, /no speech model/);
   assert.match(out.voiceoverHint, /never music/);
   assert.deepEqual(transcribed.sort(), ['vo', 'vo2']);
-  assert.equal((saved.vo as any).transcript.length, words.length, 'the transcript is kept on the asset for the build');
+  // RS-1258: stage 1 changes nothing in the draft (a draft change there turned runs stale while the clips were watched):
+  // the words wait for the build, and the 60 fps timeline is decided, not set
+  assert.deepEqual(saved, {}, 'stage 1 saves no transcript');
+  assert.deepEqual(fpsSet, [], 'stage 1 does not switch the timeline rate');
+  assert.match(out.frameRate, /built at 60 fps/);
+  const { directorSession } = await import('./directorSession');
+  assert.equal(directorSession('current')?.timelineFps, 60, 'the build switches to it');
+  assert.equal(directorSession('current')?.fps, 60, 'the clips were analysed at it');
+  // the build saves the words heard in stage 1 on the asset, without transcribing again
+  const { narrationWords } = await import('../agent/directorVoiceover');
+  const heard = await narrationWords(assets[1], ctx, { api } as any);
+  assert.equal(heard.words?.length, words.length);
+  assert.equal((saved.vo as any).transcript.length, words.length, 'the build keeps the transcript on the asset');
+  assert.deepEqual(transcribed.sort(), ['vo', 'vo2'], 'not transcribed twice');
   assert.ok(JSON.stringify(out).length < 16_000);
 }
 

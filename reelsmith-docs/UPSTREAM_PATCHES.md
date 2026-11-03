@@ -529,3 +529,10 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 - `src/agent/tools.ts`: one comment.
 - `scripts/verify-discovery.mjs`: the deleted `recipeGallery.verify.tsx` is out of the slow list.
 - `assets/agent/openchatcut-tool-schemas.json`: regenerated (seven tools out, `reels_find_shots` in).
+
+## Faster director runs (RS-1258, 2026-11-03)
+
+- `server/external-agent/mcp-tool-catalog.ts`: `fullMcpTools` maps its list through `withAlwaysLoad` (`server/reelsmith/alwaysLoadTools.ts`, one import, one `.map`): the director's tools carry `_meta["anthropic/alwaysLoad"]: true`, so the claude CLI lists them up front instead of behind its ToolSearch (1-7 model round trips a run).
+- `remotion/render.mjs` (stills): `renderTimelineStills` takes `concurrency` (default `stillConcurrency()`: 3, env `RS_STILL_CONCURRENCY`, 1 = the old one-by-one loop) and renders the requested stills in that many tabs of its one browser, keeping their order. 18 critique frames: 12.6 s → 6.7 s (with the three sheets requested at once, ~5 s).
+- `src/library/LibraryPanel.tsx`: passes `projectId={semanticScopeId}` and `fps` to `DirectorPanel` (one line), which starts stage 1's clip analysis while the story is written.
+- `assets/agent/openchatcut-tool-schemas.json`: regenerated (`reels_director_options` `find`; build, critique and find-shots descriptions).

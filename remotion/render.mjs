@@ -362,6 +362,16 @@ export async function renderClip({
 /** Cap stills per call (contact-sheet path further compresses into one image). */
 const STILL_MAX_FRAMES = 16;
 
+/**
+ * Reelsmith (RS-1258): stills rendered at once, each in its own tab of the one browser. The director's critique and
+ * every fix round wait on 8-24 stills; one at a time they were most of the critique's 11-16 s. RS_STILL_CONCURRENCY
+ * overrides it (1 = the old one-by-one path).
+ */
+export function stillConcurrency(env = process.env) {
+  const raw = Number(env.RS_STILL_CONCURRENCY);
+  return Number.isFinite(raw) && raw >= 1 ? Math.min(8, Math.floor(raw)) : 3;
+}
+
 export async function renderTimelineStills({
   state,
   project,
@@ -369,6 +379,7 @@ export async function renderTimelineStills({
   frames,
   puppeteerInstance,
   signal,
+  concurrency = stillConcurrency(),
 }) {
   if (!state || !Array.isArray(state.items)) throw new Error('renderTimelineStills: state.items required');
   if (!Array.isArray(frames) || !frames.length) throw new Error('renderTimelineStills: frames[] required');
@@ -399,11 +410,13 @@ export async function renderTimelineStills({
       timeoutInMilliseconds: renderTimeoutInMilliseconds(),
     });
     signal?.throwIfAborted();
-    const out = [];
     const list = frames.slice(0, STILL_MAX_FRAMES);
-    for (const frame of list) {
+    const out = new Array(list.length);
+    // Reelsmith (RS-1258): a small pool of tabs instead of one frame after another; the order is kept
+    let next = 0;
+    const renderOne = async (k) => {
       signal?.throwIfAborted();
-      const f = Math.max(0, Math.min(composition.durationInFrames - 1, Math.round(frame)));
+      const f = Math.max(0, Math.min(composition.durationInFrames - 1, Math.round(list[k])));
       const { buffer } = await renderStill({
         serveUrl, composition, inputProps, frame: f,
         imageFormat: 'jpeg', jpegQuality: 72,
@@ -418,8 +431,12 @@ export async function renderTimelineStills({
         timeoutInMilliseconds: renderTimeoutInMilliseconds(),
       });
       signal?.throwIfAborted();
-      out.push({ frame: f, base64: buffer.toString('base64') });
-    }
+      out[k] = { frame: f, base64: buffer.toString('base64') };
+    };
+    const workers = Math.max(1, Math.min(Math.floor(concurrency) || 1, list.length));
+    await Promise.all(Array.from({ length: workers }, async () => {
+      while (next < list.length) await renderOne(next++);
+    }));
     return out;
   } finally {
     signal?.removeEventListener('abort', closeOnAbort);

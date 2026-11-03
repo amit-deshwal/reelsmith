@@ -189,6 +189,28 @@ export function speechDetector(pcm: Int16Array): (startSec: number, endSec: numb
   };
 }
 
+/**
+ * RS-1258: how loud the sound gets in a time range: the 90th percentile of its 20 ms steps, in dBFS of the speech band
+ * (rounded); undefined for silence or a range under 0.2 s. Natural-sound sections level a quiet clip by it.
+ */
+export function bandLevel(pcm: Int16Array): (startSec: number, endSec: number) => number | undefined {
+  const hops = Math.floor(pcm.length / AUDIO_HOP);
+  const db = new Float64Array(hops);
+  for (let h = 0; h < hops; h += 1) {
+    let sq = 0;
+    for (let i = h * AUDIO_HOP; i < (h + 1) * AUDIO_HOP; i += 1) sq += (pcm[i]! / 32768) ** 2;
+    db[h] = 10 * Math.log10(sq / AUDIO_HOP + 1e-10);
+  }
+  return (startSec, endSec) => {
+    const a = Math.max(0, Math.floor((startSec * AUDIO_RATE) / AUDIO_HOP));
+    const b = Math.min(hops, Math.ceil((endSec * AUDIO_RATE) / AUDIO_HOP));
+    if (b - a < 10) return undefined;
+    const sorted = Array.from(db.subarray(a, b)).sort((x, y) => x - y);
+    const p90 = sorted[Math.floor(sorted.length * 0.9)]!;
+    return p90 < -70 ? undefined : Math.round(p90);
+  };
+}
+
 /** RS-1251: share of whole seconds that are speech (a narration reads ~0.8, a song with a steady bed far less). */
 export function speechShareOfPcm(pcm: Int16Array): number | null {
   const secs = Math.floor(pcm.length / AUDIO_RATE);
@@ -263,6 +285,7 @@ export async function extractClipFeatures(
   const durationSec = Number(metadata.streams?.find((stream) => stream.codec_type === 'video')?.duration ?? metadata.format?.duration);
   const lastFrame = Number.isFinite(durationSec) && durationSec > 0 ? Math.floor(durationSec * fps) : Infinity;
   const isSpeech = speechDetector(pcm);
+  const levelOf = bandLevel(pcm);
   const perWindow = WINDOW_SEC * SAMPLE_FPS;
   const cuts = shotBoundaries(frames);
   const shots: Array<[number, number]> = [];
@@ -283,6 +306,7 @@ export async function extractClipFeatures(
         motion: mean(motions),
         subject: mean(slice.map(subjectOf)),
         speech: isSpeech(s / SAMPLE_FPS, (s + slice.length) / SAMPLE_FPS),
+        ...(() => { const level = levelOf(s / SAMPLE_FPS, (s + slice.length) / SAMPLE_FPS); return level === undefined ? {} : { level }; })(),
       });
     }
   }

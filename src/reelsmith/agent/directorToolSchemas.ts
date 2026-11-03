@@ -7,7 +7,8 @@ export const DIRECTOR_TOOL_SCHEMAS: AgentToolSchema[] = [
     description: [
       'Director stage 1 (the user gives a story, media and a song; you direct the reel): watches the footage (up to about a minute and a half)',
       'and returns the shot log (each clip numbered #1, #2... with its best moments, where it moves, talks or goes soft), contact sheets taken',
-      'at those moments, and the songs with bpm, drop and a timing suggestion. Call once, then write the treatment (reels_director_treatment).',
+      'at those moments, and the songs with bpm, drop and a timing suggestion. With `find` (short phrases for what the story names to see) it',
+      'also returns the best matching moments for each as ready "#n@s" refs (`shots`). Call once, then write the treatment (reels_director_treatment).',
       'With `reference` (an imported reel the user wants theirs to feel like) it also measures that reel (pace, colour, motion), shows one',
       'cell a shot of it, and leaves it out of the clips. With `brandUrl` (a promo reel) it also reads that one page for its brand kit.',
     ].join(' '),
@@ -15,6 +16,7 @@ export const DIRECTOR_TOOL_SCHEMAS: AgentToolSchema[] = [
       reference: { type: 'string', description: 'Optional: assetId or file name of an imported reel to match in pace and look (never cast as footage).' },
       askFirst: { type: 'boolean', description: 'True when the user wants to approve the treatment before the build (the treatment then returns a card to show them).' },
       brandUrl: { type: 'string', description: 'Optional, for a promo reel (a club, shop, page or event): the web address the user gave (e.g. "punetrekkers.org"). Returns its brand kit: name, tagline, lines, facts, actions, links and colours, whose words you may then put on screen.' },
+      find: { type: 'array', items: { type: 'string' }, description: 'Up to eight short phrases for what the story names to see ("climbing a rock face", "friends laughing at camp", "the view from the top"): the visual model returns, for each, the best moments across the clips (one per clip) marked shows sure, maybe or weak, with `none` when nothing shows it. Same as reels_find_shots, in this one call.' },
     } },
   },
   {
@@ -22,10 +24,10 @@ export const DIRECTOR_TOOL_SCHEMAS: AgentToolSchema[] = [
     description: [
       'Which clips show this? Give up to eight short phrases (what a shot should show: "climbing a rock face", "friends laughing around a fire",',
       '"the view from the top") and the visual model returns, for each, the best moments across the numbered clips as ready "#n@seconds" refs,',
-      'one per clip so the answers are different shots, each marked `shows` sure, maybe or weak. Use it after',
-      'stage 1 for every part of the arc and every line that names something to see; cast the sure refs in the plan\'s clips and check a maybe on',
-      'its sheet cell. When even the best is weak (`none`) the footage does not show it: leave the line out, use a graphic, or ask. Read-only; needs',
-      'the visual model (it says when it is missing).',
+      'one per clip so the answers are different shots, each marked `shows` sure, maybe or weak. Stage 1 takes the same phrases as `find`;',
+      'use this for anything else later (a part or a line you add while planning or fixing). Cast the sure refs in the plan\'s clips and check a',
+      'maybe on its sheet cell. When even the best is weak (`none`) the footage does not show it: leave the line out, use a graphic, or ask.',
+      'Read-only; needs the visual model (it says when it is missing).',
     ].join(' '),
     input_schema: { type: 'object', properties: {
       queries: { type: 'array', items: { type: 'string' }, description: 'One to eight short phrases, in plain words, each describing what one shot should show.' },
@@ -86,10 +88,10 @@ export const DIRECTOR_TOOL_SCHEMAS: AgentToolSchema[] = [
   {
     name: 'reels_director_critique',
     description: [
-      'Director stage 4, after the first build: a closer look at the built reel (about three frames a section and every line at its fullest, in',
-      'sheets of eight), checks against the treatment (tone, a plain arc, no transition or timed effect, a slow hook), the sound with eyes',
-      'closed, the reference reel\'s pace and colour, and a critic\'s checklist. Name the three largest defects from the frames and repair them',
-      'with reels_director_fix. Changes nothing.',
+      'Director stage 4: a closer look at the built reel (about three frames a section and every line at its fullest, in sheets of eight),',
+      'checks against the treatment (tone, a plain arc, no transition or timed effect, a slow hook), the sound with eyes closed, the reference',
+      'reel\'s pace and colour, and a critic\'s checklist. The first build of a directed reel already returns this critique; call it only to',
+      'look again at the reel as it stands (a later chat, after a reload). Name the three largest defects and repair them with reels_director_fix. Changes nothing.',
     ].join(' '),
     input_schema: { type: 'object', properties: {} },
   },
@@ -138,8 +140,9 @@ export const DIRECTOR_TOOL_SCHEMAS: AgentToolSchema[] = [
       'Director stage 3: build the reel from your plan as one undo step. The plan is sections back to back on the beat, each a move with',
       'its clips ("#7" or "#7@4" from the numbered list, in the order the move uses them), an optional on-screen line in a text style, and params;',
       'overlays carry a line across several sections. Invalid plans are refused with every problem listed; nothing changes then. When the',
-      'timeline has items, ask the user first and pass replaceTimeline true. The result includes one frame per section, the lint and review',
-      'findings; after the first build of a directed reel call reels_director_critique, then rebuild once with its upgrades.',
+      'timeline has items, ask the user first and pass replaceTimeline true. Params it can repair (a value out of range, a key the move or style',
+      'does not take) are repaired and listed in `notes`. The first build of a directed reel returns the critique (about three frames a section,',
+      'the checks and the critic\'s checklist) with the lint and review findings: name its largest defects and repair them with reels_director_fix.',
     ].join(' '),
     input_schema: {
       type: 'object',
@@ -169,7 +172,7 @@ export const DIRECTOR_TOOL_SCHEMAS: AgentToolSchema[] = [
                 properties: {
                   move: { type: 'string' }, beats: { type: 'number' }, seconds: { type: 'number' },
                   clips: { type: 'array', items: { type: 'string' } }, text: { type: 'string' }, textStyle: { type: 'string' },
-                  params: { type: 'object', additionalProperties: {}, description: "The move's params and the text style's params." },
+                  params: { type: 'object', additionalProperties: {}, description: "The move's params and the text style's params (each gets the values it can use: every 4 on a cut under punch-caps is the cut's beats per shot). x and y (0-1) place any line." },
                   transition: { type: 'string', description: 'How the section comes in from the one before (a transitions id).' },
                   effects: {
                     type: 'array',

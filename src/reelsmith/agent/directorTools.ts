@@ -1,5 +1,6 @@
 // Director mode tools (RS-1201): the agent reads the moves catalogue with the project's media in one call, then builds
-// the reel from its own plan (sections of moves, clips, lines) in one more, as one undo step.
+// the reel from its own plan (sections of moves, clips, lines) in one more, as one undo step. Stage 1 (watching the
+// footage) is in directorOptions.ts and re-exported here.
 import { parsePlan, type ReelPlan } from '../../../shared/reelsmith/directorPlan';
 import type { AgentContext } from '../../agent/context';
 import type { AtomicAction } from '../../editor/reducerActions';
@@ -8,9 +9,7 @@ import { framesAllowed } from '../framePrivacy';
 import { runRecipe } from '../runRecipe';
 import { defaultValues } from '../setupForm';
 import { directorRecipe, resolvePlanSections } from '../director/assembleDirector';
-import { CUSTOM_FX } from '../../gl/fx/effects';
-import { listCustomTransitions } from '../../gl/customTransitions';
-import { adoptCustomGraphics, listCustomGraphics } from '../director/customGraphics';
+import { adoptCustomGraphics } from '../director/customGraphics';
 import { commit, projectId, type ReelsDeps } from './reelsTools';
 import { reviewDirectorPlan } from '../director/review';
 import { pickFindings } from '../director/pickAudit';
@@ -18,251 +17,27 @@ import { finishDirectorActions, sectionSpans, stampDirector } from '../director/
 import { lintReel } from '../reelLint';
 import { execFramesTool } from '../../agent/tools/frames-tool';
 import type { ClipFeatures } from '../assembler/scoring';
-import type { ClipShotTags } from '../shotTags';
-import { filmedLabels, shotLogLines, type ShotLogClip } from '../director/shotLog';
 import { directorSession, restoreDirectorSession, savedDirector, updateDirectorSession } from '../director/directorSession';
 import { PLAN_BRIEF, checkTreatment, parseTreatment, treatmentCard, treatmentIds } from '../director/treatment';
 import { catalogKind, catalogSlice } from '../director/catalogText';
 import { soundCheck } from '../director/soundCheck';
-import { referenceLine, referenceProfile } from '../director/reference';
 import { motionRuleText } from '../director/motionRules';
 import { missingThings } from '../director/storyThings';
 import type { Defect } from '../director/critique';
-import { songMap, songMapText } from '../director/songMap';
+import { songMap } from '../director/songMap';
 import { songReportLine } from '../exportMusic';
-import { brandAction, brandKitText, brandWords, type BrandKit } from '../../../shared/reelsmith/brandKit';
-import { directorTimelineFps } from '../director/footageRate';
-import { narrationOptions, resolveVoiceover, VOICEOVER_HINT } from './directorVoiceover';
+import { brandAction, brandWords } from '../../../shared/reelsmith/brandKit';
+import { resolveVoiceover } from './directorVoiceover';
 import { resolveLyrics } from './directorLyrics';
+import { directorVisuals, libraryMusic, shotTagsWarming, tempo } from './directorOptions';
+export { directorOptions, directorVisuals, footageRateFor, sheetSamples, songSuggestion, warmShotTagsFor, type FindShots } from './directorOptions';
 const VISUAL = new Set(['video', 'image']);
 const secs = (frames: number, fps: number) => Math.round((frames / fps) * 10) / 10;
 
-/** The bundled songs, as media assets; added to the project only when a plan uses one. */
-function libraryMusic(ctx: AgentContext): MediaAsset[] {
-  return (ctx.audio ?? []).filter((t) => t.category === 'music').map((t) => ({ id: t.id, name: t.name, kind: 'audio' as const, src: t.src, durationInFrames: t.durationInFrames }));
-}
-
-async function tempo(asset: MediaAsset, deps: ReelsDeps): Promise<{ beat: 'steady' | 'none' | 'unknown'; bpm?: number; firstBeatSec?: number; dropSec?: number; loudestSec?: number }> {
-  try {
-    const g = await deps.api.musicGrid(asset);
-    if (!g || g.beatTimesSec.length < 2) return { beat: 'none' };
-    const gaps = g.beatTimesSec.slice(1).map((t, i) => t - g.beatTimesSec[i]!).filter((x) => x > 0.15 && x < 2).sort((a, b) => a - b);
-    const r = (x: number) => Math.round(x * 10) / 10;
-    const bpm = gaps.length ? Math.round(60 / gaps[Math.floor(gaps.length / 2)]!) : undefined;
-    return {
-      beat: 'steady', ...(bpm ? { bpm } : {}), firstBeatSec: Math.round((g.beatTimesSec[g.downbeatIndex] ?? 0) * 100) / 100,
-      ...(g.dropSec ? { dropSec: r(g.dropSec) } : {}), ...(g.loudestStartSec ? { loudestSec: r(g.loudestStartSec) } : {}),
-      ...(bpm ? { suggest: songSuggestion(g, bpm, g.durationSec ?? asset.durationInFrames / 30) } : {}),
-    };
-  } catch { return { beat: 'unknown' }; }
-}
-
-/**
- * RS-1212: the timing arithmetic done for the agent (it was a large share of its planning time): where to start the
- * song, how many beats make about 18 s, and which beat of the reel the drop lands on.
- */
-export function songSuggestion(g: { beatTimesSec: number[]; downbeatIndex: number; dropSec?: number; loudestStartSec?: number; energyPerBeat?: number[]; beatsPerBar?: number }, bpm: number, seconds: number) {
-  const beats = g.beatTimesSec;
-  const first = g.downbeatIndex;
-  const nearest = (t: number) => { let k = first; for (let i = first; i < beats.length; i += 1) if (Math.abs(beats[i]! - t) < Math.abs(beats[k]! - t)) k = i; return k; };
-  // a short song from its first downbeat; a long one 8 beats before the drop (or at its loudest part) so the reel rises into it
-  let startIdx = first;
-  if (seconds > 40) {
-    if (g.dropSec !== undefined) startIdx = Math.max(first, nearest(g.dropSec) - 8);
-    else if (g.loudestStartSec !== undefined) startIdx = nearest(g.loudestStartSec);
-  }
-  const musicStart = Math.round((beats[startIdx] ?? 0) * 100) / 100;
-  const beatsFor18s = Math.max(16, Math.round((18 * bpm) / 60 / 4) * 4);
-  const dropAtBeat = g.dropSec !== undefined ? nearest(g.dropSec) - startIdx : undefined;
-  // RS-1224: quiet and loud bars over the reel and a little past it, so the pace can follow the song
-  const map = songMap(g.energyPerBeat, startIdx, g.beatsPerBar ?? 4, Math.min(16, Math.ceil((beatsFor18s * 1.5) / (g.beatsPerBar ?? 4))));
-  return {
-    musicStart, beatsFor18s, ...(dropAtBeat !== undefined && dropAtBeat > 0 && dropAtBeat < beatsFor18s ? { dropAtBeat } : {}),
-    ...(map ? { energy: songMapText(map) } : {}),
-    note: `musicStart ${musicStart}; about ${beatsFor18s} beats for 18 s${dropAtBeat !== undefined && dropAtBeat > 0 && dropAtBeat < beatsFor18s ? `; the drop is beat ${dropAtBeat} of the reel: start the peak section there` : ''}`,
-  };
-}
-
-/** Cells across all sheets (4 sheets of 20): every clip must be on them, so long lists get fewer moments per video. */
-const SHEET_CELL_BUDGET = 80;
-
-/**
- * Where each video is sampled: up to four moments (10/37/63/90% of its length) so the agent sees how a clip starts,
- * develops and ends; fewer, evenly spread, when there are too many clips for four each. Photos take one cell.
- */
-export function sheetSamples(videos: number, photos: number): number[] {
-  const k = Math.max(1, Math.min(4, Math.floor((SHEET_CELL_BUDGET - photos) / Math.max(1, videos))));
-  return k === 1 ? [0.5] : Array.from({ length: k }, (_, j) => Math.round((0.1 + (0.8 * j) / (k - 1)) * 100) / 100);
-}
-
-/**
- * Numbered contact sheets of every clip in one go (cells "n·seconds"), instead of one frame call per clip. RS-1214: the
- * cells are each clip's best moments from the shot log (fixed points only for clips the analysis could not read).
- */
-async function contactSheets(assets: MediaAsset[], moments: Map<number, number[]>, ctx: AgentContext, deps: ReelsDeps) {
-  if (!assets.length || !deps.api.selectionSheet || !framesAllowed(projectId(ctx))) return null;
-  const cells = assets.flatMap((a, i) => (a.kind === 'image' ? [{ asset: a, atSec: 0, label: `${i + 1}` }]
-    : (moments.get(i + 1) ?? [0]).map((t) => ({ asset: a, atSec: t, label: `${i + 1}·${t}s` }))));
-  const made = await deps.api.selectionSheet(cells).catch(() => null);
-  if (!made?.sheets.length) return null;
-  return {
-    images: made.sheets.map((sheet, i) => ({ frame: i, base64: sheet.base64 })),
-    note: `${made.sheets.length} contact sheet(s), 5 cells per row; a cell "n·t s" is clip #n at t seconds, taken at each video's best moments (the shot log's "best @"), photos once.${made.skipped.length ? ` Not on the sheets (could not be read): ${made.skipped.join(', ')}.` : ''}`,
-  };
-}
-
-/** How long stage 1 waits for the clip analysis before logging the rest as "not analysed" (4K phone clips take ~10 s each). */
-const ANALYSIS_BUDGET_MS = 90_000;
-
-/**
- * The build's clip analysis and shot tags, awaited for the shot log (RS-1214; they used to only warm in the background
- * while the agent planned blind). Three clips at a time like the build; the server caches them, so the build reuses them.
- */
-async function analyseClips(assets: MediaAsset[], fps: number, ctx: AgentContext, deps: ReelsDeps): Promise<{ features: Map<string, ClipFeatures | null>; tags: Map<string, ClipShotTags> }> {
-  const features = new Map<string, ClipFeatures | null>();
-  const videos = assets.filter((a) => a.kind === 'video');
-  let next = 0;
-  const work = Promise.all(Array.from({ length: Math.min(3, videos.length) }, async () => {
-    while (next < videos.length) {
-      const a = videos[next++]!;
-      features.set(a.id, await deps.api.clipFeatures(a, fps).catch(() => null));
-      ctx.onToolProgress?.(`Watching the clips (${features.size}/${videos.length})`);
-    }
-  }));
-  let tags = new Map<string, ClipShotTags>();
-  const tagsWork = warmShotTags(assets, ctx, deps).then((t) => { if (t instanceof Map) tags = t as Map<string, ClipShotTags>; });
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const budget = new Promise<void>((resolve) => { timer = setTimeout(resolve, ANALYSIS_BUDGET_MS); });
-  await Promise.race([Promise.all([work, tagsWork]), budget]);
-  clearTimeout(timer);
-  return { features: new Map(features), tags };
-}
-
-/** Shot tags being read while the agent plans, by project; the build waits for them instead of loading the model again. */
-const warmingTags = new Map<string, Promise<unknown>>();
-
-/** The shot tags load the visual model and read every clip (about 10 s); the build waits for the same work. */
-function warmShotTags(assets: MediaAsset[], ctx: AgentContext, deps: ReelsDeps): Promise<unknown> {
-  const load = deps.shotTags?.(projectId(ctx));
-  const id = projectId(ctx);
-  if (!load || !assets.length) return Promise.resolve(undefined);
-  const running = warmingTags.get(id);
-  if (running) return running;
-  const work: Promise<unknown> = load(assets).catch(() => undefined).finally(() => { if (warmingTags.get(id) === work) warmingTags.delete(id); });
-  warmingTags.set(id, work);
-  return work;
-}
-
-/** RS-1250: an empty timeline takes the footage's 60 fps before anything is analysed or placed (the note says so). */
-async function matchFootageRate(ctx: AgentContext, deps: ReelsDeps): Promise<string | undefined> {
-  const state = ctx.getState();
-  if (state.fps >= 50 || !deps.api.mediaFps) return undefined;
-  const videos = (ctx.getDoc().assets ?? []).filter((a) => a.kind === 'video' && a.src);
-  if (!videos.length) return undefined;
-  const rates = await deps.api.mediaFps(videos.map((a) => a.src)).catch(() => [] as Array<number | null>);
-  const want = directorTimelineFps(ctx.getDoc(), state.fps, rates);
-  if (!want) return undefined;
+/** The build's first step: the rate stage 1 chose, while nothing is placed yet (the editor locks it after that). */
+function applyTimelineFps(ctx: AgentContext, want: number | undefined): void {
+  if (!want || ctx.getState().fps === want || ctx.getState().items.length) return;
   ctx.commands.setProjectFps(want);
-  return ctx.getState().fps === want ? `The timeline is now ${want} fps to match the clips (they were shot at ${want}).` : undefined;
-}
-
-/** Cells of the reference sheet: one a shot, at most this many. */
-const REFERENCE_CELLS = 15;
-
-export async function directorOptions(args: Record<string, unknown>, ctx: AgentContext, deps: ReelsDeps): Promise<unknown> {
-  const rateNote = await matchFootageRate(ctx, deps);
-  const fps = ctx.getState().fps;
-  const assets = (ctx.getDoc().assets ?? []).filter((a) => VISUAL.has(a.kind) || a.kind === 'audio');
-  // RS-1217: a reference reel is studied, never cast; it leaves the numbered clip list
-  const want = typeof args.reference === 'string' ? args.reference.trim().toLowerCase() : '';
-  const refAsset = want ? assets.find((a) => a.kind === 'video' && (a.id.toLowerCase() === want || a.name.toLowerCase() === want)) : undefined;
-  if (want && !refAsset) return { error: `no imported video ${JSON.stringify(args.reference)} to use as the reference (give its assetId or file name)` };
-  updateDirectorSession(projectId(ctx), { reference: refAsset ? { assetId: refAsset.id } : undefined });
-  const visual = directorVisuals(ctx);
-  // RS-1239: a promo reel's page, read while the clips are watched
-  const brandRaw = typeof args.brandUrl === 'string' ? args.brandUrl.trim() : '';
-  const brandWork: Promise<BrandKit | { error: string } | undefined> = brandRaw && deps.api.brandKit ? deps.api.brandKit(brandRaw).catch((e: unknown) => ({ error: String((e as Error)?.message ?? e) })) : Promise.resolve(brandRaw ? { error: 'reading a web page is not available here' } : undefined);
-  // RS-1251: imported files that are mostly speech may be the user's narration: they leave the songs
-  const { importedSongs, narrations } = await narrationOptions(assets.filter((a) => a.kind === 'audio').slice(0, 4), deps);
-  const songs = [...importedSongs, ...libraryMusic(ctx)];
-  const beats = new Map(await Promise.all([...songs, ...narrations.map((n) => n.asset)].map(async (a) => [a.id, await tempo(a, deps)] as const)));
-  const voiceovers = await Promise.all(narrations.map((n) => n.describe(ctx, deps, fps, (beats.get(n.asset.id) as { bpm?: number } | undefined)?.bpm)));
-  // stage 1: watch the footage, then log it and take the sheet cells at each clip's best moments
-  const { features, tags } = await analyseClips(visual, fps, ctx, deps);
-  const shape = (a: MediaAsset) => (a.width && a.height ? (a.height > a.width ? 'portrait' : a.height < a.width ? 'landscape' : 'square') : undefined);
-  const logClips: ShotLogClip[] = visual.map((a, i) => ({
-    n: i + 1, kind: a.kind === 'image' ? 'image' : 'video', seconds: a.durationInFrames / fps,
-    ...(shape(a) ? { shape: shape(a) } : {}), features: features.get(a.id) ?? null, ...(tags.get(a.id) ? { tags: tags.get(a.id) } : {}),
-  }));
-  // RS-1240: the local clock time each video was filmed, from its metadata
-  const filmed = filmedLabels(logClips.map((c) => c.features?.captureTimeMs), -new Date().getTimezoneOffset());
-  logClips.forEach((c, i) => { if (filmed[i]) c.filmedAt = filmed[i]; });
-  const k = sheetSamples(visual.filter((a) => a.kind !== 'image').length, visual.filter((a) => a.kind === 'image').length).length;
-  const log = shotLogLines(logClips, fps, k);
-  const sheets = await contactSheets(visual, log.moments, ctx, deps);
-  const firstSong = importedSongs[0];
-  const sug = firstSong ? (beats.get(firstSong.id) as { bpm?: number; suggest?: { beatsFor18s: number; dropAtBeat?: number } } | undefined) : undefined;
-  const reference = refAsset ? await watchReference(refAsset, fps, logClips, sug?.bpm, ctx, deps) : undefined;
-  const brandResult = await brandWork;
-  const brand = brandResult && !('error' in brandResult) ? brandResult : undefined;
-  updateDirectorSession(projectId(ctx), {
-    brand,
-    fps, clips: logClips, treatment: undefined, lastBuild: undefined, askFirst: args.askFirst === true, gate: undefined, reference: reference ? { assetId: refAsset!.id, profile: reference.profile } : undefined,
-    ...(firstSong ? { song: { assetId: firstSong.id, ...(sug?.bpm ? { bpm: sug.bpm } : {}), ...(sug?.suggest ? { beatsFor18s: sug.suggest.beatsFor18s, ...(sug.suggest.dropAtBeat !== undefined ? { dropAtBeat: sug.suggest.dropAtBeat } : {}) } : {}) } } : {}),
-  });
-  const song = (a: MediaAsset) => ({ assetId: a.id, name: a.name, seconds: secs(a.durationInFrames, fps), ...(beats.get(a.id) ?? {}) });
-  adoptCustomGraphics(ctx.getState().items as never);
-  const custom = Object.values(CUSTOM_FX).map((d) => d.id).concat(listCustomTransitions().map((t) => t.id), listCustomGraphics().map((g) => g.id));
-  // RS-1210: only what is particular to this project. The catalogue (moves, styles, effects, transitions, looks, sounds)
-  // is in the reels-director skill; a result over 16k characters would reach an external agent only as an artifact.
-  const images = [...(sheets?.images ?? []), ...(reference?.image ? [{ ...reference.image, frame: sheets?.images.length ?? 0 }] : [])];
-  return {
-    ...(images.length ? { __images: images } : {}),
-    clips: log.lines.map((line, i) => line.replace(/^#\d+ /, `#${i + 1} ${visual[i]!.name} `)),
-    shotLogNote: '"best @t" = its strongest moments (sharp, lit, a subject, some life), best first; "moving" = where it moves most; "talking" = speech; "soft/dark" = avoid those seconds; "filmed" = the clock time it was shot (true, so a time label may use it). Cast from these with "#n@t".',
-    clipRefs: 'In the plan, name a clip by its number: "#7", or "#7@4.5" to start it at 4.5 s of the source.',
-    sheetNote: sheets ? sheets.note : 'No contact sheets (frame sharing is off or unavailable): choose from names and seconds, or view_asset_frames for one or two clips.',
-    ...(voiceovers.length ? {
-      voiceovers,
-      voiceoverHint: VOICEOVER_HINT,
-    } : {}),
-    songs: importedSongs.map(song),
-    libraryMusic: libraryMusic(ctx).map(song),
-    songHint: 'Use each song\'s suggest: musicStart as given, sections adding up to beatsFor18s (more or fewer for a longer or shorter reel), and the peak section starting at dropAtBeat. Its energy line is the song bar by bar: longer shots on the quiet bars, shorter as it builds, the fastest cuts on the loud ones; section changes on a bar line. No other timing arithmetic is needed.',
-    ...(custom.length ? { customShaders: custom } : {}),
-    ...(reference ? { reference: { measured: reference.line, sheet: reference.image ? `the last image: the reference, one cell a shot (cells "r·seconds")` : 'no sheet of the reference (frames unavailable)', use: 'Study it for its pace, colour, type, composition and motion; write the treatment\'s styleGuide from it. Never copy its subjects, words or logos, and never cast it.' } } : {}),
-    ...(brand ? { brand: brandKitText(brand) } : {}),
-    ...(brandResult && 'error' in brandResult ? { brandError: `${brandResult.error}. Ask the user for the name, the one action (e.g. "Join on WhatsApp") and the handle, or build from their story.` } : {}),
-    timelineIsEmpty: ctx.getState().items.length === 0,
-    ...(rateNote ? { frameRate: `${rateNote} Tell the user in your report.` } : {}),
-    next: `${args.askFirst === true ? 'The user wants to approve the treatment before anything is built. ' : ''}Stage 2: write the treatment (two concepts, the tone, hero shots, the arc on the song with each part's purpose, the signature, the kit from the menu in the skill${reference ? ', and the styleGuide from the reference' : ''}) and call reels_director_treatment. Do not write the plan yet.`,
-  };
-}
-
-/** RS-1217: measure the reference with the clip analysis and lay out one cell a shot. */
-async function watchReference(asset: MediaAsset, fps: number, footage: ShotLogClip[], bpm: number | undefined, ctx: AgentContext, deps: ReelsDeps) {
-  ctx.onToolProgress?.('Watching the reference reel');
-  const [features, cuts] = await Promise.all([deps.api.clipFeatures(asset, fps).catch(() => null), deps.api.referenceCuts?.(asset, fps).catch(() => null)]);
-  const seconds = asset.durationInFrames / fps;
-  // the reference's own cut rule and whole-reel colour, over the clip analysis (tuned for cuts inside raw footage)
-  const measured = { ...(features ?? { assetId: asset.id, dHash: '0', windows: [] }), ...(cuts ? { shotBoundariesFrame: cuts.cutsFrame, ...(cuts.color ? { color: cuts.color } : {}) } : {}) };
-  const profile = referenceProfile(asset.name, seconds, measured, fps, footage);
-  let image: { frame: number; base64: string } | undefined;
-  if (deps.api.selectionSheet && framesAllowed(projectId(ctx))) {
-    const starts = profile.shotStarts;
-    const mids = starts.map((t, i) => Math.round(((t + (starts[i + 1] ?? seconds)) / 2) * 10) / 10);
-    const step = Math.max(1, Math.ceil(mids.length / REFERENCE_CELLS));
-    const cells = mids.filter((_, i) => i % step === 0).map((t) => ({ asset, atSec: t, label: `r·${t}s` }));
-    const made = await deps.api.selectionSheet(cells).catch(() => null);
-    if (made?.sheets[0]) image = { frame: 0, base64: made.sheets[0].base64 };
-  }
-  return { profile, line: `${referenceLine(profile, bpm)}${features || cuts ? '' : ' (the analysis could not read it: pace and colour are guesses; judge from the sheet)'}`, image };
-}
-
-/** The pictures the director sees, numbered #1.. in this order (options and build must agree); never the reference reel. */
-export function directorVisuals(ctx: AgentContext): MediaAsset[] {
-  const reference = directorSession(projectId(ctx))?.reference?.assetId;
-  return (ctx.getDoc().assets ?? []).filter((a) => VISUAL.has(a.kind) && a.id !== reference).slice(0, 60);
 }
 
 /** "#7" / "#7@4.5" → that clip's assetId (keeping the @start); anything else unchanged. */
@@ -305,7 +80,9 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
   // (a custom graphic already on the timeline from an earlier session is picked up again)
   adoptCustomGraphics(ctx.getState().items as never);
   const problems: string[] = [];
-  resolvePlanSections(plan, [], problems);
+  // RS-1258: what the check repaired (a clamped value, a param left out) is reported with the build, not refused
+  const repaired: string[] = [];
+  resolvePlanSections(plan, repaired, problems);
   if (problems.length) return { error: `The plan has problems: ${problems.join('; ')}` };
   // RS-1230: with "show me the plan first", nothing is built until the user has answered the treatment card
   if (session?.askFirst && session.gate === 'waiting') {
@@ -313,6 +90,8 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
     if (!said) return { error: 'The user asked to approve the treatment first. Show them the card from reels_director_treatment and wait for their reply; then build with approvedBy set to their words.' };
     updateDirectorSession(id, { gate: 'approved' });
   }
+  // RS-1258: the footage rate stage 1 chose takes effect here, inside the build's own draft
+  applyTimelineFps(ctx, session?.timelineFps);
   const state = ctx.getState();
   if (state.items.length > 0 && args.replaceTimeline !== true) return { error: 'The timeline already has items and building replaces it. Ask the user, then call again with replaceTimeline true (one undo step restores it).' };
   const assets = [...(ctx.getDoc().assets ?? [])];
@@ -350,7 +129,7 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
   values.media.clips = assets.filter((a) => VISUAL.has(a.kind) && a.id !== referenceId).map((a) => ({ assetId: a.id, kind: a.kind as 'video' | 'image' }));
   if (plan.music) values.media.music = [{ assetId: plan.music, kind: 'audio' }];
   let out;
-  const tagsWarming = warmingTags.get(id);
+  const tagsWarming = shotTagsWarming(id);
   if (tagsWarming) { ctx.onToolProgress?.('Reading what the shots show'); await tagsWarming; }
   try {
     out = await runRecipe({ ...deps.api, ...(deps.shotTags ? { shotTags: deps.shotTags(id) } : {}) }, {
@@ -360,6 +139,8 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
     });
   } catch (error) { return { error: error instanceof Error ? error.message : String(error) }; }
   if (!out.action) return { error: out.messages.join('; ') || 'could not build the plan' };
+  // the repairs first, once each (the assembler's own check repeats the section ones)
+  out.messages = [...new Set([...repaired, ...out.messages])];
   if (voiceNote) out.messages.push(voiceNote);
   if (sung.note) out.messages.push(sung.note);
   out.messages.push(...await finishDirectorActions(out.action.actions, assets, deps.api, state.fps, ctx.onToolProgress));
@@ -407,13 +188,32 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
   };
 }
 
-export async function directorBuild(args: Record<string, unknown>, ctx: AgentContext, deps: ReelsDeps): Promise<unknown> {
+/** The critique of the last build (directorRepairTools), passed in by the dispatcher so the two modules do not import each other. */
+export type CritiqueOfLastBuild = (ctx: AgentContext) => Promise<{ error: string } | { images: unknown[]; body: Record<string, unknown> }>;
+
+export async function directorBuild(args: Record<string, unknown>, ctx: AgentContext, deps: ReelsDeps, critique?: CritiqueOfLastBuild): Promise<unknown> {
   const { keep: _internal, ...given } = args;
   const built = await runBuild(given, ctx, deps);
   if ('error' in built) return built;
   const { plan, spans, findings, lint, builds } = built;
   const fps = ctx.getState().fps;
   const session = directorSession(projectId(ctx));
+  // RS-1258: the first build of a directed reel carries the critique itself (stage 4's frames, checks and checklist):
+  // the agent always called reels_director_critique next without a thought, a model turn and a second frame render
+  if (builds === 1 && session?.treatment && critique) {
+    const looked = await critique(ctx);
+    if (!('error' in looked)) {
+      return {
+        ...(looked.images.length ? { __images: looked.images } : {}),
+        ok: true, ratio: plan.ratio, seconds: built.seconds, sections: plan.sections.length, clipsUsed: built.clipsUsed,
+        ...(built.added ? { musicAdded: built.added.name } : {}), notes: built.notes,
+        review: { findings, lint: { errors: lint.errors, warnings: lint.warnings, issues: lint.issues.slice(0, 8).map((x) => x.message) } },
+        critique: looked.body,
+        next: 'Stage 4 is here: these are the critique frames (no separate reels_director_critique call needed). Judge only the rendered frames and the findings, as a picky creative director seeing the reel cold, then name the three largest defects (section, at, evidence, fix) and call reels_director_fix with them and the changed sections only. If nothing is wrong, finish: review_edit_session if you opened an edit session (nothing reaches the timeline until it returns applied), then report in at most three short lines.'
+          + songReportLine(ctx.getState()) + ' Do not call view_timeline_frames or reels_lint separately.',
+      };
+    }
+  }
   // RS-1211: the review comes with the build: one frame per section, the lint, and the plan review
   // a frame 45% into each section (its start is often mid-transition or a flash)
   const frames = spans.map((s) => Math.round((s.from + (s.to - s.from) * 0.45) * fps));
@@ -436,7 +236,7 @@ export async function directorBuild(args: Record<string, unknown>, ctx: AgentCon
       : findings.length || lint.errors
         ? 'Fix the review findings and anything clearly wrong in the frames with ONE rebuild (replaceTimeline true), then finish.'
         : 'Check the frames; if nothing is clearly wrong, finish.')
-      + ' To finish: call review_edit_session if you opened an edit session (nothing reaches the timeline until it returns applied), then report to the user in three short lines.'
+      + ' To finish: call review_edit_session if you opened an edit session (nothing reaches the timeline until it returns applied), then report in at most three short lines (under 60 words).'
       + songReportLine(ctx.getState()) + ' Do not call view_timeline_frames or reels_lint separately.',
   };
 }

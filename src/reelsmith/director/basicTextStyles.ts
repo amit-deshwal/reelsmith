@@ -28,6 +28,21 @@ export interface TextContext {
 
 export interface TextStyleDef { id: string; name: string; looks: string; use: string; maxChars: number; params: MoveParam[]; build: (ctx: TextContext) => void }
 
+/** Where a line sits, as fractions of the frame; -1 keeps the style's own place. Every text style takes them (RS-1258). */
+export const POS_PARAMS: MoveParam[] = [
+  { id: 'x', type: 'number', label: 'Across (0 left .. 1 right)', default: -1, min: -1, max: 1 },
+  { id: 'y', type: 'number', label: 'Down (0 top .. 1 bottom)', default: -1, min: -1, max: 1 },
+];
+
+/**
+ * RS-1258: the plain styles' text offset (percent of the frame from its centre) for a section's `x`/`y`, or the style's
+ * own place. A line the agent placed itself keeps that place (the pass that moves titles off faces leaves it).
+ */
+function placed(ctx: TextContext, ownX: number, ownY: number): { x: number; y: number; fixed: boolean } {
+  const fx = num(ctx.params.x, -1), fy = num(ctx.params.y, -1);
+  return { x: fx >= 0 ? (fx - 0.5) * 100 : ownX, y: fy >= 0 ? (fy - 0.5) * 100 : ownY, fixed: fx >= 0 || fy >= 0 };
+}
+
 function textAt(ctx: TextContext, lane: number, key: Array<string | number>, value: string, from: number, to: number, style: Record<string, unknown>, x: number, y: number, extra: Record<string, unknown> = {}): void {
   ctx.emit({
     type: 'add', startFrame: from,
@@ -112,13 +127,14 @@ export const bigTitle: TextStyleDef = {
   id: 'big-title', name: 'Big title', maxChars: 40,
   looks: 'A bold white title in the middle, fading in.',
   use: 'The name of the reel at the start, or a closing line.',
-  params: [{ id: 'color', type: 'color', label: 'Colour', default: '#ffffff' }],
+  params: [{ id: 'color', type: 'color', label: 'Colour', default: '#ffffff' }, ...POS_PARAMS],
   build: (ctx) => {
     // uppercase in the text itself: the timeline's text items ignore textTransform (only captions apply it)
     const title = wrapToFit(ctx.text.toUpperCase(), Math.round(Math.min(ctx.W, ctx.H) * 0.13), ctx.W, 0.8, 0.5);
+    const at = placed(ctx, 0, 0);
     textAt(ctx, 0, ['title'], title.text, ctx.start, ctx.end, {
-      fontFamily: 'Anton', fontWeight: 400, fontSize: title.fontSize, color: str(ctx.params.color, '#ffffff'),
-    }, 0, 0, { fadeInFrames: Math.round(0.3 * ctx.fps) });
+      fontFamily: 'Anton', fontWeight: 400, fontSize: title.fontSize, color: str(ctx.params.color, '#ffffff'), ...(at.fixed ? { rsFixedPosition: true } : {}),
+    }, at.x, at.y, { fadeInFrames: Math.round(0.3 * ctx.fps) });
   },
 };
 
@@ -127,13 +143,14 @@ export const caption: TextStyleDef = {
   looks: 'A short sentence in clean white sans with a soft shadow, low in the frame (inside Instagram\'s safe area); `center` puts it bold in the middle.',
   use: 'Telling the story in the user\'s words: "we almost turned back here". A shot list that asks for "bold white text with a soft shadow, centred": center true.',
   // RS-1249: a user's shot list asked for bold white centred lines with a soft shadow
-  params: [{ id: 'center', type: 'boolean', label: 'Bold, in the middle of the frame', default: false }],
+  params: [{ id: 'center', type: 'boolean', label: 'Bold, in the middle of the frame', default: false }, ...POS_PARAMS],
   build: (ctx) => {
     const center = ctx.params.center === true;
     const line = wrapToFit(ctx.text, Math.round(Math.min(ctx.W, ctx.H) * (center ? 0.07 : 0.055)), ctx.W, 0.78, center ? 0.6 : 0.55);
+    const at = placed(ctx, 0, center ? 0 : ctx.H > ctx.W ? 22 : 30);
     textAt(ctx, 0, ['caption'], line.text, ctx.start, ctx.end, {
       fontFamily: 'Inter', fontWeight: center ? 800 : 600, fontSize: line.fontSize, color: '#ffffff',
-      shadow: { color: '#000000a0', blurPx: 18, dx: 0, dy: 3 },
-    }, 0, center ? 0 : ctx.H > ctx.W ? 22 : 30, { fadeInFrames: Math.round(0.2 * ctx.fps) });
+      shadow: { color: '#000000a0', blurPx: 18, dx: 0, dy: 3 }, ...(at.fixed ? { rsFixedPosition: true } : {}),
+    }, at.x, at.y, { fadeInFrames: Math.round(0.2 * ctx.fps) });
   },
 };

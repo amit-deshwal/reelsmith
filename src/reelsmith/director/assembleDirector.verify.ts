@@ -216,14 +216,46 @@ assert.equal(bandText.startFrame, 0);
 assert.equal(bandText.startFrame + bandText.item.durationInFrames, bandRun.report.totalFrames, 'the band stays for the whole reel');
 // bad effect, transition and look names are reported
 assert.match(bad({ sections: [{ move: 'cut', effects: [{ id: 'sparkles' }] }] }), /unknown effect "sparkles"/);
-assert.match(bad({ sections: [{ move: 'cut', effects: [{ id: 'halation', params: { warmth: 7 } }] }] }), /warmth must be 0 to 1/);
+// RS-1258: a value out of range is clamped and reported, not refused (a refused plan cost the agent a whole re-plan)
+assert.match(bad({ sections: [{ move: 'cut', effects: [{ id: 'halation', params: { warmth: 7 } }] }] }), /warmth 7 is outside 0-1; used 1/);
 assert.match(bad({ sections: [{ move: 'cut' }, { move: 'cut', transition: 'teleport' }] }), /unknown transition/);
 assert.match(bad({ sections: [{ move: 'cut', look: 'sunburn' }] }), /unknown look/);
 
 // bad plans say what is wrong
 assert.match(bad({ sections: [{ move: 'teleport' }] }), /unknown move "teleport"/);
-assert.match(bad({ sections: [{ move: 'cut', params: { speed: 3 } }] }), /unknown param "speed"/);
-assert.match(bad({ sections: [{ move: 'cut', params: { every: 99 } }] }), /every must be a number from 0.5 to 8/);
+// RS-1258: params the build can repair are repaired and named in the warnings; the reel is still built
+assert.match(bad({ sections: [{ move: 'cut', params: { speed: 3 } }] }), /param "speed" is not used \(cut takes every, transition, punch\); left out/);
+assert.match(bad({ sections: [{ move: 'cut', params: { every: 99 } }] }), /every 99 is outside 0.5-8; used 8/);
+assert.match(bad({ sections: [{ move: 'cut', params: { every: '4' } }] }), /^(?!.*every).*$/, 'a number written as text is read as the number');
+{
+  // the measured refusal: cut every 4 beats under a punch-caps line (every is beats per word there, 0.25-2)
+  const r = parsePlan({ ratio: '9:16', music: 'song', sections: [{ move: 'cut', beats: 8, clips: ['fort', 'ridge'], text: 'YOU ARE *WELCOME*', textStyle: 'punch-caps', params: { every: 4 } }] });
+  assert.ok(r.ok);
+  const run = assemble({ recipe: directorRecipe(r.plan), clips, music, texts: {}, params: {}, seed: 5, plan: r.plan });
+  assert.ok(run.action, run.report.warnings.join('; '));
+  assert.doesNotMatch(run.report.warnings.join('; '), /every/, 'every 4 is the cut\'s, not a problem');
+  const shots = (run.action!.actions as any[]).filter((a) => a.item?.kind === 'video');
+  assert.equal(shots.length, 2, 'two shots of 4 beats');
+  // a value both can use goes to both: half-beat cuts and a word every half beat
+  const both = parsePlan({ ratio: '9:16', music: 'song', sections: [{ move: 'cut', beats: 2, clips: ['fort', 'ridge', 'fort@4', 'ridge@3'], text: 'GO *NOW*', textStyle: 'punch-caps', params: { every: 0.5 } }] });
+  assert.ok(both.ok);
+  const bothRun = assemble({ recipe: directorRecipe(both.plan), clips, music, texts: {}, params: {}, seed: 5, plan: both.plan });
+  assert.equal((bothRun.action!.actions as any[]).filter((a) => a.item?.kind === 'video').length, 4);
+}
+{
+  // x/y on the plain styles (the agent put them on big-title and caption and was refused): placed there, and kept there
+  const r = parsePlan({ ratio: '9:16', music: 'song', sections: [{ move: 'hold', beats: 4, clips: ['fort'], text: 'the top', textStyle: 'big-title', params: { y: 0.2, x: 0.5 } }, { move: 'hold', beats: 4, clips: ['ridge'], text: 'we made it', textStyle: 'caption' }] });
+  assert.ok(r.ok);
+  const run = assemble({ recipe: directorRecipe(r.plan), clips, music, texts: {}, params: {}, seed: 5, plan: r.plan });
+  assert.doesNotMatch(run.report.warnings.join('; '), /param "(x|y)"/);
+  const texts = (run.action!.actions as any[]).filter((a) => a.type === 'add' && a.item.kind === 'text');
+  const title = texts.find((a) => a.item.props.text === 'THE TOP');
+  assert.ok(Math.abs(title.item.transform.y - -30) < 1e-9 && Math.abs(title.item.transform.x) < 1e-9, 'y 0.2 is 30% above the middle');
+  assert.equal(title.item.props.rsFixedPosition, true, 'a line the agent placed stays where it put it');
+  const line = texts.find((a) => a.item.props.text === 'we made it');
+  assert.equal(line.item.transform.y, 22, 'no x/y: the caption keeps its own place');
+  assert.equal(line.item.props.rsFixedPosition, undefined);
+}
 assert.match(bad({ sections: [{ move: 'cut', text: 'hi', textStyle: 'comic-sans' }] }), /unknown textStyle/);
 assert.match(bad({ sections: [] }), /non-empty/);
 assert.match(bad({ sections: [{ move: 'cut' }], overlays: [{ text: 'x', style: 'big-title', from: 0, to: 3 }] }), /section indexes/);

@@ -15,6 +15,11 @@ export interface WindowFeatures {
   /** size of the largest face/salient region, 0..1 of frame area */
   subject: number;
   speech: boolean;
+  /**
+   * RS-1258: how loud the clip's own sound gets in this window: dBFS of its 300-3400 Hz band (voices, laughter, a shout),
+   * the 90th percentile of 20 ms steps. Phone clips read -9 (a shout at the mic) to -35 (distant talk); absent when silent.
+   */
+  level?: number;
   /** Locally detected face area, distinct from the model-free saliency proxy. */
   face?: number;
   /** Detected face, or subject when no face is available, in source-frame coordinates. */
@@ -115,7 +120,7 @@ export function toAssemblyClips(
       bestStartFrame: win?.startFrame,
       sourceAnalysis: {
         minShotFrames,
-        windows: f.windows.map((w) => ({ startFrame: Math.max(0, w.startFrame), endFrame: Math.min(c.durationInFrames, w.endFrame), score: scoreWindow(w, weights, shape), focusRect: w.focusRect, ...(w.speech ? { speech: true } : {}) }))
+        windows: f.windows.map((w) => ({ startFrame: Math.max(0, w.startFrame), endFrame: Math.min(c.durationInFrames, w.endFrame), score: scoreWindow(w, weights, shape), focusRect: w.focusRect, ...(w.speech ? { speech: true } : {}), ...(w.level !== undefined ? { level: w.level } : {}) }))
           .filter((w) => w.endFrame > w.startFrame).sort((a, b) => a.startFrame - b.startFrame),
         shotBoundariesFrame: [...(f.shotBoundariesFrame ?? [])],
       },

@@ -18,16 +18,32 @@ export const VOICEOVER_HINT = 'These files are mostly voice. Read their lines ag
 
 const secs = (frames: number, fps: number) => Math.round((frames / fps) * 10) / 10;
 
-/** The narration's transcript, transcribing it now (and saving it on the asset) when it has none. */
-export async function narrationWords(asset: MediaAsset, ctx: AgentContext, deps: ReelsDeps): Promise<{ words?: AssemblyVoiceover['transcript']; error?: string }> {
+/** Words transcribed in stage 1, by asset and source, until the build saves them on the asset. */
+const heardBefore = new Map<string, NonNullable<AssemblyVoiceover['transcript']>>();
+const heardKey = (asset: MediaAsset) => `${asset.id}|${asset.src}`;
+
+/**
+ * The narration's transcript, transcribing it now when it has none. With `save` (the build) the words are saved on the
+ * asset; stage 1 passes false and keeps them here (RS-1258: a stage 1 that changed the draft went stale whenever the
+ * live project changed while it watched the clips).
+ */
+export async function narrationWords(asset: MediaAsset, ctx: AgentContext, deps: ReelsDeps, save = true): Promise<{ words?: AssemblyVoiceover['transcript']; error?: string }> {
   if (asset.transcript?.length) return { words: asset.transcript.map((w) => ({ text: w.text, start: w.start, end: w.end })) };
+  const keep = (words: NonNullable<AssemblyVoiceover['transcript']>) => {
+    if (save) {
+      ctx.commands.setAssetTranscription?.(asset.id, { transcript: words, transcribeStatus: 'done', transcribeError: undefined });
+      heardBefore.delete(heardKey(asset));
+    } else heardBefore.set(heardKey(asset), words);
+    return { words };
+  };
+  const cached = heardBefore.get(heardKey(asset));
+  if (cached) return keep(cached);
   if (!deps.api.transcribe) return { error: 'transcription is not available here' };
   ctx.onToolProgress?.(`Transcribing ${asset.name}`);
   try {
     const words = await deps.api.transcribe(asset, ctx.onToolProgress);
     if (!words?.length) return { error: 'no words were heard' };
-    ctx.commands.setAssetTranscription?.(asset.id, { transcript: words, transcribeStatus: 'done', transcribeError: undefined });
-    return { words };
+    return keep(words);
   } catch (e) { return { error: e instanceof Error ? e.message : String(e) }; }
 }
 
@@ -40,7 +56,7 @@ export async function narrationOptions(imported: MediaAsset[], deps: ReelsDeps) 
     narrations: voiced.map((asset) => ({
       asset,
       describe: async (ctx: AgentContext, d: ReelsDeps, fps: number, bpm?: number) => {
-        const heard = await narrationWords(asset, ctx, d);
+        const heard = await narrationWords(asset, ctx, d, false);
         return {
           assetId: asset.id, name: asset.name, seconds: secs(asset.durationInFrames, fps), speech: shares.get(asset.id),
           ...(heard.words ? { lines: voiceLines(heard.words) } : { transcriptError: heard.error }),

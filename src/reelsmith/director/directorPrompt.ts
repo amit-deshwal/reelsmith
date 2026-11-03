@@ -24,7 +24,7 @@ export function directorPrompt(story: string, ratio: RatioId, songs = 0, referen
     ...(storySite(text) ? [`It is a promo reel for ${storySite(text)}: pass it as brandUrl to reels_director_options and end on its call to action.`] : []),
     // RS-1230: the approval gate; the tools enforce it, this line turns it on
     ...(askFirst ? ['Show me the plan first: pass askFirst true to reels_director_options, and after reels_director_treatment show me its card and wait for my go before you build.'] : []),
-    'Use the reels-director skill and its four stages: reels_director_options (the shot log and contact sheets), reels_director_treatment, reels_director_build, then reels_director_critique and reels_director_fix for its largest defects. I want the best cut possible, not a template; take the time it needs. Keep my words on screen; describe only what the clips show.',
+    'Use the reels-director skill and its four stages: reels_director_options (the shot log, contact sheets and, with find, the shots for my story), reels_director_treatment, reels_director_build (its first build brings the critique), then reels_director_fix for its largest defects. I want the best cut possible, not a template. Keep my words on screen; describe only what the clips show.',
   ].join('\n');
 }
 
