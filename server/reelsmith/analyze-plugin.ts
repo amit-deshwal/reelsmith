@@ -8,6 +8,7 @@
 //   POST /api/reelsmith/still-frame    { src, atSec } -> a still of that moment saved next to the video (freeze frames)
 //   POST /api/reelsmith/frame-jpeg     { src, atSec } -> that frame at full size as base64 JPEG (the export's cover)
 //   POST /api/reelsmith/reverse-clip   { src, startSec, frames, fps } -> that span played backwards, saved next to the video
+//   POST /api/reelsmith/smooth-slow    { src, startSec, rate, frames, fps } -> that span slowed with in-between frames (RS-1259)
 //   POST /api/reelsmith/depth-map      { src, atSec? } -> the photo's depth map saved next to it (`{ available:false }` without the depth-lite pack)
 //   POST /api/reelsmith/no-sound-copy  { src } -> RS-1241: <name>.no-sound.mp4 next to the export (picture copied, no audio)
 //   POST /api/reelsmith/speech-share   { src } -> RS-1251: { share } of seconds that are speech (narration vs song)
@@ -27,6 +28,7 @@ import { finalizeForInstagram } from './instagramFinalize.ts';
 import { upscaleAvailable, upscalePhoto } from './upscale.ts';
 import { extractStill, frameJpeg } from './stillFrame.ts';
 import { reverseSpan } from './reverseClip.ts';
+import { smoothSlowSpan } from './smoothSlow.ts';
 import { depthMapFor, depthPackInstalled } from './depthMap.ts';
 import { exportParity } from './exportParity.ts';
 import { fetchBrandKit } from './brandFetch.ts';
@@ -134,6 +136,13 @@ export function reelsmithAnalyzePlugin(): Plugin {
         const file = localFile(body.src);
         if (typeof file !== 'string') throw new Error(file.error);
         const r = await reverseSpan(file, Number(body.startSec), Math.round(Number(body.frames)), Number(body.fps));
+        return { src: `/media/uploads/${encodeURIComponent(r.name)}`, width: r.width, height: r.height, frames: r.frames, hasAudio: r.hasAudio, cached: r.cached };
+      });
+      route('/api/reelsmith/smooth-slow', async (body) => {
+        const file = localFile(body.src);
+        if (typeof file !== 'string') throw new Error(file.error);
+        const r = await smoothSlowSpan(file, Number(body.startSec), Number(body.rate), Math.round(Number(body.frames)), Number(body.fps));
+        if ('skipped' in r) return { skipped: r.skipped, ...(r.unavailable ? { unavailable: true } : {}) };
         return { src: `/media/uploads/${encodeURIComponent(r.name)}`, width: r.width, height: r.height, frames: r.frames, hasAudio: r.hasAudio, cached: r.cached };
       });
       route('/api/reelsmith/depth-map', async (body) => {

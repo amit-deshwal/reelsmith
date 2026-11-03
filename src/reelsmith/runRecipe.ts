@@ -30,6 +30,11 @@ export interface AnalyzeApi {
   stillFrame?(asset: Pick<MediaAsset, 'src'>, atSec: number): Promise<{ src: string; width: number; height: number } | null>;
   /** RS-1223: a reversed copy of `frames` frames of the source from `startSec` (its error message on failure) */
   reverseClip?(src: string, startSec: number, frames: number, fps: number): Promise<{ src: string; width: number; height: number; frames: number } | { error: string }>;
+  /**
+   * RS-1259: a smooth copy (in-between frames, already slowed, at `fps`) of the `frames` reel frames a clip shows from
+   * `startSec` at speed `rate`; `skipped` when it is not needed or not possible here (`unavailable`), its error on failure
+   */
+  smoothSlow?(src: string, startSec: number, rate: number, frames: number, fps: number): Promise<{ src: string; width: number; height: number; frames: number } | { skipped: string; unavailable?: boolean } | { error: string }>;
   /** One numbered contact sheet per 20 candidates (agent shot selection); null when the server cannot build it */
   /** RS-1217: a reference reel's cuts and whole-reel colour (more sensitive than clipFeatures' in-clip cuts) */
   referenceCuts?(asset: MediaAsset, fps: number): Promise<{ cutsFrame: number[]; color?: { r: number; g: number; b: number } } | null>;

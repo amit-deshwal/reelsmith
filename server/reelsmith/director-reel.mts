@@ -27,6 +27,10 @@ import { directorRecipe } from '../../src/reelsmith/director/assembleDirector.ts
 import { resolveClipRef, songSuggestion } from '../../src/reelsmith/agent/directorTools.ts';
 import { pickFindings } from '../../src/reelsmith/director/pickAudit.ts';
 import { finalizeForInstagram } from './instagramFinalize.ts';
+import { reverseSpan } from './reverseClip.ts';
+import { smoothSlowSpan } from './smoothSlow.ts';
+import { rewindClips } from '../../src/reelsmith/agent/rewindClips.ts';
+import { smoothSlowClips } from '../../src/reelsmith/agent/smoothSlowClips.ts';
 import { REEL_PRESETS, presetForCanvas } from '../../shared/reelsmith/instagramPreset.ts';
 import type { ClipFeatures } from '../../src/reelsmith/assembler/scoring.ts';
 
@@ -56,7 +60,8 @@ const assets: MediaAsset[] = files.map((f, i) => {
 const songFile = resolve(songArg);
 link(songFile, `song${extname(songFile).toLowerCase()}`);
 const song = { id: 'song', name: 'song', kind: 'audio', src: `/media/uploads/song${extname(songFile).toLowerCase()}`, durationInFrames: Math.floor(Number(probe(songFile).format.duration) * FPS) } as MediaAsset;
-const byFile = (a: MediaAsset) => join(media, a.src.replace('/media/uploads/', ''));
+const byFile = (a: Pick<MediaAsset, 'src'>) => join(media, decodeURIComponent(a.src.replace('/media/uploads/', '')));
+const upload = (name: string) => `/media/uploads/${encodeURIComponent(name)}`;
 const analysed = new Map<string, ClipFeatures>();
 const api: AnalyzeApi = {
   clipFeatures: async (a, fps) => { const f = await extractClipFeatures(byFile(a), a.id, fps, { maxSec: 10 }); if (f) analysed.set(a.id, f); return f; },
@@ -65,6 +70,15 @@ const api: AnalyzeApi = {
     if (!g) return null;
     const drop = detectDropBeat(g.energyPerBeat, 4, 2, g.downbeatIndex);
     return { durationSec: g.durationSec, beatTimesSec: g.beatTimesSec, beatsPerBar: 4, downbeatIndex: g.downbeatIndex, loudestStartSec: g.loudestStartSec, dropSec: drop === null ? undefined : g.beatTimesSec[drop], energyPerBeat: g.energyPerBeat };
+  },
+  // the copies the app's build makes after the compile (finishBuild.ts): rewinds reversed, slow motion smoothed (RS-1259)
+  reverseClip: async (src, startSec, frames, fps) => {
+    const r = await reverseSpan(byFile({ src }), startSec, frames, fps);
+    return { src: upload(r.name), width: r.width, height: r.height, frames: r.frames };
+  },
+  smoothSlow: async (src, startSec, rate, frames, fps) => {
+    const r = await smoothSlowSpan(byFile({ src }), startSec, rate, frames, fps);
+    return 'skipped' in r ? r : { src: upload(r.name), width: r.width, height: r.height, frames: r.frames };
   },
 };
 
@@ -90,6 +104,16 @@ const started = Date.now();
 const out = await runRecipe(api, { recipe, values, assets: [...assets, song], fps: FPS, replaceTimeline: true, plan, seed: 7 });
 if (!out.action) throw new Error(out.messages.join('; '));
 for (const m of out.messages) console.log(`note: ${m}`);
+{
+  const at = Date.now();
+  const notes = [...await rewindClips(out.action.actions, api, FPS), ...await smoothSlowClips(out.action.actions, api, FPS)];
+  for (const m of notes) console.log(`note: ${m}`);
+  const smoothed = out.action.actions.flatMap((a) => {
+    const from = a.type === 'add' ? (a.item.props as { rsSmooth?: { playbackRate: number } } | undefined)?.rsSmooth : undefined;
+    return a.type === 'add' && from ? [`${((a.startFrame ?? 0) / FPS).toFixed(2)}-${(((a.startFrame ?? 0) + a.item.durationInFrames) / FPS).toFixed(2)} s at ${from.playbackRate}x`] : [];
+  });
+  if (smoothed.length) console.log(`slow motion: ${smoothed.length} clip${smoothed.length === 1 ? '' : 's'} smoothed in ${((Date.now() - at) / 1000).toFixed(1)} s: ${smoothed.join(', ')}`);
+}
 // RS-1255: the pick audit the build review runs in the app
 console.log(`pick audit: ${out.result.report.momentUse?.length ?? 0} shots checked against ${analysed.size} analysed clips`);
 for (const f of pickFindings({ used: out.result.report.momentUse ?? [], features: analysed, fps: FPS, usedIds: new Set(out.result.report.usedAssetIds), clipCount: assets.length, label: (id) => `#${assets.findIndex((a) => a.id === id) + 1}`, isImage: (id) => assets.find((a) => a.id === id)?.kind === 'image' })) console.log(`pick audit: ${f.issue} -> ${f.fix}`);

@@ -5,6 +5,7 @@ import type { MediaAsset } from '../../editor/types';
 import type { AnalyzeApi } from '../runRecipe';
 import { aimMarkers } from './aimMarkers';
 import { rewindClips } from '../agent/rewindClips';
+import { smoothSlowClips } from '../agent/smoothSlowClips';
 import { clearCaptionsOfPeople } from './clearOfPeople';
 import { findPeople } from '../peopleFinder';
 import { DIRECTOR_PROP, type SavedDirector } from './directorSession';
@@ -25,8 +26,12 @@ export async function attachDepthMaps(actions: AtomicAction[], fps: number, onPr
     : [];
 }
 
-/** Markers aimed at the person they name, rewind sections reversed, depth maps attached, captions moved off faces. Returns notes. */
-export async function finishDirectorActions(actions: AtomicAction[], assets: readonly MediaAsset[], api: Pick<AnalyzeApi, 'reverseClip'>, fps: number, onProgress?: (text: string) => void): Promise<string[]> {
+/**
+ * Markers aimed at the person they name, rewind sections reversed, depth maps attached, captions moved off faces, slow
+ * motion smoothed (last: the copies are not pool media, so finding people under a caption reads the clips before it).
+ * Returns notes.
+ */
+export async function finishDirectorActions(actions: AtomicAction[], assets: readonly MediaAsset[], api: Pick<AnalyzeApi, 'reverseClip' | 'smoothSlow'>, fps: number, onProgress?: (text: string) => void): Promise<string[]> {
   const notes: string[] = [];
   if (actions.some((a) => a.type === 'add' && (a.item as { props?: { rsAim?: unknown } }).props?.rsAim)) onProgress?.('Finding who the markers point at');
   notes.push(...await aimMarkers(actions, findPeople));
@@ -34,6 +39,7 @@ export async function finishDirectorActions(actions: AtomicAction[], assets: rea
   notes.push(...await attachDepthMaps(actions, fps, onProgress));
   const canvas = actions.find((a): a is Extract<AtomicAction, { type: 'setCanvas' }> => a.type === 'setCanvas');
   if (canvas) { onProgress?.('Keeping captions off faces'); await clearCaptionsOfPeople(actions, assets, canvas, fps, findPeople); }
+  notes.push(...await smoothSlowClips(actions, api, fps, onProgress));
   return notes;
 }
 

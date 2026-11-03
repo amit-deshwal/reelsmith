@@ -41,6 +41,7 @@ export const SLOW_VERIFIES = [
   'server/reelsmith/parityCheck.verify.ts',
   'server/reelsmith/repeatedFrames.verify.ts',
   'server/reelsmith/captionBehindRender.verify.ts',
+  'server/reelsmith/smoothSlowRender.verify.ts',
 ];
 export const isSlowSegment = (segment) => SLOW_VERIFIES.some((slow) => segment === slow || segment.endsWith(` ${slow}`));
 

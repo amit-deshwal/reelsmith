@@ -40,6 +40,12 @@ export function createAnalyzeApi(fetcher: typeof fetch = fetch, subjects: typeof
       const r = await response.json().catch(() => ({})) as { src?: string; width?: number; height?: number; frames?: number; error?: string };
       return response.ok && r.src && r.width && r.height && r.frames ? { src: r.src, width: r.width, height: r.height, frames: r.frames } : { error: r.error ?? `reverse failed (${response.status})` };
     },
+    smoothSlow: async (src, startSec, rate, frames, fps) => {
+      const response = await fetcher('/api/reelsmith/smooth-slow', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ src, startSec, rate, frames, fps }) });
+      const r = await response.json().catch(() => ({})) as { src?: string; width?: number; height?: number; frames?: number; skipped?: string; unavailable?: boolean; error?: string };
+      if (response.ok && r.skipped) return { skipped: r.skipped, ...(r.unavailable ? { unavailable: true } : {}) };
+      return response.ok && r.src && r.width && r.height && r.frames ? { src: r.src, width: r.width, height: r.height, frames: r.frames } : { error: r.error ?? `smoothing failed (${response.status})` };
+    },
     mediaFps: async (srcs) => (await post<{ fps: Array<number | null> }>('/api/reelsmith/media-fps', { srcs }))?.fps ?? srcs.map(() => null),
     brandKit: async (url) => {
       const response = await fetcher('/api/reelsmith/brand-kit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });
