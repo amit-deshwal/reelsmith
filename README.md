@@ -52,20 +52,20 @@ Reelsmith started as a fork of [OpenChatCut](https://github.com/0xsline/OpenChat
 flowchart TD
     U(["🎬 You<br/>a line of story · clips and photos · a song"]):::you
 
-    subgraph S1 ["① Watch"]
+    subgraph S1["① Watch"]
       W["Shot log for every clip<br/>best moments · motion · speech · soft/dark seconds<br/>contact sheets · search by meaning"]
       M["Song analysis<br/>BPM · drop · energy bar by bar"]
     end
 
-    subgraph S2 ["② Treatment"]
+    subgraph S2["② Treatment"]
       T["Two different concepts<br/>→ pick the one that fits your words<br/>structure on the song · text styles · transitions · look"]
     end
 
-    subgraph S3 ["③ Build"]
+    subgraph S3["③ Build"]
       B["Cast shots on beats · your words as titles and captions<br/>effects that move with the music · sound effects<br/>graphics that point at the right person"]
     end
 
-    subgraph S4 ["④ Critique"]
+    subgraph S4["④ Critique"]
       C["Render ~3 frames a section · check the plan<br/>listen with eyes closed · name the 3 worst defects"]
     end
 
@@ -74,11 +74,12 @@ flowchart TD
     CH["💬 Chat edits"]
 
     U --> S1 --> S2
-    S2 -. "optional: you approve the plan" .-> U
+    S2 -.->|"optional: you approve the plan"| U
     S2 --> S3 --> S4
-    S4 -- "fix only the broken sections" --> S3
+    S4 -->|"fix only the broken sections"| S3
     S4 --> A --> X
-    A -. "“slower ending”, “add a look”" .-> CH --> A
+    A -.->|"“slower ending” · “add a look”"| CH
+    CH --> A
 
     classDef you fill:#ff6a3d,stroke:#ff6a3d,color:#fff
     classDef out fill:#e8236b,stroke:#e8236b,color:#fff
@@ -90,15 +91,15 @@ Each stage is a tool the agent calls (`reels_director_options` → `reels_direct
 
 ```mermaid
 flowchart LR
-    subgraph Agent ["Your agent (your subscription)"]
+    subgraph Agent["Your agent (your subscription)"]
       CC["Claude Code CLI"]
       CX["Codex CLI"]
     end
-    subgraph App ["Reelsmith (Electron · React · TypeScript)"]
+    subgraph App["Reelsmith (Electron · React · TypeScript)"]
       MCP["MCP server<br/>editor-only tools<br/>draft → review → apply"]
       ED["Timeline editor<br/>undo/redo · autosave"]
     end
-    subgraph Local ["On-device engines"]
+    subgraph Local["On-device engines"]
       ASR["whisper.cpp<br/>transcription"]
       BEAT["beat_this<br/>beats and drops"]
       CLAP["Embeddings + sqlite-vec<br/>shot search by meaning"]
