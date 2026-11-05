@@ -1,10 +1,10 @@
 {
-  "name": "openchatcut",
+  "name": "reelsmith",
   "private": true,
   "version": "0.2.17",
-  "description": "Open-source ChatCut alternative: local-first, agent-native AI video editor with MCP.",
+  "description": "Reelsmith: a local-first, agent-directed editor for Instagram Reels. Story + footage + song in, a finished 9:16 reel out.",
   "license": "AGPL-3.0-or-later",
-  "author": "OpenChatCut Contributors",
+  "author": "Amit Deshwal (built on OpenChatCut by its contributors)",
   "type": "module",
   "main": "desktop-dist/main.mjs",
   "bin": {

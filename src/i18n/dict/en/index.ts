@@ -14,6 +14,7 @@ import progress from './progress';
 import reelsmith from './reelsmith';
 import reelsmithRuntime from './reelsmithRuntime';
 import reelsmithSounds from './reelsmithSounds';
+import { rebrandEntries } from './reelsmithBranding';
 import review from './review';
 import script from './script';
 import settings from './settings';
@@ -21,8 +22,10 @@ import timeline from './timeline';
 import topbar from './topbar';
 import transcript from './transcript';
 
-export const EN: Record<string, string> = Object.assign(
+const MERGED: Record<string, string> = Object.assign(
   {},
   audio, captions, chat, components, editor, exportPanel, fx, generate,
   library, media, progress, reelsmith, reelsmithRuntime, reelsmithSounds, review, script, settings, timeline, topbar, transcript,
 );
+
+export const EN: Record<string, string> = Object.assign(MERGED, rebrandEntries(MERGED));

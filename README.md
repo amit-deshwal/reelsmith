@@ -1,6 +1,28 @@
+<p align="center">
+  <img src="assets/branding/reelsmith-banner.svg" alt="Reelsmith: story, footage and a song in, a finished Reel out" width="100%">
+</p>
+
 # Reelsmith
 
-A personal, Mac-first, local-first AI editor for **Instagram Reels**, built on top of **[OpenChatCut](https://github.com/0xsline/OpenChatCut)**.
+**Reelsmith** is a personal, Mac-first, local-first AI editor for **Instagram Reels**. You bring the story, the footage and a song, and an agent **directs** the reel: it picks the shots, cuts to the beat, writes the captions and titles, and hands you a finished 1080×1920 video that you refine in chat.
+
+It started as a fork of **[OpenChatCut](https://github.com/0xsline/OpenChatCut)**, a general-purpose agent-native video editor, and has since become its own product.
+
+### How Reelsmith differs from OpenChatCut
+
+| | OpenChatCut (upstream) | Reelsmith |
+|---|---|---|
+| **Purpose** | General AI video editor | Built only for vertical short-form: Instagram Reels, 9:16 first |
+| **How a cut is made** | You edit, the agent assists | **Director mode:** the agent proposes a treatment, you approve it, and it builds the whole reel (`reels-director` skill) |
+| **Shots** | Manual placement | Shot search by meaning, pick audit, shot-list mode for timed briefs (RS-1249) |
+| **Rhythm** | Beat tools | Builds to the drop, varied rhythm, punch-ins on plain cuts, burst hooks |
+| **Looks and moves** | Effects, LUTs, transitions | Plus depth lens blur with focus pull, sky swap, world swap, silhouette portal, smooth slow motion, picture-in-picture, film strip |
+| **Promos** | — | Promo reels from a website, punch captions, CTA end card, music-free copy for Instagram's own music |
+| **Output** | General export | Instagram-ready checks and finalize, x264 at a higher bitrate, the same reel re-shaped to other aspect ratios |
+| **Agents** | Many providers | Your own `claude` / `codex` CLI with editor-only tools; the app never touches credentials |
+| **App** | OpenChatCut, auto-updates from upstream | Its own name, icon and data folder (`~/Library/Application Support/Reelsmith`); English UI; upstream updater turned off |
+
+Brand assets live in [`assets/branding/`](assets/branding/): the app icon source is `reelsmith-icon.svg` (ember 9:16 reel card, play mark, caption lines and a forge spark).
 
 > Workflow: **import footage and a song → tell the story → the agent directs the reel (director mode) → request changes in chat → preview → export a 1080×1920 MP4**. Recipes and saved reels are gone (RS-1254, RS-1257); a new reel is a new direction.
 

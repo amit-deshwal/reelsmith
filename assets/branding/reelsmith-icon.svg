@@ -1,38 +1,40 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Reelsmith app icon. Source of truth: public/reelsmith-icon.png, assets/branding/reelsmith-icon.icns
+       and assets/favicon.svg are generated from this file (commands in reelsmith-docs/BRANDING.md). -->
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#2a1458"/>
-      <stop offset="0.55" stop-color="#c3277a"/>
-      <stop offset="1" stop-color="#ff9a3c"/>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#211638"/>
+      <stop offset="1" stop-color="#0d0918"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.62" r="0.5">
+      <stop offset="0" stop-color="#ff6a3d" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#ff6a3d" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ember" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#ffb347"/>
+      <stop offset="0.5" stop-color="#ff6a3d"/>
+      <stop offset="1" stop-color="#f0306a"/>
     </linearGradient>
     <linearGradient id="spark" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#fff3c4"/>
-      <stop offset="1" stop-color="#ffc247"/>
+      <stop offset="0" stop-color="#fffbe8"/>
+      <stop offset="1" stop-color="#ffd27a"/>
     </linearGradient>
   </defs>
-  <!-- app tile -->
-  <rect width="1024" height="1024" rx="228" fill="url(#bg)"/>
-  <!-- 9:16 film strip -->
-  <g transform="translate(512 512) rotate(-8)">
-    <rect x="-190" y="-300" width="380" height="600" rx="56" fill="#ffffff"/>
-    <rect x="-142" y="-252" width="284" height="504" rx="26" fill="#1c0f3a"/>
-    <!-- sprocket holes -->
-    <g fill="#1c0f3a">
-      <rect x="-176" y="-236" width="22" height="34" rx="7"/>
-      <rect x="-176" y="-130" width="22" height="34" rx="7"/>
-      <rect x="-176" y="-24" width="22" height="34" rx="7"/>
-      <rect x="-176" y="82" width="22" height="34" rx="7"/>
-      <rect x="-176" y="188" width="22" height="34" rx="7"/>
-      <rect x="154" y="-236" width="22" height="34" rx="7"/>
-      <rect x="154" y="-130" width="22" height="34" rx="7"/>
-      <rect x="154" y="-24" width="22" height="34" rx="7"/>
-      <rect x="154" y="82" width="22" height="34" rx="7"/>
-      <rect x="154" y="188" width="22" height="34" rx="7"/>
-    </g>
+
+  <rect width="1024" height="1024" rx="228" fill="url(#tile)"/>
+  <rect width="1024" height="1024" rx="228" fill="url(#glow)"/>
+
+  <!-- the reel: a 9:16 card -->
+  <g transform="translate(500 540) rotate(-7)">
+    <rect x="-200" y="-356" width="400" height="712" rx="84" fill="url(#ember)"/>
     <!-- play mark -->
-    <path d="M-44 -86 L88 0 L-44 86 Z" fill="#ffffff" stroke="#ffffff" stroke-width="30" stroke-linejoin="round"/>
+    <path d="M-62 -150 L106 -48 L-62 54 Z" fill="#ffffff" stroke="#ffffff" stroke-width="44" stroke-linejoin="round"/>
+    <!-- caption lines -->
+    <rect x="-124" y="150" width="248" height="40" rx="20" fill="#ffffff"/>
+    <rect x="-86" y="222" width="172" height="40" rx="20" fill="#ffffff" opacity="0.7"/>
   </g>
+
   <!-- forge spark -->
-  <path d="M790 172 L814 248 L890 272 L814 296 L790 372 L766 296 L690 272 L766 248 Z" fill="url(#spark)"/>
-  <path d="M900 410 L910 442 L942 452 L910 462 L900 494 L890 462 L858 452 L890 442 Z" fill="#fff3c4" opacity="0.9"/>
+  <path d="M770 128 L800 222 L894 252 L800 282 L770 376 L740 282 L646 252 L740 222 Z" fill="url(#spark)"/>
+  <path d="M880 398 L893 437 L932 450 L893 463 L880 502 L867 463 L828 450 L867 437 Z" fill="#fff3c4" opacity="0.9"/>
 </svg>

@@ -1,6 +1,6 @@
 import { createPortal } from 'react-dom';
 import { theme } from '../../theme';
-import { BrandMark, Icon, OpenChatCutWordmark } from '../icons';
+import { BrandMark, Icon, ReelsmithWordmark } from '../icons';
 import { AgentChangeLogMenu } from './AgentChangeLogMenu';
 import { AgentRunInspector } from './AgentRunInspector';
 import { ChatComposer } from './ChatComposer';
@@ -43,7 +43,7 @@ function CollapsedPanel({ controller }: { controller: ChatPanelController }) {
         style={{ background: 'none', border: 'none', color: theme.textDim, cursor: 'pointer', fontSize: 14 }}>
         <span style={{ transform: 'rotate(-90deg)', display: 'inline-flex' }}><Icon name="chevronDown" size={14} /></span>
       </button>
-      <div className="cc-chat-collapsed-brand">OpenChatCut</div>
+      <div className="cc-chat-collapsed-brand">Reelsmith</div>
     </aside>
   </>;
 }
@@ -54,7 +54,7 @@ function ChatHeader({ controller }: { controller: ChatPanelController }) {
     <div className="cc-chat-brand">
       <BrandMark size={20} />
       <span className="cc-chat-brand-copy">
-        <OpenChatCutWordmark width={102} />
+        <ReelsmithWordmark width={102} />
         <small>{t('Agent 工作台')}</small>
       </span>
     </div>

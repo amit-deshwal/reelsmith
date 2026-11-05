@@ -1,6 +1,8 @@
 // Monochrome line icons (lucide-style, 24×24 stroke) for the editor
 // toolbar/track-header glyphs — replaces emoji for a consistent editor chrome.
 
+import { useId } from 'react';
+
 export type IconName =
   | 'plus' | 'cursor' | 'trim' | 'rateStretch' | 'blade' | 'scissors' | 'magnet' | 'mic' | 'chevronDown' | 'check' | 'brush' | 'cloud' | 'insert'
   | 'play' | 'pause' | 'text' | 'copy' | 'trash' | 'bookmark' | 'prev' | 'next'
@@ -131,16 +133,16 @@ export function Icon({ name, size = 16, color = 'currentColor', strokeWidth = 1.
   );
 }
 
-/** Brand logo: dialogue bubble + play button (conversational video cutting). Bubble = accent color, play button = onAccent
- * (Skin Discipline Guaranteed ≥4.5 vs.). Use this when replacing sparkles before wordmark. */
+/** Reelsmith app mark: an ember 9:16 reel card with a play mark and caption lines (source: assets/branding/reelsmith-icon.svg). */
 export function BrandMark({ size = 16 }: { size?: number }) {
   return (
     <img src="/reelsmith-icon.png" alt="" aria-hidden width={size} height={size} style={{ display: 'block' }} />
   );
 }
 
-/** OpenChatCut word mark: OPEN reverse white badge + Chat Cut solid word mark. */
-export function OpenChatCutWordmark({ width = 126 }: { width?: number }) {
+/** Reelsmith word mark: "reel" in the text colour, "smith" in the ember gradient of the app icon. */
+export function ReelsmithWordmark({ width = 126 }: { width?: number }) {
+  const gradientId = `rs-ember-${useId().replace(/:/g, '')}`;
   return (
     <svg
       aria-label="Reelsmith"
@@ -150,17 +152,24 @@ export function OpenChatCutWordmark({ width = 126 }: { width?: number }) {
       viewBox="0 0 504 126"
       style={{ display: 'block', flexShrink: 0 }}
     >
-      <rect x="0" y="13" width="166" height="92" rx="14" fill="currentColor" />
+      <defs>
+        <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#ffb347" />
+          <stop offset="0.5" stopColor="#ff6a3d" />
+          <stop offset="1" stopColor="#f0306a" />
+        </linearGradient>
+      </defs>
       <text
+        x="2"
+        y="92"
         fontFamily="Inter, Geist, system-ui, sans-serif"
+        fontSize="90"
+        fontWeight="800"
+        letterSpacing="-0.05em"
         dominantBaseline="alphabetic"
       >
-        <tspan x="83" y="82" textAnchor="middle" fill="var(--cc-panel)" fontSize="58" fontWeight="850" letterSpacing="-0.045em">
-          REEL
-        </tspan>
-        <tspan x="188" y="79" fill="currentColor" fontSize="62" fontWeight="720" letterSpacing="-0.045em">
-          smith
-        </tspan>
+        <tspan fill="currentColor">reel</tspan>
+        <tspan fill={`url(#${gradientId})`}>smith</tspan>
       </text>
     </svg>
   );
