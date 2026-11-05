@@ -50,36 +50,22 @@ Reelsmith started as a fork of [OpenChatCut](https://github.com/0xsline/OpenChat
 
 ```mermaid
 flowchart TD
-    U(["🎬 You<br/>a line of story · clips and photos · a song"]):::you
+    U(["<b>You</b><br/>one line of story · your clips · a song"]):::you
+    W["<b>① Watch</b><br/>shot log of every clip: best moments, motion, speech<br/>song analysis: beats, drop, energy"]
+    T["<b>② Treatment</b><br/>two different concepts, pick the one that fits<br/>structure on the song · text styles · transitions · look"]
+    B["<b>③ Build</b><br/>shots cast on beats · your words as titles<br/>effects that move with the music · sound effects"]
+    C{"<b>④ Critique</b><br/>render frames, listen to the cut<br/>any defects?"}
+    A["<b>Review and apply</b><br/>one undo step on a normal timeline"]
+    CH["<b>Chat edits</b><br/>“slower ending” · “add a look”"]
+    X(["<b>Instagram-ready export</b><br/>1080×1920 MP4 · cover · no-music copy"]):::out
 
-    subgraph S1["① Watch"]
-      W["Shot log for every clip<br/>best moments · motion · speech · soft/dark seconds<br/>contact sheets · search by meaning"]
-      M["Song analysis<br/>BPM · drop · energy bar by bar"]
-    end
-
-    subgraph S2["② Treatment"]
-      T["Two different concepts<br/>→ pick the one that fits your words<br/>structure on the song · text styles · transitions · look"]
-    end
-
-    subgraph S3["③ Build"]
-      B["Cast shots on beats · your words as titles and captions<br/>effects that move with the music · sound effects<br/>graphics that point at the right person"]
-    end
-
-    subgraph S4["④ Critique"]
-      C["Render ~3 frames a section · check the plan<br/>listen with eyes closed · name the 3 worst defects"]
-    end
-
-    A["✅ Review and apply<br/>one undo step on a normal timeline"]
-    X(["📱 Instagram-ready export<br/>1080×1920 MP4 · cover · no-music copy"]):::out
-    CH["💬 Chat edits"]
-
-    U --> S1 --> S2
-    S2 -.->|"optional: you approve the plan"| U
-    S2 --> S3 --> S4
-    S4 -->|"fix only the broken sections"| S3
-    S4 --> A --> X
-    A -.->|"“slower ending” · “add a look”"| CH
-    CH --> A
+    U --> W --> T
+    T -->|"you approve the plan (optional)"| B
+    B --> C
+    C -->|"yes: fix the 3 worst, only those sections"| B
+    C -->|no| A
+    A --> X
+    A <-.-> CH
 
     classDef you fill:#ff6a3d,stroke:#ff6a3d,color:#fff
     classDef out fill:#e8236b,stroke:#e8236b,color:#fff
