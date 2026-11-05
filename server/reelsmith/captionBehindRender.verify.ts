@@ -2,9 +2,12 @@
 // behind the people. Where the words cross a person the behind render shows the person (it matches the no-caption
 // frame); elsewhere it shows the words (it matches the in-front frame). Real render, real person matte, on the
 // captioned-story poster (a group selfie).
+// The photo shows real people, so it is not in the repo: put any photo with two or three people close to the camera
+// at server/reelsmith/fixtures/local/group-selfie.jpg (gitignored) or point RS_PERSON_PHOTO at one. Without it the
+// suite skips.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,7 +23,11 @@ import { ffmpegBin } from '../media-binaries.ts';
 // @ts-expect-error — plain .mjs render pipeline has no .d.ts
 import { renderTimelineStills } from '../../remotion/render.mjs';
 
-const POSTER = fileURLToPath(new URL('./fixtures/group-selfie.jpg', import.meta.url));
+const POSTER = process.env.RS_PERSON_PHOTO ?? fileURLToPath(new URL('./fixtures/local/group-selfie.jpg', import.meta.url));
+if (!existsSync(POSTER)) {
+  console.log('captionBehindRender.verify: skipped (no person photo; see the note at the top of this file)');
+  process.exit(0);
+}
 const W = 360, H = 640, FRAME = 20;
 const work = mkdtempSync(join(tmpdir(), 'rs-caption-behind-'));
 try {

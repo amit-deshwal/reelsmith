@@ -1,7 +1,7 @@
 # Feature inventory and release roadmap
 
 Project codename: **Reelsmith** (placeholder; not affiliated with Cardboard Inc. Check the name for trademark conflicts before any public use.)
-Prepared: 2026-10-15. Companion to `cardboardrebuild.txt` (the main specification).
+Prepared: 2026-10-15. Companion to the original specification (kept private).
 
 ## How to read this
 
@@ -40,7 +40,7 @@ R3  Segmentation (background removal, captions behind subject), speaker layouts,
 EXP 3D/programmatic graphics, local TTS voiceover, paper-cutout and other stylised effects
 ```
 
-R1 is **done** when every acceptance criterion in `cardboardrebuild.txt` §22 passes on the reference Mac (Apple M5, 24 GB). Broad feature parity is explicitly **not** an R1 goal.
+R1 is **done** when every acceptance criterion in the original spec §22 passes on the reference Mac (Apple M5, 24 GB). Broad feature parity is explicitly **not** an R1 goal.
 
 ## What R1 deliberately leaves out (and why)
 

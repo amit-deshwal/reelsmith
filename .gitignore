@@ -118,3 +118,6 @@ public/whisper-cli/
 # Reelsmith local upscaler venv and weights
 .reelsmith-venv/
 server/reelsmith/upscale-models/
+
+# Reelsmith: private test media (real people). Tests that need it skip when it is missing.
+server/reelsmith/fixtures/local/

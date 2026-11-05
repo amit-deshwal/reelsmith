@@ -2,8 +2,8 @@
 
 Reelsmith is a private, personal fork of OpenChatCut (AGPL-3.0). Its goal is an Instagram Reels editor driven by recipes, with optional Claude/Codex chat edits.
 
-- **The backlog is `README.md`** ("Features we need to add", items RS-xxx). Work in milestone order (M0 first) unless the user says otherwise. Tick boxes in README.md when an item's acceptance check passes.
-- The background spec, schemas and example recipes are in `reelsmith-docs/plan/`. Where the spec and OpenChatCut's existing design differ, follow OpenChatCut unless README.md says otherwise.
+- **The backlog is `ROADMAP.md`** ("Features we need to add", items RS-xxx). Work in milestone order (M0 first) unless the user says otherwise. Tick boxes in ROADMAP.md when an item's acceptance check passes. `README.md` is the public showcase and setup guide; keep it short.
+- The background spec, schemas and example recipes are in `reelsmith-docs/plan/`. Where the plan and OpenChatCut's existing design differ, follow OpenChatCut unless ROADMAP.md says otherwise.
 - The upstream project README is `UPSTREAM_README.md`. The `upstream` remote is https://github.com/0xsline/OpenChatCut.
 - Put new code in our own folders (`src/reelsmith/`, `server/reelsmith/`, `shared/reelsmith/`, `recipes/`, `src/agent/skills/reels-*`). Keep edits to upstream files minimal, and log each modified upstream file in `reelsmith-docs/UPSTREAM_PATCHES.md`.
 - Node 24.x only (`.nvmrc`). Dev: `npm run desktop:dev` or `npm run dev`. Tests: after an edit run `npm run verify:affected` (suites that import the changed files) or `npm run test:fast` (~25 s, skips the slow render/export suites); run the full `npm test` (~100 s) before committing a batch of work or pushing. New logic gets a `*.verify.ts` next to it, following upstream convention.

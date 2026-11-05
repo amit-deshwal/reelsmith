@@ -1,7 +1,7 @@
 # Research notes and source log
 
 Research date: **2026-10-15** (all pages fetched that day). Researcher: Claude (Claude Code session), for the project owner.
-This file records **what was checked, how it was checked, and what remains unverified**. The design conclusions are in `../cardboardrebuild.txt`.
+This file records **what was checked, how it was checked, and what remains unverified**. The design conclusions were in the original specification (kept private).
 
 ---
 
