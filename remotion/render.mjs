@@ -20,7 +20,7 @@ import { renderDirectHardware } from './direct-hardware.mjs';
 import { assertMaterializedRenderSnapshot, normalizeH264Profile } from './render-contract.mjs';
 import { resolveRenderTimeout } from './render-timeout.mjs';
 import { getServeUrl } from './serve-bundle.mjs';
-import { browserExecutableFor } from '../server/reelsmith/macChromeLauncher.mjs';
+import { currentBrowserExecutable } from '../server/reelsmith/macChromeLauncher.mjs';
 import { resolveServerVideoDecoder } from './video-decoder.mjs';
 
 export { prebuildServeBundle, setUploadsDirProvider } from './serve-bundle.mjs';
@@ -40,7 +40,7 @@ function resolveRenderGlBackend() {
   return process.platform === 'linux' ? 'angle-egl' : 'angle';
 }
 // Reelsmith: on macOS Chrome is started through a launcher script (server/reelsmith/macChromeLauncher.mjs)
-const browserExecutable = () => browserExecutableFor(process.env.CC_BROWSER_EXECUTABLE);
+const browserExecutable = () => currentBrowserExecutable(process.env.CC_BROWSER_EXECUTABLE);
 const binariesDirectory = () => process.env.CC_REMOTION_BINARIES_DIR || null;
 
 /** Every server render tells the composition which decoder feeds its video
@@ -83,7 +83,7 @@ export async function withAbortableCompositionSelection({
 }) {
   signal?.throwIfAborted();
   const browser = await openBrowserImpl('chrome', {
-    browserExecutable: browserExecutable(),
+    browserExecutable: await browserExecutable(),
     chromiumOptions: { gl: resolveRenderGlBackend() },
   });
   let closePromise;
@@ -233,6 +233,7 @@ export async function renderTimeline({
   const serveUrl = await getServeUrl();
   signal?.throwIfAborted();
   const inputProps = serverInputProps({ state, project, timelineId });
+  const executable = await browserExecutable();
   // Full-timeline mezzanine: ProRes 422 HQ (not 4444 alpha — that is clip/MG only).
   const proresOptions = codec === 'prores'
     ? { proResProfile: 'hq', imageFormat: 'png' }
@@ -244,7 +245,7 @@ export async function renderTimeline({
       id: COMPOSITION_ID,
       inputProps,
       binariesDirectory: binariesDirectory(),
-      browserExecutable: browserExecutable(),
+      browserExecutable: executable,
       timeoutInMilliseconds: renderTimeoutInMilliseconds(),
     },
     run: (composition, browser) => renderMediaOptimized({
@@ -269,7 +270,7 @@ export async function renderTimeline({
       // byte-identical on macOS). When shared-memory capture is unavailable they fall back to Chrome JPEGs: q95, not q80.
       ...(codec !== 'prores' ? { jpegQuality: 95 } : {}),
       chromiumOptions: { gl: resolveRenderGlBackend() },
-      browserExecutable: browserExecutable(),
+      browserExecutable: executable,
       puppeteerInstance: browser,
       onProgress: onProgress ? ({ progress }) => onProgress(progress) : undefined,
       cancelSignal,
@@ -316,6 +317,7 @@ export async function renderClip({
   const serveUrl = await getServeUrl();
   signal?.throwIfAborted();
   const inputProps = serverInputProps({ state, transparent });
+  const executable = await browserExecutable();
   await withAbortableCompositionSelection({
     signal,
     selectionOptions: {
@@ -323,7 +325,7 @@ export async function renderClip({
       id: COMPOSITION_ID,
       inputProps,
       binariesDirectory: binariesDirectory(),
-      browserExecutable: browserExecutable(),
+      browserExecutable: executable,
       timeoutInMilliseconds: renderTimeoutInMilliseconds(),
     },
     run: (composition, browser) => renderMediaOptimized({
@@ -338,7 +340,7 @@ export async function renderClip({
         ? { proResProfile: '4444', imageFormat: 'png', pixelFormat: 'yuva444p10le' }
         : {}),
       chromiumOptions: { gl: resolveRenderGlBackend() },
-      browserExecutable: browserExecutable(),
+      browserExecutable: executable,
       puppeteerInstance: browser,
       timeoutInMilliseconds: renderTimeoutInMilliseconds(),
       cancelSignal,
@@ -393,7 +395,7 @@ export async function renderTimelineStills({
   // per frame was the dominant cost of view_*_frames.
   const ownBrowser = !puppeteerInstance;
   const browser = puppeteerInstance ?? await openBrowser('chrome', {
-    browserExecutable: browserExecutable(),
+    browserExecutable: await browserExecutable(),
     chromiumOptions: { gl: resolveRenderGlBackend() },
   });
   const closeOnAbort = () => {
@@ -405,7 +407,7 @@ export async function renderTimelineStills({
     const composition = await selectComposition({
       serveUrl, id: COMPOSITION_ID, inputProps,
       puppeteerInstance: browser,
-      browserExecutable: browserExecutable(),
+      browserExecutable: await browserExecutable(),
       binariesDirectory: binariesDirectory(),
       timeoutInMilliseconds: renderTimeoutInMilliseconds(),
     });
@@ -423,7 +425,7 @@ export async function renderTimelineStills({
         // Slightly smaller cells when many frames → cheaper vision payload
         scale: (list.length > 6 ? 480 : 640) / composition.width,
         chromiumOptions: { gl: resolveRenderGlBackend() },
-        browserExecutable: browserExecutable(),
+        browserExecutable: await browserExecutable(),
         binariesDirectory: binariesDirectory(),
         offthreadVideoThreads: offthreadVideoThreads(),
         output: null,

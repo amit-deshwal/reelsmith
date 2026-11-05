@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { browserExecutableFor, launcherScript } from './macChromeLauncher.mjs';
+import { browserExecutableFor, currentBrowserExecutable, launcherScript } from './macChromeLauncher.mjs';
 
 // macOS starts Chrome through a launcher that execs the real headless shell; other platforms get the path unchanged
 const dir = mkdtempSync(join(tmpdir(), 'rs-launch-'));
@@ -23,6 +23,17 @@ try {
   // with no override it finds the downloaded shell (dev checkout), if there is one
   const found = browserExecutableFor(undefined, 'darwin', dir);
   if (found) assert.match(readFileSync(found, 'utf8'), /chrome-headless-shell"/);
+  // macOS with no override checks the downloaded shell once (Remotion re-downloads a stale one) before the launcher;
+  // an override or another platform never asks, and a failed check is retried next time
+  let asked = 0;
+  const ensure = async () => { asked += 1; };
+  await currentBrowserExecutable('/opt/chrome', 'darwin', ensure);
+  await currentBrowserExecutable(undefined, 'linux', ensure);
+  assert.equal(asked, 0);
+  await assert.rejects(currentBrowserExecutable(undefined, 'darwin', async () => { throw new Error('offline'); }), /offline/);
+  await currentBrowserExecutable(undefined, 'darwin', ensure);
+  await currentBrowserExecutable(undefined, 'darwin', ensure);
+  assert.equal(asked, 1, 'once per process');
   console.log('macChromeLauncher.verify ok');
 } finally {
   rmSync(dir, { recursive: true, force: true });

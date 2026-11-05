@@ -4,10 +4,9 @@
 // Times inside a move scale with the section's length, so the agent sets the pace with beats.
 import type { Keyframe } from '../../editor/types';
 import { placeInSlot } from '../../editor/layouts';
-import type { AssemblyClip } from '../assembler/types';
 import { LAYOUT_SLOTS, withGutter } from '../assembler/collageGrid';
 import { BAR_STEPS, isCloseUp, postcardOrder } from '../assembler/postcardCollage';
-import { FINALE, FINALE_GRID_FROM_SEC, FINALE_NEEDS_SEC, FINALE_ROLES, finaleWindows, stripWindows, type GraphicSource } from '../postcardGraphics';
+import { FINALE, FINALE_GRID_FROM_SEC, FINALE_NEEDS_SEC, FINALE_ROLES, finaleWindows, stripWindows } from '../postcardGraphics';
 import { REVEAL_FRAG, REVEAL_LABELS, revealUniforms, type RevealKind } from '../travelDiaryReveal';
 import { kenBurnsActions, type KenBurnsPreset } from '../kenBurns';
 import { addRecipeTransition, RECIPE_TRANSITIONS } from '../assembler/transitions';

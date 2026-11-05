@@ -56,3 +56,26 @@ export function browserExecutableFor(real, platform = process.platform, dir = tm
   made.set(target, file);
   return file;
 }
+
+let shellReady = null;
+
+/**
+ * Remotion only checks (and re-downloads) its headless shell when it picks the browser itself; handed our launcher it
+ * sees a user path and keeps whatever shell is on disk, so after a Remotion upgrade the old Chrome stayed in use. On
+ * macOS with no override, run Remotion's own `ensureBrowser()` once per process first, then build the launcher.
+ */
+export async function currentBrowserExecutable(real, platform = process.platform, ensure = defaultEnsure) {
+  if (platform === 'darwin' && !real) {
+    shellReady ??= ensure().catch((err) => {
+      shellReady = null;
+      throw err;
+    });
+    await shellReady;
+  }
+  return browserExecutableFor(real, platform);
+}
+
+async function defaultEnsure() {
+  const { ensureBrowser } = await import('@remotion/renderer');
+  await ensureBrowser({ logLevel: 'warn' });
+}
