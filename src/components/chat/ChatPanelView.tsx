@@ -10,7 +10,8 @@ import { ExternalProposalCard } from './ExternalProposalCard';
 import { ProposalCard } from './ProposalCard';
 import { ToolGroupRow } from './ToolGroupRow';
 import { groupMessages } from './message-groups';
-import { EMPTY_PROJECT_STARTERS, QUICK_ACTIONS } from './chatPanelPresets';
+import { QUICK_ACTIONS } from './chatPanelPresets';
+import { REEL_STARTERS } from '../../reelsmith/chatStarters';
 import type { DisplayMessage } from '../../agent/agent-session';
 import { readStoredServerRun } from '../../agent/serverRunSessionStorage';
 import type { ChatPanelController } from './chatPanelController';
@@ -71,20 +72,19 @@ function ChatHeader({ controller }: { controller: ChatPanelController }) {
 }
 
 function ChatOnboarding({ controller }: { controller: ChatPanelController }) {
-  const { composer, t } = controller;
+  const { composer } = controller;
   return <div className="cc-chat-onboarding">
-    <div className="cc-chat-onboarding-kicker">{t('从这里开工')}</div>
-    <h2>{t('从一个剪辑目标开始')}</h2>
-    <p>{t('选择工作流，或直接描述你想得到的成片。')}</p>
+    <h2>What should this reel be?</h2>
+    <p>Pick a start, or just describe it.</p>
     <div className="cc-chat-starter-list">
-      {EMPTY_PROJECT_STARTERS.map((starter) => (
+      {REEL_STARTERS.map((starter) => (
         <button type="button" key={starter.label} onClick={() => {
-          composer.setInput(t(starter.prompt));
+          composer.setInput(starter.prompt);
           requestAnimationFrame(() => composer.taRef.current?.focus());
         }}>
           <span className="cc-chat-starter-icon"><Icon name={starter.icon} size={16} /></span>
           <span className="cc-chat-starter-copy">
-            <strong>{t(starter.label)}</strong><small>{t(starter.description)}</small>
+            <strong>{starter.label}</strong><small>{starter.description}</small>
           </span>
           <span className="cc-chat-starter-arrow" aria-hidden="true">→</span>
         </button>

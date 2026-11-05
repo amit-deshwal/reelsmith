@@ -569,3 +569,4 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 | `src/i18n/dict/en/index.ts` | Merge result passed through `rebrandEntries()` (`./reelsmithBranding.ts`): English strings naming OpenChatCut read "Reelsmith" | Branding | 2026-11-06 |
 | `package.json`, `package-lock.json` | `name` `reelsmith`, own `description` and `author` | Branding | 2026-11-06 |
 | `assets/favicon.svg` | Replaced with the Reelsmith icon | Branding | 2026-11-06 |
+| `src/components/chat/ChatPanelView.tsx` (onboarding) | Empty-chat starters come from `REEL_STARTERS` (`src/reelsmith/chatStarters.ts`: Direct a reel, Add captions, Tighten the cut) instead of upstream's six general workflows; shorter heading | Simpler, reels-only start | 2026-11-06 |
