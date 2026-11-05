@@ -1,0 +1,262 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900">
+  <!-- Director mode infographic for the README. Rendered to director-mode.png (commands in reelsmith-docs/BRANDING.md). -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1d1334"/>
+      <stop offset="1" stop-color="#0b0814"/>
+    </linearGradient>
+    <radialGradient id="glowA" cx="0.12" cy="0.1" r="0.5">
+      <stop offset="0" stop-color="#ff6a3d" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#ff6a3d" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" cx="0.92" cy="0.45" r="0.45">
+      <stop offset="0" stop-color="#e8236b" stop-opacity="0.20"/>
+      <stop offset="1" stop-color="#e8236b" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ember" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffc35a"/>
+      <stop offset="0.5" stop-color="#ff6a3d"/>
+      <stop offset="1" stop-color="#e8236b"/>
+    </linearGradient>
+    <linearGradient id="emberH" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffc35a"/>
+      <stop offset="0.5" stop-color="#ff6a3d"/>
+      <stop offset="1" stop-color="#e8236b"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.085"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.03"/>
+    </linearGradient>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffc35a"/>
+      <stop offset="0.45" stop-color="#ff6a3d"/>
+      <stop offset="0.8" stop-color="#b8327a"/>
+      <stop offset="1" stop-color="#2a1a4a"/>
+    </linearGradient>
+    <pattern id="dots" width="28" height="28" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.2" fill="#ffffff" fill-opacity="0.05"/>
+    </pattern>
+    <marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#ff6a3d"/>
+    </marker>
+    <marker id="arrowDim" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#8f84ab"/>
+    </marker>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#000" flood-opacity="0.45"/>
+    </filter>
+    <style>
+      .sans { font-family: Inter, 'SF Pro Display', 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+      .mono { font-family: 'SF Mono', Menlo, Consolas, monospace; }
+      .h1 { font-size: 46px; font-weight: 800; fill: #ffffff; letter-spacing: -1.2px; }
+      .sub { font-size: 20px; font-weight: 500; fill: #c9bfe0; }
+      .kick { font-size: 13px; font-weight: 700; fill: #8f84ab; letter-spacing: 2.6px; }
+      .ct { font-size: 25px; font-weight: 800; fill: #ffffff; letter-spacing: -0.4px; }
+      .cb { font-size: 16px; font-weight: 500; fill: #d6cdea; }
+      .chipT { font-size: 18px; font-weight: 750; fill: #ffffff; }
+      .chipB { font-size: 14.5px; font-weight: 500; fill: #b3a8cc; }
+      .num { font-size: 20px; font-weight: 800; fill: #ffffff; }
+      .tileT { font-size: 19px; font-weight: 800; fill: #ffffff; }
+      .tileB { font-size: 15.5px; font-weight: 500; fill: #b3a8cc; }
+      .lbl { font-size: 14.5px; font-weight: 700; fill: #ffd27a; }
+    </style>
+  </defs>
+
+  <!-- canvas -->
+  <rect width="1600" height="900" rx="36" fill="url(#bg)"/>
+  <rect width="1600" height="900" rx="36" fill="url(#dots)"/>
+  <rect width="1600" height="900" rx="36" fill="url(#glowA)"/>
+  <rect width="1600" height="900" rx="36" fill="url(#glowB)"/>
+
+  <!-- header -->
+  <text class="sans kick" x="60" y="62">REELSMITH · DIRECTOR MODE</text>
+  <text class="sans h1" x="60" y="112">From one line of story to a finished Reel</text>
+  <text class="sans sub" x="60" y="146">The model makes the taste calls. The tools do the arithmetic and the checks.</text>
+
+  <!-- ============ inputs ============ -->
+  <text class="sans kick" x="60" y="190">YOU BRING</text>
+  <g class="sans">
+    <!-- story -->
+    <rect x="60" y="205" width="236" height="98" rx="18" fill="url(#card)" stroke="#ffffff" stroke-opacity="0.11"/>
+    <circle cx="102" cy="254" r="24" fill="#ff6a3d" fill-opacity="0.16"/>
+    <path d="M90 244 h24 a5 5 0 0 1 5 5 v10 a5 5 0 0 1 -5 5 h-14 l-7 6 v-6 h-3 a5 5 0 0 1 -5 -5 v-10 a5 5 0 0 1 5 -5 z" fill="none" stroke="#ffb347" stroke-width="2.4" stroke-linejoin="round"/>
+    <text class="chipT" x="138" y="243">Your story</text>
+    <text class="chipB" x="138" y="265">“2 days on the</text>
+    <text class="chipB" x="138" y="284">toughest trek…”</text>
+    <!-- clips -->
+    <rect x="60" y="321" width="236" height="98" rx="18" fill="url(#card)" stroke="#ffffff" stroke-opacity="0.11"/>
+    <circle cx="102" cy="370" r="24" fill="#ff6a3d" fill-opacity="0.16"/>
+    <rect x="88" y="358" width="13" height="24" rx="3" fill="none" stroke="#ffb347" stroke-width="2.4" transform="rotate(-10 94 370)"/>
+    <rect x="98" y="356" width="13" height="26" rx="3" fill="#ffb347" fill-opacity="0.9"/>
+    <rect x="108" y="358" width="13" height="24" rx="3" fill="none" stroke="#ffb347" stroke-width="2.4" transform="rotate(10 114 370)"/>
+    <text class="chipT" x="138" y="359">Your clips</text>
+    <text class="chipB" x="138" y="381">phone videos</text>
+    <text class="chipB" x="138" y="400">and photos</text>
+    <!-- song -->
+    <rect x="60" y="437" width="236" height="98" rx="18" fill="url(#card)" stroke="#ffffff" stroke-opacity="0.11"/>
+    <circle cx="102" cy="486" r="24" fill="#ff6a3d" fill-opacity="0.16"/>
+    <g stroke="#ffb347" stroke-width="2.6" stroke-linecap="round">
+      <line x1="88" y1="482" x2="88" y2="490"/><line x1="94" y1="476" x2="94" y2="496"/><line x1="100" y1="471" x2="100" y2="501"/>
+      <line x1="106" y1="478" x2="106" y2="494"/><line x1="112" y1="474" x2="112" y2="498"/><line x1="118" y1="483" x2="118" y2="489"/>
+    </g>
+    <text class="chipT" x="138" y="475">A song</text>
+    <text class="chipB" x="138" y="497">beats and drop</text>
+    <text class="chipB" x="138" y="516">found on-device</text>
+  </g>
+  <!-- inputs converge -->
+  <g fill="none" stroke="#ffffff" stroke-opacity="0.22" stroke-width="2">
+    <path d="M296 254 C 322 254, 318 370, 336 370"/>
+    <path d="M296 370 L 336 370"/>
+    <path d="M296 486 C 322 486, 318 370, 336 370"/>
+  </g>
+  <line x1="336" y1="370" x2="346" y2="370" stroke="#ff6a3d" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+  <!-- ============ stage cards ============ -->
+  <g class="sans">
+    <!-- ① Watch -->
+    <g filter="url(#soft)"><rect x="352" y="205" width="228" height="330" rx="22" fill="#1a1230"/></g>
+    <rect x="352" y="205" width="228" height="330" rx="22" fill="url(#card)" stroke="#ffffff" stroke-opacity="0.13"/>
+    <circle cx="390" cy="245" r="21" fill="url(#ember)"/><text class="num" x="390" y="252" text-anchor="middle">1</text>
+    <rect x="514" y="224" width="44" height="44" rx="12" fill="#ffffff" fill-opacity="0.07"/>
+    <path d="M522 246 q 14 -14 28 0 q -14 14 -28 0 z" fill="none" stroke="#ffd27a" stroke-width="2.3" stroke-linejoin="round"/>
+    <circle cx="536" cy="246" r="4.5" fill="#ffd27a"/>
+    <text class="ct" x="376" y="312">Watch</text>
+    <g class="cb">
+      <circle cx="381" cy="345" r="3.5" fill="#ff6a3d"/><text x="394" y="351">A shot log of every</text><text x="394" y="372">clip: best moments</text>
+      <circle cx="381" cy="405" r="3.5" fill="#ff6a3d"/><text x="394" y="411">Finds shots by</text><text x="394" y="432">meaning</text>
+      <circle cx="381" cy="465" r="3.5" fill="#ff6a3d"/><text x="394" y="471">The song’s beats,</text><text x="394" y="492">drop and energy</text>
+    </g>
+
+    <!-- ② Treatment -->
+    <g filter="url(#soft)"><rect x="612" y="205" width="228" height="330" rx="22" fill="#1a1230"/></g>
+    <rect x="612" y="205" width="228" height="330" rx="22" fill="url(#card)" stroke="#ffffff" stroke-opacity="0.13"/>
+    <circle cx="650" cy="245" r="21" fill="url(#ember)"/><text class="num" x="650" y="252" text-anchor="middle">2</text>
+    <rect x="774" y="224" width="44" height="44" rx="12" fill="#ffffff" fill-opacity="0.07"/>
+    <rect x="783" y="233" width="18" height="24" rx="4" fill="none" stroke="#ffd27a" stroke-width="2.3"/>
+    <rect x="793" y="238" width="18" height="24" rx="4" fill="#ffd27a" fill-opacity="0.9"/>
+    <text class="ct" x="636" y="312">Treatment</text>
+    <g class="cb">
+      <circle cx="641" cy="345" r="3.5" fill="#ff6a3d"/><text x="654" y="351">Two different</text><text x="654" y="372">concepts</text>
+      <circle cx="641" cy="405" r="3.5" fill="#ff6a3d"/><text x="654" y="411">Picks the one that</text><text x="654" y="432">fits your words</text>
+      <circle cx="641" cy="465" r="3.5" fill="#ff6a3d"/><text x="654" y="471">Structure laid on</text><text x="654" y="492">the song</text>
+    </g>
+
+    <!-- ③ Build -->
+    <g filter="url(#soft)"><rect x="872" y="205" width="228" height="330" rx="22" fill="#1a1230"/></g>
+    <rect x="872" y="205" width="228" height="330" rx="22" fill="url(#card)" stroke="#ffffff" stroke-opacity="0.13"/>
+    <circle cx="910" cy="245" r="21" fill="url(#ember)"/><text class="num" x="910" y="252" text-anchor="middle">3</text>
+    <rect x="1034" y="224" width="44" height="44" rx="12" fill="#ffffff" fill-opacity="0.07"/>
+    <rect x="1042" y="234" width="20" height="6" rx="3" fill="#ffd27a"/>
+    <rect x="1048" y="243" width="22" height="6" rx="3" fill="#ff6a3d"/>
+    <rect x="1042" y="252" width="14" height="6" rx="3" fill="#e8236b"/>
+    <line x1="1059" y1="230" x2="1059" y2="262" stroke="#ffffff" stroke-width="1.6"/>
+    <text class="ct" x="896" y="312">Build</text>
+    <g class="cb">
+      <circle cx="901" cy="345" r="3.5" fill="#ff6a3d"/><text x="914" y="351">Shots cast on</text><text x="914" y="372">the beat</text>
+      <circle cx="901" cy="405" r="3.5" fill="#ff6a3d"/><text x="914" y="411">Your words as</text><text x="914" y="432">titles and captions</text>
+      <circle cx="901" cy="465" r="3.5" fill="#ff6a3d"/><text x="914" y="471">Effects and sound</text><text x="914" y="492">that hit the music</text>
+    </g>
+
+    <!-- ④ Critique -->
+    <g filter="url(#soft)"><rect x="1132" y="205" width="228" height="330" rx="22" fill="#1a1230"/></g>
+    <rect x="1132" y="205" width="228" height="330" rx="22" fill="url(#card)" stroke="url(#ember)" stroke-opacity="0.75" stroke-width="1.6"/>
+    <circle cx="1170" cy="245" r="21" fill="url(#ember)"/><text class="num" x="1170" y="252" text-anchor="middle">4</text>
+    <rect x="1294" y="224" width="44" height="44" rx="12" fill="#ffffff" fill-opacity="0.07"/>
+    <circle cx="1313" cy="243" r="9" fill="none" stroke="#ffd27a" stroke-width="2.4"/>
+    <line x1="1320" y1="250" x2="1328" y2="258" stroke="#ffd27a" stroke-width="2.6" stroke-linecap="round"/>
+    <text class="ct" x="1156" y="312">Critique</text>
+    <g class="cb">
+      <circle cx="1161" cy="345" r="3.5" fill="#ff6a3d"/><text x="1174" y="351">Renders frames,</text><text x="1174" y="372">listens to the cut</text>
+      <circle cx="1161" cy="405" r="3.5" fill="#ff6a3d"/><text x="1174" y="411">Names its three</text><text x="1174" y="432">worst defects</text>
+      <circle cx="1161" cy="465" r="3.5" fill="#ff6a3d"/><text x="1174" y="471">Fixes only those</text><text x="1174" y="492">sections</text>
+    </g>
+  </g>
+
+  <!-- arrows between stages -->
+  <line x1="582" y1="370" x2="606" y2="370" stroke="#ff6a3d" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <line x1="842" y1="370" x2="866" y2="370" stroke="#ff6a3d" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <line x1="1102" y1="370" x2="1126" y2="370" stroke="#ff6a3d" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <line x1="1362" y1="370" x2="1386" y2="370" stroke="#ff6a3d" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+  <!-- approval gate between 2 and 3 -->
+  <g class="sans">
+    <rect x="752" y="164" width="200" height="30" rx="15" fill="#ffd27a" fill-opacity="0.12" stroke="#ffd27a" stroke-opacity="0.55"/>
+    <path d="M768 179 l5 5 l10 -11" fill="none" stroke="#ffd27a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <text class="lbl" x="790" y="184">you approve the plan</text>
+    <line x1="852" y1="194" x2="854" y2="362" stroke="#ffd27a" stroke-opacity="0.5" stroke-width="1.6" stroke-dasharray="4 5"/>
+    <text class="sans" x="852" y="152" text-anchor="middle" font-size="12.5" font-weight="600" fill="#8f84ab" letter-spacing="1.5">OPTIONAL</text>
+  </g>
+
+  <!-- self-critique loop: 4 back to 3 -->
+  <path d="M1246 537 C 1246 600, 986 600, 986 546" fill="none" stroke="url(#emberH)" stroke-width="2.6" stroke-dasharray="7 6" marker-end="url(#arrow)"/>
+  <g class="sans">
+    <rect x="1036" y="574" width="160" height="30" rx="15" fill="#0f0a1c" stroke="#ff6a3d" stroke-opacity="0.6"/>
+    <text x="1116" y="594" text-anchor="middle" font-size="14.5" font-weight="700" fill="#ffb347">↻ fix and re-check</text>
+  </g>
+
+  <!-- ============ phone: the finished reel ============ -->
+  <g filter="url(#soft)">
+    <rect x="1392" y="200" width="168" height="300" rx="28" fill="#06040c" stroke="#ffffff" stroke-opacity="0.22" stroke-width="1.5"/>
+  </g>
+  <clipPath id="screen"><rect x="1400" y="208" width="152" height="284" rx="21"/></clipPath>
+  <g clip-path="url(#screen)">
+    <rect x="1400" y="208" width="152" height="284" fill="url(#sky)"/>
+    <circle cx="1500" cy="292" r="26" fill="#fff3c4" fill-opacity="0.85"/>
+    <path d="M1400 420 L1440 360 L1466 392 L1494 340 L1552 410 L1552 492 L1400 492 Z" fill="#2a1a4a"/>
+    <path d="M1400 446 L1452 400 L1488 432 L1520 404 L1552 430 L1552 492 L1400 492 Z" fill="#160e2a"/>
+    <!-- figure on the summit -->
+    <circle cx="1494" cy="326" r="4.2" fill="#160e2a"/>
+    <path d="M1494 330 l0 12 M1494 334 l-7 -6 M1494 334 l7 -7 M1494 342 l-4 9 M1494 342 l4 9" stroke="#160e2a" stroke-width="2.6" stroke-linecap="round"/>
+    <!-- punch caption -->
+    <g class="sans" font-weight="900">
+      <text x="1476" y="388" text-anchor="middle" font-size="12" fill="#ffffff" fill-opacity="0.85" letter-spacing="1.5">DAY 2 · 5:12 AM</text>
+      <text x="1474" y="420" text-anchor="end" font-size="26" fill="#ffffff" letter-spacing="-0.5">MADE</text>
+      <rect x="1482" y="398" width="42" height="28" rx="5" fill="url(#ember)"/>
+      <text x="1503" y="420" text-anchor="middle" font-size="26" fill="#ffffff" letter-spacing="-0.5">IT</text>
+    </g>
+    <!-- handle tag -->
+    <rect x="1410" y="222" width="64" height="20" rx="10" fill="#000" fill-opacity="0.45"/>
+    <circle cx="1421" cy="232" r="3.5" fill="#ffb347"/>
+    <text class="sans" x="1429" y="236" font-size="11" font-weight="700" fill="#fff">@you</text>
+    <!-- progress -->
+    <rect x="1412" y="476" width="128" height="3" rx="1.5" fill="#ffffff" fill-opacity="0.3"/>
+    <rect x="1412" y="476" width="78" height="3" rx="1.5" fill="#ffffff"/>
+  </g>
+  <rect x="1452" y="212" width="48" height="6" rx="3" fill="#06040c"/>
+  <text class="sans" x="1476" y="530" text-anchor="middle" font-size="17" font-weight="800" fill="#ffffff">Instagram-ready</text>
+  <text class="sans" x="1476" y="552" text-anchor="middle" font-size="14" font-weight="500" fill="#b3a8cc">1080×1920 MP4 · cover</text>
+  <text class="sans" x="1476" y="571" text-anchor="middle" font-size="14" font-weight="500" fill="#b3a8cc">no-music copy</text>
+
+  <!-- ============ bottom tiles ============ -->
+  <g class="sans">
+    <rect x="60" y="648" width="470" height="132" rx="20" fill="url(#card)" stroke="#ffffff" stroke-opacity="0.10"/>
+    <rect x="84" y="672" width="40" height="40" rx="11" fill="#ff6a3d" fill-opacity="0.16"/>
+    <path d="M96 692 a9 9 0 1 0 3 -7 M95 680 v6 h6" fill="none" stroke="#ffb347" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <text class="tileT" x="142" y="699">One undo step</text>
+    <text class="tileB" x="84" y="740">The build lands on a normal multitrack</text>
+    <text class="tileB" x="84" y="762">timeline. Every clip, title and effect stays editable.</text>
+
+    <rect x="565" y="648" width="470" height="132" rx="20" fill="url(#card)" stroke="#ffffff" stroke-opacity="0.10"/>
+    <rect x="589" y="672" width="40" height="40" rx="11" fill="#ff6a3d" fill-opacity="0.16"/>
+    <path d="M598 682 h22 a4 4 0 0 1 4 4 v11 a4 4 0 0 1 -4 4 h-12 l-6 5 v-5 h-4 a4 4 0 0 1 -4 -4 v-11 a4 4 0 0 1 4 -4 z" fill="none" stroke="#ffb347" stroke-width="2.3" stroke-linejoin="round"/>
+    <text class="tileT" x="647" y="699">Then just ask</text>
+    <rect x="589" y="728" width="136" height="28" rx="14" fill="#ffffff" fill-opacity="0.07"/>
+    <text class="tileB" x="657" y="747" text-anchor="middle">“slower ending”</text>
+    <rect x="733" y="728" width="112" height="28" rx="14" fill="#ffffff" fill-opacity="0.07"/>
+    <text class="tileB" x="789" y="747" text-anchor="middle">“add a look”</text>
+    <rect x="853" y="728" width="160" height="28" rx="14" fill="#ffffff" fill-opacity="0.07"/>
+    <text class="tileB" x="933" y="747" text-anchor="middle">“punchier hook”</text>
+
+    <rect x="1070" y="648" width="470" height="132" rx="20" fill="url(#card)" stroke="#ffffff" stroke-opacity="0.10"/>
+    <rect x="1094" y="672" width="40" height="40" rx="11" fill="#ff6a3d" fill-opacity="0.16"/>
+    <rect x="1104" y="690" width="20" height="15" rx="3" fill="none" stroke="#ffb347" stroke-width="2.3"/>
+    <path d="M1108 690 v-4 a6 6 0 0 1 12 0 v4" fill="none" stroke="#ffb347" stroke-width="2.3"/>
+    <text class="tileT" x="1152" y="699">Local and yours</text>
+    <text class="tileB" x="1094" y="740">Footage never leaves your Mac. The agent is your</text>
+    <text class="tileB" x="1094" y="762">own Claude Code or Codex, with editor-only tools.</text>
+  </g>
+
+  <!-- footer -->
+  <text class="mono" x="60" y="850" font-size="14" fill="#6f6590">reels_director_options → treatment → build → critique / fix</text>
+  <text class="sans" x="1540" y="850" text-anchor="end" font-size="20" font-weight="800" letter-spacing="-0.6"><tspan fill="#ffffff">reel</tspan><tspan fill="url(#emberH)">smith</tspan></text>
+</svg>

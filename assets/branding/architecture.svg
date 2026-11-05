@@ -1,0 +1,196 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 760" width="1600" height="760">
+  <!-- Architecture infographic for the README. Rendered to architecture.png (commands in reelsmith-docs/BRANDING.md). -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1d1334"/>
+      <stop offset="1" stop-color="#0b0814"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.55" cy="0.35" r="0.55">
+      <stop offset="0" stop-color="#ff6a3d" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#ff6a3d" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ember" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffc35a"/>
+      <stop offset="0.5" stop-color="#ff6a3d"/>
+      <stop offset="1" stop-color="#e8236b"/>
+    </linearGradient>
+    <linearGradient id="emberH" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffc35a"/>
+      <stop offset="0.5" stop-color="#ff6a3d"/>
+      <stop offset="1" stop-color="#e8236b"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.085"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.03"/>
+    </linearGradient>
+    <pattern id="dots" width="28" height="28" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.2" fill="#ffffff" fill-opacity="0.05"/>
+    </pattern>
+    <marker id="a" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#ff6a3d"/>
+    </marker>
+    <marker id="ad" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 Z" fill="#8f84ab"/>
+    </marker>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#000" flood-opacity="0.45"/>
+    </filter>
+    <style>
+      .sans { font-family: Inter, 'SF Pro Display', 'Helvetica Neue', Helvetica, Arial, sans-serif; }
+      .mono { font-family: 'SF Mono', Menlo, Consolas, monospace; }
+      .h1 { font-size: 40px; font-weight: 800; fill: #ffffff; letter-spacing: -1px; }
+      .sub { font-size: 19px; font-weight: 500; fill: #c9bfe0; }
+      .kick { font-size: 13px; font-weight: 700; fill: #8f84ab; letter-spacing: 2.6px; }
+      .t { font-size: 21px; font-weight: 800; fill: #ffffff; letter-spacing: -0.3px; }
+      .b { font-size: 15px; font-weight: 500; fill: #b3a8cc; }
+      .e { font-size: 16.5px; font-weight: 750; fill: #ffffff; }
+      .eb { font-size: 13.5px; font-weight: 500; fill: #b3a8cc; }
+      .lbl { font-size: 13px; font-weight: 700; fill: #ffd27a; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="760" rx="36" fill="url(#bg)"/>
+  <rect width="1600" height="760" rx="36" fill="url(#dots)"/>
+  <rect width="1600" height="760" rx="36" fill="url(#glow)"/>
+
+  <text class="sans kick" x="60" y="62">REELSMITH · UNDER THE HOOD</text>
+  <text class="sans h1" x="60" y="108">Your agent directs. Your Mac does the work.</text>
+  <text class="sans sub" x="60" y="140">Everything runs locally; the only thing that leaves is the agent’s conversation with your own subscription.</text>
+
+  <!-- Mac boundary -->
+  <rect x="440" y="180" width="1100" height="534" rx="26" fill="none" stroke="#ffffff" stroke-opacity="0.16" stroke-dasharray="6 7"/>
+  <rect x="460" y="167" width="214" height="26" rx="13" fill="#140d24"/>
+  <text class="sans kick" x="478" y="185" fill="#c9bfe0">YOUR MAC · LOCAL</text>
+
+  <!-- ===== agent column ===== -->
+  <g class="sans">
+    <text class="kick" x="60" y="214">YOUR AGENT</text>
+    <g filter="url(#soft)"><rect x="60" y="230" width="300" height="118" rx="20" fill="#1a1230"/></g>
+    <rect x="60" y="230" width="300" height="118" rx="20" fill="url(#card)" stroke="#ffffff" stroke-opacity="0.13"/>
+    <rect x="82" y="252" width="46" height="46" rx="12" fill="#ff6a3d" fill-opacity="0.16"/>
+    <path d="M94 266 l8 9 l-8 9 M106 286 h12" fill="none" stroke="#ffb347" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <text class="t" x="144" y="272">Claude Code</text>
+    <text class="b" x="144" y="296">the official CLI, your plan</text>
+    <text class="b" x="82" y="330">claude -p · editor-only tools</text>
+
+    <g filter="url(#soft)"><rect x="60" y="366" width="300" height="118" rx="20" fill="#1a1230"/></g>
+    <rect x="60" y="366" width="300" height="118" rx="20" fill="url(#card)" stroke="#ffffff" stroke-opacity="0.13"/>
+    <rect x="82" y="388" width="46" height="46" rx="12" fill="#ff6a3d" fill-opacity="0.16"/>
+    <path d="M94 402 l8 9 l-8 9 M106 422 h12" fill="none" stroke="#ffb347" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <text class="t" x="144" y="408">Codex</text>
+    <text class="b" x="144" y="432">the official CLI, your plan</text>
+    <text class="b" x="82" y="466">same tools, same skills</text>
+
+    <rect x="60" y="506" width="300" height="74" rx="18" fill="#ffd27a" fill-opacity="0.08" stroke="#ffd27a" stroke-opacity="0.35"/>
+    <rect x="80" y="528" width="20" height="15" rx="3" fill="none" stroke="#ffd27a" stroke-width="2.2"/>
+    <path d="M84 528 v-4 a6 6 0 0 1 12 0 v4" fill="none" stroke="#ffd27a" stroke-width="2.2"/>
+    <text class="lbl" x="114" y="537">Reelsmith never sees</text>
+    <text class="lbl" x="114" y="556">your credentials</text>
+  </g>
+
+  <!-- agent <-> MCP -->
+  <path d="M362 289 C 420 289, 420 340, 478 340" fill="none" stroke="#ff6a3d" stroke-width="2.5" marker-start="url(#a)" marker-end="url(#a)"/>
+  <path d="M362 425 C 420 425, 420 376, 478 376" fill="none" stroke="#ff6a3d" stroke-width="2.5" marker-start="url(#a)" marker-end="url(#a)"/>
+  <text class="sans" x="402" y="362" text-anchor="middle" font-size="12" font-weight="700" fill="#8f84ab" letter-spacing="1.5">MCP</text>
+
+  <!-- ===== MCP + skills ===== -->
+  <g class="sans">
+    <g filter="url(#soft)"><rect x="484" y="226" width="320" height="262" rx="22" fill="#1a1230"/></g>
+    <rect x="484" y="226" width="320" height="262" rx="22" fill="url(#card)" stroke="url(#ember)" stroke-opacity="0.8" stroke-width="1.6"/>
+    <text class="t" x="508" y="266">Director tools</text>
+    <text class="b" x="508" y="290">MCP server · reels-director skill</text>
+    <g class="mono" font-size="13.5" fill="#ffd27a">
+      <rect x="508" y="308" width="272" height="26" rx="7" fill="#ffffff" fill-opacity="0.06"/><text x="520" y="326">reels_director_options</text>
+      <rect x="508" y="340" width="272" height="26" rx="7" fill="#ffffff" fill-opacity="0.06"/><text x="520" y="358">reels_director_treatment</text>
+      <rect x="508" y="372" width="272" height="26" rx="7" fill="#ffffff" fill-opacity="0.06"/><text x="520" y="390">reels_director_build</text>
+      <rect x="508" y="404" width="272" height="26" rx="7" fill="#ffffff" fill-opacity="0.06"/><text x="520" y="422">reels_director_critique / fix</text>
+    </g>
+    <text class="b" x="508" y="464">+ the editor’s own tools (trim, captions…)</text>
+  </g>
+
+  <!-- MCP -> draft -> editor -->
+  <line x1="806" y1="357" x2="862" y2="357" stroke="#ff6a3d" stroke-width="2.5" marker-end="url(#a)"/>
+  <g class="sans">
+    <rect x="816" y="306" width="40" height="0"/>
+  </g>
+
+  <!-- ===== editor ===== -->
+  <g class="sans">
+    <g filter="url(#soft)"><rect x="868" y="226" width="340" height="262" rx="22" fill="#1a1230"/></g>
+    <rect x="868" y="226" width="340" height="262" rx="22" fill="url(#card)" stroke="#ffffff" stroke-opacity="0.13"/>
+    <text class="t" x="892" y="266">Timeline editor</text>
+    <text class="b" x="892" y="290">Electron · React · TypeScript</text>
+    <!-- draft → review → apply -->
+    <g font-size="13.5" font-weight="700">
+      <rect x="892" y="308" width="80" height="28" rx="14" fill="#ffffff" fill-opacity="0.08"/><text x="932" y="327" text-anchor="middle" fill="#ffffff">draft</text>
+      <line x1="974" y1="322" x2="990" y2="322" stroke="#8f84ab" stroke-width="2" marker-end="url(#ad)"/>
+      <rect x="994" y="308" width="88" height="28" rx="14" fill="#ffffff" fill-opacity="0.08"/><text x="1038" y="327" text-anchor="middle" fill="#ffffff">review</text>
+      <line x1="1084" y1="322" x2="1100" y2="322" stroke="#8f84ab" stroke-width="2" marker-end="url(#ad)"/>
+      <rect x="1104" y="308" width="80" height="28" rx="14" fill="url(#ember)"/><text x="1144" y="327" text-anchor="middle" fill="#ffffff">apply</text>
+    </g>
+    <!-- mini timeline -->
+    <rect x="892" y="352" width="292" height="104" rx="12" fill="#000" fill-opacity="0.25"/>
+    <rect x="904" y="364" width="70" height="18" rx="5" fill="#ffc35a"/>
+    <rect x="978" y="364" width="52" height="18" rx="5" fill="#ff8a3d"/>
+    <rect x="1034" y="364" width="88" height="18" rx="5" fill="#ff6a3d"/>
+    <rect x="1126" y="364" width="46" height="18" rx="5" fill="#e8236b"/>
+    <rect x="926" y="388" width="96" height="14" rx="4" fill="#b8327a" fill-opacity="0.8"/>
+    <rect x="1050" y="388" width="74" height="14" rx="4" fill="#b8327a" fill-opacity="0.8"/>
+    <rect x="904" y="408" width="268" height="16" rx="4" fill="#6b2a8a" fill-opacity="0.8"/>
+    <g stroke="#ffffff" stroke-opacity="0.35" stroke-width="1"><line x1="930" y1="430" x2="930" y2="446"/><line x1="972" y1="430" x2="972" y2="446"/><line x1="1014" y1="430" x2="1014" y2="446"/><line x1="1056" y1="430" x2="1056" y2="446"/><line x1="1098" y1="430" x2="1098" y2="446"/><line x1="1140" y1="430" x2="1140" y2="446"/></g>
+    <line x1="1060" y1="358" x2="1060" y2="450" stroke="#ffffff" stroke-width="1.6"/>
+    <text class="b" x="892" y="476">one undo step · autosave</text>
+  </g>
+
+  <!-- editor -> render -->
+  <line x1="1210" y1="357" x2="1270" y2="357" stroke="#ff6a3d" stroke-width="2.5" marker-end="url(#a)"/>
+
+  <!-- ===== render ===== -->
+  <g class="sans">
+    <g filter="url(#soft)"><rect x="1276" y="226" width="240" height="262" rx="22" fill="#1a1230"/></g>
+    <rect x="1276" y="226" width="240" height="262" rx="22" fill="url(#card)" stroke="#ffffff" stroke-opacity="0.13"/>
+    <text class="t" x="1300" y="266">Render</text>
+    <text class="b" x="1300" y="290">Remotion + ffmpeg (x264)</text>
+    <rect x="1300" y="308" width="56" height="100" rx="10" fill="url(#ember)"/>
+    <path d="M1320 344 l20 14 l-20 14 z" fill="#fff"/>
+    <text class="e" x="1370" y="330">1080×1920</text>
+    <text class="eb" x="1370" y="350">MP4 + cover</text>
+    <text class="eb" x="1370" y="370">no-music copy</text>
+    <text class="eb" x="1370" y="390">Instagram checks</text>
+    <text class="b" x="1300" y="440">frames checked pixel</text>
+    <text class="b" x="1300" y="460">by pixel in the tests</text>
+  </g>
+
+  <!-- engines -->
+  <text class="sans kick" x="484" y="700">ON-DEVICE ENGINES</text>
+  <g fill="none" stroke="#8f84ab" stroke-opacity="0.55" stroke-width="2">
+    <path d="M1038 490 L1038 520"/>
+    <path d="M590 520 H1310" />
+    <path d="M590 520 V556" marker-end="url(#ad)"/><path d="M830 520 V556" marker-end="url(#ad)"/><path d="M1070 520 V556" marker-end="url(#ad)"/><path d="M1310 520 V556" marker-end="url(#ad)"/>
+  </g>
+  <g class="sans">
+    <rect x="484" y="562" width="220" height="104" rx="18" fill="url(#card)" stroke="#ffffff" stroke-opacity="0.11"/>
+    <text class="e" x="506" y="596">whisper.cpp</text>
+    <text class="eb" x="506" y="620">transcription, word by word</text>
+    <text class="eb" x="506" y="642">captions · English/Hindi</text>
+
+    <rect x="724" y="562" width="220" height="104" rx="18" fill="url(#card)" stroke="#ffffff" stroke-opacity="0.11"/>
+    <text class="e" x="746" y="596">beat_this</text>
+    <text class="eb" x="746" y="620">beats, downbeats, the drop</text>
+    <text class="eb" x="746" y="642">energy bar by bar</text>
+
+    <rect x="964" y="562" width="220" height="104" rx="18" fill="url(#card)" stroke="#ffffff" stroke-opacity="0.11"/>
+    <text class="e" x="986" y="596">Shot search</text>
+    <text class="eb" x="986" y="620">embeddings + sqlite-vec</text>
+    <text class="eb" x="986" y="642">“the view from the top”</text>
+
+    <rect x="1204" y="562" width="312" height="104" rx="18" fill="url(#card)" stroke="#ffffff" stroke-opacity="0.11"/>
+    <text class="e" x="1226" y="596">MediaPipe + depth</text>
+    <text class="eb" x="1226" y="620">people, faces, sky and depth mattes</text>
+    <text class="eb" x="1226" y="642">text behind people · focus pulls</text>
+  </g>
+
+  <!-- footer -->
+  <text class="sans" x="60" y="690" font-size="14" font-weight="500" fill="#6f6590">Built on OpenChatCut (AGPL-3.0)</text>
+  <text class="sans" x="1540" y="732" text-anchor="end" font-size="18" font-weight="800" letter-spacing="-0.5"><tspan fill="#ffffff">reel</tspan><tspan fill="url(#emberH)">smith</tspan></text>
+</svg>

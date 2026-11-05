@@ -42,3 +42,11 @@ cp assets/branding/reelsmith-icon.svg assets/favicon.svg
 ```
 
 The README banner (`assets/branding/reelsmith-banner.svg`) embeds a copy of the icon's shapes at `translate(96 72) scale(0.25)`; paste the new icon body there too.
+
+## README infographics
+
+`assets/branding/director-mode.svg` and `architecture.svg` are the sources; the README shows the PNGs (rendered at 2x so text looks the same on every machine):
+
+```bash
+node -e "const sharp=require('sharp');(async()=>{for(const n of ['director-mode','architecture'])await sharp('assets/branding/'+n+'.svg',{density:144}).png({compressionLevel:9}).toFile('assets/branding/'+n+'.png')})()"
+```

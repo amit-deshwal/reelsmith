@@ -48,60 +48,17 @@ Reelsmith started as a fork of [OpenChatCut](https://github.com/0xsline/OpenChat
 
 ## Director mode
 
-```mermaid
-flowchart TD
-    U(["<b>You</b><br/>one line of story · your clips · a song"]):::you
-    W["<b>① Watch</b><br/>shot log of every clip: best moments, motion, speech<br/>song analysis: beats, drop, energy"]
-    T["<b>② Treatment</b><br/>two different concepts, pick the one that fits<br/>structure on the song · text styles · transitions · look"]
-    B["<b>③ Build</b><br/>shots cast on beats · your words as titles<br/>effects that move with the music · sound effects"]
-    C{"<b>④ Critique</b><br/>render frames, listen to the cut<br/>any defects?"}
-    A["<b>Review and apply</b><br/>one undo step on a normal timeline"]
-    CH["<b>Chat edits</b><br/>“slower ending” · “add a look”"]
-    X(["<b>Instagram-ready export</b><br/>1080×1920 MP4 · cover · no-music copy"]):::out
-
-    U --> W --> T
-    T -->|"you approve the plan (optional)"| B
-    B --> C
-    C -->|"yes: fix the 3 worst, only those sections"| B
-    C -->|no| A
-    A --> X
-    A <-.-> CH
-
-    classDef you fill:#ff6a3d,stroke:#ff6a3d,color:#fff
-    classDef out fill:#e8236b,stroke:#e8236b,color:#fff
-```
+<p align="center">
+  <img src="assets/branding/director-mode.png" width="100%" alt="Director mode: you bring a story, clips and a song. 1 Watch: a shot log of every clip and the song's beats. 2 Treatment: two concepts, pick the one that fits (you can approve the plan). 3 Build: shots on the beat, your words as titles, effects and sound on the music. 4 Critique: render frames, name the three worst defects, fix and re-check. Out comes an Instagram-ready 1080x1920 reel on an editable timeline you can keep changing in chat.">
+</p>
 
 Each stage is a tool the agent calls (`reels_director_options` → `reels_director_treatment` → `reels_director_build` → `reels_director_critique` / `reels_director_fix`), guided by the `reels-director` skill. **The model makes the taste calls; the tools do the arithmetic and the checks.** Beat grids, shot timing, safe zones, loudness and render validation are deterministic code, so the agent can't get them wrong.
 
 ### Under the hood
 
-```mermaid
-flowchart LR
-    subgraph Agent["Your agent (your subscription)"]
-      CC["Claude Code CLI"]
-      CX["Codex CLI"]
-    end
-    subgraph App["Reelsmith (Electron · React · TypeScript)"]
-      MCP["MCP server<br/>editor-only tools<br/>draft → review → apply"]
-      ED["Timeline editor<br/>undo/redo · autosave"]
-    end
-    subgraph Local["On-device engines"]
-      ASR["whisper.cpp<br/>transcription"]
-      BEAT["beat_this<br/>beats and drops"]
-      CLAP["Embeddings + sqlite-vec<br/>shot search by meaning"]
-      MP["MediaPipe + depth<br/>people, faces, sky, depth"]
-    end
-    R["Remotion + ffmpeg<br/>render and export"]
-
-    CC <--> MCP
-    CX <--> MCP
-    MCP <--> ED
-    ED <--> ASR
-    ED <--> BEAT
-    ED <--> CLAP
-    ED <--> MP
-    ED --> R
-```
+<p align="center">
+  <img src="assets/branding/architecture.png" width="100%" alt="Architecture: your Claude Code or Codex CLI talks over MCP to the director tools; edits go through draft, review and apply on the timeline editor; on-device engines (whisper.cpp, beat_this, shot search with embeddings and sqlite-vec, MediaPipe and depth) feed the editor; Remotion and ffmpeg render the Instagram-ready MP4. Everything runs on your Mac.">
+</p>
 
 ---
 
