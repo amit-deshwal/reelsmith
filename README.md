@@ -22,34 +22,94 @@ It started as a fork of **[OpenChatCut](https://github.com/0xsline/OpenChatCut)*
 | **Agents** | Many providers | Your own `claude` / `codex` CLI with editor-only tools; the app never touches credentials |
 | **App** | OpenChatCut, auto-updates from upstream | Its own name, icon and data folder (`~/Library/Application Support/Reelsmith`); English UI; upstream updater turned off |
 
-Brand assets live in [`assets/branding/`](assets/branding/): the app icon source is `reelsmith-icon.svg` (ember 9:16 reel card, play mark, caption lines and a forge spark).
+Brand assets live in [`assets/branding/`](assets/branding/): the app icon source is `reelsmith-icon.svg` (three fanned 9:16 reels in ember and violet, a play mark and a forge spark).
 
-> Workflow: **import footage and a song → tell the story → the agent directs the reel (director mode) → request changes in chat → preview → export a 1080×1920 MP4**. Recipes and saved reels are gone (RS-1254, RS-1257); a new reel is a new direction.
+## Getting started
+
+Reelsmith runs on **macOS (Apple Silicon or Intel)**. Setup takes about 10 minutes, most of it `npm install` and a one-time whisper.cpp build.
+
+### 1. Install the prerequisites
+
+| You need | Why | Install |
+|---|---|---|
+| Xcode Command Line Tools | git, a C compiler | `xcode-select --install` |
+| [Homebrew](https://brew.sh) | installs the rest | see brew.sh |
+| **Node 24.x** (not 25 or 26) | the app pins `>=24 <25` | `brew install node@24` |
+| CMake | builds whisper.cpp (local transcription) on the first run | `brew install cmake` |
+| Claude Code **or** Codex CLI | the agent that directs your reels runs on your own subscription | `npm i -g @anthropic-ai/claude-code` then `claude auth login`<br>or `npm i -g @openai/codex` then `codex login` |
+
+`brew install node@24` does not replace a newer Node on your PATH. Put it first for this shell (add the line to `~/.zshrc` to keep it):
+
+```bash
+export PATH="$(brew --prefix node@24)/bin:$PATH"
+node -v   # must print v24.x
+```
+
+(`fnm`, `nvm` or `volta` work too; the repo has an `.nvmrc`.)
+
+### 2. Get the code and install
+
+```bash
+git clone https://github.com/amit-deshwal/reelsmith.git
+cd reelsmith
+npm install
+```
+
+### 3. Run it
+
+```bash
+npm run dev            # in the browser: open http://localhost:5199
+# or
+npm run desktop:dev    # the Mac desktop app (Electron)
+```
+
+The first start also downloads MediaPipe assets and builds whisper.cpp, so give it a few minutes. Later starts take seconds.
+
+No `.env.local` is needed for editing, directing and exporting. Only copy `.env.example` to `.env.local` if you want cloud extras (image, voice or music generation, cloud transcription), and fill in just those keys.
+
+### 4. First-time setup inside the app
+
+1. **Pick your agent:** Settings (gear, top right) → **Agent Model** → *Anthropic · Claude Code* or *OpenAI · Codex*, then **Recheck**. It uses the CLI you logged into in step 1; Reelsmith never sees your credentials.
+2. **Download the local models:** Settings → **Local models**. Get a **Local transcription** model (for captions and spoken words) and the **Beat and music analysis** models (for cutting on the beat). They run offline on your Mac.
+3. **Make a reel:** on the home screen, **Start a reel** → import your clips, photos and a song → open the **Director** tab → write the story in a line or two → **Direct my reel**. Then ask for changes in chat and **Export** a 1080×1920 MP4.
+
+### Use Reelsmith from a Claude Code terminal (optional)
+
+With the app running, connect any Claude Code session to it:
+
+```bash
+claude mcp add --transport http openchatcut http://localhost:5199/api/external-mcp/mcp
+```
+
+(The server is still named `openchatcut` so existing setups keep working.)
+
+### Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| `npm install` or `npm run dev` complains about the engine, or odd native-module errors | You are not on Node 24. Check `node -v`, fix your PATH, then `rm -rf node_modules && npm install` |
+| `cmake is required to build whisper.cpp` | `brew install cmake` and run again |
+| The agent says it is not signed in | Run `claude auth login` (or `codex login`) in a terminal, then Settings → Agent Model → **Recheck** |
+| Captions or transcription do nothing | Download a model in Settings → Local models → Local transcription |
+| Port 5199 is already in use | Another Reelsmith dev server is running; stop it, or run `node scripts/dev-profile.mjs --port 5299` |
+| An export freezes or judders but the timeline plays fine | Restart the dev server and export again |
+
+Your projects and settings live in `~/.reelsmith/` (dev) and `~/Library/Application Support/Reelsmith` (desktop app).
+
+---
+
+## About this fork
 
 - **Base:** fork of OpenChatCut `v0.2.17` (commit `72ddb330`, 2026-10-15), with full upstream history kept. The upstream README is in [`UPSTREAM_README.md`](UPSTREAM_README.md).
 - **License:** OpenChatCut is AGPL-3.0, and this fork inherits it. The repo is **private, for personal use**. Re-check AGPL obligations before ever offering it to others as a network service or distributing builds.
 - **Inspiration:** the public feature set of Cardboard (cardboard.ai). This project is independent: do not copy Cardboard's code, file formats, branding, recipe names, preview media or text.
 - **Planning docs:** [`reelsmith-docs/plan/`](reelsmith-docs/plan/README.md) holds the full spec (`cardboardrebuild.txt`), the feature inventory, research notes, diagrams, JSON schemas and the 5 example recipes. The spec was written for a from-scratch build. Wherever OpenChatCut already solves something differently, **OpenChatCut's design wins** unless this README says otherwise. Use the spec's acceptance criteria, recipe format and export checks as the reference.
 
----
+## For contributors
 
-## Quick start (developer)
+**Tests:** `npm test` runs every `*.verify.*` file in the repo, discovered automatically (`scripts/verify-discovery.mjs`); there is nothing to register in `package.json`. `npm test -- <substring>` runs just the matching files. While editing, use `npm run verify:affected` (the suites that import your changed files, through `scripts/import-graph.mjs`; seconds for most changes) or `npm run test:fast` (everything except the ~19 render/export/end-to-end suites in `SLOW_VERIFIES`, about 25 s); run the full `npm test` (about 100 s) before pushing. A suite that needs a non-default launcher (tsconfig flags, `?raw` imports) goes in the `LAUNCHERS` table in that file.
 
-```bash
-# Node 24.x is required (package.json engines ">=24 <25"; .nvmrc = 24). The Mac currently has Node 25.
-brew install fnm && fnm install 24 && fnm use 24    # or nvm/volta
-npm install
-cp .env.example .env.local      # add only the keys you actually use; none are needed for local editing
-npm run desktop:dev             # Electron app (or: npm run dev → http://localhost:5199)
-```
-
-Agents use your own subscriptions; the app never touches credentials:
-- **Claude:** the built-in agent spawns your own `claude -p` (see `server/claude-code/turn-runner.ts`). You can also connect Claude Code from a terminal: `claude mcp add --transport http openchatcut http://localhost:5199/api/external-mcp/mcp`
-- **Codex:** Settings → Agent model → OpenAI · Codex. This uses the official Codex CLI ≥ 0.146 and its own credential storage.
-
-Tests: `npm test` runs every `*.verify.*` file in the repo, discovered automatically (`scripts/verify-discovery.mjs`); there is nothing to register in `package.json`. `npm test -- <substring>` runs just the matching files. While editing, use `npm run verify:affected` (the suites that import your changed files, through `scripts/import-graph.mjs`; seconds for most changes) or `npm run test:fast` (everything except the ~19 render/export/end-to-end suites in `SLOW_VERIFIES`, about 25 s); run the full `npm test` (about 100 s) before pushing. A suite that needs a non-default launcher (tsconfig flags, `?raw` imports) goes in the `LAUNCHERS` table in that file.
-
-## Keeping in sync with upstream
+**Keeping in sync with upstream:**
 
 ```bash
 git fetch upstream

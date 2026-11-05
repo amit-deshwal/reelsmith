@@ -9,51 +9,39 @@
       <stop offset="1" stop-color="#ff6a3d" stop-opacity="0"/>
     </radialGradient>
     <linearGradient id="word" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ffb347"/>
+      <stop offset="0" stop-color="#ffc35a"/>
       <stop offset="0.5" stop-color="#ff6a3d"/>
-      <stop offset="1" stop-color="#f0306a"/>
+      <stop offset="1" stop-color="#e8236b"/>
     </linearGradient>
   </defs>
   <rect width="1280" height="400" rx="32" fill="url(#bannerBg)"/>
   <rect width="1280" height="400" rx="32" fill="url(#bannerGlow)"/>
   <g transform="translate(96 72) scale(0.25)">
   
-  <defs>
-    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#211638"/>
-      <stop offset="1" stop-color="#0d0918"/>
-    </linearGradient>
-    <radialGradient id="glow" cx="0.5" cy="0.62" r="0.5">
-      <stop offset="0" stop-color="#ff6a3d" stop-opacity="0.45"/>
-      <stop offset="1" stop-color="#ff6a3d" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="ember" x1="0" y1="0" x2="0.6" y2="1">
-      <stop offset="0" stop-color="#ffb347"/>
-      <stop offset="0.5" stop-color="#ff6a3d"/>
-      <stop offset="1" stop-color="#f0306a"/>
-    </linearGradient>
-    <linearGradient id="spark" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#fffbe8"/>
-      <stop offset="1" stop-color="#ffd27a"/>
-    </linearGradient>
-  </defs>
+<defs>
+  <linearGradient id="tile" x1="0" y1="0" x2="0.3" y2="1"><stop offset="0" stop-color="#2a1a4a"/><stop offset="1" stop-color="#0c0817"/></linearGradient>
+  <radialGradient id="glow" cx="0.5" cy="0.55" r="0.55"><stop offset="0" stop-color="#ff5a3c" stop-opacity="0.55"/><stop offset="1" stop-color="#ff5a3c" stop-opacity="0"/></radialGradient>
+  <linearGradient id="ember" x1="0.1" y1="0" x2="0.7" y2="1"><stop offset="0" stop-color="#ffc35a"/><stop offset="0.45" stop-color="#ff6a3d"/><stop offset="1" stop-color="#e8236b"/></linearGradient>
+  <linearGradient id="ember2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b8327a"/><stop offset="1" stop-color="#5a1d6e"/></linearGradient>
+  <linearGradient id="ember3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6b2a8a"/><stop offset="1" stop-color="#2f1650"/></linearGradient>
+  <linearGradient id="hi" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff" stop-opacity="0.35"/><stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/></linearGradient>
+  <linearGradient id="spark" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fffbe8"/><stop offset="1" stop-color="#ffd27a"/></linearGradient>
+  <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="24" stdDeviation="28" flood-color="#000" flood-opacity="0.45"/></filter>
+</defs>
+<rect width="1024" height="1024" rx="228" fill="url(#tile)"/>
+<rect width="1024" height="1024" rx="228" fill="url(#glow)"/>
 
-  <rect width="1024" height="1024" rx="228" fill="url(#tile)"/>
-  <rect width="1024" height="1024" rx="228" fill="url(#glow)"/>
+<g transform="translate(512 548)">
+  <g transform="rotate(-15) translate(-140 6)"><rect x="-160" y="-282" width="320" height="564" rx="68" fill="url(#ember3)"/></g>
+  <g transform="rotate(15) translate(140 6)"><rect x="-160" y="-282" width="320" height="564" rx="68" fill="url(#ember2)"/></g>
+  <g filter="url(#shadow)"><rect x="-182" y="-316" width="364" height="632" rx="78" fill="url(#ember)"/></g>
+  <rect x="-182" y="-316" width="364" height="632" rx="78" fill="url(#hi)"/>
+  <rect x="-180" y="-314" width="360" height="628" rx="76" fill="none" stroke="#ffffff" stroke-opacity="0.22" stroke-width="4"/>
+  <path d="M-56 -94 L102 0 L-56 94 Z" fill="#ffffff" stroke="#ffffff" stroke-width="46" stroke-linejoin="round"/>
+</g>
 
-  
-  <g transform="translate(500 540) rotate(-7)">
-    <rect x="-200" y="-356" width="400" height="712" rx="84" fill="url(#ember)"/>
-    
-    <path d="M-62 -150 L106 -48 L-62 54 Z" fill="#ffffff" stroke="#ffffff" stroke-width="44" stroke-linejoin="round"/>
-    
-    <rect x="-124" y="150" width="248" height="40" rx="20" fill="#ffffff"/>
-    <rect x="-86" y="222" width="172" height="40" rx="20" fill="#ffffff" opacity="0.7"/>
-  </g>
-
-  
-  <path d="M770 128 L800 222 L894 252 L800 282 L770 376 L740 282 L646 252 L740 222 Z" fill="url(#spark)"/>
-  <path d="M880 398 L893 437 L932 450 L893 463 L880 502 L867 463 L828 450 L867 437 Z" fill="#fff3c4" opacity="0.9"/>
+<path d="M808 92 L832 168 L908 192 L832 216 L808 292 L784 216 L708 192 L784 168 Z" fill="url(#spark)"/>
+<circle cx="908" cy="318" r="14" fill="#ffd27a" opacity="0.9"/>
 </g>
   <text x="400" y="200" font-family="Inter, 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif" font-size="112" font-weight="800" letter-spacing="-4">
     <tspan fill="#ffffff">reel</tspan><tspan fill="url(#word)">smith</tspan>

@@ -154,9 +154,9 @@ export function ReelsmithWordmark({ width = 126 }: { width?: number }) {
     >
       <defs>
         <linearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#ffb347" />
+          <stop offset="0" stopColor="#ffc35a" />
           <stop offset="0.5" stopColor="#ff6a3d" />
-          <stop offset="1" stopColor="#f0306a" />
+          <stop offset="1" stopColor="#e8236b" />
         </linearGradient>
       </defs>
       <text
