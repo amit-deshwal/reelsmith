@@ -4,7 +4,7 @@ import type { TimelineState } from '../editor/types';
 import { ratioOf } from '../../shared/reelsmith/ratios';
 import type { ExportJobResult } from '../export/exportWorkflowTypes';
 
-export interface InstagramExportPreference { enabled: boolean; silent: boolean; srt: boolean; /** RS-1232: <name>.sheet.jpg next to the video */ sheet: boolean; /** RS-1234: <name>.cover.jpg */ cover: boolean; /** RS-1241: <name>.no-sound.mp4 when the reel has a song */ noSound: boolean }
+export interface InstagramExportPreference { enabled: boolean; silent: boolean; srt: boolean; /** RS-1232: <name>.sheet.jpg next to the video */ sheet: boolean; /** RS-1234: <name>.cover.jpg */ cover: boolean; /** RS-1241: <name>.no-song.mp4 when the reel has a song */ noSound: boolean }
 interface Check { id: string; status: 'PASS' | 'WARN' | 'FAIL'; detail: string }
 export interface InstagramExportReport {
   status: 'running' | 'passed' | 'fixed' | 'failed' | 'error' | 'skipped';
@@ -17,7 +17,7 @@ export interface InstagramExportReport {
   sheet?: string;
   /** RS-1234: outcome of the cover */
   cover?: string;
-  /** RS-1241: the no-sound copy and where to start the song in Instagram */
+  /** RS-1241: the no-song copy and where to start the song in Instagram */
   music?: string;
 }
 

@@ -75,6 +75,7 @@ Reelsmith data lives in `~/.reelsmith` instead of `~/.openchatcut`, so it never 
 - `src/export/ExportDialogMain.tsx`: renders `InstagramExportPanel` on the Video tab.
 - `src/export/serverExportOperation.ts` (2026-10-28, RS-1237): in `exportMedia`, `renderId`/`completed` became `let`, and after the Instagram finalize `retakeIfStalled` (`src/reelsmith/exportRetake.ts`) may render once more when V10 warns, delivering the better take and retiring the other job. The recovered-export path is unchanged.
 - `src/export/serverExportOperation.ts` (2026-11-01, RS-1241): after the cover, `deliverNoSoundCopy` (`src/reelsmith/exportMusic.ts`) writes `<name>.no-sound.mp4` next to the export when the reel has a song (Instagram-ready on, "No music" off) and puts the Instagram start time of the song in the report. The cover block became an `if (pref.cover)` block instead of an early return.
+- `src/export/serverExportOperation.ts` (2026-11-06, RS-1264): `deliverNoSoundCopy` gets a `renderSound` callback that runs `renderCompleted` once more as an mp3 audio render with the song removed (`withoutSong`), and retires that job after the copy is made. The copy is now `<name>.no-song.mp4`.
 - `server/reelsmith/analyze-plugin.ts` (ours): route `/api/reelsmith/instagram-finalize`.
 - `src/components/PreviewPanel.tsx`: an "IG zones" toggle next to the safe-frame toggle draws `InstagramSafeZoneOverlay` (remembered in localStorage).
 

@@ -95,7 +95,7 @@ Then name the **three largest defects**, worst first, each `{ section, at, evide
 ## Finish
 
 - **Finish the edit session** if you opened one: call `review_edit_session` (the build is only a draft until it returns `applied`; skipping it leaves the timeline empty). Loudness and exports act on the live project: call them only after it, with no edits pending in another session, or that draft goes stale.
-- **Report in at most three short lines** (under 60 words): the concept and structure in plain words, the length and song, and two things they could ask next ("slower ending", "add a look"). No lists of what you checked. When the song is a commercial track (an artist's song, not one of the bundled ones), add one line: Instagram may mute or limit a reel with it baked in; the Instagram-ready export also saves a no-sound copy, and in Instagram's music picker they start the song at `musicStart` (as m:ss) so the cuts land on its beat.
+- **Report in at most three short lines** (under 60 words): the concept and structure in plain words, the length and song, and two things they could ask next ("slower ending", "add a look"). No lists of what you checked. When the song is a commercial track (an artist's song, not one of the bundled ones), add one line: Instagram may mute or limit a reel with it baked in; the Instagram-ready export also saves a copy without the song (voice and natural sound kept), and in Instagram's music picker they start the song at `musicStart` (as m:ss) so the cuts land on its beat.
 
 ## Changing a built reel
 

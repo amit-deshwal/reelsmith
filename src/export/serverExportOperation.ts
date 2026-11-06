@@ -3,7 +3,7 @@ import { finalizeExportForInstagram, instagramReportStore, loadInstagramPreferen
 import { writeSrtSidecar } from '../reelsmith/instagramSrt';
 import { deliverReviewSheet } from '../reelsmith/exportReview';
 import { deliverCover } from '../reelsmith/exportCover';
-import { deliverNoSoundCopy } from '../reelsmith/exportMusic';
+import { deliverNoSoundCopy, withoutSong } from '../reelsmith/exportMusic';
 import { retakeIfStalled } from '../reelsmith/exportRetake';
 import { withDepthMaps } from '../reelsmith/depthMaps';
 import type { BackgroundExportJobSetters, ExportJobStore } from './backgroundExportStore';
@@ -218,15 +218,23 @@ async function deliverSrtSidecar(
       cover: cover.status === 'written' ? `Cover saved as ${cover.name} (at ${cover.pick.atSec.toFixed(1)} s${cover.pick.title ? `, titled "${cover.pick.title}"` : ''}).` : `No cover: ${cover.message}`,
     });
   }
-  // RS-1241: a no-sound copy for adding the song from Instagram's licensed library, and where to start it
+  // RS-1241: a copy without the song for adding it from Instagram's licensed library, and where to start it
   if (pref.noSound && !pref.silent) {
     const copy = await deliverNoSoundCopy({
       state: context.options.state, src: completed.path, videoName,
       write: (filename, blob) => writeBlobToDestination(context.destination, filename, blob, signal),
+      // RS-1264: the reel's sound rendered again without the song, so the copy keeps the voice and natural sound
+      renderSound: async (songId) => {
+        context.setBusy('Rendering the sound without the song…');
+        const { state, project } = withoutSong(songId, context.options.state, context.options.project, context.options.timelineId);
+        const stem = await renderCompleted({ ...context, options: { ...context.options, state, ...(project ? { project } : {}) } }, 'audio', 'mp3', signal);
+        if (!stem.completed.path) throw new Error('the sound render has no file');
+        return { src: stem.completed.path, done: () => retireAndDeleteExportJob(stem.renderId) };
+      },
     });
     if (copy.status !== 'none') instagramReportStore.set({
       ...(instagramReportStore.get() ?? { status: 'skipped' as const }),
-      music: copy.status === 'written' ? `Saved ${copy.name}. ${copy.note}` : `No no-sound copy: ${copy.message}`,
+      music: copy.status === 'written' ? `Saved ${copy.name}. ${copy.note}` : `No no-song copy: ${copy.message}`,
     });
   }
 }

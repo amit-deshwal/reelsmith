@@ -55,7 +55,7 @@ export function InstagramExportPanel({ state }: { state: TimelineState }) {
       {pref.enabled && !pref.silent && (
         <label style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12 }}>
           <input type="checkbox" checked={pref.noSound} onChange={(e) => update({ ...pref, noSound: e.target.checked })} />
-          When the reel has a song, also save a copy with no sound (.no-sound.mp4) to add the song from Instagram&apos;s music
+          When the reel has a song, also save a copy without the song (.no-song.mp4, voice and natural sound kept) to add the song from Instagram&apos;s music
         </label>
       )}
       {report && report.status !== 'skipped' && (

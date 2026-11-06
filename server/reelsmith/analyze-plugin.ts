@@ -11,7 +11,7 @@
 //   POST /api/reelsmith/smooth-slow    { src, startSec, rate, frames, fps } -> that span slowed with in-between frames (RS-1259)
 //   POST /api/reelsmith/depth-map      { src, atSec? } -> the photo's depth map saved next to it (`{ available:false }` without the depth-lite pack)
 //   POST /api/reelsmith/depth-track    { src, fromSec, toSec } -> RS-1260: a depth map per frame of a video span (an atlas and its index)
-//   POST /api/reelsmith/no-sound-copy  { src } -> RS-1241: <name>.no-sound.mp4 next to the export (picture copied, no audio)
+//   POST /api/reelsmith/no-sound-copy  { src, audioSrc? } -> RS-1241/1264: <name>.no-song.mp4 next to the export (picture copied; audioSrc = the song-free sound)
 //   POST /api/reelsmith/speech-share   { src } -> RS-1251: { share } of seconds that are speech (narration vs song)
 //   POST /api/reelsmith/brand-kit      { url } -> RS-1239: name, tagline, lines, facts, actions, links, colours of the one page the user named
 import { existsSync } from 'node:fs';
@@ -177,8 +177,14 @@ export function reelsmithAnalyzePlugin(): Plugin {
       route('/api/reelsmith/no-sound-copy', async (body) => {
         const file = localFile(body.src);
         if (typeof file !== 'string') throw new Error(file.error);
-        const copy = await noSoundCopy(file);
-        return { src: `/media/uploads/${encodeURIComponent(copy.name)}`, name: copy.name, bytes: copy.bytes };
+        let audio: string | undefined;
+        if (body.audioSrc !== undefined) {
+          const a = localFile(body.audioSrc);
+          if (typeof a !== 'string') throw new Error(a.error);
+          audio = a;
+        }
+        const copy = await noSoundCopy(file, audio);
+        return { src: `/media/uploads/${encodeURIComponent(copy.name)}`, name: copy.name, bytes: copy.bytes, kept: copy.kept };
       });
       route('/api/reelsmith/brand-kit', async (body) => ({ kit: await fetchBrandKit(body.url) }));
       route('/api/reelsmith/export-parity', async (body) => {
