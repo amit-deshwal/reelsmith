@@ -91,6 +91,44 @@ const api = { clipFeatures: async () => null, mediaFps: async (s: string[]) => s
   assert.equal(called, false);
 }
 
+// RS-1267: a plan that breaks the treatment's brief is refused before anything is drafted, once; the tool says the same
+{
+  const { ctx, batches, items } = editor('flow5');
+  await directorOptions({}, ctx, { api } as never);
+  const t = directorTreatment({
+    story: 'a 6 s teaser, and use the summit shot #3', concepts: [{ name: 'Teaser', idea: 'fast' }, { name: 'Slow', idea: 'calm' }], chosen: 0, tone: 'epic', heroes: ['#3@1'],
+    parts: [{ role: 'hook', beats: 4, move: 'zoom-punch', line: 'go' }, { role: 'build', beats: 4, move: 'cut' }, { role: 'ending', beats: 4, move: 'hold' }],
+    signature: 'the hold', textStyles: ['rise-lines'], transitions: [], effects: [], graphics: [],
+    brief: { seconds: 6, mustUse: ['#3'] },
+  }, ctx) as Record<string, any>;
+  assert.equal(t.ok, true, JSON.stringify(t));
+  const long = { ratio: '9:16', sections: [{ move: 'cut', beats: 8, clips: ['#1', '#2'] }, { move: 'hold', beats: 8, clips: ['#2@6'] }] };
+  const refused = await directorBuild({ plan: long }, ctx, { api } as never) as Record<string, any>;
+  assert.match(refused.error, /nothing was built/);
+  assert.match(refused.error, /\[length\] the reel is 8 s, the brief asks for 6 s/);
+  assert.match(refused.error, /\[must-use\] the brief's shot #3 is not cast/);
+  assert.deepEqual(batches, [], 'nothing reached the draft');
+  assert.equal(items().length, 0);
+  const { validatePlanTool } = await import('./directorTools');
+  const checked = await validatePlanTool({ plan: long }, ctx, { api } as never) as Record<string, any>;
+  assert.equal(checked.ok, false);
+  assert.deepEqual(checked.violations.map((v: { rule: string }) => v.rule), ['length', 'must-use']);
+  assert.deepEqual(checked.brief, { seconds: 6, mustUse: ['#3'] }, 'the brief from the treatment');
+  assert.equal((await validatePlanTool({ plan: long, brief: { maxSeconds: 10 } }, ctx, { api } as never) as Record<string, any>).ok, true, 'a brief passed in replaces it');
+  // the same plan again is built (a rule the footage cannot meet never loops), with the violations in its notes
+  const asIs = await directorBuild({ plan: long }, ctx, { api } as never) as Record<string, any>;
+  assert.equal(asIs.ok, true, JSON.stringify(asIs).slice(0, 300));
+  assert.ok(asIs.notes.some((n: string) => /built although it breaks: \[length\]/.test(n)));
+  // the plan that follows the brief builds clean
+  const good = { ratio: '9:16', sections: [{ move: 'cut', beats: 8, clips: ['#1', '#2'] }, { move: 'hold', beats: 4, clips: ['#3@1'] }] };
+  const built = await directorBuild({ plan: good, replaceTimeline: true }, ctx, { api } as never) as Record<string, any>;
+  assert.equal(built.ok, true);
+  assert.ok(!built.notes.some((n: string) => /breaks/.test(n)));
+  // a new treatment starts the refusals over
+  directorTreatment({ ...t, story: 'again', concepts: [{ name: 'A', idea: 'a' }, { name: 'B', idea: 'b' }], chosen: 0, tone: 'epic', heroes: [], parts: [{ role: 'hook', beats: 4, move: 'cut' }, { role: 'build', beats: 4, move: 'cut' }, { role: 'ending', beats: 4, move: 'hold' }], signature: 's', textStyles: [], transitions: [], effects: [], graphics: [], brief: { seconds: 6 } }, ctx);
+  assert.equal(directorSession('flow5')?.refusedRules, undefined);
+}
+
 // the sheets render at once and come back in their order, whichever finishes first
 {
   const { ctx } = editor('flow4');

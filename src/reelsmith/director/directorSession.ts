@@ -45,6 +45,11 @@ export interface DirectorSession {
   gate?: 'waiting' | 'approved';
   /** RS-1239: the brand kit of a promo reel's page (stage 1, when the user named one) */
   brand?: BrandKit;
+  /**
+   * RS-1267: the plan rules a build was already refused for. A plan that still breaks only these is built, with the
+   * violations in its notes, so a rule the footage cannot meet never loops the agent.
+   */
+  refusedRules?: string[];
 }
 
 const sessions = new Map<string, DirectorSession>();

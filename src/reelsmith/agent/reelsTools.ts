@@ -9,7 +9,7 @@ import { snapTrackToBeats } from '../snapAction';
 import { strobeForTimeline } from '../strobeAction';
 import type { AnalyzeApi } from '../runRecipe';
 import { bindTracks } from '../trackBinding';
-import { directorBuild, directorOptions, directorTreatment } from './directorTools';
+import { directorBuild, directorOptions, directorTreatment, validatePlanTool } from './directorTools';
 import { findShots } from './directorSearchTool';
 import type { FrameVector } from '../director/shotSearch';
 import { critiqueOfLastBuild, directorCritique, directorFix } from './directorRepairTools';
@@ -68,6 +68,9 @@ export async function execReelsTool(name: string, args: Args, ctx: AgentContext,
 
     case 'reels_director_treatment':
       return directorTreatment(args, ctx);
+
+    case 'reels_validate_plan':
+      return validatePlanTool(args, ctx, deps);
 
     case 'reels_find_shots':
       return findShots(args, ctx, deps);

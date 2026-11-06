@@ -30,6 +30,7 @@ import { brandAction, brandWords } from '../../../shared/reelsmith/brandKit';
 import { resolveVoiceover } from './directorVoiceover';
 import { resolveLyrics } from './directorLyrics';
 import { directorVisuals, libraryMusic, shotTagsWarming, tempo } from './directorOptions';
+import { parseBrief, validatePlan, violationText, type PlanBrief, type PlanViolation } from '../director/validatePlan';
 export { directorOptions, directorVisuals, footageRateFor, sheetSamples, songSuggestion, warmShotTagsFor, type FindShots } from './directorOptions';
 const VISUAL = new Set(['video', 'image']);
 const secs = (frames: number, fps: number) => Math.round((frames / fps) * 10) / 10;
@@ -103,6 +104,13 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
     if (!assets.some((a) => a.id === hit.id)) { assets.push(hit); added = hit; }
     plan.music = hit.id;
   }
+  // RS-1267: the plan against the brief, before the voiceover, the lyrics and the clip analysis the build waits on
+  const violations = await checkPlan(plan, ctx, deps, assets, session?.treatment?.brief);
+  const fresh = violations.filter((v) => !(session?.refusedRules ?? []).includes(v.rule));
+  if (fresh.length) {
+    updateDirectorSession(id, { refusedRules: [...new Set([...(session?.refusedRules ?? []), ...violations.map((v) => v.rule)])] });
+    return { error: `The plan breaks ${violations.length === 1 ? 'a rule' : `${violations.length} rules`}; nothing was built. ${violations.map(violationText).join(' | ')}. Fix them and build again (a rule the footage cannot meet: build again as is and say so in your report).` };
+  }
   // RS-1251: the user's narration (an audio file, or a video's sound)
   const voice = await resolveVoiceover(plan, assets, ctx, deps);
   if ('error' in voice) return voice;
@@ -142,6 +150,7 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
   // the repairs first, once each (the assembler's own check repeats the section ones)
   out.messages = [...new Set([...repaired, ...out.messages])];
   if (voiceNote) out.messages.push(voiceNote);
+  for (const v of violations) out.messages.unshift(`built although it breaks: ${violationText(v)}`);
   if (sung.note) out.messages.push(sung.note);
   out.messages.push(...await finishDirectorActions(out.action.actions, assets, deps.api, state.fps, ctx.onToolProgress));
   const report = out.result.report;
@@ -185,6 +194,55 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
   return {
     plan, spans, seconds: secs(report.totalFrames, fps), clipsUsed: report.usedAssetIds.length, notes: out.messages.slice(0, 12),
     ...(added ? { added } : {}), findings, lint: lintReel(ctx.getState()), builds,
+  };
+}
+
+/**
+ * RS-1267: the plan's violations of the brief and the plan rules (validatePlan), with the song's tempo and the numbered
+ * clips of this project. Clip refs may be "#n" or assetIds.
+ */
+async function checkPlan(plan: ReelPlan, ctx: AgentContext, deps: ReelsDeps, assets: readonly MediaAsset[], brief: PlanBrief | undefined): Promise<PlanViolation[]> {
+  const session = directorSession(projectId(ctx));
+  const visual = directorVisuals(ctx);
+  const fps = ctx.getState().fps;
+  const song = plan.music ? assets.find((a) => a.id === plan.music) : undefined;
+  const bpm = song ? (session?.song?.assetId === song.id && session.song.bpm) || (await tempo(song, deps)).bpm : undefined;
+  const clips = visual.map((a, k) => ({ n: k + 1, seconds: session?.clips[k]?.seconds ?? a.durationInFrames / fps, features: session?.clips[k]?.features ?? null }));
+  const clipNumber = (ref: string) => {
+    const r = ref.trim();
+    const m = /^#(\d+)/.exec(r);
+    if (m) { const n = Number(m[1]); return n >= 1 && n <= visual.length ? n : undefined; }
+    const k = visual.findIndex((a) => a.id === r.split('@')[0]);
+    return k >= 0 ? k + 1 : undefined;
+  };
+  return validatePlan({ plan, ...(brief ? { brief } : {}), ...(bpm ? { bpm } : {}), clips, clipNumber });
+}
+
+/**
+ * RS-1267 reels_validate_plan: the plan checked against the brief (the treatment's, or `brief`) and the plan rules
+ * without building anything. The build runs the same check first, so this is for a plan the agent is unsure of.
+ */
+export async function validatePlanTool(args: Record<string, unknown>, ctx: AgentContext, deps: ReelsDeps): Promise<unknown> {
+  const parsed = parsePlan(args.plan);
+  if (!parsed.ok) return { ok: false, problems: parsed.errors };
+  const plan = parsed.plan;
+  const problems: string[] = [];
+  const repaired: string[] = [];
+  adoptCustomGraphics(ctx.getState().items as never);
+  resolvePlanSections(plan, repaired, problems);
+  const assets = [...(ctx.getDoc().assets ?? []), ...(plan.music ? libraryMusic(ctx) : [])];
+  if (plan.music) {
+    const want = plan.music.toLowerCase();
+    const hit = assets.find((a) => a.kind === 'audio' && (a.id.toLowerCase() === want || a.name.toLowerCase() === want));
+    if (hit) plan.music = hit.id; else problems.push(`unknown music ${JSON.stringify(plan.music)}`);
+  }
+  const session = restoreDirectorSession(projectId(ctx), ctx.getState().items as never);
+  const brief = parseBrief(args.brief) ?? session?.treatment?.brief;
+  const violations = await checkPlan(plan, ctx, deps, assets, brief);
+  const ok = !violations.length && !problems.length;
+  return {
+    ok, ...(brief ? { brief } : {}), violations, ...(problems.length ? { problems } : {}), ...(repaired.length ? { repaired: repaired.slice(0, 8) } : {}),
+    next: ok ? 'The plan follows the brief and the rules: build it with reels_director_build.' : 'Fix the violations and problems in the plan, then build it (the build checks it again).',
   };
 }
 
@@ -267,7 +325,7 @@ export function directorTreatment(args: Record<string, unknown>, ctx: AgentConte
     ...(session?.clips.some((c) => c.filmedAt) ? { clock: true } : {}),
   });
   const gated = session?.askFirst === true;
-  updateDirectorSession(id, { treatment: t, lastBuild: undefined, ...(gated ? { gate: 'waiting' as const } : {}) });
+  updateDirectorSession(id, { treatment: t, lastBuild: undefined, refusedRules: undefined, ...(gated ? { gate: 'waiting' as const } : {}) });
   const count: Record<string, number> = {};
   const ids = treatmentIds(t).filter((x) => {
     const kind = catalogKind(x);

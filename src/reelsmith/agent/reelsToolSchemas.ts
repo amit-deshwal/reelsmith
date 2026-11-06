@@ -202,5 +202,5 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
 ];
 
 export const REELS_TOOL_NAMES = new Set(REELS_TOOL_SCHEMAS.map((t) => t.name));
-export const REELS_READ_TOOL_NAMES = ['reels_review_export', 'reels_qa_report', 'reels_lint', 'reels_director_options', 'reels_find_shots', 'reels_director_treatment', 'reels_director_critique'] as const;
+export const REELS_READ_TOOL_NAMES = ['reels_review_export', 'reels_qa_report', 'reels_lint', 'reels_director_options', 'reels_find_shots', 'reels_director_treatment', 'reels_director_critique', 'reels_validate_plan'] as const;
 export const REELS_EDIT_TOOL_NAMES = ['reels_director_build', 'reels_director_fix', 'reels_director_reshape', 'reels_custom_shader', 'reels_custom_graphic', 'reels_time_effect', 'reels_freeze_frame', 'reels_reverse', 'reels_clean_speech', 'reels_restyle_text', 'reels_apply_look', 'reels_apply_signature', 'reels_snap_cuts_to_beats', 'reels_strobe'] as const;

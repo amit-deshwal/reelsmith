@@ -81,6 +81,15 @@ export const DIRECTOR_TOOL_SCHEMAS: AgentToolSchema[] = [
           },
           required: ['pacing', 'palette', 'motion', 'doNotCopy'],
         },
+        brief: {
+          type: 'object',
+          description: 'Only what the user said: the length ("a 15 s reel" seconds 15, "under 20 s" maxSeconds 20), the part of the song ("from 0:45 to 1:05" songFrom 45, songTo 65) and shots they asked for ("#3", "#5@12"). Every build is checked against it.',
+          properties: {
+            seconds: { type: 'number' }, minSeconds: { type: 'number' }, maxSeconds: { type: 'number' },
+            songFrom: { type: 'number', description: 'Song second the user wants it to start at.' }, songTo: { type: 'number', description: 'Song second it should end at.' },
+            mustUse: { type: 'array', items: { type: 'string' } },
+          },
+        },
         lookup: { type: 'array', items: { type: 'string' }, description: 'Alone: just return the catalogue entries for these ids.' },
       },
     },
@@ -145,13 +154,38 @@ export const DIRECTOR_TOOL_SCHEMAS: AgentToolSchema[] = [
     },
   },
   {
+    name: 'reels_validate_plan',
+    description: [
+      'Check a director plan without building it: the brief (the treatment\'s, or `brief`) and the plan rules (length and song window,',
+      'section cuts on whole beats, the shots the user asked for, no shot under 0.5 s outside flash-cuts or zoom-punch, hand-placed lines',
+      'inside Instagram\'s safe area, no shot twice) plus the catalogue check. Read-only. reels_director_build runs the same check first and',
+      'refuses a plan that breaks a rule, so call this only when you are unsure of a plan.',
+    ].join(' '),
+    input_schema: {
+      type: 'object',
+      properties: {
+        plan: { type: 'object', description: 'The plan, as for reels_director_build.' },
+        brief: {
+          type: 'object',
+          description: 'Only what the user said: the length ("a 15 s reel" seconds 15, "under 20 s" maxSeconds 20), the part of the song ("from 0:45 to 1:05" songFrom 45, songTo 65) and shots they asked for ("#3", "#5@12"). Default: the brief from the treatment.',
+          properties: {
+            seconds: { type: 'number' }, minSeconds: { type: 'number' }, maxSeconds: { type: 'number' },
+            songFrom: { type: 'number', description: 'Song second the user wants it to start at.' }, songTo: { type: 'number', description: 'Song second it should end at.' },
+            mustUse: { type: 'array', items: { type: 'string' } },
+          },
+        },
+      },
+      required: ['plan'],
+    },
+  },
+  {
     name: 'reels_director_build',
     description: [
       'Director stage 3: build the reel from your plan as one undo step. The plan is sections back to back on the beat, each a move with',
       'its clips ("#7" or "#7@4" from the numbered list, in the order the move uses them), an optional on-screen line in a text style, and params;',
       'overlays carry a line across several sections. Invalid plans are refused with every problem listed; nothing changes then. When the',
       'timeline has items, ask the user first and pass replaceTimeline true. Params it can repair (a value out of range, a key the move or style',
-      'does not take) are repaired and listed in `notes`. The first build of a directed reel returns the critique (about three frames a section,',
+      'does not take) are repaired and listed in `notes`. A plan that breaks the brief or a plan rule (as reels_validate_plan) is refused once with the violations. The first build of a directed reel returns the critique (about three frames a section,',
       'the checks and the critic\'s checklist) with the lint and review findings: name its largest defects and repair them with reels_director_fix.',
     ].join(' '),
     input_schema: {

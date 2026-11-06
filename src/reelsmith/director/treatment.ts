@@ -9,6 +9,7 @@ import { motionAt, type ShotLogClip } from './shotLog';
 import { PERSON } from './review';
 import { missingThingQuestion, missingThings } from './storyThings';
 import type { ReferenceProfile } from './reference';
+import { parseBrief, type PlanBrief } from './validatePlan';
 
 import { TONES, type Tone } from '../../../shared/reelsmith/directorPlan';
 
@@ -43,6 +44,8 @@ export interface Treatment {
   styleGuide?: StyleGuide;
   /** RS-1249: the user gave a shot list (timed shots, their own lines): build it as written; see isShotList */
   shotList?: boolean;
+  /** RS-1267: what the user's brief fixes (length, song window, shots to use); every build is checked against it */
+  brief?: PlanBrief;
 }
 
 export interface TreatmentFinding { issue: string; fix: string; /** a question for the user: stop and ask it before planning */ ask?: string }
@@ -146,7 +149,7 @@ export function parseTreatment(raw: unknown): { ok: true; treatment: Treatment }
       story: str(r.story), concepts, chosen, tone, heroes: strs(r.heroes), parts, signature: str(r.signature),
       textStyles: strs(r.textStyles), transitions: strs(r.transitions), effects: strs(r.effects), graphics: strs(r.graphics),
       ...(str(r.look) ? { look: str(r.look) } : {}), ...(r.ownWords === true ? { ownWords: true } : {}), ...(styleGuide ? { styleGuide } : {}),
-      ...(shotList ? { shotList: true } : {}),
+      ...(shotList ? { shotList: true } : {}), ...(parseBrief(r.brief) ? { brief: parseBrief(r.brief)! } : {}),
     },
   };
 }
@@ -172,6 +175,7 @@ export function treatmentCard(t: Treatment, bpm?: number): string {
     ...parts,
     `Signature: ${t.signature}`,
     ...(t.heroes.length ? [`Hero shots: ${t.heroes.join(', ')}`] : []),
+    ...(t.brief?.mustUse?.length ? [`Must use: ${t.brief.mustUse.join(', ')}`] : []),
     ...(kit.length ? [`Kit: ${kit.join(', ')}`] : []),
     `Other idea: ${t.concepts.filter((_, i) => i !== t.chosen).map((c) => `${c.name} (${c.idea})`).join('; ')}`,
   ].join('\n');
@@ -258,7 +262,17 @@ function checkTreatmentAll(t: Treatment, ctx: TreatmentContext): TreatmentFindin
   const promoScale = ctx.brand ? (videos >= 16 ? 2 : 1.5) : 1;
   const base = ctx.song?.beatsFor18s ?? (ctx.brand ? Math.round(18 / beatSec) : 0);
   const target = base ? Math.round((base * promoScale) / 4) * 4 : 0;
-  if (target && (total < target * (ctx.brand ? 0.8 : 0.6) || total > target * (ctx.brand ? 1.3 : 1.6))) {
+  // RS-1267: a length the user asked for replaces our target
+  const b = t.brief;
+  const want = b?.seconds ?? (b?.songTo !== undefined && b.songFrom !== undefined ? b.songTo - b.songFrom : undefined);
+  const slack = Math.max(1, beatSec);
+  if (want !== undefined && Math.abs(seconds - want) > slack) {
+    out.push({ issue: `the arc is ${total} beats (${seconds.toFixed(1)} s), the brief asks for ${want.toFixed(1)} s`, fix: `make the parts add up to ${Math.round(want / beatSec)} beats` });
+  } else if (b?.maxSeconds !== undefined && seconds > b.maxSeconds + 0.05) {
+    out.push({ issue: `the arc is ${total} beats (${seconds.toFixed(1)} s), over the brief's ${b.maxSeconds} s`, fix: `make the parts add up to at most ${Math.floor(b.maxSeconds / beatSec)} beats` });
+  } else if (b?.minSeconds !== undefined && seconds < b.minSeconds - 0.05) {
+    out.push({ issue: `the arc is ${total} beats (${seconds.toFixed(1)} s), under the brief's ${b.minSeconds} s`, fix: `make the parts add up to at least ${Math.ceil(b.minSeconds / beatSec)} beats` });
+  } else if (want === undefined && b?.maxSeconds === undefined && b?.minSeconds === undefined && target && (total < target * (ctx.brand ? 0.8 : 0.6) || total > target * (ctx.brand ? 1.3 : 1.6))) {
     out.push({ issue: `the arc is ${total} beats (${seconds.toFixed(1)} s)`, fix: `aim near ${target} beats (about ${Math.round(target * beatSec)} s) unless the user asked for a length` });
   }
   const plain = t.parts.filter((p) => PLAIN_MOVES.has(p.move)).length;

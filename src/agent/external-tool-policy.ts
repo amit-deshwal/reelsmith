@@ -10,7 +10,7 @@ const READ_ONLY_TOOL_NAMES = new Set([
   'search_media', 'search_stock_media', 'search_fonts', 'analyze_music', 'inspect_music', 'music_edit_plan', 'music_image_plan',
   'read_agent_artifact', 'browse_local_media',
   // Reelsmith
-  'reels_review_export', 'reels_qa_report', 'reels_lint', 'reels_director_options', 'reels_find_shots', 'reels_director_treatment', 'reels_director_critique', 
+  'reels_review_export', 'reels_qa_report', 'reels_lint', 'reels_director_options', 'reels_find_shots', 'reels_director_treatment', 'reels_director_critique', 'reels_validate_plan',
 ]);
 
 const DRAFT_EDIT_TOOL_NAMES = new Set([

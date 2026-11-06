@@ -582,3 +582,6 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 ## QA report after export (RS-1266, 2026-11-07)
 - `src/export/serverExportOperation.ts` `deliverSrtSidecar()`: after the contact sheet, `runQaReport` (`src/reelsmith/qaReport.ts`, ours) checks the rendered file while its job is alive (the `/api/reelsmith/qa-scan` route for the SHA-256 and the audio seams, the on-device transcriber, the MediaPipe face finder) and keeps the report for `reels_qa_report`; its outcome is one `qa` line in the Instagram export report. Never fails the export.
 - `src/agent/external-tool-policy.ts`: `reels_qa_report` (ours) added to the read-only tool names.
+
+## Plan check before the build (RS-1267, 2026-11-07)
+- `src/agent/external-tool-policy.ts`: `reels_validate_plan` (ours) added to the read-only tool names. `assets/agent/openchatcut-tool-schemas.json`: regenerated.
