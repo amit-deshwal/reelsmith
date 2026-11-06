@@ -143,6 +143,7 @@ claude mcp add --transport http openchatcut http://localhost:5199/api/external-m
 | Captions or transcription do nothing | Download a model in Settings → Local models → Local transcription |
 | Port 5199 is already in use | Another Reelsmith dev server is running; stop it, or run `node scripts/dev-profile.mjs --port 5299` |
 | An export freezes or judders but the timeline plays fine | Restart the dev server and export again |
+| `npm install` stops at "patch-package: failed to apply patch" | A dependency moved past the version its patch in `patches/` was made for; see "Patched dependencies" below |
 
 Your projects and settings live in `~/.reelsmith/` (dev) and `~/Library/Application Support/Reelsmith` (desktop app).
 
@@ -151,6 +152,8 @@ Your projects and settings live in `~/.reelsmith/` (dev) and `~/Library/Applicat
 ## Working on the code
 
 **Tests:** `npm test` runs every `*.verify.*` file in the repo, discovered automatically (`scripts/verify-discovery.mjs`); there is nothing to register in `package.json`. `npm test -- <substring>` runs just the matching files. While editing, use `npm run verify:affected` (the suites that import your changed files, through `scripts/import-graph.mjs`; seconds for most changes) or `npm run test:fast` (everything except the ~19 render/export/end-to-end suites in `SLOW_VERIFIES`, about 25 s); run the full `npm test` (about 100 s) before pushing. A suite that needs a non-default launcher (tsconfig flags, `?raw` imports) goes in the `LAUNCHERS` table in that file.
+
+**Patched dependencies:** `patches/` holds small fixes to `node_modules` that `npm install` applies through patch-package (`postinstall`). Right now there is one: `@remotion/media` fades each clip's sound in and out over 10 ms so a hard cut doesn't click (Remotion sets volume only once per frame). After upgrading Remotion, run `npx patch-package @remotion/media` to remake the patch for the new version, then `npm test -- seamClick`. The Remotion bundler caches `node_modules` by package version, so after editing anything there, delete `node_modules/.cache/webpack` (`postinstall` does this for you).
 
 **Keeping in sync with upstream:**
 
