@@ -1,0 +1,72 @@
+diff --git a/node_modules/@remotion/media/dist/esm/index.mjs b/node_modules/@remotion/media/dist/esm/index.mjs
+index 71e942c..1d719e3 100644
+--- a/node_modules/@remotion/media/dist/esm/index.mjs
++++ b/node_modules/@remotion/media/dist/esm/index.mjs
+@@ -5169,6 +5169,23 @@ var useMaxMediaCacheSize = (logLevel) => {
+ };
+ 
+ // src/convert-audiodata/apply-volume.ts
++// Reelsmith patch (RS-1265): a 10 ms sample-accurate fade where a piece's sound starts or stops (its volume moves
++// from or to 0, or its Sequence starts or ends), so a hard cut between two pieces does not click. Remotion applies
++// volume once per frame, which cannot do this.
++var REELSMITH_EDGE_FADE_SECONDS = 0.01;
++var reelsmithEdgeFade = (array, sampleRate, frame, durationInFrames, volumeAt) => {
++  const atStart = frame <= 0 || !(volumeAt(frame - 1) > 0);
++  const atEnd = (Number.isFinite(durationInFrames) && frame >= durationInFrames - 1) || !(volumeAt(frame + 1) > 0);
++  if (!atStart && !atEnd) return;
++  const frames = Math.floor(array.length / TARGET_NUMBER_OF_CHANNELS);
++  const n = Math.min(frames, Math.round(REELSMITH_EDGE_FADE_SECONDS * sampleRate));
++  for (let k = 0; k < n; k++) {
++    for (let c = 0; c < TARGET_NUMBER_OF_CHANNELS; c++) {
++      if (atStart) array[k * TARGET_NUMBER_OF_CHANNELS + c] *= k / n;
++      if (atEnd) array[(frames - 1 - k) * TARGET_NUMBER_OF_CHANNELS + c] *= k / n;
++    }
++  }
++};
+ var applyVolume = (array, volume) => {
+   if (volume === 1) {
+     return;
+@@ -6316,6 +6333,21 @@ var AudioForRendering = ({
+       Internals19.warnAboutTooHighVolume(volume);
+       if (audio && volume > 0) {
+         applyVolume(audio.data, volume);
++        reelsmithEdgeFade(audio.data, sampleRate, frame, sequenceContext?.durationInFrames, (f) => Internals19.evaluateVolume({
++          volume: volumeProp,
++          frame: frameForVolumeProp({
++        behavior: loopVolumeCurveBehavior ?? "repeat",
++        loop: loop ?? false,
++        assetDurationInSeconds: assetDurationInSeconds ?? 0,
++        fps,
++        frame: f,
++        startsAt,
++        playbackRate: playbackRate ?? 1,
++        trimBefore,
++        trimAfter
++          }),
++          mediaVolume: 1
++        }));
+         registerRenderAsset({
+           type: "inline-audio",
+           id,
+@@ -7468,6 +7500,21 @@ var VideoForRendering = ({
+       Internals23.warnAboutTooHighVolume(volume);
+       if (audio && volume > 0) {
+         applyVolume(audio.data, volume);
++        reelsmithEdgeFade(audio.data, sampleRate, frame, sequenceContext?.durationInFrames, (f) => Internals23.evaluateVolume({
++          volume: volumeProp,
++          frame: frameForVolumeProp({
++        behavior: loopVolumeCurveBehavior,
++        loop,
++        assetDurationInSeconds: assetDurationInSeconds ?? 0,
++        fps,
++        frame: f,
++        startsAt,
++        playbackRate,
++        trimBefore: trimBeforeValue,
++        trimAfter: trimAfterValue
++          }),
++          mediaVolume: 1
++        }));
+         registerRenderAsset({
+           type: "inline-audio",
+           id,

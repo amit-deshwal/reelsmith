@@ -571,3 +571,10 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 | `package.json`, `package-lock.json` | `name` `reelsmith`, own `description` and `author` | Branding | 2026-11-06 |
 | `assets/favicon.svg` | Replaced with the Reelsmith icon | Branding | 2026-11-06 |
 | `src/components/chat/ChatPanelView.tsx` (onboarding) | Empty-chat starters come from `REEL_STARTERS` (`src/reelsmith/chatStarters.ts`: Direct a reel, Add captions, Tighten the cut) instead of upstream's six general workflows; shorter heading | Simpler, reels-only start | 2026-11-06 |
+
+## No click at hard audio cuts (RS-1265, 2026-11-07)
+
+- `src/editor/TimelineMediaLayer.tsx`: `RuntimeAudio` renders `<Audio>` from `@remotion/media` on the server too (with `preservePitch`), instead of `remotion`'s `<Audio>`. Remotion mixes the latter in ffmpeg at one volume per frame, and its bundled ffmpeg has only the `volume` filter (no `afade`), so a sample-accurate fade cannot be added there. Side effect: a mono audio clip no longer exports 3 dB quieter than the same sound on a video clip (and than the preview).
+- `patches/@remotion+media+4.0.541.patch` (ours, applied by `patch-package` in `postinstall`): `reelsmithEdgeFade` in both render paths (audio and video) fades the first and last 10 ms of a piece's sound where it starts or stops (volume moves from or to 0, or the Sequence starts or ends). `postinstall` also clears `node_modules/.cache/webpack`, because the Remotion bundler caches `node_modules` by package version and would keep the unpatched code.
+- On a Remotion upgrade: regenerate the patch for the new version (`npx patch-package @remotion/media`) and run `server/reelsmith/seamClick.verify.ts`; patch-package fails the install if the patch no longer applies.
+- `package.json`: `postinstall`, `patch-package` dev dependency. `scripts/verify-discovery.mjs`: `seamClick.verify.ts` in `SLOW_VERIFIES`.

@@ -30,6 +30,7 @@ export const SLOW_VERIFIES = [
   'server/external-agent/broker.verify.ts',
   'server/external-agent/mcp.verify.ts',
   'server/reelsmith/avsync.mts',
+  'server/reelsmith/seamClick.verify.ts',
   'src/gl/clipFxExport.offthread.verify.mjs',
   'src/gl/clipFxExport.verify.mjs',
   'remotion/video-decoder-render.verify.mjs',

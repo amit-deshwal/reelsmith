@@ -15,6 +15,7 @@
     "node": ">=24 <25"
   },
   "scripts": {
+    "postinstall": "patch-package && node -e \"require('node:fs').rmSync('node_modules/.cache/webpack',{recursive:true,force:true})\"",
     "sync:mediapipe": "node scripts/sync-mediapipe.mjs",
     "sync:whisper-cli": "node scripts/sync-whisper-cli.mjs",
     "generate:server-tool-catalog": "tsx server/agent-runs/generate-tool-catalog.mts",
@@ -114,6 +115,7 @@
     "electron-builder": "26.15.7",
     "esbuild": "^0.28.2",
     "oxlint": "^1.89.0",
+    "patch-package": "^8.0.0",
     "tsx": "^4.23.15",
     "typescript": "~7.0.2",
     "typescript-language-server": "^5.3.0",

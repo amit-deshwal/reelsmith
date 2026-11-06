@@ -5,7 +5,7 @@ import {
   type AudioProps as BrowserAudioProps,
   type VideoProps as BrowserVideoProps,
 } from '@remotion/media';
-import { AbsoluteFill, Audio as ServerAudio, Img, OffthreadVideo, Sequence, useCurrentFrame, useVideoConfig } from 'remotion';
+import { AbsoluteFill, Img, OffthreadVideo, Sequence, useCurrentFrame, useVideoConfig } from 'remotion';
 import { ClipFx } from '../gl/ClipFx';
 import { firstGlEffect } from '../gl/clipEffects';
 import { selectEffectPreviewAdapter, type SelectedPreviewStatusListener } from '../gl/previewAdapter';
@@ -30,9 +30,9 @@ type RuntimeVideoProps = Pick<BrowserVideoProps, 'src' | 'trimBefore' | 'trimAft
 };
 
 function RuntimeAudio({ browserRenderer, ...props }: BrowserAudioProps & { browserRenderer: boolean }) {
-  return browserRenderer
-    ? <BrowserAudio {...props} />
-    : <ServerAudio {...props} preservePitch />;
+  // Reelsmith RS-1265: server renders use @remotion/media too (its patched per-frame path fades each piece's
+  // edges by 10 ms, so a hard cut does not click); remotion's <Audio> mixes in ffmpeg at one volume per frame.
+  return <BrowserAudio {...props} preservePitch={browserRenderer ? props.preservePitch : true} />;
 }
 
 function RuntimeVideo({ browserRenderer, style, ...props }: RuntimeVideoProps) {
