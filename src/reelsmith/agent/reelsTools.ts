@@ -23,6 +23,7 @@ import { parseRestyleArgs, planRestyle } from './restyleTextTool';
 import { applySignatureTool } from './signatureTools';
 import { applyLookTool } from './lookTools';
 import { reviewExportTool } from '../exportReview';
+import { qaReportTool } from '../qaReport';
 import { directorReshape } from './directorReshapeTool';
 export { REELS_TOOL_NAMES, REELS_TOOL_SCHEMAS } from './reelsToolSchemas';
 
@@ -76,6 +77,9 @@ export async function execReelsTool(name: string, args: Args, ctx: AgentContext,
 
     case 'reels_review_export':
       return reviewExportTool();
+
+    case 'reels_qa_report':
+      return qaReportTool(args, state);
 
     case 'reels_director_critique':
       return directorCritique(ctx);

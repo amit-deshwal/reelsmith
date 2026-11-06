@@ -2,6 +2,7 @@ import { captionTrackEntries } from '../editor/types';
 import { finalizeExportForInstagram, instagramReportStore, loadInstagramPreference, isSupportedShape } from '../reelsmith/instagramExport';
 import { writeSrtSidecar } from '../reelsmith/instagramSrt';
 import { deliverReviewSheet } from '../reelsmith/exportReview';
+import { appQaDeps, runQaReport } from '../reelsmith/qaReport';
 import { deliverCover } from '../reelsmith/exportCover';
 import { deliverNoSoundCopy, withoutSong } from '../reelsmith/exportMusic';
 import { retakeIfStalled } from '../reelsmith/exportRetake';
@@ -207,6 +208,21 @@ async function deliverSrtSidecar(
     ...(now ?? { status: 'skipped' as const }),
     sheet: sheet.status === 'written' ? `Contact sheet saved as ${sheet.names!.join(', ')}.` : `No contact sheet: ${sheet.message}`,
   });
+  // RS-1266: the QA report on the same file (audio seams, deleted words heard, captions over faces or the UI), for reels_qa_report
+  context.setBusy('Checking the export…');
+  const qa = await runQaReport({
+    state: context.options.state, src: completed.path, seconds: completed.durationSeconds ?? 0, videoName,
+    checks: instagramReportStore.get()?.checks ?? [], deps: appQaDeps(),
+  }).catch(() => null);
+  if (qa) {
+    const own = qa.checks.filter((c) => ['click', 'words', 'faces', 'safe'].includes(c.id));
+    const shown = own.filter((c) => c.status === 'FAIL').length ? own.filter((c) => c.status === 'FAIL') : own.filter((c) => c.status === 'WARN');
+    instagramReportStore.set({
+      ...(instagramReportStore.get() ?? { status: 'skipped' as const }),
+      qa: own.some((c) => c.status === 'FAIL') ? `QA failed: ${shown.map((c) => c.detail).join('; ')}`
+        : `QA passed${shown.length ? ` (not checked: ${shown.map((c) => `${c.id}: ${c.detail}`).join('; ')})` : ': no clicks at cuts, no deleted words heard, captions clear of faces and the Instagram UI'}.`,
+    });
+  }
   // RS-1234: the cover for Instagram, from the same rendered file
   if (pref.cover) {
     const cover = await deliverCover({

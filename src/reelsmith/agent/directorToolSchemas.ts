@@ -114,6 +114,16 @@ export const DIRECTOR_TOOL_SCHEMAS: AgentToolSchema[] = [
     input_schema: { type: 'object', properties: {} },
   },
   {
+    name: 'reels_qa_report',
+    description: [
+      'The QA report of the last export, as short JSON with the file\'s sha256: the export checks (V1-V10), a click scan at every hard audio cut,',
+      'the export re-transcribed against the words the timeline deleted (a deleted word still heard), and captions and titles against the faces',
+      'in the exported frames and Instagram\'s covered bands. Call it once after each export of a directed reel; on failures fix them, export',
+      'again and call it again: at most two fix passes, then ask the user. Says when the timeline changed after the export. Changes nothing.',
+    ].join(' '),
+    input_schema: { type: 'object', properties: { sha256: { type: 'string', description: 'Optional: the sha256 of the report you reviewed before, to confirm it is still the latest export.' } } },
+  },
+  {
     name: 'reels_director_fix',
     description: [
       'Repair a directed reel in place, as one undo step: the sections you give are rebuilt and every other section comes back with the same',

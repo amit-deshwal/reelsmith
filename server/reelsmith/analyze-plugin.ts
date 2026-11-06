@@ -13,6 +13,7 @@
 //   POST /api/reelsmith/depth-track    { src, fromSec, toSec } -> RS-1260: a depth map per frame of a video span (an atlas and its index)
 //   POST /api/reelsmith/no-sound-copy  { src, audioSrc? } -> RS-1241/1264: <name>.no-song.mp4 next to the export (picture copied; audioSrc = the song-free sound)
 //   POST /api/reelsmith/speech-share   { src } -> RS-1251: { share } of seconds that are speech (narration vs song)
+//   POST /api/reelsmith/qa-scan        { src, seams } -> RS-1266: the export's sha256 and a click measure at each audio seam (seconds)
 //   POST /api/reelsmith/brand-kit      { url } -> RS-1239: name, tagline, lines, facts, actions, links, colours of the one page the user named
 import { existsSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
@@ -35,6 +36,7 @@ import { depthTrackFor } from './depthTrack.ts';
 import { exportParity } from './exportParity.ts';
 import { fetchBrandKit } from './brandFetch.ts';
 import { noSoundCopy } from './noSoundCopy.ts';
+import { qaScan } from './qaScan.ts';
 import { buildSelectionSheets, MAX_SHEET_CELLS } from './selectionSheet.ts';
 import { REEL_PRESETS, presetForCanvas } from '../../shared/reelsmith/instagramPreset.ts';
 
@@ -185,6 +187,12 @@ export function reelsmithAnalyzePlugin(): Plugin {
         }
         const copy = await noSoundCopy(file, audio);
         return { src: `/media/uploads/${encodeURIComponent(copy.name)}`, name: copy.name, bytes: copy.bytes, kept: copy.kept };
+      });
+      route('/api/reelsmith/qa-scan', async (body) => {
+        const file = localFile(body.src);
+        if (typeof file !== 'string') throw new Error(file.error);
+        const seams = Array.isArray(body.seams) ? (body.seams as unknown[]).map(Number).filter((t) => Number.isFinite(t) && t >= 0) : [];
+        return await qaScan(file, seams);
       });
       route('/api/reelsmith/brand-kit', async (body) => ({ kit: await fetchBrandKit(body.url) }));
       route('/api/reelsmith/export-parity', async (body) => {

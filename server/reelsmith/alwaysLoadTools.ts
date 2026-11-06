@@ -10,7 +10,7 @@ export const ALWAYS_LOAD_TOOL_NAMES: ReadonlySet<string> = new Set([
   // session setup and finish, every turn
   'target_project', 'load_skill', 'begin_edit_session', 'review_edit_session', 'discard_edit_session',
   // the director's stages
-  'reels_director_options', 'reels_find_shots', 'reels_director_treatment', 'reels_director_build', 'reels_director_critique', 'reels_director_fix',
+  'reels_director_options', 'reels_find_shots', 'reels_director_treatment', 'reels_director_build', 'reels_director_critique', 'reels_director_fix', 'reels_qa_report',
   // what the chat edits after a directed reel reach for first
   'read_project', 'edit_item', 'view_timeline_frames',
 ]);

@@ -77,6 +77,7 @@ export function InstagramExportPanel({ state }: { state: TimelineState }) {
           {report.sheet && <span style={muted}>{report.sheet}</span>}
           {report.cover && <span style={muted}>{report.cover}</span>}
           {report.music && <span style={muted}>{report.music}</span>}
+          {report.qa && <span style={muted}>{report.qa}</span>}
           {report.failedPath && <span style={muted}>The failed re-encode was kept as {report.failedPath.split('/').pop()}; the original export was delivered.</span>}
         </div>
       )}

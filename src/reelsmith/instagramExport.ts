@@ -19,6 +19,8 @@ export interface InstagramExportReport {
   cover?: string;
   /** RS-1241: the no-song copy and where to start the song in Instagram */
   music?: string;
+  /** RS-1266: the QA report's one-line outcome (clicks, deleted words heard, captions over faces or Instagram's UI) */
+  qa?: string;
 }
 
 const KEY = 'reelsmith:instagram-export';
