@@ -8,7 +8,7 @@ import { execFileSync } from 'node:child_process';
 import { ffprobeBin } from '../media-binaries.ts';
 import { copyFileSync, linkSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { extname, join, resolve } from 'node:path';
+import { basename, extname, join, resolve } from 'node:path';
 import { parsePlan } from '../../shared/reelsmith/directorPlan.ts';
 import { emptyProjectDoc } from '../../src/app/appShell.ts';
 import { historyReduce, type History } from '../../src/editor/reduce.ts';
@@ -27,6 +27,8 @@ import { directorRecipe } from '../../src/reelsmith/director/assembleDirector.ts
 import { resolveClipRef, songSuggestion } from '../../src/reelsmith/agent/directorTools.ts';
 import { pickFindings } from '../../src/reelsmith/director/pickAudit.ts';
 import { finalizeForInstagram } from './instagramFinalize.ts';
+import { noSoundCopy } from './noSoundCopy.ts';
+import { musicNote, songOnTimeline, withoutSong } from '../../src/reelsmith/exportMusic.ts';
 import { reverseSpan } from './reverseClip.ts';
 import { depthMapFor, depthPackInstalled } from './depthMap.ts';
 import { depthTrackFor } from './depthTrack.ts';
@@ -62,7 +64,7 @@ const assets: MediaAsset[] = files.map((f, i) => {
 });
 const songFile = resolve(songArg);
 link(songFile, `song${extname(songFile).toLowerCase()}`);
-const song = { id: 'song', name: 'song', kind: 'audio', src: `/media/uploads/song${extname(songFile).toLowerCase()}`, durationInFrames: Math.floor(Number(probe(songFile).format.duration) * FPS) } as MediaAsset;
+const song = { id: 'song', name: basename(songFile), kind: 'audio', src: `/media/uploads/song${extname(songFile).toLowerCase()}`, durationInFrames: Math.floor(Number(probe(songFile).format.duration) * FPS) } as MediaAsset;
 const byFile = (a: Pick<MediaAsset, 'src'>) => join(media, decodeURIComponent(a.src.replace('/media/uploads/', '')));
 const upload = (name: string) => `/media/uploads/${encodeURIComponent(name)}`;
 const analysed = new Map<string, ClipFeatures>();
@@ -148,6 +150,18 @@ try {
   const fin = await finalizeForInstagram(resolve(outArg), preset);
   console.log(`instagram check: ${fin.ok ? (fin.reencoded ? 'fixed (sound re-encoded)' : 'passed as rendered') : 'FAILED'}`);
   for (const c of (fin.second ?? fin.first).checks) console.log(`  ${c.id} ${c.status} ${c.detail}`);
+}
+// RS-1241/1264: the copy for Instagram's music, as the app's export makes it: the sound rendered again without the song
+{
+  const s = songOnTimeline(tl);
+  if (s) {
+    const { state, project } = withoutSong(s.id, exportState, exportProject, tl.id);
+    const stem = join(media, 'no-song-sound.mp3');
+    const sub = await acceptExportSubmission({ state, project, timelineId: tl.id, format: 'audio', codec: 'mp3' } as never);
+    try { await withExportPermit(() => renderTimeline({ state: sub.plan.state, project: sub.plan.project, timelineId: sub.plan.timelineId, outputLocation: stem, codec: 'mp3' })); } finally { await sub.cleanup(); }
+    const copy = await noSoundCopy(resolve(outArg), stem);
+    console.log(`no-song copy: ${copy.name} (${copy.kept === 'sound' ? 'voice and natural sound kept' : 'no sound'}). ${musicNote(s)}`);
+  }
 }
 console.log(`exported ${resolve(outArg)} (${(out.result.report.totalFrames / FPS).toFixed(1)} s) in ${((Date.now() - started) / 1000).toFixed(0)} s`);
 rmSync(work, { recursive: true, force: true });
