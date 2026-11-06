@@ -20,7 +20,7 @@ import { stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { Plugin } from 'vite';
-import { resolveUploadFile, uploadNameOfSource } from '../media-dir.ts';
+import { resolveUploadFile, uploadDir, uploadNameOfSource } from '../media-dir.ts';
 import { readJsonBody, sendJson } from '../plugins/export-http.ts';
 import { detectDropBeat } from '../../src/reelsmith/assembler/drop.ts';
 import { analyzeBeatsFile } from './beatDetect.ts';
@@ -145,7 +145,9 @@ export function reelsmithAnalyzePlugin(): Plugin {
       route('/api/reelsmith/smooth-slow', async (body) => {
         const file = localFile(body.src);
         if (typeof file !== 'string') throw new Error(file.error);
-        const r = await smoothSlowSpan(file, Number(body.startSec), Number(body.rate), Math.round(Number(body.frames)), Number(body.fps));
+        // Imported media can be a reference to a file outside uploads. The returned /media/uploads URL must point
+        // to a copy in this profile's writable media directory, not beside that external source.
+        const r = await smoothSlowSpan(file, Number(body.startSec), Number(body.rate), Math.round(Number(body.frames)), Number(body.fps), uploadDir(), uploadNameOfSource(String(body.src))!);
         if ('skipped' in r) return { skipped: r.skipped, ...(r.unavailable ? { unavailable: true } : {}) };
         return { src: `/media/uploads/${encodeURIComponent(r.name)}`, width: r.width, height: r.height, frames: r.frames, hasAudio: r.hasAudio, cached: r.cached };
       });

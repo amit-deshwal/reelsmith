@@ -4,7 +4,7 @@
 // through the real render pipeline the Player also plays.
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -20,6 +20,7 @@ import { acceptExportSubmission } from '../plugins/export-submission.ts';
 import { setUploadsDirProvider } from '../plugins/export-rendering.ts';
 import { seedKeystore } from '../keystore.ts';
 import { ffmpegBin } from '../media-binaries.ts';
+import { registerMediaReference } from '../media-references.ts';
 import { retimeHelper } from './retimeHelper.ts';
 // @ts-expect-error — plain .mjs render pipeline has no .d.ts
 import { renderTimeline } from '../../remotion/render.mjs';
@@ -102,6 +103,16 @@ try {
   assert.deepEqual(notes, []);
   assert.match(String((actions[0] as { item: { src: string } }).item.src), /box\.slow-500-300x60f30\.mp4$/);
   const smooth = await exportOf(actions[0]!, 'smooth.mp4');
+
+  // A local import is stored by reference: its source file is outside uploads, but the returned copy must be there.
+  const external = join(work, 'external');
+  mkdirSync(external);
+  copyFileSync(join(media, 'box.mp4'), join(external, 'referenced.mp4'));
+  await registerMediaReference(media, 'imported.mp4', join(external, 'referenced.mp4'));
+  const referenced = await api.smoothSlow!('/media/uploads/imported.mp4', 0.5, 0.3, 60, 30);
+  assert.ok('src' in referenced && referenced.src);
+  assert.ok(existsSync(join(media, 'imported.slow-500-300x60f30.mp4')), 'the copy is in the profile uploads under its imported name');
+  assert.ok(!existsSync(join(external, 'referenced.slow-500-300x60f30.mp4')), 'the source folder is untouched');
 
   const steps = (xs: number[]) => xs.slice(1).map((x, k) => x - xs[k]!);
   assert.equal(slowed.xs.length, 60);

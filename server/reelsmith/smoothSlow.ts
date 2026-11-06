@@ -1,7 +1,7 @@
 // RS-1259: smooth slow motion (what DaVinci calls Speed Warp). A slowed clip (speed under 1) shows each source frame
 // several times: at 0.3x a 30 fps clip gives about 9 new pictures a second, so a velocity edit stutters at its hero
-// moment. Like a rewind's reversed copy (reverseClip.ts), the span the clip shows is rendered once into a file next to
-// the source, already slowed and at the reel's frame rate, with in-between frames from the retime helper (Apple's
+// moment. Like a rewind's reversed copy (reverseClip.ts), the span the clip shows is rendered once into a file in the
+// active upload directory, already slowed and at the reel's frame rate, with in-between frames from the retime helper (Apple's
 // frame-rate conversion, retimeHelper.ts); the clip then plays that file at speed 1. The sound is slowed the way the
 // editor slows it (atempo keeps the pitch), so the copy plays exactly what the slowed clip played, minus the stutter.
 import { execFile, spawn } from 'node:child_process';
@@ -103,8 +103,8 @@ const making = new Map<string, Promise<SmoothResult>>();
  * The span of `file` a clip shows (from `startSec`, `frames` reel frames at `rate`) as a smooth copy at `fps`, or why it
  * is not needed or not possible (`skipped`). Errors (a bad file, a failed encode) throw.
  */
-export function smoothSlowSpan(file: string, startSec: number, rate: number, frames: number, fps: number): Promise<SmoothResult> {
-  const key = join(dirname(file), smoothSlowName(file, startSec, rate, frames, fps));
+export function smoothSlowSpan(file: string, startSec: number, rate: number, frames: number, fps: number, outputDir = dirname(file), sourceName = file): Promise<SmoothResult> {
+  const key = join(outputDir, smoothSlowName(sourceName, startSec, rate, frames, fps));
   const known = making.get(key);
   if (known) return known;
   const work = async (): Promise<SmoothResult> => {
@@ -120,8 +120,8 @@ export function smoothSlowSpan(file: string, startSec: number, rate: number, fra
     if ('error' in helper) return { skipped: helper.error, unavailable: true };
     const width = meta.width - (meta.width % 2);
     const height = meta.height - (meta.height % 2);
-    const name = smoothSlowName(file, startSec, rate, frames, fps);
-    const out = join(dirname(file), name);
+    const name = smoothSlowName(sourceName, startSec, rate, frames, fps);
+    const out = join(outputDir, name);
     const result = { name, width, height, frames, hasAudio: meta.hasAudio };
     // a cached copy is reused only when it is newer than the video it came from
     if (existsSync(out) && (await stat(out)).mtimeMs >= (await stat(file)).mtimeMs) return { ...result, cached: true };

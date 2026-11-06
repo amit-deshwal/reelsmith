@@ -47,6 +47,16 @@ const NOT_A_SHOT = new Set(['black']);
 export const MIN_SHOT_SEC = 0.5;
 /** A cut further than this from a beat is heard as off the beat. */
 export const BEAT_TOLERANCE_SEC = 0.06;
+/**
+ * Moves that show earlier shots again on purpose: a recap (cards-finale, postcard-band), several at once (split, pip,
+ * compare, strips, prints, film frames). Their clips never count as a repeat, nor do a burst's flashes (a moment
+ * flashed in a flash run and then held is a creator move), nor does the opening section (a cold open previews a later
+ * shot, a loop ends on its first). Found replaying the 112 plans of 46 real director runs (2026-10-19..11-02): without
+ * these exceptions 27 of them broke this rule, almost all on purpose.
+ */
+export const RECAP_MOVES = new Set(['cards-finale', 'postcard-band', 'film-strip', 'photo-stack', 'split', 'pip', 'compare', 'strips-reveal']);
+/** With fewer clips than this the footage cannot fill a reel without showing moments again. */
+const FEW_CLIPS = 4;
 /** Starts closer than this (source seconds) are the same moment. */
 const SAME_MOMENT_SEC = 1;
 /** A clip this short has one moment: casting it twice without @ shows the same thing twice. */
@@ -170,27 +180,30 @@ export function validatePlan(input: ValidateInput): PlanViolation[] {
     const area = safeAreaFor(size);
     if (area.kind !== 'none') {
       const s = area.safe;
+      // the bounds as the fix states them (two decimals): checking 0.16 against an unrounded 0.1602 refused a line the
+      // agent had placed exactly where the message said (A/B run of 2026-11-07)
+      const r2 = (v: number) => Math.round(v * 100) / 100;
+      const yMin = r2((s.y + size.height * 0.03) / size.height), yMax = r2((s.y + s.h - size.height * 0.03) / size.height);
+      const xMin = r2(s.x / size.width + 0.05), xMax = r2((s.x + s.w) / size.width - 0.05);
       const bad: string[] = [];
       const ks: number[] = [];
       const check = (params: Record<string, unknown> | undefined, what: string, k?: number) => {
-        const x = typeof params?.x === 'number' && params.x >= 0 ? params.x * size.width : undefined;
-        const y = typeof params?.y === 'number' && params.y >= 0 ? params.y * size.height : undefined;
-        const mx = size.width * 0.05, my = size.height * 0.03;
-        const outX = x !== undefined && (x < s.x + mx || x > s.x + s.w - mx);
-        const outY = y !== undefined && (y < s.y + my || y > s.y + s.h - my);
+        const x = typeof params?.x === 'number' && params.x >= 0 ? params.x : undefined;
+        const y = typeof params?.y === 'number' && params.y >= 0 ? params.y : undefined;
+        const outX = x !== undefined && (x < xMin - 1e-9 || x > xMax + 1e-9);
+        const outY = y !== undefined && (y < yMin - 1e-9 || y > yMax + 1e-9);
         if (outX || outY) { bad.push(what); if (k !== undefined && !ks.includes(k)) ks.push(k); }
       };
       plan.sections.forEach((sec, k) => { if (sec.text) check(sec.params, `section ${k} "${sec.text.slice(0, 24)}"`, k); });
       (plan.overlays ?? []).forEach((o) => check(o.params, `overlay "${o.text.slice(0, 24)}"`, o.from));
       (plan.graphics ?? []).forEach((g) => check(g.params, `graphic ${g.graphic}`, g.from));
-      const band = (v: number) => Math.round((v / size.height) * 100) / 100;
-      if (bad.length) out.push({ rule: 'safe-zone', sections: ks, issue: `${bad.slice(0, 4).join(', ')} placed under Instagram's UI`, fix: `keep x and y inside the safe area (y ${band(s.y + size.height * 0.03)}-${band(s.y + s.h - size.height * 0.03)}, x ${Math.round(((s.x / size.width) + 0.05) * 100) / 100}-${Math.round((((s.x + s.w) / size.width) - 0.05) * 100) / 100}), or leave them out for the style's own place` });
+      if (bad.length) out.push({ rule: 'safe-zone', sections: ks, issue: `${bad.slice(0, 4).join(', ')} placed under Instagram's UI`, fix: `keep x and y inside the safe area (y ${yMin}-${yMax}, x ${xMin}-${xMax}), or leave them out for the style's own place` });
     }
   }
 
   // duplicate: the same moment twice, or two near-identical clips
   {
-    const cast = plan.sections.flatMap((s, k) => (s.clips ?? []).map((ref) => ({ k, ref, n: clipNumber(ref), at: atOf(ref) })));
+    const cast = clips.length < FEW_CLIPS ? [] : plan.sections.flatMap((s, k) => (RECAP_MOVES.has(s.move) || FLASH_RUN_MOVES.has(s.move) ? [] : (s.clips ?? []).map((ref) => ({ k, ref, n: clipNumber(ref), at: atOf(ref), shot: Math.min(times[k]!.sec, (beatsPerShot(s) ?? Infinity) * beatSec) }))));
     const seconds = (n: number | undefined) => clips.find((c) => c.n === n)?.seconds ?? Infinity;
     const pairs: string[] = [];
     const ks: number[] = [];
@@ -203,9 +216,11 @@ export function validatePlan(input: ValidateInput): PlanViolation[] {
     for (let i = 0; i < cast.length; i++) {
       for (let j = i + 1; j < cast.length; j++) {
         const a = cast[i]!, b = cast[j]!;
-        if (a.n === undefined || b.n === undefined) continue;
+        // the opening may preview a later shot (a cold open) or be the shot a loop ends on
+        if (a.n === undefined || b.n === undefined || a.k === 0) continue;
         if (a.n === b.n) {
-          const same = a.at !== undefined && b.at !== undefined ? Math.abs(a.at - b.at) < SAME_MOMENT_SEC : a.at === undefined && b.at === undefined && seconds(a.n) < ONE_MOMENT_CLIP_SEC;
+          // the same footage: the two shots overlap in the clip (shots stepped through one take are different footage)
+          const same = a.at !== undefined && b.at !== undefined ? Math.abs(a.at - b.at) < Math.min(SAME_MOMENT_SEC, a.shot, b.shot) - 0.01 : a.at === undefined && b.at === undefined && seconds(a.n) < ONE_MOMENT_CLIP_SEC;
           if (same) add(a, b, '');
         } else {
           const ga = groups.get(`#${a.n}`);
