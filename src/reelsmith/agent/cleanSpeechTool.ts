@@ -6,14 +6,15 @@ import type { TimelineItem, TimelineState } from '../../editor/types';
 import { hasOperationalTranscript } from '../../transcript/types';
 import { CLEANUP_LEVELS, cleanupIndices, cutActions, PAUSE_MS, sourceWindow, speechCuts, type CleanupLevel } from '../speechCleanup';
 
-export interface CleanSpeechArgs { itemIds?: string[]; level: Exclude<CleanupLevel, 'off'>; pauses: boolean }
+export interface CleanSpeechArgs { itemIds?: string[]; level: Exclude<CleanupLevel, 'off'>; pauses: boolean; /** morph over each jump the cuts leave (default on) */ smoothCuts: boolean }
 
 export function parseCleanSpeechArgs(raw: Record<string, unknown>): CleanSpeechArgs | { error: string } {
   const level = raw.level ?? 'balanced';
   if (typeof level !== 'string' || level === 'off' || !(CLEANUP_LEVELS as readonly string[]).includes(level)) return { error: 'level must be light, balanced or tight' };
   if (raw.itemIds !== undefined && !(Array.isArray(raw.itemIds) && raw.itemIds.every((x) => typeof x === 'string'))) return { error: 'itemIds must be a list of clip ids' };
   if (raw.pauses !== undefined && typeof raw.pauses !== 'boolean') return { error: 'pauses must be true or false' };
-  return { level: level as CleanSpeechArgs['level'], pauses: raw.pauses === true, ...(raw.itemIds ? { itemIds: raw.itemIds as string[] } : {}) };
+  if (raw.smoothCuts !== undefined && typeof raw.smoothCuts !== 'boolean') return { error: 'smoothCuts must be true or false' };
+  return { level: level as CleanSpeechArgs['level'], pauses: raw.pauses === true, smoothCuts: raw.smoothCuts !== false, ...(raw.itemIds ? { itemIds: raw.itemIds as string[] } : {}) };
 }
 
 export interface CleanSpeechClip { itemId: string; name: string; fillers: string[]; stutters: string[]; retakes: string[]; savedSec: number; pieces: number }

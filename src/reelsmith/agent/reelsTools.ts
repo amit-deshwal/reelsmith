@@ -19,6 +19,8 @@ import { parseTimeEffectArgs, planTimedEffect } from './timeEffectTool';
 import { freezeFrameTool } from './freezeFrameTool';
 import { reverseTool } from './reverseTool';
 import { parseCleanSpeechArgs, planCleanSpeech } from './cleanSpeechTool';
+import { smoothCutActions } from '../smoothCuts';
+import { reduce } from '../../editor/reducerTimeline';
 import { parseRestyleArgs, planRestyle } from './restyleTextTool';
 import { applySignatureTool } from './signatureTools';
 import { applyLookTool } from './lookTools';
@@ -118,8 +120,13 @@ export async function execReelsTool(name: string, args: Args, ctx: AgentContext,
       const out = planCleanSpeech(state, parsed, () => crypto.randomUUID());
       if ('error' in out) return out;
       if (!out.actions.length) return { ok: true, changed: false, note: `nothing to cut at ${parsed.level}`, clips: out.clips };
-      commit(ctx, out.actions, `Clean up speech (${parsed.level})`);
-      return { ok: true, changed: true, level: parsed.level, clips: out.clips };
+      // smooth cuts over the jumps the new pieces leave, laid out on the timeline as it will be after the cut
+      const smooth = parsed.smoothCuts && deps.api.smoothCut
+        ? await smoothCutActions(out.actions.reduce((s, a) => reduce(s, a), state), deps.api, () => crypto.randomUUID(),
+          new Set(out.actions.flatMap((a) => (a.type === 'add' ? [a.item.id] : []))), ctx.onToolProgress)
+        : { actions: [], made: 0, notes: [] };
+      commit(ctx, [...out.actions, ...smooth.actions], `Clean up speech (${parsed.level})`);
+      return { ok: true, changed: true, level: parsed.level, clips: out.clips, ...(smooth.made ? { smoothCuts: smooth.made } : {}), ...(smooth.notes.length ? { notes: smooth.notes } : {}) };
     }
 
     case 'reels_restyle_text': {

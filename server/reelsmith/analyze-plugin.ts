@@ -10,6 +10,8 @@
 //   POST /api/reelsmith/frame-scores   { src, times } -> { scores } of those frames as a cover (sharp subject, calm band)
 //   POST /api/reelsmith/reverse-clip   { src, startSec, frames, fps } -> that span played backwards, saved next to the video
 //   POST /api/reelsmith/smooth-slow    { src, startSec, rate, frames, fps } -> that span slowed with in-between frames (RS-1259)
+//   POST /api/reelsmith/motion-blur    { src, startSec, rate, frames, fps, strength } -> that sped-up span with motion blur
+//   POST /api/reelsmith/smooth-cut     { src, fromSec, toSec, frames, fps } -> frames morphing across a jump cut (silent)
 //   POST /api/reelsmith/depth-map      { src, atSec? } -> the photo's depth map saved next to it (`{ available:false }` without the depth-lite pack)
 //   POST /api/reelsmith/depth-track    { src, fromSec, toSec } -> RS-1260: a depth map per frame of a video span (an atlas and its index)
 //   POST /api/reelsmith/no-sound-copy  { src, audioSrc? } -> RS-1241/1264: <name>.no-song.mp4 next to the export (picture copied; audioSrc = the song-free sound)
@@ -32,7 +34,8 @@ import { upscaleAvailable, upscalePhoto } from './upscale.ts';
 import { extractStill, frameJpeg } from './stillFrame.ts';
 import { frameScores } from './frameScore.ts';
 import { reverseSpan } from './reverseClip.ts';
-import { smoothSlowSpan } from './smoothSlow.ts';
+import { motionBlurSpan, smoothSlowSpan } from './smoothSlow.ts';
+import { smoothCutSpan } from './smoothCut.ts';
 import { depthMapFor, depthPackInstalled } from './depthMap.ts';
 import { depthTrackFor } from './depthTrack.ts';
 import { exportParity } from './exportParity.ts';
@@ -160,6 +163,20 @@ export function reelsmithAnalyzePlugin(): Plugin {
         const r = await smoothSlowSpan(file, Number(body.startSec), Number(body.rate), Math.round(Number(body.frames)), Number(body.fps), uploadDir(), uploadNameOfSource(String(body.src))!);
         if ('skipped' in r) return { skipped: r.skipped, ...(r.unavailable ? { unavailable: true } : {}) };
         return { src: `/media/uploads/${encodeURIComponent(r.name)}`, width: r.width, height: r.height, frames: r.frames, hasAudio: r.hasAudio, cached: r.cached };
+      });
+      route('/api/reelsmith/motion-blur', async (body) => {
+        const file = localFile(body.src);
+        if (typeof file !== 'string') throw new Error(file.error);
+        const r = await motionBlurSpan(file, Number(body.startSec), Number(body.rate), Math.round(Number(body.frames)), Number(body.fps), Number(body.strength), uploadDir(), uploadNameOfSource(String(body.src))!);
+        if ('skipped' in r) return { skipped: r.skipped, ...(r.unavailable ? { unavailable: true } : {}) };
+        return { src: `/media/uploads/${encodeURIComponent(r.name)}`, width: r.width, height: r.height, frames: r.frames, hasAudio: r.hasAudio, cached: r.cached };
+      });
+      route('/api/reelsmith/smooth-cut', async (body) => {
+        const file = localFile(body.src);
+        if (typeof file !== 'string') throw new Error(file.error);
+        const r = await smoothCutSpan(file, Number(body.fromSec), Number(body.toSec), Math.round(Number(body.frames)), Number(body.fps), uploadDir(), uploadNameOfSource(String(body.src))!);
+        if ('skipped' in r) return { skipped: r.skipped, ...(r.unavailable ? { unavailable: true } : {}) };
+        return { src: `/media/uploads/${encodeURIComponent(r.name)}`, width: r.width, height: r.height, frames: r.frames, cached: r.cached };
       });
       route('/api/reelsmith/depth-map', async (body) => {
         if (!depthPackInstalled()) return { available: false };

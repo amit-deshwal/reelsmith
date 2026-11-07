@@ -29,7 +29,8 @@ export const CLIP_TOOL_SCHEMAS: AgentToolSchema[] = [
       'talking clips that have a transcript, as one undo step ("clean up my talking", "remove the ums", "cut the retakes"). light: only',
       'um/uh; balanced (default): plus stutters and restarted phrases; tight: plus "like", "you know", "I mean" when used as fillers.',
       'pauses true also shortens long pauses (900/600/350 ms at the three levels). Video clips are cut on word boundaries with the gaps',
-      'closed and captions follow; clips after them move up. Returns the words cut per clip; tell the user what went.',
+      'closed and captions follow; clips after them move up. Each jump the cuts leave in a video gets a smooth cut (a few frames',
+      'morphing across it on a track above; smoothCuts false keeps hard jump cuts). Returns the words cut per clip; tell the user what went.',
     ].join(' '),
     input_schema: {
       type: 'object',
@@ -37,6 +38,7 @@ export const CLIP_TOOL_SCHEMAS: AgentToolSchema[] = [
         itemIds: { type: 'array', items: { type: 'string' }, description: 'The clips (default: every clip with a transcript).' },
         level: { type: 'string', enum: ['light', 'balanced', 'tight'] },
         pauses: { type: 'boolean', description: 'Also shorten long pauses.' },
+        smoothCuts: { type: 'boolean', description: 'Morph over each jump cut in a video (default true).' },
       },
     },
   },

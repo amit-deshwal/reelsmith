@@ -4,6 +4,8 @@
 // active upload directory, already slowed and at the reel's frame rate, with in-between frames from the retime helper (Apple's
 // frame-rate conversion, retimeHelper.ts); the clip then plays that file at speed 1. The sound is slowed the way the
 // editor slows it (atempo keeps the pitch), so the copy plays exactly what the slowed clip played, minus the stutter.
+// The same pipeline makes motion blur for a sped-up span (motionBlurSpan): each frame is the source frame the editor
+// showed, blurred along the motion the helper reads from the frames either side (Apple's VTMotionBlur).
 import { execFile, spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { mkdtemp, rename, rm, stat, writeFile } from 'node:fs/promises';
@@ -30,11 +32,12 @@ export function smoothPositions(frames: number, rate: number, sourceFps: number,
   return Array.from({ length: frames }, (_, k) => Math.round((phase + k * step) * 1e4) / 1e4);
 }
 
-/** ffmpeg's atempo takes 0.5-2 a stage: 0.3 → atempo=0.5,atempo=0.6. */
+/** ffmpeg's atempo takes 0.5-2 a stage: 0.3 → atempo=0.5,atempo=0.6; 2.8 → atempo=2,atempo=1.4. */
 export function atempoChain(rate: number): string {
   const stages: number[] = [];
   let left = rate;
   while (left < 0.5) { stages.push(0.5); left /= 0.5; }
+  while (left > 2) { stages.push(2); left /= 2; }
   stages.push(Math.round(left * 1e6) / 1e6);
   return stages.map((s) => `atempo=${s}`).join(',');
 }
@@ -44,12 +47,17 @@ export function smoothSlowName(sourceName: string, startSec: number, rate: numbe
   return `${basename(sourceName, extname(sourceName))}.slow-${Math.max(0, Math.round(startSec * 1000))}-${Math.round(rate * 1000)}x${frames}f${Math.round(fps * 1000) / 1000}.mp4`;
 }
 
+/** File name of a motion-blurred fast span: as smoothSlowName, plus the blur strength. */
+export function motionBlurName(sourceName: string, startSec: number, rate: number, frames: number, fps: number, strength: number): string {
+  return smoothSlowName(sourceName, startSec, rate, frames, fps).replace('.slow-', '.blur-').replace(/\.mp4$/, `s${strength}.mp4`);
+}
+
 export interface Smoothed { name: string; width: number; height: number; frames: number; hasAudio: boolean; cached: boolean }
 /** `skipped`: not needed (enough pictures already, or a hold), or `unavailable` on this Mac (then no clip can be smoothed). */
 export type SmoothResult = Smoothed | { skipped: string; unavailable?: true };
 
 /** decoder | helper | encoder; rejects with the stderr of whichever failed. */
-function pipeline(decode: string[], helper: { bin: string; args: string[] }, encode: string[], timeoutMs: number): Promise<void> {
+export function pipeline(decode: string[], helper: { bin: string; args: string[] }, encode: string[], timeoutMs: number): Promise<void> {
   return new Promise((resolve, reject) => {
     const procs = [
       { name: 'decode', p: spawn(ffmpegBin(), decode, { stdio: ['ignore', 'pipe', 'pipe'] }) },
@@ -71,6 +79,8 @@ function pipeline(decode: string[], helper: { bin: string; args: string[] }, enc
       p.on('error', (err) => { errs[i] += String(err.message); });
       p.on('close', (code, signal) => {
         codes[i] = code ?? (signal ? -1 : 0);
+        // a stage that failed leaves the one before it blocked on a full pipe: stop the rest instead of waiting out the timeout
+        if (codes[i] !== 0) procs.forEach(({ p: other }, k) => { if (k !== i && other.exitCode === null) other.kill('SIGKILL'); });
         if (--left > 0) return;
         clearTimeout(timer);
         const failed = procs.map((x, k) => ({ name: x.name, code: codes[k], err: errs[k]!.trim() })).filter((x) => x.code !== 0);
@@ -104,30 +114,50 @@ const making = new Map<string, Promise<SmoothResult>>();
  * is not needed or not possible (`skipped`). Errors (a bad file, a failed encode) throw.
  */
 export function smoothSlowSpan(file: string, startSec: number, rate: number, frames: number, fps: number, outputDir = dirname(file), sourceName = file): Promise<SmoothResult> {
-  const key = join(outputDir, smoothSlowName(sourceName, startSec, rate, frames, fps));
+  return retimeCopy({ file, startSec, rate, frames, fps, outputDir, sourceName });
+}
+
+/**
+ * RS-1259 follow-up: the span a sped-up clip shows (`rate` over 1) as a copy at `fps` with motion blur of `strength`
+ * (1-100) that follows each moving thing; played at speed 1 it shows the same frames as the clip, blurred.
+ */
+export function motionBlurSpan(file: string, startSec: number, rate: number, frames: number, fps: number, strength: number, outputDir = dirname(file), sourceName = file): Promise<SmoothResult> {
+  return retimeCopy({ file, startSec, rate, frames, fps, outputDir, sourceName, blur: Math.round(strength) });
+}
+
+interface CopyJob { file: string; startSec: number; rate: number; frames: number; fps: number; outputDir: string; sourceName: string; blur?: number }
+
+function retimeCopy({ file, startSec, rate, frames, fps, outputDir, sourceName, blur }: CopyJob): Promise<SmoothResult> {
+  const name = blur ? motionBlurName(sourceName, startSec, rate, frames, fps, blur) : smoothSlowName(sourceName, startSec, rate, frames, fps);
+  const key = join(outputDir, name);
   const known = making.get(key);
   if (known) return known;
   const work = async (): Promise<SmoothResult> => {
-    if (!(fps > 0) || !(frames >= 1) || !(startSec >= 0) || !(rate > 0)) throw new Error('smooth-slow needs startSec >= 0, rate > 0, frames >= 1 and fps > 0');
-    if (frames / fps > MAX_SMOOTH_SEC) throw new Error(`smooth at most ${MAX_SMOOTH_SEC} s of slow motion at once`);
+    if (!(fps > 0) || !(frames >= 1) || !(startSec >= 0) || !(rate > 0)) throw new Error('a retimed copy needs startSec >= 0, rate > 0, frames >= 1 and fps > 0');
+    if (blur !== undefined && !(blur >= 1 && blur <= 100)) throw new Error('motion blur strength is 1-100');
+    if (frames / fps > MAX_SMOOTH_SEC) throw new Error(`retime at most ${MAX_SMOOTH_SEC} s at once`);
     const meta = await probeVideo(file);
     const sourceFps = meta.avgFrameRate ?? meta.nominalFrameRate;
     if (!sourceFps) return { skipped: 'the clip has no readable frame rate' };
-    if (!needsSmoothing(rate, sourceFps, fps)) {
+    if (blur) {
+      if (!(rate > 1)) return { skipped: 'motion blur is for a sped-up clip' };
+    } else if (!needsSmoothing(rate, sourceFps, fps)) {
       return { skipped: rate < MIN_SMOOTH_RATE ? 'a hold, not slow motion' : `a ${Math.round(sourceFps)} fps clip at ${rate}x already has a new picture on every frame` };
     }
     const helper = await retimeHelper();
-    if ('error' in helper) return { skipped: helper.error, unavailable: true };
+    if ('error' in helper) return { skipped: blur ? helper.error.replace('smooth slow motion', 'motion blur') : helper.error, unavailable: true };
+    if (blur && !helper.blur) return { skipped: 'motion blur needs macOS 15.4 or later', unavailable: true };
     const width = meta.width - (meta.width % 2);
     const height = meta.height - (meta.height % 2);
-    const name = smoothSlowName(sourceName, startSec, rate, frames, fps);
     const out = join(outputDir, name);
     const result = { name, width, height, frames, hasAudio: meta.hasAudio };
     // a cached copy is reused only when it is newer than the video it came from
     if (existsSync(out) && (await stat(out)).mtimeMs >= (await stat(file)).mtimeMs) return { ...result, cached: true };
     // the editor shows source frame floor(t·sourceFps) at time t: start decoding at that frame (seeking a quarter frame
-    // early, so the seek keeps it and drops the one before), and carry the rest of t into the positions
-    const first = Math.floor(startSec * sourceFps + 1e-6);
+    // early, so the seek keeps it and drops the one before), and carry the rest of t into the positions; motion blur
+    // also reads the frame before the first one shown
+    const shown = Math.floor(startSec * sourceFps + 1e-6);
+    const first = blur ? Math.max(0, shown - 1) : shown;
     const positions = smoothPositions(frames, rate, sourceFps, fps, startSec * sourceFps - first);
     const need = Math.floor(positions.at(-1)!) + 2;
     const fpsText = String(Math.round(fps * 1000) / 1000);
@@ -147,7 +177,7 @@ export function smoothSlowSpan(file: string, startSec: number, rate: number, fra
       await pipeline(
         ['-v', 'error', '-ss', String(Math.max(0, (first - 0.25) / sourceFps)), '-i', file, '-an', '-frames:v', String(need),
           '-vf', filters.join(','), '-f', 'rawvideo', '-pix_fmt', 'nv12', 'pipe:1'],
-        { bin: helper.bin, args: [String(width), String(height), positionsFile] },
+        { bin: helper.bin, args: [...(blur ? ['--blur', String(blur)] : []), String(width), String(height), positionsFile] },
         ['-v', 'error', '-y', '-f', 'rawvideo', '-pix_fmt', 'nv12', '-s', `${width}x${height}`, '-r', fpsText, '-i', 'pipe:0', ...sound,
           '-map', '0:v:0', ...(meta.hasAudio ? ['-map', '1:a:0?', '-af', `${atempoChain(rate)},apad`, '-c:a', 'aac', '-b:a', '192k', '-shortest'] : []),
           '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '16', '-profile:v', 'high', '-pix_fmt', 'yuv420p',

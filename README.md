@@ -40,7 +40,7 @@ Reelsmith started as a fork of [OpenChatCut](https://github.com/0xsline/OpenChat
 | **The AI's role** | Assistant: follows edit requests | **Director:** treatment → build → self-critique → fix |
 | **Finding shots** | You place clips | Shot log, best moments, search by meaning, timed shot lists |
 | **Rhythm** | Beat tools | Builds to the drop, varied pace, punch-ins, burst hooks |
-| **Looks and moves** | Effects, LUTs, transitions | Plus depth lens blur and focus pulls, sky and world swaps, silhouette portals, smooth slow motion, text behind people |
+| **Looks and moves** | Effects, LUTs, transitions | Plus depth lens blur and focus pulls, sky and world swaps, silhouette portals, smooth slow motion, motion blur that follows the motion, smooth jump cuts, text behind people |
 | **Promos** | — | Promo reels from a website: punch captions, CTA end card |
 | **Output** | General export | Instagram-ready checks, a music-free copy for Instagram's own audio, the same reel re-shaped to 4:5, 1:1 or 16:9 |
 

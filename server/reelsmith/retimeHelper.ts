@@ -36,10 +36,10 @@ async function build(bin: string): Promise<void> {
   }
 }
 
-let ready: Promise<{ bin: string } | { error: string }> | null = null;
+let ready: Promise<{ bin: string; blur: boolean } | { error: string }> | null = null;
 
-/** The built helper, or why there is none. Decided once per process (a restart tries again). */
-export function retimeHelper(): Promise<{ bin: string } | { error: string }> {
+/** The built helper (`blur`: it can also make motion blur), or why there is none. Decided once per process (a restart tries again). */
+export function retimeHelper(): Promise<{ bin: string; blur: boolean } | { error: string }> {
   ready ??= (async () => {
     const override = process.env.OPENCHATCUT_RETIME;
     if (!override && process.platform !== 'darwin') return { error: 'smooth slow motion needs a Mac' };
@@ -50,8 +50,9 @@ export function retimeHelper(): Promise<{ bin: string } | { error: string }> {
     }
     try {
       const { stdout } = await run(bin, ['--probe'], { timeout: 15_000 });
-      return (JSON.parse(stdout) as { supported?: unknown }).supported === true
-        ? { bin }
+      const probe = JSON.parse(stdout) as { supported?: unknown; blur?: unknown };
+      return probe.supported === true
+        ? { bin, blur: probe.blur === true }
         : { error: 'smooth slow motion needs macOS 15.4 or later' };
     } catch (e) {
       return { error: `smooth slow motion is not available: ${reason(e)}` };

@@ -35,6 +35,10 @@ export interface AnalyzeApi {
    * `startSec` at speed `rate`; `skipped` when it is not needed or not possible here (`unavailable`), its error on failure
    */
   smoothSlow?(src: string, startSec: number, rate: number, frames: number, fps: number): Promise<{ src: string; width: number; height: number; frames: number } | { skipped: string; unavailable?: boolean } | { error: string }>;
+  /** RS-1259 follow-up: a copy of a sped-up clip's span (`rate` over 1) with motion blur of `strength` (1-100) along the motion, played at 1x */
+  motionBlur?(src: string, startSec: number, rate: number, frames: number, fps: number, strength: number): Promise<{ src: string; width: number; height: number; frames: number } | { skipped: string; unavailable?: boolean } | { error: string }>;
+  /** RS-1259 follow-up: `frames` silent frames at `fps` morphing from the source moment `fromSec` to `toSec` (a smooth cut over a jump) */
+  smoothCut?(src: string, fromSec: number, toSec: number, frames: number, fps: number): Promise<{ src: string; width: number; height: number; frames: number } | { skipped: string; unavailable?: boolean } | { error: string }>;
   /** One numbered contact sheet per 20 candidates (agent shot selection); null when the server cannot build it */
   /** RS-1217: a reference reel's cuts and whole-reel colour (more sensitive than clipFeatures' in-clip cuts) */
   referenceCuts?(asset: MediaAsset, fps: number): Promise<{ cutsFrame: number[]; color?: { r: number; g: number; b: number } } | null>;

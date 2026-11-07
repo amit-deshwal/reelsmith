@@ -18,11 +18,13 @@ const state = () => activeTimeline(h.present);
 
 assert.ok('error' in parseCleanSpeechArgs({ level: 'off' }));
 assert.ok('error' in parseCleanSpeechArgs({ level: 'medium' }));
-assert.deepEqual(parseCleanSpeechArgs({}), { level: 'balanced', pauses: false });
-assert.match((planCleanSpeech(state(), { level: 'balanced', pauses: false, itemIds: ['broll'] }, () => 'x') as { error: string }).error, /no transcript/);
+assert.deepEqual(parseCleanSpeechArgs({}), { level: 'balanced', pauses: false, smoothCuts: true });
+assert.deepEqual(parseCleanSpeechArgs({ smoothCuts: false }), { level: 'balanced', pauses: false, smoothCuts: false });
+assert.ok('error' in parseCleanSpeechArgs({ smoothCuts: 'yes' }));
+assert.match((planCleanSpeech(state(), { level: 'balanced', pauses: false, smoothCuts: true, itemIds: ['broll'] }, () => 'x') as { error: string }).error, /no transcript/);
 
 let n = 0;
-const out = planCleanSpeech(state(), { level: 'balanced', pauses: false }, () => `p${++n}`);
+const out = planCleanSpeech(state(), { level: 'balanced', pauses: false, smoothCuts: true }, () => `p${++n}`);
 assert.ok(!('error' in out));
 const plan = out as Exclude<typeof out, { error: string }>;
 assert.deepEqual(plan.clips.map((c) => [c.itemId, c.fillers.join(' '), c.stutters.join(' '), c.retakes.join(' ')]), [

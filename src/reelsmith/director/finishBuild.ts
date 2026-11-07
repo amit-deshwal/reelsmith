@@ -31,12 +31,12 @@ export async function attachDepthMaps(actions: AtomicAction[], fps: number, onPr
 }
 
 /**
- * Markers aimed at the person they name, rewind sections reversed, captions moved off faces, slow motion smoothed (the
+ * Markers aimed at the person they name, rewind sections reversed, captions moved off faces, slow motion smoothed and fast parts blurred along their motion (the
  * copies are not pool media, so finding people under a caption reads the clips before it), depth maps attached (last: a
  * depth track follows the file a clip plays).
  * Returns notes.
  */
-export async function finishDirectorActions(actions: AtomicAction[], assets: readonly MediaAsset[], api: Pick<AnalyzeApi, 'reverseClip' | 'smoothSlow'>, fps: number, onProgress?: (text: string) => void): Promise<string[]> {
+export async function finishDirectorActions(actions: AtomicAction[], assets: readonly MediaAsset[], api: Pick<AnalyzeApi, 'reverseClip' | 'smoothSlow' | 'motionBlur'>, fps: number, onProgress?: (text: string) => void): Promise<string[]> {
   const notes: string[] = [];
   if (actions.some((a) => a.type === 'add' && (a.item as { props?: { rsAim?: unknown } }).props?.rsAim)) onProgress?.('Finding who the markers point at');
   notes.push(...await aimMarkers(actions, findPeople));

@@ -36,7 +36,7 @@ import { reverseSpan } from './reverseClip.ts';
 import { depthMapFor, depthPackInstalled } from './depthMap.ts';
 import { depthTrackFor } from './depthTrack.ts';
 import { withDepthMaps } from '../../src/reelsmith/depthMaps.ts';
-import { smoothSlowSpan } from './smoothSlow.ts';
+import { motionBlurSpan, smoothSlowSpan } from './smoothSlow.ts';
 import { rewindClips } from '../../src/reelsmith/agent/rewindClips.ts';
 import { smoothSlowClips } from '../../src/reelsmith/agent/smoothSlowClips.ts';
 import { REEL_PRESETS, presetForCanvas } from '../../shared/reelsmith/instagramPreset.ts';
@@ -94,6 +94,10 @@ const api: AnalyzeApi = {
     const r = await smoothSlowSpan(byFile({ src }), startSec, rate, frames, fps);
     return 'skipped' in r ? r : { src: upload(r.name), width: r.width, height: r.height, frames: r.frames };
   },
+  motionBlur: async (src, startSec, rate, frames, fps, strength) => {
+    const r = await motionBlurSpan(byFile({ src }), startSec, rate, frames, fps, strength);
+    return 'skipped' in r ? r : { src: upload(r.name), width: r.width, height: r.height, frames: r.frames };
+  },
 };
 
 const rawPlan = JSON.parse(readFileSync(resolve(planArg), 'utf8'));
@@ -126,11 +130,15 @@ for (const f of out.result.report.actionFits ?? []) console.log(`start moved for
   const at = Date.now();
   const notes = [...await rewindClips(out.action.actions, api, FPS), ...await smoothSlowClips(out.action.actions, api, FPS)];
   for (const m of notes) console.log(`note: ${m}`);
-  const smoothed = out.action.actions.flatMap((a) => {
-    const from = a.type === 'add' ? (a.item.props as { rsSmooth?: { playbackRate: number } } | undefined)?.rsSmooth : undefined;
-    return a.type === 'add' && from ? [`${((a.startFrame ?? 0) / FPS).toFixed(2)}-${(((a.startFrame ?? 0) + a.item.durationInFrames) / FPS).toFixed(2)} s at ${from.playbackRate}x`] : [];
+  const copies = out.action.actions.flatMap((a) => {
+    const from = a.type === 'add' ? (a.item.props as { rsSmooth?: { playbackRate: number; motionBlur?: number } } | undefined)?.rsSmooth : undefined;
+    return a.type === 'add' && from ? [{ blur: from.motionBlur !== undefined, text: `${((a.startFrame ?? 0) / FPS).toFixed(2)}-${(((a.startFrame ?? 0) + a.item.durationInFrames) / FPS).toFixed(2)} s at ${from.playbackRate}x` }] : [];
   });
-  if (smoothed.length) console.log(`slow motion: ${smoothed.length} clip${smoothed.length === 1 ? '' : 's'} smoothed in ${((Date.now() - at) / 1000).toFixed(1)} s: ${smoothed.join(', ')}`);
+  const sec = ((Date.now() - at) / 1000).toFixed(1);
+  for (const [blur, label] of [[false, 'slow motion smoothed'], [true, 'fast parts blurred along their motion']] as const) {
+    const these = copies.filter((c) => c.blur === blur).map((c) => c.text);
+    if (these.length) console.log(`${label}: ${these.length} clip${these.length === 1 ? '' : 's'} (all copies in ${sec} s): ${these.join(', ')}`);
+  }
 }
 // RS-1255: the pick audit the build review runs in the app
 console.log(`pick audit: ${out.result.report.momentUse?.length ?? 0} shots checked against ${analysed.size} analysed clips`);

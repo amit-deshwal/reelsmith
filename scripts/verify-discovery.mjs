@@ -43,6 +43,7 @@ export const SLOW_VERIFIES = [
   'server/reelsmith/repeatedFrames.verify.ts',
   'server/reelsmith/captionBehindRender.verify.ts',
   'server/reelsmith/smoothSlowRender.verify.ts',
+  'server/reelsmith/smoothCutRender.verify.ts',
   'server/reelsmith/skyRender.verify.ts',
   'server/reelsmith/depthTrackRender.verify.ts',
   'server/reelsmith/depthTrack.verify.ts',

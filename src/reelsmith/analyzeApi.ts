@@ -46,6 +46,18 @@ export function createAnalyzeApi(fetcher: typeof fetch = fetch, subjects: typeof
       if (response.ok && r.skipped) return { skipped: r.skipped, ...(r.unavailable ? { unavailable: true } : {}) };
       return response.ok && r.src && r.width && r.height && r.frames ? { src: r.src, width: r.width, height: r.height, frames: r.frames } : { error: r.error ?? `smoothing failed (${response.status})` };
     },
+    motionBlur: async (src, startSec, rate, frames, fps, strength) => {
+      const response = await fetcher('/api/reelsmith/motion-blur', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ src, startSec, rate, frames, fps, strength }) });
+      const r = await response.json().catch(() => ({})) as { src?: string; width?: number; height?: number; frames?: number; skipped?: string; unavailable?: boolean; error?: string };
+      if (response.ok && r.skipped) return { skipped: r.skipped, ...(r.unavailable ? { unavailable: true } : {}) };
+      return response.ok && r.src && r.width && r.height && r.frames ? { src: r.src, width: r.width, height: r.height, frames: r.frames } : { error: r.error ?? `motion blur failed (${response.status})` };
+    },
+    smoothCut: async (src, fromSec, toSec, frames, fps) => {
+      const response = await fetcher('/api/reelsmith/smooth-cut', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ src, fromSec, toSec, frames, fps }) });
+      const r = await response.json().catch(() => ({})) as { src?: string; width?: number; height?: number; frames?: number; skipped?: string; unavailable?: boolean; error?: string };
+      if (response.ok && r.skipped) return { skipped: r.skipped, ...(r.unavailable ? { unavailable: true } : {}) };
+      return response.ok && r.src && r.width && r.height && r.frames ? { src: r.src, width: r.width, height: r.height, frames: r.frames } : { error: r.error ?? `smooth cut failed (${response.status})` };
+    },
     mediaFps: async (srcs) => (await post<{ fps: Array<number | null> }>('/api/reelsmith/media-fps', { srcs }))?.fps ?? srcs.map(() => null),
     brandKit: async (url) => {
       const response = await fetcher('/api/reelsmith/brand-kit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url }) });

@@ -1,6 +1,6 @@
 // RS-1259: when slow motion needs in-between frames, where each frame of the copy sits in the source, and its sound.
 import assert from 'node:assert/strict';
-import { atempoChain, needsSmoothing, SMOOTH_JOBS, smoothJobSlot, smoothPositions, smoothSlowName } from './smoothSlow.ts';
+import { atempoChain, motionBlurName, needsSmoothing, SMOOTH_JOBS, smoothJobSlot, smoothPositions, smoothSlowName } from './smoothSlow.ts';
 
 // fewer new pictures a second than the reel has frames
 assert.equal(needsSmoothing(0.3, 30, 30), true, '30 fps clip at 0.3x: 9 pictures a second');
@@ -26,6 +26,14 @@ for (const rate of [0.1, 0.12, 0.25, 0.3, 0.35, 0.5, 0.7, 0.99]) {
   assert.ok(Math.abs(product(chain) - rate) < 1e-6, `${rate}: ${chain}`);
 }
 assert.equal(atempoChain(0.3), 'atempo=0.5,atempo=0.6');
+// and a sped-up span's sound (motion blur copies)
+for (const rate of [1.6, 2, 2.8, 3.5, 4]) {
+  const chain = atempoChain(rate);
+  assert.ok(chain.split(',').every((s) => { const v = Number(s.replace('atempo=', '')); return v >= 0.5 && v <= 2; }), chain);
+  assert.ok(Math.abs(product(chain) - rate) < 1e-6, `${rate}: ${chain}`);
+}
+assert.equal(atempoChain(2.8), 'atempo=2,atempo=1.4');
+assert.equal(motionBlurName('/m/trek.MOV', 1.5, 2.8, 12, 30, 52), 'trek.blur-1500-2800x12f30s52.mp4');
 
 // one name per span, speed and rate
 assert.equal(smoothSlowName('/u/IMG_1.normalized.mp4', 1.2, 0.3, 90, 30), 'IMG_1.normalized.slow-1200-300x90f30.mp4');

@@ -1,7 +1,7 @@
 // RS-1259: a director build's slowed clips are swapped for smooth copies; holds, normal and fast clips are left alone.
 import assert from 'node:assert/strict';
 import type { AtomicAction } from '../../editor/reducerActions';
-import { smoothedFrom, smoothSlowClips, wantsSmoothing } from './smoothSlowClips';
+import { motionBlurStrength, smoothedFrom, smoothSlowClips, wantsMotionBlur, wantsSmoothing } from './smoothSlowClips';
 import type { AnalyzeApi } from '../runRecipe';
 
 const clip = (id: string, extra: Record<string, unknown> = {}) => ({
@@ -107,5 +107,59 @@ assert.equal(wantsSmoothing({ kind: 'video', src: 'a.mp4', playbackRate: 0.3, pr
 // no smoothing route (an older server) or nothing slowed: nothing to do
 assert.deepEqual(await smoothSlowClips([clip('a', { playbackRate: 0.3 })], {}, 30), []);
 assert.deepEqual(await smoothSlowClips([clip('a')], { smoothSlow: async () => { throw new Error('not called'); } }, 30), []);
+
+// RS-1259 follow-up: sped-up clips with the motion-blur effect get a copy blurred along their motion
+const mb = (amount?: number, extra: Record<string, unknown> = {}) => [{ id: 'mb', assetId: 'builtin:fx-motion-blur', ...(amount === undefined ? {} : { overrides: { amount } }), ...extra }];
+assert.equal(wantsMotionBlur({ kind: 'video', src: 'a.mp4', playbackRate: 2.8, effects: mb(4.3) }), true);
+assert.equal(wantsMotionBlur({ kind: 'video', src: 'a.mp4', playbackRate: 2.8 }), false, 'no blur asked for');
+assert.equal(wantsMotionBlur({ kind: 'video', src: 'a.mp4', playbackRate: 1, effects: mb(4.3) }), false, 'not sped up');
+assert.equal(wantsMotionBlur({ kind: 'video', src: 'a.mp4', playbackRate: 0.3, effects: mb(4.3) }), false, 'slow motion is smoothed instead');
+assert.equal(wantsMotionBlur({ kind: 'video', src: 'a.mp4', playbackRate: 2.8, effects: mb(4.3, { mix: { region: 'background' } }) }), false, 'a blur limited by a mix stays an effect');
+assert.equal(wantsMotionBlur({ kind: 'video', src: 'a.mp4', playbackRate: 2.8, effects: mb(4.3), props: { rsSmooth: { src: 'x' } } }), false, 'done once');
+assert.equal(motionBlurStrength(4.3), 52, "velocity's 2.8x");
+assert.equal(motionBlurStrength(undefined), 30, 'the effect default 2.5');
+assert.equal(motionBlurStrength(12), 100);
+assert.equal(motionBlurStrength(0), 1);
+
+// a velocity build: slow parts smoothed, fast parts blurred, together; the fast copy drops the effect, keeps the rest
+{
+  const calls: string[] = [];
+  const api: Pick<AnalyzeApi, 'smoothSlow' | 'motionBlur'> = {
+    smoothSlow: async (src) => { calls.push(`slow ${src}`); return { src: src.replace('.mp4', '.slow.mp4'), width: 1440, height: 2560, frames: 60 }; },
+    motionBlur: async (src, startSec, rate, frames, fps, strength) => { calls.push(`blur ${src} ${startSec} ${rate} ${frames} ${fps} ${strength}`); return { src: src.replace('.mp4', '.blur.mp4'), width: 1440, height: 2560, frames }; },
+  };
+  const grade = { id: 'g', assetId: 'builtin:fx-vignette' };
+  const actions = [clip('s', { playbackRate: 0.3 }), clip('f', { playbackRate: 2.8, effects: [grade, ...mb(4.3)] }), clip('o', { playbackRate: 2, effects: mb() })];
+  const progress: string[] = [];
+  assert.deepEqual(await smoothSlowClips(actions, api, 30, (m) => progress.push(m)), []);
+  assert.deepEqual(progress, ['Smoothing the slow motion (1 clip) and blurring the fast parts (2 clips)']);
+  assert.deepEqual(calls.sort(), ['blur /media/uploads/f.mp4 1.5 2.8 60 30 52', 'blur /media/uploads/o.mp4 1.5 2 60 30 30', 'slow /media/uploads/s.mp4']);
+  const f = itemOf(actions[1]!);
+  assert.equal(f.src, '/media/uploads/f.blur.mp4');
+  assert.equal(f.playbackRate, undefined);
+  assert.deepEqual(f.effects, [grade]);
+  assert.equal(smoothedFrom(f as never)?.motionBlur, 4.3);
+  assert.equal(smoothedFrom(f as never)?.playbackRate, 2.8);
+  assert.equal(itemOf(actions[2]!).effects, undefined, 'no effects left');
+  assert.equal(smoothedFrom(itemOf(actions[0]!) as never)?.motionBlur, undefined);
+}
+
+// no motion blur here: the fast parts keep the effect, said once; slow motion is still smoothed
+{
+  const actions = [clip('s', { playbackRate: 0.3 }), clip('f', { playbackRate: 2.8, effects: mb(4.3) })];
+  const notes = await smoothSlowClips(actions, {
+    smoothSlow: async (src) => ({ src: src.replace('.mp4', '.slow.mp4'), width: 1440, height: 2560, frames: 60 }),
+    motionBlur: async () => ({ skipped: 'motion blur needs macOS 15.4 or later', unavailable: true }),
+  }, 30);
+  assert.deepEqual(notes, ['fast parts keep the plain motion blur: motion blur needs macOS 15.4 or later']);
+  assert.equal(itemOf(actions[0]!).src, '/media/uploads/s.slow.mp4');
+  assert.equal(itemOf(actions[1]!).playbackRate, 2.8);
+  assert.equal((itemOf(actions[1]!).effects as unknown[]).length, 1);
+}
+{
+  const actions = [clip('f', { playbackRate: 2.8, effects: mb(4.3) })];
+  const notes = await smoothSlowClips(actions, { motionBlur: async () => { throw new Error('encode failed'); } }, 30);
+  assert.deepEqual(notes, ['the fast part of clip f keeps the plain motion blur: encode failed']);
+}
 
 console.log('smoothSlowClips ok');
