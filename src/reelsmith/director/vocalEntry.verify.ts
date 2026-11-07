@@ -11,16 +11,21 @@ const w = (text: string, start: number, end: number) => ({ text, start, end });
 const words = [
   w('[Music]', 0, 4000), // not sung
   w('chal', 4100, 4400), w('chala', 4450, 4900), w('chal', 4950, 5300), // phrase at 4.1
-  w('kahin', 6200, 6600), w('door', 6650, 7200), // gap 0.9 s: phrase at 6.2
-  w('yahan', 7400, 7700), // gap 0.2 s: same phrase
+  w('kahin', 6200, 6600), w('door', 6600, 7200), // gap 0.9 s: phrase at 6.2 (whisper words abut inside a line)
+  w('yahan', 7300, 7700), // gap 0.1 s: same phrase
+  w('phir', 7950, 8200), // whisper's 0.25 s between segments: a new line
   w('ooooh', 9000, 12500), // a held note longer than 2.5 s: not a word
   w('phir', 13000, 13300), w('se', 13350, 13500),
 ];
-assert.deepEqual(vocalPhraseStarts(words), [4.1, 6.2, 13]);
+assert.deepEqual(vocalPhraseStarts(words), [4.1, 6.2, 7.95, 13]);
 assert.deepEqual(vocalPhraseStarts(words.slice(0, 4)), [], 'three sung words over a whole song read as an instrumental');
+// a line whose first word whisper stretched (heard late) still starts there; a run of stretched words is music
+assert.deepEqual(vocalPhraseStarts([...words.slice(1, 6), w('rumdhum', 20000, 23300), w('rath', 23300, 23600), w('dhanan', 23600, 24000)]), [4.1, 6.2, 20]);
+const later = words.slice(1, 7).map((x) => w(x.text, x.start + 12000, x.end + 12000));
+assert.deepEqual(vocalPhraseStarts([w('baad', 0, 5000), w('baad', 5000, 10000), w('yun', 10000, 15000), ...later]), [16.1, 18.2], 'hallucinated intro words make no phrase');
 assert.deepEqual(vocalPhraseStarts(undefined), []);
-assert.deepEqual(songVocalStarts({ transcript: words as never }), [4.1, 6.2, 13]);
-assert.deepEqual(songVocalStarts({ transcript: [] }, words), [4.1, 6.2, 13], 'a lyric reel\'s heard words stand in for a missing transcript');
+assert.deepEqual(songVocalStarts({ transcript: words as never }), [4.1, 6.2, 7.95, 13]);
+assert.deepEqual(songVocalStarts({ transcript: [] }, words), [4.1, 6.2, 7.95, 13], 'a lyric reel\'s heard words stand in for a missing transcript');
 assert.deepEqual(reelVocalStarts([4.1, 6.2, 13, 40], 4, 20), [0.1, 2.2, 9]);
 
 // --- the clock: 120 bpm from 0.2 s, reel starting on that beat

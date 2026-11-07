@@ -1,7 +1,9 @@
 // A director plan built and exported headlessly, through the same steps as the app (real clip analysis (no face finding: that needs a browser),
 // beat detection, the director compiler, track binding, the export renderer). For checking director features (RS-1213
 // graphics) on real footage without the agent in the loop.
-//   node --import tsx server/reelsmith/director-reel.mts <clips folder> <song file> <plan.json> <out.mp4>
+//   node --import tsx server/reelsmith/director-reel.mts <clips folder> <song file> <plan.json> <out.mp4> [song-words.json]
+// song-words.json: the song's transcript ([{ text, start, end }] in ms), as the app has it after import, so lines can
+// come in with the singer.
 // The plan names clips "#n" in the folder's sorted order (videos and photos), like reels_director_options numbers them;
 // "musicStart": "suggest" uses the song suggestion the agent gets.
 import { execFileSync } from 'node:child_process';
@@ -27,6 +29,7 @@ import { directorRecipe } from '../../src/reelsmith/director/assembleDirector.ts
 import { resolveClipRef, songSuggestion } from '../../src/reelsmith/agent/directorTools.ts';
 import { pickFindings } from '../../src/reelsmith/director/pickAudit.ts';
 import { finalizeForInstagram } from './instagramFinalize.ts';
+import { vocalPhraseStarts } from '../../src/reelsmith/director/vocalEntry.ts';
 import { noSoundCopy } from './noSoundCopy.ts';
 import { musicNote, songOnTimeline, withoutSong } from '../../src/reelsmith/exportMusic.ts';
 import { reverseSpan } from './reverseClip.ts';
@@ -40,7 +43,7 @@ import { REEL_PRESETS, presetForCanvas } from '../../shared/reelsmith/instagramP
 import type { ClipFeatures } from '../../src/reelsmith/assembler/scoring.ts';
 
 const FPS = 30;
-const [folderArg, songArg, planArg, outArg] = process.argv.slice(2);
+const [folderArg, songArg, planArg, outArg, wordsArg] = process.argv.slice(2);
 if (!folderArg || !songArg || !planArg || !outArg) throw new Error('usage: director-reel.mts <clips folder> <song file> <plan.json> <out.mp4>');
 const work = mkdtempSync(join(tmpdir(), 'rs-director-'));
 const media = join(work, 'media');
@@ -106,9 +109,13 @@ const values = defaultValues(recipe);
 values.media.clips = assets.map((a) => ({ assetId: a.id, kind: a.kind as 'video' | 'image' }));
 values.media.music = [{ assetId: song.id, kind: 'audio' }];
 const started = Date.now();
-const out = await runRecipe(api, { recipe, values, assets: [...assets, song], fps: FPS, replaceTimeline: true, plan, seed: 7 });
+const vocalStarts = wordsArg ? vocalPhraseStarts(JSON.parse(readFileSync(resolve(wordsArg), 'utf8'))) : [];
+if (wordsArg) console.log(`singer: ${vocalStarts.length} phrases (${vocalStarts.slice(0, 12).join(', ')}${vocalStarts.length > 12 ? '...' : ''} s)`);
+const out = await runRecipe(api, { recipe, values, assets: [...assets, song], fps: FPS, replaceTimeline: true, plan, seed: 7, ...(vocalStarts.length ? { vocalStarts } : {}) });
 if (!out.action) throw new Error(out.messages.join('; '));
 for (const m of out.messages) console.log(`note: ${m}`);
+for (const e of out.result.report.lineEntries ?? []) console.log(`line with the singer: section ${e.section} comes in ${e.afterSec} s after its cut`);
+for (const f of out.result.report.actionFits ?? []) console.log(`start moved for the movement: section ${f.section} ${assets.find((a) => a.id === f.assetId)?.name} ${f.shiftSec > 0 ? '+' : ''}${f.shiftSec} s`);
 {
   const at = Date.now();
   const notes = [...await rewindClips(out.action.actions, api, FPS), ...await smoothSlowClips(out.action.actions, api, FPS)];

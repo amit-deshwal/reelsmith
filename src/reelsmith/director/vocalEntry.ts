@@ -4,23 +4,38 @@
 // well, as the lyric reel found in RS-1253). Only the start of each phrase is used, never the words.
 import { sungWords, type LyricWord } from './lyrics';
 
-/** A new phrase starts after a gap this long between sung words (s). */
-export const PHRASE_GAP_SEC = 0.6;
+/**
+ * A new phrase starts after a gap this long between sung words (s). Whisper stretches each word to the next one inside a
+ * line and leaves about 0.25 s between its segments, which are the sung lines (the Swades song: every line break reads
+ * 0.24-0.25 s, words inside a line 0); a 0.6 s rule found 2 of its 6 lines in 30 s.
+ */
+export const PHRASE_GAP_SEC = 0.2;
 /** Fewer sung words than this over the whole song reads as an instrumental the transcriber hallucinated on. */
 const MIN_SUNG_WORDS = 6;
 /** One "word" longer than this is the transcriber filling a held note or a stretch of music, not a sung word. */
 const MAX_WORD_SEC = 2.5;
 
-/** Song seconds where each sung phrase starts: the first word, and every word after a gap of PHRASE_GAP_SEC or more. */
+/**
+ * Song seconds where each sung phrase starts: the first word, and every word after a gap of PHRASE_GAP_SEC or more. A word
+ * stretched past MAX_WORD_SEC is left out, unless it opens a line: after a gap, running straight into a sung word (whisper
+ * stretches the first word of a line it hears late; a run of long words is music it filled with words).
+ */
 export function vocalPhraseStarts(words: readonly LyricWord[] | undefined, gapSec = PHRASE_GAP_SEC): number[] {
-  const sung = sungWords(words ?? []).filter((w) => w.end - w.start <= MAX_WORD_SEC * 1000).sort((a, b) => a.start - b.start);
-  if (sung.length < MIN_SUNG_WORDS) return [];
+  const all = sungWords(words ?? []).sort((a, b) => a.start - b.start);
+  const long = (w: LyricWord) => w.end - w.start > MAX_WORD_SEC * 1000;
+  if (all.filter((w) => !long(w)).length < MIN_SUNG_WORDS) return [];
+  const gap = gapSec * 1000;
   const out: number[] = [];
   let lastEnd = -Infinity;
-  for (const w of sung) {
-    if (w.start - lastEnd >= gapSec * 1000) out.push(Math.round(w.start) / 1000);
+  all.forEach((w, i) => {
+    if (long(w)) {
+      const next = all[i + 1];
+      if (w.start - lastEnd >= gap && next && !long(next) && next.start - w.end < gap) { out.push(Math.round(w.start) / 1000); lastEnd = w.end; }
+      return;
+    }
+    if (w.start - lastEnd >= gap) out.push(Math.round(w.start) / 1000);
     lastEnd = Math.max(lastEnd, w.end);
-  }
+  });
   return out;
 }
 
