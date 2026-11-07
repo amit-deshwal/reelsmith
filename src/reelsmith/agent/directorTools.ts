@@ -29,6 +29,7 @@ import { songReportLine } from '../exportMusic';
 import { brandAction, brandWords } from '../../../shared/reelsmith/brandKit';
 import { resolveVoiceover } from './directorVoiceover';
 import { resolveLyrics } from './directorLyrics';
+import { songVocalStarts } from './directorVocals';
 import { directorVisuals, libraryMusic, shotTagsWarming, songGrid, tempo } from './directorOptions';
 import { parseBrief, validatePlan, violationText, type PlanBrief, type PlanViolation } from '../director/validatePlan';
 export { directorOptions, directorVisuals, footageRateFor, sheetSamples, songSuggestion, warmShotTagsFor, type FindShots } from './directorOptions';
@@ -117,6 +118,8 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
   const { voiceover, note: voiceNote } = voice;
   // RS-1253: a lyric reel: the song's sung words (transcribed now if the song has none yet)
   const sung = await resolveLyrics(plan, plan.music ? assets.find((a) => a.id === plan.music) : undefined, ctx, deps);
+  // M12: where the singer starts each phrase, from the song's transcript (made on import; a lyric reel's words otherwise)
+  const vocalStarts = plan.music ? songVocalStarts(ctx.getDoc().assets?.find((a) => a.id === plan.music) ?? assets.find((a) => a.id === plan.music), sung.words) : [];
   // "#n" references from the numbered clip list
   const visual = directorVisuals(ctx);
   const badRefs: string[] = [];
@@ -142,6 +145,7 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
   try {
     out = await runRecipe({ ...deps.api, ...(deps.shotTags ? { shotTags: deps.shotTags(id) } : {}) }, {
       recipe, values, assets, fps: state.fps, replaceTimeline: true, plan, ...(voiceover ? { voiceover } : {}), ...(sung.words ? { lyrics: sung.words } : {}),
+      ...(vocalStarts.length ? { vocalStarts } : {}),
       ...(typeof args.seed === 'number' && Number.isFinite(args.seed) ? { seed: Math.round(args.seed) } : {}),
       onProgress: ctx.onToolProgress,
     });
@@ -152,6 +156,10 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
   if (voiceNote) out.messages.push(voiceNote);
   for (const v of violations) out.messages.unshift(`built although it breaks: ${violationText(v)}`);
   if (sung.note) out.messages.push(sung.note);
+  const entries = out.result.report.lineEntries ?? [];
+  const fits = out.result.report.actionFits ?? [];
+  if (fits.length) out.messages.push(`${fits.length === 1 ? 'A start was' : `${fits.length} starts were`} moved so the movement finishes inside the shot: ${fits.map((f) => `section ${f.section} ${f.shiftSec > 0 ? '+' : ''}${f.shiftSec} s`).join(', ')}.`);
+  if (entries.length) out.messages.push(`${entries.length === 1 ? 'A line comes' : `${entries.length} lines come`} in with the singer, after the cut: ${entries.map((e) => `section ${e.section} +${e.afterSec} s`).join(', ')}.`);
   out.messages.push(...await finishDirectorActions(out.action.actions, assets, deps.api, state.fps, ctx.onToolProgress));
   const report = out.result.report;
   const fps = state.fps;

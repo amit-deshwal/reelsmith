@@ -7,6 +7,7 @@ import { RATIO_SIZES } from '../../../shared/reelsmith/ratios';
 import type { ReelPlan } from '../../../shared/reelsmith/directorPlan';
 import { dbToGain, fpsOf } from '../assembler/common';
 import { pickMoment } from '../assembler/moments';
+import { fitAction } from '../assembler/actionFit';
 import { stableId } from '../assembler/rng';
 import type { AssembleInput, AssembleReport, AssembleResult, AssemblyClip, AssemblyMusic } from '../assembler/types';
 import { textStyleById, type MoveDef } from './moves';
@@ -24,6 +25,7 @@ import { MOTION_RULES, applyMotionRules, toneParams } from './motionRules';
 import { continuingSound, heardClip, jCutLeadIn, levelNatural, songDuck, sourceLevel, type NaturalWindow } from './naturalSound';
 import { overSpeech, speechWindows, voiceFrames, voiceoverActions } from './voiceover';
 import { lyricsCaptions, reelLyrics } from './lyrics';
+import { lineEntryBeats, reelVocalStarts } from './vocalEntry';
 import { traceShots } from './shotTrace';
 import { FLASHING_MOVES, markBehind, outlineOnFlash, tagLine } from './lineMarks';
 import { effectAsset, resolveParams, resolvePlanSections } from './planSections';
@@ -191,6 +193,11 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
   const sectionClips: string[][] = [];
   const sectionMoments: number[][] = [];
   const momentUse: NonNullable<AssembleReport['momentUse']> = [];
+  // M12: lines come in with the singer: where each sung phrase starts in the reel. Not for the hook (its title is on
+  // from frame 0), a shot list (the user's timing) or a voiceover reel (the narration is the voice to follow).
+  const vocalStarts = music?.vocalStarts?.length && !plan.shotList && !voice ? reelVocalStarts(music.vocalStarts, startSec, total / fps) : [];
+  const lineEntries: NonNullable<AssembleReport['lineEntries']> = [];
+  const actionFits: NonNullable<AssembleReport['actionFits']> = [];
   resolved.forEach((r, i) => {
     const { s, move } = r!;
     // RS-1249: a shot list moves only as the user asked
@@ -228,12 +235,17 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
         // a start too close to the end would leave the shot frozen for the rest of the section: start earlier so it keeps playing
         const room = Math.max(0, clip.durationInFrames - frames);
         if (clip.pinnedStartFrame > room && clip.durationInFrames >= frames) warnings.push(`sections[${i}]: "${clip.name}" starts ${(clip.pinnedStartFrame / fps).toFixed(1)} s but has only ${((clip.durationInFrames - clip.pinnedStartFrame) / fps).toFixed(1)} s left for a ${(frames / fps).toFixed(1)} s shot; started at ${(room / fps).toFixed(1)} s so it does not freeze.`);
-        const inFrame = Math.min(clip.pinnedStartFrame, room);
+        const pinned = Math.min(clip.pinnedStartFrame, room);
+        // M12: the agent's "#n@s" is read off a sheet; it moves up to half a second so a clear action completes inside
+        // the shot (never a shot list's times, the user's own)
+        const inFrame = plan.shotList || clip.durationInFrames < frames ? pinned
+          : fitAction(clip.sourceAnalysis?.motionCurve, fps, pinned, frames, { lo: 0, hi: room, maxShift: Math.round(fps / 2) });
+        if (inFrame !== pinned) actionFits.push({ section: i, assetId: clip.baseAssetId ?? clip.assetId, shiftSec: Math.round(((inFrame - pinned) / fps) * 100) / 100 });
         return { inFrame, loop: clip.durationInFrames - inFrame < frames };
       }
       const len = Math.max(1, Math.min(frames, clip.durationInFrames));
       const key = clip.baseAssetId ?? clip.assetId;
-      const s0 = pickMoment(clip, len, used.get(key) ?? [], Math.round(fps * 0.5)) ?? 0;
+      const s0 = pickMoment(clip, len, used.get(key) ?? [], Math.round(fps * 0.5), fps) ?? 0;
       used.set(key, [...(used.get(key) ?? []), [s0, s0 + len]]);
       return { inFrame: s0, loop: clip.durationInFrames - s0 < frames };
     };
@@ -259,9 +271,12 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
     });
     // the section's own line
     if (s.text && r!.style) {
+      const wait = i > 0 && vocalStarts.length && !isClipTextStyle(r!.style) ? lineEntryBeats(vocalStarts, b0, b1, clock) : 0;
+      const lineStart = wait > 0 ? Math.min(end - 1, frame(b0 + wait)) : start;
+      if (lineStart > start) lineEntries.push({ section: i, afterSec: Math.round(((lineStart - start) / fps) * 100) / 100 });
       r!.style.build({
-        W, H, fps, start, end, beats: b1 - b0, text: s.text, params: r!.textParams, seed: seed + i,
-        beatFrame: (b) => Math.min(end, Math.max(start, frame(b0 + b))), id: (...p) => id('text', ...p), lane: (n) => `T${1 + n}`,
+        W, H, fps, start: lineStart, end, beats: b1 - b0 - (lineStart > start ? wait : 0), text: s.text, params: r!.textParams, seed: seed + i,
+        beatFrame: (b) => Math.min(end, Math.max(lineStart, frame(b0 + (lineStart > start ? wait : 0) + b))), id: (...p) => id('text', ...p), lane: (n) => `T${1 + n}`,
         emit: (a) => {
           const flashes = FLASHING_MOVES.has(move.id) && s.params?.flash !== false;
           actions.push(tagLine(s.textBehind ? markBehind(a) : flashes ? outlineOnFlash(a) : a, `s${i + 1}`, s.text!, r!.style!.id));
@@ -479,6 +494,6 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
   if (unusedClips) warnings.push(`${unusedClips} clip${unusedClips === 1 ? ' was' : 's were'} not used.`);
   return {
     action: { type: 'batch', actions: plan.tone ? applyMotionRules(actions, plan.tone, fps) : actions, label: 'Director: build reel' }, run,
-    report: { shots: shotsCount, usedAssetIds: [...usedIds], musicStartSec: startSec, totalFrames: total, warnings, sectionClips: Array.from({ length: resolved.length }, (_, k) => sectionClips[k] ?? []), sectionMoments: Array.from({ length: resolved.length }, (_, k) => sectionMoments[k] ?? []), momentUse, shotSec, ...(eyeJumps.length ? { eyeJumps } : {}), ...(voices.length ? { voices } : {}) },
+    report: { shots: shotsCount, usedAssetIds: [...usedIds], musicStartSec: startSec, totalFrames: total, warnings, sectionClips: Array.from({ length: resolved.length }, (_, k) => sectionClips[k] ?? []), sectionMoments: Array.from({ length: resolved.length }, (_, k) => sectionMoments[k] ?? []), momentUse, shotSec, ...(eyeJumps.length ? { eyeJumps } : {}), ...(voices.length ? { voices } : {}), ...(lineEntries.length ? { lineEntries } : {}), ...(actionFits.length ? { actionFits } : {}) },
   };
 }

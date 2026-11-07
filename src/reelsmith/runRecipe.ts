@@ -66,6 +66,8 @@ export interface RunOptions {
   voiceover?: AssemblyVoiceover;
   /** RS-1253: the song's words for a lyric reel (ms in the song file) */
   lyrics?: AssemblyMusic['lyrics'];
+  /** M12: song seconds where each sung phrase starts, so the director's lines come in with the singer */
+  vocalStarts?: number[];
   onProgress?: (text: string) => void;
 }
 
@@ -165,7 +167,7 @@ export async function prepareAssembly(api: AnalyzeApi, o: RunOptions): Promise<P
   if (musicAsset) {
     o.onProgress?.('Finding the beat');
     const grid = await api.musicGrid(musicAsset).catch(() => null);
-    if (grid) music = { assetId: musicAsset.id, name: musicAsset.name, src: musicAsset.src, ...grid, ...(o.lyrics?.length ? { lyrics: o.lyrics } : {}) };
+    if (grid) music = { assetId: musicAsset.id, name: musicAsset.name, src: musicAsset.src, ...grid, ...(o.lyrics?.length ? { lyrics: o.lyrics } : {}), ...(o.vocalStarts?.length ? { vocalStarts: o.vocalStarts } : {}) };
     else messages.push('Could not find a steady beat in the song');
   }
 

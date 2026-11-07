@@ -37,7 +37,11 @@ export interface ClipFeatures {
   windows: WindowFeatures[];
   /** source frames where a new shot starts (hard cuts inside the clip) */
   shotBoundariesFrame?: number[];
+  /** M12: how much the picture changes at each of `hz` samples a second (0..1), to fit a whole action inside a shot */
+  motionCurve?: MotionCurve;
 }
+
+export interface MotionCurve { hz: number; values: number[] }
 
 export interface ScoreWeights { sharpness: number; exposure: number; motion: number; subject: number; speech: number }
 export const DEFAULT_WEIGHTS: ScoreWeights = { sharpness: 0.3, exposure: 0.25, motion: 0.15, subject: 0.2, speech: 0.1 };
@@ -123,6 +127,7 @@ export function toAssemblyClips(
         windows: f.windows.map((w) => ({ startFrame: Math.max(0, w.startFrame), endFrame: Math.min(c.durationInFrames, w.endFrame), score: scoreWindow(w, weights, shape), focusRect: w.focusRect, ...(w.speech ? { speech: true } : {}), ...(w.level !== undefined ? { level: w.level } : {}) }))
           .filter((w) => w.endFrame > w.startFrame).sort((a, b) => a.startFrame - b.startFrame),
         shotBoundariesFrame: [...(f.shotBoundariesFrame ?? [])],
+        ...(f.motionCurve ? { motionCurve: f.motionCurve } : {}),
       },
     };
   });

@@ -226,6 +226,38 @@ export async function speechShareOf(file: string): Promise<number | null> {
   return speechShareOfPcm(await readSpeechBand(file, 180));
 }
 
+/**
+ * M12 (cuts on motion peaks): movement in the picture with the camera's own taken out. Each pair of samples is compared
+ * at the best whole-frame shift (up to 4 px of 64 either way), so handshake and a pan cancel and what is left is something
+ * moving in the shot: a jump, a wave, a splash. Plain frame differences saturate on handheld phone footage (the 20 trek
+ * clips read 0.8-1.0 almost throughout); this reads 0.01-0.1 on them with peaks to 0.6. 0..1, four times the mean
+ * leftover difference.
+ */
+export function residualMotion(a: Buffer, b: Buffer, reach = 4): number {
+  let best = Infinity;
+  for (let dy = -reach; dy <= reach; dy += 1) {
+    for (let dx = -reach; dx <= reach; dx += 1) {
+      let d = 0;
+      for (let y = reach; y < H - reach; y += 1) {
+        const ra = y * W, rb = (y + dy) * W + dx;
+        for (let x = reach; x < W - reach; x += 1) d += Math.abs(a[ra + x]! - b[rb + x]!);
+        if (d >= best) break;
+      }
+      if (d < best) best = d;
+    }
+  }
+  return Math.min(1, (best / ((W - 2 * reach) * (H - 2 * reach)) / 255) * 4);
+}
+
+/**
+ * How much moves in the shot at each sample (SAMPLE_FPS a second), 0..1 to two places; value i is the movement from
+ * sample i-1 to i (the first reads 0). A hard cut inside the clip reads high, as it is: not a calm place to cut.
+ */
+export function motionCurveOf(frames: readonly Buffer[]): number[] | undefined {
+  if (frames.length < 3) return undefined;
+  return frames.map((f, i) => (i === 0 ? 0 : Math.round(residualMotion(frames[i - 1]!, f) * 100) / 100));
+}
+
 /** 64-bit dHash on a 9x8 box-downsample of a 64x64 gray frame. */
 export function dHashOf(f: Buffer): string {
   const cw = 7; const ch = 8; // 9 columns of ~7px, 8 rows of 8px
@@ -311,8 +343,10 @@ export async function extractClipFeatures(
     }
   }
   const mid = frames[Math.floor(frames.length / 2)];
+  const motion = opts.stillImage ? undefined : motionCurveOf(frames);
   return {
     assetId, dHash: mid ? dHashOf(mid) : '0'.repeat(16), captureTimeMs: opts.captureTimeMs ?? captureTimeFromMetadata(metadata), windows, ...(color ? { color } : {}),
+    ...(motion ? { motionCurve: { hz: SAMPLE_FPS, values: motion } } : {}),
     shotBoundariesFrame: cuts.map((i) => Math.round((i / SAMPLE_FPS) * fps)),
   };
 }

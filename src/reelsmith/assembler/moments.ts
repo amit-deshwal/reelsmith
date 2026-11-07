@@ -1,10 +1,11 @@
 // Which moment of a clip to use: the best-scoring stretch inside one camera shot, away from stretches already used.
 import type { AssemblyClip } from './types';
+import { fitAction } from './actionFit';
 
 export type Range = [number, number];
 
-/** Source start (frames) for `len` frames of `clip`, away from `used` ranges by `gap`, inside one camera shot. */
-export function pickMoment(clip: AssemblyClip, len: number, used: Range[], gap: number): number | null {
+/** Source start (frames) for `len` frames of `clip`, away from `used` ranges by `gap`, inside one camera shot; with `fps`, holding a whole action. */
+export function pickMoment(clip: AssemblyClip, len: number, used: Range[], gap: number, fps?: number): number | null {
   if (clip.kind === 'image') return 0;
   const end = Math.floor(clip.durationInFrames);
   const pad = 6;
@@ -18,17 +19,21 @@ export function pickMoment(clip: AssemblyClip, len: number, used: Range[], gap: 
   };
   const clear = (s: number, g: number) => used.every(([u0, u1]) => s + len + g <= u0 || s >= u1 + g);
   for (const g of [gap, 0]) {
-    let best: { s: number; v: number } | null = null;
+    let best: { s: number; v: number; lo: number; hi: number } | null = null;
     for (let i = 0; i < bounds.length - 1; i += 1) {
       const lo = bounds[i]! + (i > 0 ? pad : 0);
       const hi = bounds[i + 1]! - (i < bounds.length - 2 ? pad : 0) - len;
       for (let s = lo; s <= hi; s += 3) {
         if (!clear(s, g)) continue;
         const v = score(s);
-        if (!best || v > best.v + 1e-9) best = { s, v };
+        if (!best || v > best.v + 1e-9) best = { s, v, lo, hi };
       }
     }
-    if (best) return best.s;
+    // M12: a clear action in the clip completes inside the shot (moved at most half a second, on an almost as good stretch)
+    if (best) {
+      const b = best;
+      return fps ? fitAction(a?.motionCurve, fps, b.s, len, { lo: b.lo, hi: b.hi, maxShift: Math.round(fps / 2), ok: (s) => clear(s, g) && score(s) >= b.v - 0.05 }) : b.s;
+    }
   }
   return null;
 }

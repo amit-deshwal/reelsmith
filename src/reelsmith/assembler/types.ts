@@ -35,6 +35,8 @@ export interface AssemblyClip {
     minShotFrames: number;
     windows: Array<{ startFrame: number; endFrame: number; score: number; focusRect?: FocusRect; speech?: boolean; level?: number }>;
     shotBoundariesFrame: number[];
+    /** M12: the clip's motion at each sample, so a shot holds a whole action */
+    motionCurve?: { hz: number; values: number[] };
   };
   /** RS-109: what the clip shows, from the local visual model (absent when the model is not installed) */
   shot?: { top: ShotTag; confidence: number; scores: Record<ShotTag, number> };
@@ -72,6 +74,8 @@ export interface AssemblyMusic {
   dropSec?: number;
   /** RS-1253: the song's sung words (ms in the song file), for a lyric reel */
   lyrics?: Array<{ text: string; start: number; end: number }>;
+  /** M12: song seconds where each sung phrase starts (from the song's transcript), so lines come in with the singer */
+  vocalStarts?: number[];
   /** RS-1224: loudness of each beat (any positive scale), for the director's song map */
   energyPerBeat?: number[];
 }
@@ -121,6 +125,10 @@ export interface AssembleReport {
   eyeJumps?: Array<{ section: number; at: number; jump: number }>;
   /** RS-1225: shots where someone talks while the clip's sound is off under the song */
   voices?: Array<{ section: number; at: number; seconds: number }>;
+  /** M12: sections whose line waits for the singer, and how long after the cut it comes in (s) */
+  lineEntries?: Array<{ section: number; afterSec: number }>;
+  /** M12: the agent's pinned starts moved so a clear action completes inside the shot (s; + later, - earlier) */
+  actionFits?: Array<{ section: number; assetId: string; shiftSec: number }>;
 }
 
 /** Stored with the project (RS-108) so the run can be repeated. */

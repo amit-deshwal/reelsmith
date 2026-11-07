@@ -15,6 +15,9 @@ import { directorSession, updateDirectorSession } from '../director/directorSess
 import { referenceLine, referenceProfile } from '../director/reference';
 import { songMap, songMapText } from '../director/songMap';
 import { beatThisSongGrid, phraseGrid } from '../director/phraseGrid';
+import { beatClock } from '../director/assembleDirector';
+import { reelVocalStarts, vocalBeats } from '../director/vocalEntry';
+import { songVocalStarts } from './directorVocals';
 import { musicAnalysisStatus } from '../../audio/intelligence/jobs';
 import { brandKitText, type BrandKit } from '../../../shared/reelsmith/brandKit';
 import { directorTimelineFps } from '../director/footageRate';
@@ -44,7 +47,7 @@ export async function tempo(asset: MediaAsset, deps: ReelsDeps, requestedStartSe
     return {
       beat: 'steady', ...(bpm ? { bpm } : {}), beatSource: source, firstBeatSec: Math.round((g.beatTimesSec[g.downbeatIndex] ?? 0) * 100) / 100,
       ...(g.dropSec ? { dropSec: r(g.dropSec) } : {}), ...(g.loudestStartSec ? { loudestSec: r(g.loudestStartSec) } : {}),
-      ...(bpm ? { suggest: songSuggestion(g, bpm, g.durationSec ?? asset.durationInFrames / 30, requestedStartSec) } : {}),
+      ...(bpm ? { suggest: songSuggestion(g, bpm, g.durationSec ?? asset.durationInFrames / 30, requestedStartSec, songVocalStarts(asset)) } : {}),
     };
   } catch { return { beat: 'unknown' }; }
 }
@@ -53,7 +56,7 @@ export async function tempo(asset: MediaAsset, deps: ReelsDeps, requestedStartSe
  * RS-1212: the timing arithmetic done for the agent (it was a large share of its planning time): where to start the
  * song, how many beats make about 18 s, and which beat of the reel the drop lands on.
  */
-export function songSuggestion(g: { beatTimesSec: number[]; downbeatIndex: number; dropSec?: number; loudestStartSec?: number; energyPerBeat?: number[]; beatsPerBar?: number }, bpm: number, seconds: number, requestedStartSec?: number) {
+export function songSuggestion(g: { beatTimesSec: number[]; downbeatIndex: number; dropSec?: number; loudestStartSec?: number; energyPerBeat?: number[]; beatsPerBar?: number }, bpm: number, seconds: number, requestedStartSec?: number, vocalStartsSec: readonly number[] = []) {
   const beats = g.beatTimesSec;
   const first = g.downbeatIndex;
   const nearest = (t: number) => { let k = first; for (let i = first; i < beats.length; i += 1) if (Math.abs(beats[i]! - t) < Math.abs(beats[k]! - t)) k = i; return k; };
@@ -70,10 +73,14 @@ export function songSuggestion(g: { beatTimesSec: number[]; downbeatIndex: numbe
   // RS-1224: quiet and loud bars over the reel and a little past it, so the pace can follow the song
   const map = songMap(g.energyPerBeat, startIdx, g.beatsPerBar ?? 4, Math.min(16, Math.ceil((beatsFor18s * 1.5) / (g.beatsPerBar ?? 4))));
   const phrases = phraseGrid(beats, first, g.energyPerBeat, startIdx, beatsFor18s, g.beatsPerBar ?? 4);
+  // M12: the beats of the reel where the singer starts a phrase (from the song's transcript)
+  const clock = beatClock({ beatTimesSec: beats } as never, musicStart);
+  const vocals = vocalStartsSec.length ? vocalBeats(reelVocalStarts(vocalStartsSec, musicStart, clock(beatsFor18s * 1.5)), clock, Math.round(beatsFor18s * 1.5)) : [];
   return {
     musicStart, beatsFor18s, ...(dropAtBeat !== undefined && dropAtBeat > 0 && dropAtBeat < beatsFor18s ? { dropAtBeat } : {}),
     ...(map ? { energy: songMapText(map) } : {}),
     ...(phrases ? { phrases } : {}),
+    ...(vocals.length ? { vocalsAtBeat: vocals.slice(0, 24) } : {}),
     note: `musicStart ${musicStart}; about ${beatsFor18s} beats for 18 s${dropAtBeat !== undefined && dropAtBeat > 0 && dropAtBeat < beatsFor18s ? `; the drop is beat ${dropAtBeat} of the reel: start the peak section there` : ''}`,
   };
 }
@@ -245,7 +252,7 @@ export async function directorOptions(args: Record<string, unknown>, ctx: AgentC
     ...(findQueries.length ? { shots: found && typeof found === 'object' && 'results' in found ? found : { unavailable: (found as { error?: string } | null)?.error ?? 'the visual model is not available: cast from the log and the sheets' } } : {}),
     songs: importedSongs.map(song),
     libraryMusic: libraryMusic(ctx).map(song),
-    songHint: 'Use each song\'s suggest: musicStart as given (it follows songFrom, snapped to a beat); sections adding up to beatsFor18s (adjust for their length), and the peak at dropAtBeat. Phrases give 4-bar and 8-bar boundaries from musicStart; for any other start, use songFourBarSec. energyByBeat is 1 quiet to 5 loud from musicStart. Place scene, title and drop changes on phrase boundaries where the story and song allow.',
+    songHint: 'Use each song\'s suggest: musicStart as given (it follows songFrom, snapped to a beat); sections adding up to beatsFor18s (adjust for their length), and the peak at dropAtBeat. Phrases give 4-bar and 8-bar boundaries from musicStart; for any other start, use songFourBarSec. energyByBeat is 1 quiet to 5 loud from musicStart. Place scene, title and drop changes on phrase boundaries where the story and song allow. vocalsAtBeat: beats where the singer starts a phrase; a line\'s section starting there (or a beat or two before: the line waits for the voice) lands its words with the singer.',
     ...(custom.length ? { customShaders: custom } : {}),
     ...(reference ? { reference: { measured: reference.line, sheet: reference.image ? `the last image: the reference, one cell a shot (cells "r·seconds")` : 'no sheet of the reference (frames unavailable)', use: 'Study it for its pace, colour, type, composition and motion; write the treatment\'s styleGuide from it. Never copy its subjects, words or logos, and never cast it.' } } : {}),
     ...(brand ? { brand: brandKitText(brand) } : {}),
