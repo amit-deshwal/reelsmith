@@ -16,6 +16,7 @@ export const DIRECTOR_TOOL_SCHEMAS: AgentToolSchema[] = [
       reference: { type: 'string', description: 'Optional: assetId or file name of an imported reel to match in pace and look (never cast as footage).' },
       askFirst: { type: 'boolean', description: 'True when the user wants to approve the treatment before the build (the treatment then returns a card to show them).' },
       brandUrl: { type: 'string', description: 'Optional, for a promo reel (a club, shop, page or event): the web address the user gave (e.g. "punetrekkers.org"). Returns its brand kit: name, tagline, lines, facts, actions, links and colours, whose words you may then put on screen.' },
+      songFrom: { type: 'number', description: 'Song start in seconds when the user named one (e.g. 54 for 0:54). The phrase grid and per-beat energy then align with that window.' },
       find: { type: 'array', items: { type: 'string' }, description: 'Up to eight short phrases for what the story names to see ("climbing a rock face", "friends laughing at camp", "the view from the top"): the visual model returns, for each, the best moments across the clips (one per clip) marked shows sure, maybe or weak, with `none` when nothing shows it. Same as reels_find_shots, in this one call.' },
     } },
   },
@@ -158,7 +159,7 @@ export const DIRECTOR_TOOL_SCHEMAS: AgentToolSchema[] = [
     description: [
       'Check a director plan without building it: the brief (the treatment\'s, or `brief`) and the plan rules (length and song window,',
       'section cuts on whole beats, the shots the user asked for, no shot under 0.5 s outside flash-cuts or zoom-punch, hand-placed lines',
-      'inside Instagram\'s safe area, no shot twice) plus the catalogue check. Read-only. reels_director_build runs the same check first and',
+      'inside Instagram\'s safe area, no shot twice, titled sections on a 4-bar phrase or the drop) plus the catalogue check. Read-only. reels_director_build runs the same check first and',
       'refuses a plan that breaks a rule, so call this only when you are unsure of a plan.',
     ].join(' '),
     input_schema: {

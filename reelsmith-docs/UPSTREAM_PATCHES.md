@@ -585,3 +585,6 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 
 ## Plan check before the build (RS-1267, 2026-11-07)
 - `src/agent/external-tool-policy.ts`: `reels_validate_plan` (ours) added to the read-only tool names. `assets/agent/openchatcut-tool-schemas.json`: regenerated.
+
+## Pacing in beats and phrases (RS-1268, 2026-11-07)
+- `src/audio/intelligence/types.ts`, `analysis.ts`, `store.ts`: `MusicAnalysis.beatEnergy` (optional, aligned with `beatsMs`) is kept from the Beat This series and validated on load, so the director's phrase grid and per-beat energy (`src/reelsmith/director/phraseGrid.ts`, ours) can use it. Older cache entries without it fall back to the local beat finder. `assets/agent/openchatcut-tool-schemas.json`: regenerated.

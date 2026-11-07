@@ -5677,6 +5677,10 @@
             "type": "string",
             "description": "Optional, for a promo reel (a club, shop, page or event): the web address the user gave (e.g. \"punetrekkers.org\"). Returns its brand kit: name, tagline, lines, facts, actions, links and colours, whose words you may then put on screen."
           },
+          "songFrom": {
+            "type": "number",
+            "description": "Song start in seconds when the user named one (e.g. 54 for 0:54). The phrase grid and per-beat energy then align with that window."
+          },
           "find": {
             "type": "array",
             "items": {
@@ -6041,7 +6045,7 @@
     },
     {
       "name": "reels_validate_plan",
-      "description": "Check a director plan without building it: the brief (the treatment's, or `brief`) and the plan rules (length and song window, section cuts on whole beats, the shots the user asked for, no shot under 0.5 s outside flash-cuts or zoom-punch, hand-placed lines inside Instagram's safe area, no shot twice) plus the catalogue check. Read-only. reels_director_build runs the same check first and refuses a plan that breaks a rule, so call this only when you are unsure of a plan.",
+      "description": "Check a director plan without building it: the brief (the treatment's, or `brief`) and the plan rules (length and song window, section cuts on whole beats, the shots the user asked for, no shot under 0.5 s outside flash-cuts or zoom-punch, hand-placed lines inside Instagram's safe area, no shot twice, titled sections on a 4-bar phrase or the drop) plus the catalogue check. Read-only. reels_director_build runs the same check first and refuses a plan that breaks a rule, so call this only when you are unsure of a plan.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -7475,6 +7479,10 @@
             "type": "string",
             "description": "Optional, for a promo reel (a club, shop, page or event): the web address the user gave (e.g. \"punetrekkers.org\"). Returns its brand kit: name, tagline, lines, facts, actions, links and colours, whose words you may then put on screen."
           },
+          "songFrom": {
+            "type": "number",
+            "description": "Song start in seconds when the user named one (e.g. 54 for 0:54). The phrase grid and per-beat energy then align with that window."
+          },
           "find": {
             "type": "array",
             "items": {
@@ -7763,7 +7771,7 @@
     },
     {
       "name": "reels_validate_plan",
-      "description": "Check a director plan without building it: the brief (the treatment's, or `brief`) and the plan rules (length and song window, section cuts on whole beats, the shots the user asked for, no shot under 0.5 s outside flash-cuts or zoom-punch, hand-placed lines inside Instagram's safe area, no shot twice) plus the catalogue check. Read-only. reels_director_build runs the same check first and refuses a plan that breaks a rule, so call this only when you are unsure of a plan.",
+      "description": "Check a director plan without building it: the brief (the treatment's, or `brief`) and the plan rules (length and song window, section cuts on whole beats, the shots the user asked for, no shot under 0.5 s outside flash-cuts or zoom-punch, hand-placed lines inside Instagram's safe area, no shot twice, titled sections on a 4-bar phrase or the drop) plus the catalogue check. Read-only. reels_director_build runs the same check first and refuses a plan that breaks a rule, so call this only when you are unsure of a plan.",
       "input_schema": {
         "type": "object",
         "properties": {

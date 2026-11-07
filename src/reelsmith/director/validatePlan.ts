@@ -23,7 +23,7 @@ export interface PlanBrief {
   mustUse?: string[];
 }
 
-export const PLAN_RULES = ['length', 'beats', 'must-use', 'short-shot', 'safe-zone', 'duplicate'] as const;
+export const PLAN_RULES = ['length', 'beats', 'must-use', 'short-shot', 'safe-zone', 'duplicate', 'phrase'] as const;
 export type PlanRule = (typeof PLAN_RULES)[number];
 
 export interface PlanViolation { rule: PlanRule; sections?: number[]; issue: string; fix: string }
@@ -37,6 +37,37 @@ export interface ValidateInput {
   clips: ReadonlyArray<{ n: number; seconds: number; features?: ClipFeatures | null }>;
   /** "#n", "#n@t" or an assetId → its list number */
   clipNumber: (ref: string) => number | undefined;
+  /** RS-1268: the song's beat grid (song seconds), for the phrase rule; no phrase rule without it */
+  songGrid?: SongBeatGrid;
+}
+
+export interface SongBeatGrid { beatTimesSec: readonly number[]; downbeatIndex: number; beatsPerBar?: number; dropSec?: number }
+
+/** Bars in a phrase: big changes (a new title, a new place) land every four bars from the first strong beat. */
+export const PHRASE_BARS = 4;
+
+/**
+ * RS-1268: the reel beats where a 4-bar phrase starts, and the drop's reel beat, counted the way the build counts
+ * them (assembleDirector's songStart and beatClock: beat 0 is the song start; when the first beat comes more than
+ * 20 ms after it, that beat is reel beat 1).
+ */
+export function reelPhraseBeats(grid: SongBeatGrid, musicStart: ReelPlan['musicStart'], reelBeats: number): { phrases: number[]; drop?: number } {
+  const t = grid.beatTimesSec;
+  if (t.length < 2 || !Number.isInteger(grid.downbeatIndex) || grid.downbeatIndex < 0 || grid.downbeatIndex >= t.length) return { phrases: [] };
+  const startSec = typeof musicStart === 'number' ? musicStart : musicStart === 'fromStart' ? 0 : t[grid.downbeatIndex]!;
+  const startIdx = t.findIndex((x) => x >= startSec - 1e-3);
+  if (startIdx < 0) return { phrases: [] };
+  const shift = t[startIdx]! - startSec > 0.02 ? 1 : 0;
+  const reelBeat = (i: number) => i - startIdx + shift;
+  const stride = PHRASE_BARS * (grid.beatsPerBar ?? 4);
+  const phrases: number[] = [];
+  for (let i = grid.downbeatIndex + Math.max(0, Math.ceil((startIdx - grid.downbeatIndex) / stride)) * stride; i < t.length && reelBeat(i) <= reelBeats; i += stride) phrases.push(reelBeat(i));
+  let drop: number | undefined;
+  if (grid.dropSec !== undefined && grid.dropSec >= startSec) {
+    const k = t.reduce((best, x, i) => (Math.abs(x - grid.dropSec!) < Math.abs(t[best]! - grid.dropSec!) ? i : best), startIdx);
+    if (reelBeat(k) > 0 && reelBeat(k) < reelBeats) drop = reelBeat(k);
+  }
+  return { phrases, ...(drop !== undefined ? { drop } : {}) };
 }
 
 /** Moves made of bursts: their half-beat shots are the point. */
@@ -229,6 +260,20 @@ export function validatePlan(input: ValidateInput): PlanViolation[] {
       }
     }
     if (pairs.length) out.push({ rule: 'duplicate', sections: ks.sort((x, y) => x - y), issue: `the same shot twice: ${pairs.slice(0, 3).join('; ')}`, fix: 'cast another clip, or a moment at least 1 s away (@seconds); of two near-identical clips keep the better one' });
+  }
+  // phrase: a section that brings a new title (a scene change) starts on a 4-bar phrase or on the drop
+  if (timed && !plan.shotList && input.songGrid) {
+    const total = times.length ? times[times.length - 1]!.endBeat : 0;
+    const { phrases, drop } = reelPhraseBeats(input.songGrid, plan.musicStart, total);
+    const inside = phrases.filter((b) => b > 0 && b < total);
+    const ok = (b: number) => [...inside, ...(drop !== undefined ? [drop] : [])].some((x) => Math.abs(x - b) < 0.01);
+    const off: number[] = [];
+    plan.sections.forEach((sec, k) => { if (k > 0 && sec.text?.trim() && !ok(times[k - 1]!.endBeat)) off.push(k); });
+    if (off.length && inside.length) {
+      const at = off.slice(0, 4).map((k) => `section ${k} "${plan.sections[k]!.text!.slice(0, 24)}" on beat ${Math.round(times[k - 1]!.endBeat * 100) / 100}`).join(', ');
+      const where = `beat${inside.length > 1 ? 's' : ''} ${inside.join(', ')}${drop !== undefined && !inside.includes(drop) ? ` (or the drop, beat ${drop})` : ''}`;
+      out.push({ rule: 'phrase', sections: off, issue: `new titles off a phrase: ${at}; with this song start the 4-bar phrases begin on reel ${where}`, fix: `start each titled section on ${where} by moving beats between the sections around it; when the reel is too short for every title, keep the titles that start a new place and leave the others' text out` });
+    }
   }
   return out;
 }

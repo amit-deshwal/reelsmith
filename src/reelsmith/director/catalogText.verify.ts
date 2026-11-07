@@ -102,6 +102,11 @@ const loud = songSuggestion({ ...grid, energyPerBeat: grid.beatTimesSec.map((t) 
 assert.match(loud.energy ?? '', /^energy by bar from the reel start/);
 assert.match(loud.energy ?? '', /: 1 1 5 5 \|/, 'two quiet bars, then the drop on bar 3 (beat 8)');
 assert.match(loud.energy ?? '', /lifts on beat 8/);
+const namedStart = songSuggestion({ ...grid, energyPerBeat: grid.beatTimesSec.map(() => 1) }, 107, 446, 54);
+assert.ok(Math.abs(namedStart.musicStart - 54) < 60 / 107 / 2 + 0.01 && grid.beatTimesSec.some((t) => Math.abs(t - namedStart.musicStart) < 0.01), 'a named start snaps to its nearest beat');
+assert.ok(namedStart.phrases?.energyByBeat.length === namedStart.beatsFor18s);
+assert.equal((loud as any).phrases.fourBar[1].reelBeat - (loud as any).phrases.fourBar[0].reelBeat, 16, 'phrase boundaries keep the source-song phase when a reel starts before the drop');
+assert.equal((loud as any).phrases.energyByBeat.length, 32);
 // every clip fits on the contact sheets: four moments each while they fit, fewer for long lists
 assert.deepEqual(sheetSamples(20, 0), [0.1, 0.37, 0.63, 0.9], '20 videos: 80 cells');
 assert.equal(sheetSamples(21, 0).length, 3);

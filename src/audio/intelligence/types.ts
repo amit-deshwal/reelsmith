@@ -63,6 +63,8 @@ export interface MusicAnalysis {
   beatConfidence: number;
   beatsMs: number[];
   downbeatsMs: number[];
+  /** Beat This's measured energy aligned with beatsMs; older cache entries may lack it. */
+  beatEnergy?: number[];
   sections: MusicSection[];
   tags: MusicTag[];
   /** Normalized CLAP audio embedding. Derived cache only; never written to ProjectDoc. */

@@ -14,6 +14,8 @@ import { filmedLabels, shotLogLines, type ShotLogClip } from '../director/shotLo
 import { directorSession, updateDirectorSession } from '../director/directorSession';
 import { referenceLine, referenceProfile } from '../director/reference';
 import { songMap, songMapText } from '../director/songMap';
+import { beatThisSongGrid, phraseGrid } from '../director/phraseGrid';
+import { musicAnalysisStatus } from '../../audio/intelligence/jobs';
 import { brandKitText, type BrandKit } from '../../../shared/reelsmith/brandKit';
 import { directorTimelineFps } from '../director/footageRate';
 import { narrationOptions, VOICEOVER_HINT } from './directorVoiceover';
@@ -25,17 +27,24 @@ export function libraryMusic(ctx: AgentContext): MediaAsset[] {
   return (ctx.audio ?? []).filter((t) => t.category === 'music').map((t) => ({ id: t.id, name: t.name, kind: 'audio' as const, src: t.src, durationInFrames: t.durationInFrames }));
 }
 
-export async function tempo(asset: MediaAsset, deps: ReelsDeps): Promise<{ beat: 'steady' | 'none' | 'unknown'; bpm?: number; firstBeatSec?: number; dropSec?: number; loudestSec?: number }> {
+/** The song's beat grid as the director sees it: the Beat This analysis when it has run, else the local beat finder. */
+export async function songGrid(asset: MediaAsset, deps: ReelsDeps) {
+  const status = musicAnalysisStatus(asset.id);
+  const modelGrid = status.state === 'ready' ? beatThisSongGrid(status.analysis) : null;
+  return modelGrid ? { grid: modelGrid, source: 'beat_this' as const } : { grid: await deps.api.musicGrid(asset), source: 'local' as const };
+}
+
+export async function tempo(asset: MediaAsset, deps: ReelsDeps, requestedStartSec?: number): Promise<{ beat: 'steady' | 'none' | 'unknown'; beatSource?: 'beat_this' | 'local'; bpm?: number; firstBeatSec?: number; dropSec?: number; loudestSec?: number }> {
   try {
-    const g = await deps.api.musicGrid(asset);
+    const { grid: g, source } = await songGrid(asset, deps);
     if (!g || g.beatTimesSec.length < 2) return { beat: 'none' };
     const gaps = g.beatTimesSec.slice(1).map((t, i) => t - g.beatTimesSec[i]!).filter((x) => x > 0.15 && x < 2).sort((a, b) => a - b);
     const r = (x: number) => Math.round(x * 10) / 10;
     const bpm = gaps.length ? Math.round(60 / gaps[Math.floor(gaps.length / 2)]!) : undefined;
     return {
-      beat: 'steady', ...(bpm ? { bpm } : {}), firstBeatSec: Math.round((g.beatTimesSec[g.downbeatIndex] ?? 0) * 100) / 100,
+      beat: 'steady', ...(bpm ? { bpm } : {}), beatSource: source, firstBeatSec: Math.round((g.beatTimesSec[g.downbeatIndex] ?? 0) * 100) / 100,
       ...(g.dropSec ? { dropSec: r(g.dropSec) } : {}), ...(g.loudestStartSec ? { loudestSec: r(g.loudestStartSec) } : {}),
-      ...(bpm ? { suggest: songSuggestion(g, bpm, g.durationSec ?? asset.durationInFrames / 30) } : {}),
+      ...(bpm ? { suggest: songSuggestion(g, bpm, g.durationSec ?? asset.durationInFrames / 30, requestedStartSec) } : {}),
     };
   } catch { return { beat: 'unknown' }; }
 }
@@ -44,7 +53,7 @@ export async function tempo(asset: MediaAsset, deps: ReelsDeps): Promise<{ beat:
  * RS-1212: the timing arithmetic done for the agent (it was a large share of its planning time): where to start the
  * song, how many beats make about 18 s, and which beat of the reel the drop lands on.
  */
-export function songSuggestion(g: { beatTimesSec: number[]; downbeatIndex: number; dropSec?: number; loudestStartSec?: number; energyPerBeat?: number[]; beatsPerBar?: number }, bpm: number, seconds: number) {
+export function songSuggestion(g: { beatTimesSec: number[]; downbeatIndex: number; dropSec?: number; loudestStartSec?: number; energyPerBeat?: number[]; beatsPerBar?: number }, bpm: number, seconds: number, requestedStartSec?: number) {
   const beats = g.beatTimesSec;
   const first = g.downbeatIndex;
   const nearest = (t: number) => { let k = first; for (let i = first; i < beats.length; i += 1) if (Math.abs(beats[i]! - t) < Math.abs(beats[k]! - t)) k = i; return k; };
@@ -54,14 +63,17 @@ export function songSuggestion(g: { beatTimesSec: number[]; downbeatIndex: numbe
     if (g.dropSec !== undefined) startIdx = Math.max(first, nearest(g.dropSec) - 8);
     else if (g.loudestStartSec !== undefined) startIdx = nearest(g.loudestStartSec);
   }
+  if (requestedStartSec !== undefined && Number.isFinite(requestedStartSec) && requestedStartSec >= 0) startIdx = nearest(requestedStartSec);
   const musicStart = Math.round((beats[startIdx] ?? 0) * 100) / 100;
   const beatsFor18s = Math.max(16, Math.round((18 * bpm) / 60 / 4) * 4);
   const dropAtBeat = g.dropSec !== undefined ? nearest(g.dropSec) - startIdx : undefined;
   // RS-1224: quiet and loud bars over the reel and a little past it, so the pace can follow the song
   const map = songMap(g.energyPerBeat, startIdx, g.beatsPerBar ?? 4, Math.min(16, Math.ceil((beatsFor18s * 1.5) / (g.beatsPerBar ?? 4))));
+  const phrases = phraseGrid(beats, first, g.energyPerBeat, startIdx, beatsFor18s, g.beatsPerBar ?? 4);
   return {
     musicStart, beatsFor18s, ...(dropAtBeat !== undefined && dropAtBeat > 0 && dropAtBeat < beatsFor18s ? { dropAtBeat } : {}),
     ...(map ? { energy: songMapText(map) } : {}),
+    ...(phrases ? { phrases } : {}),
     note: `musicStart ${musicStart}; about ${beatsFor18s} beats for 18 s${dropAtBeat !== undefined && dropAtBeat > 0 && dropAtBeat < beatsFor18s ? `; the drop is beat ${dropAtBeat} of the reel: start the peak section there` : ''}`,
   };
 }
@@ -181,7 +193,8 @@ export async function directorOptions(args: Record<string, unknown>, ctx: AgentC
   // RS-1251: imported files that are mostly speech may be the user's narration: they leave the songs
   const { importedSongs, narrations } = await narrationOptions(assets.filter((a) => a.kind === 'audio').slice(0, 4), deps);
   const songs = [...importedSongs, ...libraryMusic(ctx)];
-  const beats = new Map(await Promise.all([...songs, ...narrations.map((n) => n.asset)].map(async (a) => [a.id, await tempo(a, deps)] as const)));
+  const requestedStartSec = typeof args.songFrom === 'number' && Number.isFinite(args.songFrom) && args.songFrom >= 0 ? args.songFrom : undefined;
+  const beats = new Map(await Promise.all([...songs, ...narrations.map((n) => n.asset)].map(async (a) => [a.id, await tempo(a, deps, requestedStartSec)] as const)));
   const voiceovers = await Promise.all(narrations.map((n) => n.describe(ctx, deps, fps, (beats.get(n.asset.id) as { bpm?: number } | undefined)?.bpm)));
   // stage 1: watch the footage, then log it and take the sheet cells at each clip's best moments
   const { features, tags } = await analyseClips(visual, fps, ctx, deps);
@@ -232,7 +245,7 @@ export async function directorOptions(args: Record<string, unknown>, ctx: AgentC
     ...(findQueries.length ? { shots: found && typeof found === 'object' && 'results' in found ? found : { unavailable: (found as { error?: string } | null)?.error ?? 'the visual model is not available: cast from the log and the sheets' } } : {}),
     songs: importedSongs.map(song),
     libraryMusic: libraryMusic(ctx).map(song),
-    songHint: 'Use each song\'s suggest: musicStart as given, sections adding up to beatsFor18s (more or fewer for a longer or shorter reel), and the peak section starting at dropAtBeat. Its energy line is the song bar by bar: longer shots on the quiet bars, shorter as it builds, the fastest cuts on the loud ones; section changes on a bar line. No other timing arithmetic is needed.',
+    songHint: 'Use each song\'s suggest: musicStart as given (it follows songFrom, snapped to a beat); sections adding up to beatsFor18s (adjust for their length), and the peak at dropAtBeat. Phrases give 4-bar and 8-bar boundaries from musicStart; for any other start, use songFourBarSec. energyByBeat is 1 quiet to 5 loud from musicStart. Place scene, title and drop changes on phrase boundaries where the story and song allow.',
     ...(custom.length ? { customShaders: custom } : {}),
     ...(reference ? { reference: { measured: reference.line, sheet: reference.image ? `the last image: the reference, one cell a shot (cells "r·seconds")` : 'no sheet of the reference (frames unavailable)', use: 'Study it for its pace, colour, type, composition and motion; write the treatment\'s styleGuide from it. Never copy its subjects, words or logos, and never cast it.' } } : {}),
     ...(brand ? { brand: brandKitText(brand) } : {}),

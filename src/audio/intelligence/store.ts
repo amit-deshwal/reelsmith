@@ -152,6 +152,7 @@ export function isMusicAnalysis(value: unknown, assetId?: string, sourceRevision
   return inRange(analysis.beatConfidence, 0, 1)
     && validTimes(analysis.beatsMs, analysis.durationMs)
     && validTimes(analysis.downbeatsMs, analysis.durationMs)
+    && (analysis.beatEnergy === undefined || (Array.isArray(analysis.beatEnergy) && analysis.beatEnergy.length === (analysis.beatsMs as number[]).length && analysis.beatEnergy.every((x) => inRange(x, 0, 1))))
     && validSections(analysis.sections, analysis.durationMs)
     && validTags(analysis.tags)
     && validEmbedding(analysis.embedding);

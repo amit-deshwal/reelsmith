@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { parseBrief, sectionTimes, validatePlan, violationText, type ValidateInput } from './validatePlan';
+import { parseBrief, reelPhraseBeats, sectionTimes, validatePlan, violationText, type ValidateInput } from './validatePlan';
 
 // eight clips of 10 s; #7 and #8 are the same picture (one bit apart), the rest far apart
 const hashes = ['0000000000000000', 'ffffffffffffffff', '0f0f0f0f0f0f0f0f', 'f0f0f0f0f0f0f0f0', '00ff00ff00ff00ff', 'ff00ff00ff00ff00', '3333333333333333', '3333333333333332'];
@@ -87,5 +87,25 @@ assert.equal(dupOf([{ move: 'hold', beats: 4, clips: ['#3@5'] }, { move: 'cut', 
 assert.equal(dupOf([{ move: 'hold', beats: 4, clips: ['#2@1'] }, { move: 'cut', beats: 4, clips: ['#1@0.3', '#1@0.9', '#1@1.5', '#1@2.1'], params: { every: 1 } }]).length, 0, 'stepped through one take');
 assert.equal(dupOf([{ move: 'hold', beats: 4, clips: ['#2@1'] }, { move: 'hold', beats: 4, clips: ['#3@5'] }, { move: 'hold', beats: 4, clips: ['#3@5.5'] }]).length, 1, 'two holds of one moment');
 assert.equal(dupOf([{ move: 'hold', beats: 4, clips: ['#2@1'] }, { move: 'hold', beats: 4, clips: ['#3@5'] }, { move: 'hold', beats: 4, clips: ['#3@5.5'] }], clips.slice(0, 3)).length, 0, 'three clips cannot fill a reel without repeats');
+
+// RS-1268 phrase: the 2026-11-07 trek reel. A 107 BPM song (first strong beat at 0.116 s) started at 1:05, the nearest
+// beat being song beat 116, four beats into a phrase: its 4-bar phrases begin on reel beats 12 and 28. The build put
+// the titles on beats 4, 12 and 24.
+const song = { beatTimesSec: Array.from({ length: 535 }, (_, i) => 0.116 + i * 60 / 107), downbeatIndex: 0, beatsPerBar: 4 };
+const start = song.beatTimesSec[116]!;
+assert.deepEqual(reelPhraseBeats(song, start, 32).phrases, [12, 28]);
+assert.deepEqual(reelPhraseBeats(song, 'firstDownbeat', 32).phrases, [0, 16, 32]);
+assert.deepEqual(reelPhraseBeats(song, start - 0.2, 32).phrases, [13, 29], 'a start before the beat: that beat is reel beat 1, as the build counts it');
+const trek = (beats: number[], drop?: number): any => ({ version: 1, ratio: '9:16', music: 'song', musicStart: start, sections: beats.map((b, k) => ({ move: 'cut', beats: b, clips: [`#${k + 1}@0`], text: `part ${k}` })) });
+const phraseOf = (plan: any, grid: any = song) => validatePlan({ ...base, bpm: 107, plan, songGrid: grid }).filter((x) => x.rule === 'phrase');
+const built = phraseOf(trek([4, 8, 12, 8]));
+assert.equal(built.length, 1);
+assert.deepEqual(built[0]!.sections, [1, 3], 'beats 4 and 24 miss; beat 12 is a phrase');
+assert.match(built[0]!.issue, /reel beats 12, 28/);
+assert.deepEqual(phraseOf(trek([12, 16, 4])), [], 'titles on beats 12 and 28');
+assert.deepEqual(phraseOf({ ...trek([12, 16, 4]), sections: [...trek([12, 16, 4]).sections.slice(0, 2), { move: 'cut', beats: 4, clips: ['#3@0'] }, { move: 'cut', beats: 4, clips: ['#4@0'], text: '' }] }), [], 'an untitled section is no scene change');
+assert.deepEqual(phraseOf(trek([12, 8, 12]), { ...song, dropSec: song.beatTimesSec[136] }), [], 'the drop (reel beat 20) is a place for a big change');
+assert.deepEqual(validatePlan({ ...base, bpm: 107, plan: trek([4, 8, 12, 8]) }).filter((x) => x.rule === 'phrase'), [], 'no grid, no phrase rule');
+assert.deepEqual(phraseOf({ ...trek([4, 8, 12, 8]), music: undefined }), [], 'no song, no phrase rule');
 
 console.log('validatePlan.verify: ok');

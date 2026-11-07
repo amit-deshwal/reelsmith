@@ -102,6 +102,7 @@ function composeMusicAnalysis(
     beatConfidence: Number.isFinite(rhythm.confidence) ? Math.max(0, Math.min(1, rhythm.confidence)) : 0,
     beatsMs: series.beatsMs,
     downbeatsMs: sortedTimes(rhythm.downbeatsMs, durationMs),
+    beatEnergy: series.beatEnergy,
     sections: deriveMusicSections({ durationMs, beatsMs: series.beatsMs, beatEnergy: series.beatEnergy }),
     tags,
     embedding,

@@ -29,7 +29,7 @@ import { songReportLine } from '../exportMusic';
 import { brandAction, brandWords } from '../../../shared/reelsmith/brandKit';
 import { resolveVoiceover } from './directorVoiceover';
 import { resolveLyrics } from './directorLyrics';
-import { directorVisuals, libraryMusic, shotTagsWarming, tempo } from './directorOptions';
+import { directorVisuals, libraryMusic, shotTagsWarming, songGrid, tempo } from './directorOptions';
 import { parseBrief, validatePlan, violationText, type PlanBrief, type PlanViolation } from '../director/validatePlan';
 export { directorOptions, directorVisuals, footageRateFor, sheetSamples, songSuggestion, warmShotTagsFor, type FindShots } from './directorOptions';
 const VISUAL = new Set(['video', 'image']);
@@ -207,6 +207,9 @@ async function checkPlan(plan: ReelPlan, ctx: AgentContext, deps: ReelsDeps, ass
   const fps = ctx.getState().fps;
   const song = plan.music ? assets.find((a) => a.id === plan.music) : undefined;
   const bpm = song ? (session?.song?.assetId === song.id && session.song.bpm) || (await tempo(song, deps)).bpm : undefined;
+  // RS-1268: the beat grid for the phrase rule (none when the song has no steady beat)
+  const grid = song && bpm ? await songGrid(song, deps).then((r) => r.grid).catch(() => null) : null;
+  const songBeats = grid && grid.beatTimesSec.length >= 2 ? { beatTimesSec: grid.beatTimesSec, downbeatIndex: grid.downbeatIndex, ...(grid.beatsPerBar ? { beatsPerBar: grid.beatsPerBar } : {}), ...(grid.dropSec !== undefined ? { dropSec: grid.dropSec } : {}) } : undefined;
   const clips = visual.map((a, k) => ({ n: k + 1, seconds: session?.clips[k]?.seconds ?? a.durationInFrames / fps, features: session?.clips[k]?.features ?? null }));
   const clipNumber = (ref: string) => {
     const r = ref.trim();
@@ -215,7 +218,7 @@ async function checkPlan(plan: ReelPlan, ctx: AgentContext, deps: ReelsDeps, ass
     const k = visual.findIndex((a) => a.id === r.split('@')[0]);
     return k >= 0 ? k + 1 : undefined;
   };
-  return validatePlan({ plan, ...(brief ? { brief } : {}), ...(bpm ? { bpm } : {}), clips, clipNumber });
+  return validatePlan({ plan, ...(brief ? { brief } : {}), ...(bpm ? { bpm } : {}), clips, clipNumber, ...(songBeats ? { songGrid: songBeats } : {}) });
 }
 
 /**
