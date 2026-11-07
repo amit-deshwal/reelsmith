@@ -7,6 +7,7 @@
 //   POST /api/reelsmith/upscale        { src, width, height } -> 2x enhanced copy of a small photo (`{ available:false }` when not installed)
 //   POST /api/reelsmith/still-frame    { src, atSec } -> a still of that moment saved next to the video (freeze frames)
 //   POST /api/reelsmith/frame-jpeg     { src, atSec } -> that frame at full size as base64 JPEG (the export's cover)
+//   POST /api/reelsmith/frame-scores   { src, times } -> { scores } of those frames as a cover (sharp subject, calm band)
 //   POST /api/reelsmith/reverse-clip   { src, startSec, frames, fps } -> that span played backwards, saved next to the video
 //   POST /api/reelsmith/smooth-slow    { src, startSec, rate, frames, fps } -> that span slowed with in-between frames (RS-1259)
 //   POST /api/reelsmith/depth-map      { src, atSec? } -> the photo's depth map saved next to it (`{ available:false }` without the depth-lite pack)
@@ -29,6 +30,7 @@ import { readFrameRate } from './mediaFps.ts';
 import { finalizeForInstagram } from './instagramFinalize.ts';
 import { upscaleAvailable, upscalePhoto } from './upscale.ts';
 import { extractStill, frameJpeg } from './stillFrame.ts';
+import { frameScores } from './frameScore.ts';
 import { reverseSpan } from './reverseClip.ts';
 import { smoothSlowSpan } from './smoothSlow.ts';
 import { depthMapFor, depthPackInstalled } from './depthMap.ts';
@@ -127,6 +129,14 @@ export function reelsmithAnalyzePlugin(): Plugin {
         const atSec = Number(body.atSec);
         if (!(atSec >= 0)) throw new Error('atSec must be a number of seconds');
         return await frameJpeg(file, atSec);
+      });
+      // RS-1234: which of the export's frames makes the best cover
+      route('/api/reelsmith/frame-scores', async (body) => {
+        const file = localFile(body.src);
+        if (typeof file !== 'string') throw new Error(file.error);
+        const times = (Array.isArray(body.times) ? body.times : []).slice(0, 48).map(Number).filter((t) => t >= 0);
+        if (!times.length) throw new Error('times must be a list of seconds');
+        return { scores: (await frameScores(file, times)).map((s) => s.score) };
       });
       route('/api/reelsmith/still-frame', async (body) => {
         const file = localFile(body.src);

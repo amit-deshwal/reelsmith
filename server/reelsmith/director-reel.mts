@@ -8,9 +8,9 @@
 // "musicStart": "suggest" uses the song suggestion the agent gets.
 import { execFileSync } from 'node:child_process';
 import { ffprobeBin } from '../media-binaries.ts';
-import { copyFileSync, linkSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { copyFileSync, linkSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { basename, extname, join, resolve } from 'node:path';
+import { basename, dirname, extname, join, resolve } from 'node:path';
 import { parsePlan } from '../../shared/reelsmith/directorPlan.ts';
 import { emptyProjectDoc } from '../../src/app/appShell.ts';
 import { historyReduce, type History } from '../../src/editor/reduce.ts';
@@ -41,6 +41,12 @@ import { rewindClips } from '../../src/reelsmith/agent/rewindClips.ts';
 import { smoothSlowClips } from '../../src/reelsmith/agent/smoothSlowClips.ts';
 import { REEL_PRESETS, presetForCanvas } from '../../shared/reelsmith/instagramPreset.ts';
 import type { ClipFeatures } from '../../src/reelsmith/assembler/scoring.ts';
+import { reviewMoments, sheetSidecarName } from '../../src/reelsmith/exportReview.ts';
+import { coverCandidates, coverMoment, coverSidecarName, paintCover, pickCover } from '../../src/reelsmith/exportCover.ts';
+import { frameScores } from './frameScore.ts';
+import { buildSelectionSheets } from './selectionSheet.ts';
+import { sectionSpans, stampDirector } from '../../src/reelsmith/director/finishBuild.ts';
+import { frameJpeg } from './stillFrame.ts';
 
 const FPS = 30;
 const [folderArg, songArg, planArg, outArg, wordsArg] = process.argv.slice(2);
@@ -131,6 +137,8 @@ console.log(`pick audit: ${out.result.report.momentUse?.length ?? 0} shots check
 for (const f of pickFindings({ used: out.result.report.momentUse ?? [], features: analysed, fps: FPS, usedIds: new Set(out.result.report.usedAssetIds), clipCount: assets.length, label: (id) => `#${assets.findIndex((a) => a.id === id) + 1}`, isImage: (id) => assets.find((a) => a.id === id)?.kind === 'image' })) console.log(`pick audit: ${f.issue} -> ${f.fix}`);
 let h: History = { past: [], present: emptyProjectDoc(), future: [] };
 h = historyReduce(h, { type: 'batch', label: 'pool', actions: [...assets, song].map((asset) => ({ type: 'addAsset', asset })) } as never);
+// the run goes with the reel on its canvas, as the agent's build stamps it (the sheet and the cover read its sections)
+out.action.actions = stampDirector(out.action.actions, { v: 1, fps: FPS, build: { plan, spans: sectionSpans(out.action.actions, plan.sections.length, FPS), builds: 1 } });
 h = historyReduce(h, bindTracks(out.action, activeTimeline(h.present)));
 const doc = h.present;
 const tl = activeTimeline(doc);
@@ -157,6 +165,28 @@ try {
   const fin = await finalizeForInstagram(resolve(outArg), preset);
   console.log(`instagram check: ${fin.ok ? (fin.reencoded ? 'fixed (sound re-encoded)' : 'passed as rendered') : 'FAILED'}`);
   for (const c of (fin.second ?? fin.first).checks) console.log(`  ${c.id} ${c.status} ${c.detail}`);
+}
+// RS-1232/1234: the contact sheet and the Instagram cover, as the app's export writes them next to the video
+{
+  const file = resolve(outArg);
+  const seconds = out.result.report.totalFrames / FPS;
+  const moments = reviewMoments(tl, seconds);
+  const sheets = await buildSelectionSheets(moments.map((m) => ({ file, kind: 'video' as const, atSec: m.atSec, label: m.label })));
+  sheets.sheets.forEach((s, i) => writeFileSync(join(dirname(file), sheetSidecarName(basename(file), i)), Buffer.from(s.base64, 'base64')));
+  console.log(`contact sheet: ${moments.length} cells (${moments.map((m) => m.label).join(', ')})`);
+  const candidates = coverCandidates(tl, seconds);
+  const scores = (await frameScores(file, candidates.map((c) => c.atSec))).map((s) => s.score);
+  const pick = pickCover(candidates, scores) ?? coverMoment(tl, seconds);
+  console.log(`cover candidates: ${candidates.map((c, i) => `${c.atSec.toFixed(1)}${c.title ? '*' : ''}=${scores[i]}`).join(' ')}`);
+  const frame = await frameJpeg(file, pick.atSec);
+  // the app draws the cover on an OffscreenCanvas; here a Node canvas (pdfjs-dist's) with the app's Geist Bold
+  const { createCanvas, loadImage, GlobalFonts } = await import('@napi-rs/canvas');
+  GlobalFonts.registerFromPath(resolve(import.meta.dirname, '../../public/fonts/Geist-Bold.woff2'), 'Geist');
+  const image = await loadImage(Buffer.from(frame.base64, 'base64'));
+  const canvas = createCanvas(image.width, image.height);
+  paintCover(canvas.getContext('2d') as never, image, pick.title, (w, h) => createCanvas(w, h).getContext('2d') as never);
+  writeFileSync(join(dirname(file), coverSidecarName(basename(file))), await canvas.encode('jpeg', 92));
+  console.log(`cover: ${pick.atSec.toFixed(2)} s${pick.title ? `, titled "${pick.title}"` : ', no title'}`);
 }
 // RS-1241/1264: the copy for Instagram's music, as the app's export makes it: the sound rendered again without the song
 {
