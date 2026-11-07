@@ -223,14 +223,14 @@ export async function directorOptions(args: Record<string, unknown>, ctx: AgentC
     findQueries.length && search ? search({ queries: findQueries }, ctx, deps).catch(() => null) : Promise.resolve(null),
   ]);
   const firstSong = importedSongs[0];
-  const sug = firstSong ? (beats.get(firstSong.id) as { bpm?: number; suggest?: { beatsFor18s: number; dropAtBeat?: number } } | undefined) : undefined;
+  const sug = firstSong ? (beats.get(firstSong.id) as { bpm?: number; suggest?: { beatsFor18s: number; dropAtBeat?: number; phrases?: { fourBar?: { reelBeat: number }[] } } } | undefined) : undefined;
   const reference = refAsset ? await watchReference(refAsset, fps, logClips, sug?.bpm, ctx, deps) : undefined;
   const brandResult = await brandWork;
   const brand = brandResult && !('error' in brandResult) ? brandResult : undefined;
   updateDirectorSession(projectId(ctx), {
     brand, timelineFps,
     fps, clips: logClips, treatment: undefined, lastBuild: undefined, askFirst: args.askFirst === true, gate: undefined, reference: reference ? { assetId: refAsset!.id, profile: reference.profile } : undefined,
-    ...(firstSong ? { song: { assetId: firstSong.id, ...(sug?.bpm ? { bpm: sug.bpm } : {}), ...(sug?.suggest ? { beatsFor18s: sug.suggest.beatsFor18s, ...(sug.suggest.dropAtBeat !== undefined ? { dropAtBeat: sug.suggest.dropAtBeat } : {}) } : {}) } } : {}),
+    ...(firstSong ? { song: { assetId: firstSong.id, ...(sug?.bpm ? { bpm: sug.bpm } : {}), ...(sug?.suggest ? { beatsFor18s: sug.suggest.beatsFor18s, ...(sug.suggest.dropAtBeat !== undefined ? { dropAtBeat: sug.suggest.dropAtBeat } : {}), ...(sug.suggest.phrases?.fourBar?.length ? { phraseBeats: sug.suggest.phrases.fourBar.map((p) => p.reelBeat) } : {}) } : {}) } } : {}),
   });
   const song = (a: MediaAsset) => ({ assetId: a.id, name: a.name, seconds: secs(a.durationInFrames, fps), ...(beats.get(a.id) ?? {}) });
   adoptCustomGraphics(ctx.getState().items as never);

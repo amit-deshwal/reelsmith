@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { TONE_KIT, TONES, checkTreatment, isShotList, parseTreatment, treatmentIds, type Treatment } from './treatment';
+import { TONE_KIT, TONES, checkTreatment, isShotList, parseTreatment, phraseTitles, treatmentIds, type Treatment } from './treatment';
 import { catalogKind, catalogSlice } from './catalogText';
 import { brandAction, brandWords, parseBrandHtml } from '../../../shared/reelsmith/brandKit';
 import { critiqueFrames, critiquePlan, criticBrief } from './critique';
@@ -251,4 +251,27 @@ PART 1 – HOOK + BUILD-UP (0–8s, slow and cinematic)
   assert.match(criticBrief({ ...ex, shotList: true }), /against the user's shot list/);
   assert.doesNotMatch(criticBrief(ex), /shot list/);
   console.log('critique shot list: ok');
+}
+
+// RS-1267/1268: the trek runs of 2026-11-07/08 (song from 1:05: 4-bar phrases on reel beats 12 and 28) put "early start"
+// on beat 4 and the build refused it, a turn each run; the treatment now says where lines may start and how many fit
+{
+  const trek = { bpm: 107, beatsFor18s: 32, phraseBeats: [12, 28, 44] };
+  const parts = (beats: number[], lines: (string | undefined)[]) => beats.map((b, i) => ({ role: 'journey', beats: b, move: 'cut', ...(lines[i] ? { line: lines[i] } : {}) }));
+  const four = parts([4, 8, 8, 8, 4], ['weekend trek', 'early start', 'the climb', undefined, 'the view from the top']);
+  const f = phraseTitles({ parts: four }, trek)!;
+  assert.match(f.issue, /part 1 "early start" on beat 4/);
+  assert.doesNotMatch(f.issue, /the climb|the view/, 'lines on 12 and 28 are fine');
+  assert.match(f.fix, /beats 12, 28/);
+  assert.match(f.fix, /only 2 lines after the hook fit/, 'three lines after the hook, two places');
+  assert.ok(checkTreatment({ ...ex, parts: four }, { clips, fps, song: trek }).some((x) => x.issue === f.issue), 'checkTreatment reports it');
+  // the plan the agent built after the refusal: no line on beat 4
+  assert.equal(phraseTitles({ parts: parts([4, 8, 8, 8, 4], ['weekend trek', undefined, 'the climb', undefined, 'the view from the top']) }, trek), undefined);
+  // the drop counts as a place for a line; the hook's line is always fine; no phrases, no finding
+  assert.equal(phraseTitles({ parts: parts([4, 6, 6, 16], ['hook', 'a', undefined, 'b']) }, { ...trek, phraseBeats: [16], dropAtBeat: 4 }), undefined);
+  assert.equal(phraseTitles({ parts: four }, { bpm: 107 }), undefined);
+  assert.equal(phraseTitles({ parts: four }, { ...trek, phraseBeats: [32, 40] }), undefined, 'no phrase inside the reel');
+  // a shot list is built as written
+  assert.ok(!checkTreatment({ ...ex, parts: four, shotList: true }, { clips, fps, song: trek }).some((x) => x.issue === f.issue));
+  console.log('treatment phrase titles: ok');
 }

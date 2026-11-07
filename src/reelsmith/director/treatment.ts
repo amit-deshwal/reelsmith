@@ -197,7 +197,8 @@ export function toneClashes(tone: Tone, ids: readonly string[]): string[] {
 export interface TreatmentContext {
   clips: readonly ShotLogClip[];
   fps: number;
-  song?: { bpm?: number; beatsFor18s?: number; dropAtBeat?: number };
+  /** phraseBeats: reel beats where a 4-bar phrase starts (RS-1268), so the titles are planned where the build allows them */
+  song?: { bpm?: number; beatsFor18s?: number; dropAtBeat?: number; phraseBeats?: readonly number[] };
   reference?: ReferenceProfile;
   /** RS-1239: a promo reel's brand kit: its words count as the user's, and the reel ends asking for its one action */
   brand?: { name: string; words: string; action?: string };
@@ -231,6 +232,25 @@ export function isShotList(story: string): boolean {
 
 /** What still matters in a shot list: catalogue mistakes, unreadable lines, too many typefaces and what no clip shows. */
 const SHOT_LIST_KEEPS = [/^not in the catalogue/, /text styles$/, /^part \d+: ".*" is \d+ words in/, /^the story names ".*" and no clip seems to show it/];
+
+/** Titled parts (after the hook) that would start off a 4-bar phrase or the drop, with where titles can go instead. */
+export function phraseTitles(t: Pick<Treatment, 'parts'>, song: TreatmentContext['song']): TreatmentFinding | undefined {
+  const total = t.parts.reduce((s, p) => s + p.beats, 0);
+  const inside = (song?.phraseBeats ?? []).filter((b) => b > 0 && b < total);
+  if (!inside.length) return undefined;
+  const allowed = [...new Set([...inside, ...(song?.dropAtBeat !== undefined && song.dropAtBeat > 0 && song.dropAtBeat < total ? [song.dropAtBeat] : [])])].sort((a, b) => a - b);
+  const off: string[] = [];
+  let titled = 0;
+  let at = 0;
+  t.parts.forEach((p, i) => {
+    if (i > 0 && p.line?.trim()) { titled += 1; if (!allowed.includes(at)) off.push(`part ${i} "${p.line.trim().slice(0, 24)}" on beat ${at}`); }
+    at += p.beats;
+  });
+  if (!off.length) return undefined;
+  const where = `beat${allowed.length > 1 ? 's' : ''} ${allowed.join(', ')}`;
+  const fit = titled > allowed.length ? `; only ${allowed.length} line${allowed.length > 1 ? 's' : ''} after the hook fit${allowed.length > 1 ? '' : 's'}, so keep the ones that start a new place and give the others no line` : '';
+  return { issue: `the build refuses a new line off a 4-bar phrase: ${off.slice(0, 4).join(', ')}`, fix: `start each part with a line on ${where} (the hook's line starts at 0) by moving beats between parts${fit}` };
+}
 
 export function checkTreatment(t: Treatment, ctx: TreatmentContext): TreatmentFinding[] {
   const found = checkTreatmentAll(t, ctx);
@@ -348,6 +368,11 @@ function checkTreatmentAll(t: Treatment, ctx: TreatmentContext): TreatmentFindin
       out.push({ issue: `the drop is beat ${ctx.song.dropAtBeat}; it lands ${start === ctx.song.dropAtBeat ? 'on' : 'inside'} part ${k} (${part.move})`, fix: `make a part start on beat ${ctx.song.dropAtBeat} with a peak move (velocity, zoom-punch, flash-cuts, speed-ramp, strips-reveal) and a drop-timed effect` });
     }
   }
+  // RS-1267/1268: the build refuses a new title off a 4-bar phrase (validatePlan's `phrase` rule), which cost every
+  // trek run a turn (2026-11-07/08: "early start" on beat 4 with phrases on 12 and 28). Said here, the plan is written
+  // right the first time: where the titles may start, and how many of them fit.
+  const phraseFinding = phraseTitles(t, ctx.song);
+  if (phraseFinding) out.push(phraseFinding);
   // reading speed
   t.parts.forEach((p, i) => {
     const n = p.line ? words(p.line).length : 0;

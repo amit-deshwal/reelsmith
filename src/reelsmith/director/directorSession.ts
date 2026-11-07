@@ -35,7 +35,8 @@ export interface DirectorSession {
    */
   timelineFps?: number;
   clips: ShotLogClip[];
-  song?: { assetId: string; bpm?: number; beatsFor18s?: number; dropAtBeat?: number };
+  /** phraseBeats: reel beats where a 4-bar phrase starts (stage 1's `phrases.fourBar`), for the treatment's title check */
+  song?: { assetId: string; bpm?: number; beatsFor18s?: number; dropAtBeat?: number; phraseBeats?: number[] };
   treatment?: Treatment;
   /** RS-1217: the reel to match (left out of the clip list); its measurements once stage 1 has watched it */
   reference?: { assetId: string; profile?: ReferenceProfile };
