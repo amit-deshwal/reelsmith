@@ -588,3 +588,7 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 
 ## Pacing in beats and phrases (RS-1268, 2026-11-07)
 - `src/audio/intelligence/types.ts`, `analysis.ts`, `store.ts`: `MusicAnalysis.beatEnergy` (optional, aligned with `beatsMs`) is kept from the Beat This series and validated on load, so the director's phrase grid and per-beat energy (`src/reelsmith/director/phraseGrid.ts`, ours) can use it. Older cache entries without it fall back to the local beat finder. `assets/agent/openchatcut-tool-schemas.json`: regenerated.
+
+## Export files beside a picked file (RS-1234 app check, 2026-11-08)
+- `src/export/exportDestination.ts`: new `writeSidecarToDestination` (ours, below `writeBlobToDestination`). `writeBlobToDestination` gives every write the filename picked in a save panel, so on a `desktop-file` destination the sheet, cover and no-song copy each replaced the video (the no-song copy, written last, was what remained). The sidecar writer keeps its own name: a desktop file grant covers its folder, so it writes there; a `browser-file` handle reaches no folder, so it downloads; directory and downloads destinations are unchanged. It refuses the video's own name.
+- `src/export/serverExportOperation.ts` `deliverSrtSidecar()`: one `videoName`, the delivered name (`exportDestinationFilename`, so a picked "Trek.mp4" gives "Trek.cover.jpg"), and every sidecar (.srt, sheet, cover, no-song copy) writes through `writeSidecarToDestination`.

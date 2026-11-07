@@ -298,6 +298,37 @@ export async function writeBlobToDestination(
   }
 }
 
+/**
+ * Reelsmith: a file that goes next to the export (contact sheet, cover, .srt, no-song copy) under its own name.
+ * `writeBlobToDestination` gives every write the name picked in a save panel, so on a single-file destination each
+ * sidecar replaced the video. A desktop file grant covers its folder, so siblings go there; a browser file handle
+ * reaches no folder, so they go to the browser's downloads.
+ */
+export async function writeSidecarToDestination(
+  destination: ExportDestination,
+  filename: string,
+  blob: Blob,
+  signal?: AbortSignal,
+): Promise<void> {
+  const target = checkedDestination(destination);
+  if (target.type !== 'desktop-file' && target.type !== 'browser-file') {
+    await writeBlobToDestination(target, filename, blob, signal);
+    return;
+  }
+  signal?.throwIfAborted();
+  const safeName = checkedFilename(filename);
+  if (safeName === target.label) throw new ExportDestinationError('导出文件名无效');
+  try {
+    if (!(blob instanceof Blob)) throw new ExportDestinationError('导出文件内容无效');
+    if (blob.size === 0) throw new ExportDestinationError('导出文件为空');
+    if (target.type === 'browser-file') downloadBlob(blob, safeName);
+    else await putDesktopBody(target, safeName, blob, signal);
+  } catch (error) {
+    signal?.throwIfAborted();
+    throw destinationWriteFailure(error, safeName);
+  }
+}
+
 export async function writeUrlToDestination(
   destination: ExportDestination,
   filename: string,

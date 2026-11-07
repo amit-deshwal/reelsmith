@@ -16,7 +16,7 @@ import {
   exportDestinationErrorMessage,
   exportDestinationFilename,
   exportHistoryDestinationId,
-  writeBlobToDestination,
+  writeSidecarToDestination,
   writeUrlToDestination,
   type ExportDestination,
 } from './exportDestination';
@@ -182,10 +182,14 @@ async function deliverSrtSidecar(
 ): Promise<void> {
   if (format !== 'video' || !isSupportedShape(context.options.state)) return;
   const pref = loadInstagramPreference();
+  // the name the video was delivered under (a save panel's choice wins), so the extra files are named after it and
+  // written beside it, never over it
+  const videoName = exportDestinationFilename(context.destination,
+    completed.name ?? `${context.options.base}.${exportMediaExtension(format, codec as ExportCodec)}`);
+  const write = (filename: string, blob: Blob) => writeSidecarToDestination(context.destination, filename, blob, signal);
   const sidecar = await writeSrtSidecar({
     enabled: pref.enabled && pref.srt, captions: context.options.subtitleCaptions, items: context.options.state.items,
-    fps: context.options.state.fps, videoName: completed.name ?? `${context.options.base}.${exportMediaExtension(format, codec as ExportCodec)}`,
-    write: (filename, blob) => writeBlobToDestination(context.destination, filename, blob, signal),
+    fps: context.options.state.fps, videoName, write,
   });
   const last = instagramReportStore.get();
   if (sidecar.status !== 'skipped' || pref.srt) {
@@ -197,11 +201,10 @@ async function deliverSrtSidecar(
   }
   // RS-1232: a contact sheet of the rendered file (still on the server until the job is retired), kept for the agent
   if (!pref.enabled || !completed.path) return;
-  const videoName = completed.name ?? `${context.options.base}.${exportMediaExtension(format, codec as ExportCodec)}`;
   const sheet = await deliverReviewSheet({
     state: context.options.state, src: completed.path, seconds: completed.durationSeconds ?? 0, videoName,
     checks: instagramReportStore.get()?.checks ?? [], save: pref.sheet,
-    write: (filename, blob) => writeBlobToDestination(context.destination, filename, blob, signal),
+    write,
   });
   const now = instagramReportStore.get();
   if (sheet.status !== 'kept') instagramReportStore.set({
@@ -227,7 +230,7 @@ async function deliverSrtSidecar(
   if (pref.cover) {
     const cover = await deliverCover({
       state: context.options.state, src: completed.path, seconds: completed.durationSeconds ?? 0, videoName,
-      write: (filename, blob) => writeBlobToDestination(context.destination, filename, blob, signal),
+      write,
     });
     instagramReportStore.set({
       ...(instagramReportStore.get() ?? { status: 'skipped' as const }),
@@ -238,7 +241,7 @@ async function deliverSrtSidecar(
   if (pref.noSound && !pref.silent) {
     const copy = await deliverNoSoundCopy({
       state: context.options.state, src: completed.path, videoName,
-      write: (filename, blob) => writeBlobToDestination(context.destination, filename, blob, signal),
+      write,
       // RS-1264: the reel's sound rendered again without the song, so the copy keeps the voice and natural sound
       renderSound: async (songId) => {
         context.setBusy('Rendering the sound without the song…');
