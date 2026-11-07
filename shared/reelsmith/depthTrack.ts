@@ -21,6 +21,9 @@ export interface DepthTrackMeta {
    *  of each tile, green where it can be until the next) sits beside the depth atlas, laid out the same. Tracks made
    *  before it have neither. */
   sky?: (TrackSkyModel | null)[];
+  /** RS-1261: the sky rule (server/reelsmith/skyMath.ts SKY_RULE) the sky atlas was made under; a track without it, or
+   *  with an older one, gets its sky again from its saved tiles. */
+  skyRule?: number;
 }
 
 /** The sky's colour (as server/reelsmith/skyMath.ts SkyModel and src/reelsmith/depthMaps.ts SkyModel). */

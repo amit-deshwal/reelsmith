@@ -3,14 +3,14 @@
 // (`builtin:fx-photo-parallax`) read it as a texture; the clip carries it as `props.rsDepthSrc`, so the export renderer
 // (a static bundle with no /api) finds it among the uploads like any other media file.
 // Nothing is downloaded here: with the pack absent the route answers `available: false` and the effect stays a flat push.
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { stat, writeFile } from 'node:fs/promises';
 import { basename, dirname, extname, join } from 'node:path';
 import { modelPackDefinition } from '../../shared/model-packs/catalog.ts';
 import { modelCacheDir } from '../plugins/hf-proxy.ts';
 import { extractStill } from './stillFrame.ts';
 import { depthToGray } from './depthMath.ts';
-import { skyFromDepth } from './skyMath.ts';
+import { SKY_RULE, skyFromDepth } from './skyMath.ts';
 
 export const DEPTH_PACK_ID = 'depth-lite';
 const MODEL_DTYPE = 'fp32';
@@ -101,13 +101,13 @@ export function depthMapFor(file: string, atSec?: number): Promise<DepthMap> {
     if (existsSync(out) && (await stat(out)).mtimeMs >= (await stat(file)).mtimeMs) {
       const meta = await sharp(out).metadata();
       // depth maps made before the sky map existed get theirs now, from the saved map and the picture
-      if (!existsSync(skyName(out)) || !existsSync(skyModelName(skyName(out)))) {
+      if (!existsSync(skyName(out)) || skyRuleOf(skyModelName(skyName(out))) < SKY_RULE) {
         const picture = atSec === undefined ? file : join(dirname(file), (await extractStill(file, atSec)).name);
         const depth = await sharp(out).raw().toBuffer({ resolveWithObject: true });
         const w = depth.info.width, h = depth.info.height;
         const guide = await sharp(picture).rotate().resize({ width: w, height: h, fit: 'fill' }).removeAlpha().raw().toBuffer({ resolveWithObject: true });
         const gray = depth.info.channels === 1 ? new Uint8Array(depth.data) : Uint8Array.from({ length: w * h }, (_, p) => depth.data[p * depth.info.channels]!);
-        await writeSky(sharp, skyName(out), gray, new Uint8Array(guide.data.buffer, guide.data.byteOffset, guide.data.length), w, h);
+        await writeSky(sharp, skyName(out), gray, new Uint8Array(guide.data.buffer, guide.data.byteOffset, guide.data.length), w, h, atSec === undefined);
       }
       return { name, width: meta.width ?? 0, height: meta.height ?? 0, cached: true };
     }
@@ -125,7 +125,7 @@ export function depthMapFor(file: string, atSec?: number): Promise<DepthMap> {
       radius: 12, eps: 1e-2, grow: 1, blur: 2,
     });
     await sharp(Buffer.from(gray), { raw: { width: guide.info.width, height: guide.info.height, channels: 1 } }).png().toFile(out);
-    await writeSky(sharp, skyName(out), gray, new Uint8Array(guide.data.buffer, guide.data.byteOffset, guide.data.length), guide.info.width, guide.info.height);
+    await writeSky(sharp, skyName(out), gray, new Uint8Array(guide.data.buffer, guide.data.byteOffset, guide.data.length), guide.info.width, guide.info.height, atSec === undefined);
     return { name, width: guide.info.width, height: guide.info.height, cached: false };
   })();
   flights.set(out, work);
@@ -133,14 +133,23 @@ export function depthMapFor(file: string, atSec?: number): Promise<DepthMap> {
 }
 
 /** The sky map (always written: all black when the frame has no sky, so a clip never waits for one that will not come):
- *  red = the sky in this frame, green = where it can be in other frames of the shot; and beside it `.sky.json`, the sky's
- *  colour, which the renderer uses to find it again in each frame (null without a sky). */
-async function writeSky(sharp: Sharp, path: string, depth: Uint8Array, rgb: Uint8Array, w: number, h: number): Promise<void> {
-  const { mask, gate, model } = skyFromDepth(depth, rgb, w, h);
+ *  red = the sky in this frame, green = where it can be in other frames of the shot (a photo has no other frames: its
+ *  green is its red); and beside it `.sky.json`, the sky's colour, which the renderer uses to find it again in each frame,
+ *  stamped with the rule that found it (`{ rule }` alone without a sky). */
+async function writeSky(sharp: Sharp, path: string, depth: Uint8Array, rgb: Uint8Array, w: number, h: number, photo: boolean): Promise<void> {
+  const { mask, gate, model } = skyFromDepth(depth, rgb, w, h, photo ? { gateReach: 0 } : {});
   const out = Buffer.alloc(w * h * 3);
   for (let p = 0; p < w * h; p++) { out[p * 3] = mask[p]!; out[p * 3 + 1] = gate[p]!; }
   await sharp(out, { raw: { width: w, height: h, channels: 3 } }).png().toFile(path);
-  await writeFile(skyModelName(path), JSON.stringify(model));
+  await writeFile(skyModelName(path), JSON.stringify({ ...model, rule: SKY_RULE }));
+}
+
+/** The sky rule a saved `.sky.json` was made under (0: missing, unreadable, or from before the stamp). */
+export function skyRuleOf(jsonPath: string): number {
+  try {
+    const raw = JSON.parse(readFileSync(jsonPath, 'utf8')) as { rule?: unknown } | null;
+    return raw && typeof raw.rule === 'number' ? raw.rule : 0;
+  } catch { return 0; }
 }
 
 /** The sky's colour model beside its map. */

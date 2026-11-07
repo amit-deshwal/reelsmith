@@ -4,7 +4,7 @@
 // then each pixel takes the median of its tile and the tiles either side, so a hazy valley that is sky in one tile and
 // land in the next does not flicker; then the gate is drawn round the result, narrow, since the next map is an eighth of a
 // second away. Pure maths on plain arrays.
-import { skyFromDepth, skyGate, type SkyModel } from './skyMath.ts';
+import { skyFromDepth, skyGate, type SkyModel, type SkyOptions } from './skyMath.ts';
 
 export interface SkyTrack {
   /** per tile: 0..255, the sky in that tile */
@@ -33,8 +33,8 @@ export function stretchOwnRange(gray: Uint8Array): Uint8Array {
 const med3 = (a: number, b: number, c: number) => Math.max(Math.min(a, b), Math.min(Math.max(a, b), c));
 
 /** The sky of each tile: `grays` (0 far .. 255 near) and `rgbs` (RGB) per tile, all `w` x `h`. */
-export function skyTrackFrom(grays: Uint8Array[], rgbs: Uint8Array[], w: number, h: number): SkyTrack {
-  const own = grays.map((g, i) => skyFromDepth(stretchOwnRange(g), rgbs[i]!, w, h, { blur: 1, gateReach: TRACK_GATE_REACH }));
+export function skyTrackFrom(grays: Uint8Array[], rgbs: Uint8Array[], w: number, h: number, o: SkyOptions = {}): SkyTrack {
+  const own = grays.map((g, i) => skyFromDepth(stretchOwnRange(g), rgbs[i]!, w, h, { blur: 1, gateReach: TRACK_GATE_REACH, ...o }));
   const n = w * h;
   const masks = own.map((cur, k) => {
     if (own.length < 3) return cur.mask;

@@ -1,8 +1,9 @@
 // RS-1261: the sky from depth and colour. A synthetic frame: a pale blue sky with a grey cloud, a far green ridge (nearly as
 // far as the sky), a near hill, a person in a grey shirt standing against the sky and a bird. The sky is found, the ridge,
-// hill and person are not, the bird is filled in; a frame with no sky gives none.
+// hill and person are not, the bird is filled in; a frame with no sky gives none. Then: a ceiling is not a sky, a busy
+// town as pale as haze is not, and a photo's gate is its sky. The rule on real frames: sky-eval.mts.
 import assert from 'node:assert/strict';
-import { boxBlur, MIN_SKY_SHARE, skyFromDepth } from './skyMath.ts';
+import { boxBlur, localDeviation, MIN_SKY_SHARE, skyFromDepth } from './skyMath.ts';
 
 const w = 120, h = 200;
 const depth = new Uint8Array(w * h), rgb = new Uint8Array(w * h * 3);
@@ -64,5 +65,49 @@ assert.equal(wall.model, null);
   const leafDepth = new Uint8Array(w * h).fill(2), leaves = new Uint8Array(w * h * 3);
   for (let p = 0; p < w * h; p++) leaves.set([110 + (p % 7), 170, 90], p * 3);
   assert.equal(skyFromDepth(leafDepth, leaves, w, h).share, 0, 'green leaves are not sky');
+}
+// A photo's gate is its sky (gateReach 0): nothing beside the sky is found again by its colour.
+{
+  const photo = skyFromDepth(depth, rgb, w, h, { gateReach: 0 });
+  assert.deepEqual([...photo.gate], [...photo.mask]);
+}
+// Indoors: a pale ceiling along the top, the farthest thing in the room but not at infinity. The map is stretched so its
+// farthest 2% sit at 0 (a doorway, low down); the ceiling rises from 3 to 9 off it. A sky, found the same way, lies flat
+// on the far end.
+{
+  const d = new Uint8Array(w * h), c = new Uint8Array(w * h * 3);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const p = y * w + x;
+    if (y < 80) { d[p] = 3 + Math.round((x / w) * 6); c.set([222, 220, 214], p * 3); } // ceiling
+    else { d[p] = 120; c.set([120, 90, 60], p * 3); } // walls and floor
+  }
+  for (let y = 150; y < 170; y++) for (let x = 50; x < 70; x++) d[y * w + x] = 0; // the doorway: the map's far end
+  assert.equal(skyFromDepth(d, c, w, h).share, 0, 'a ceiling is not a sky');
+  // the same picture with the top at infinity is a sky
+  for (let p = 0; p < w * 80; p++) d[p] = 0;
+  assert.ok(skyFromDepth(d, c, w, h).share > 0.3, 'the same top, flat at the far end, is a sky');
+}
+// Haze below the sky is taken; a town as far and as pale but busy is not.
+{
+  const make = (busy: boolean) => {
+    const d = new Uint8Array(w * h), c = new Uint8Array(w * h * 3);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      const p = y * w + x;
+      if (y < 80) { d[p] = 0; c.set([150, 160, 185], p * 3); } // sky
+      // haze fades in from the sky over a dozen rows, as it does; the town is as pale on average but busy
+      else if (y < 110) {
+        d[p] = 1;
+        const k = Math.min(1, (y - 80) / 12), v = busy ? ((x >> 1) + (y >> 1)) % 2 ? 215 : 165 : 190;
+        c.set([150 + (v - 150) * k, 160 + (v + 2 - 160) * k, 185 + (v + 10 - 185) * k].map(Math.round), p * 3);
+      }
+      else { d[p] = 150; c.set([60, 120, 50], p * 3); } // near hill
+    }
+    return { d, c };
+  };
+  const band = (m: Uint8Array) => { let k = 0; for (let y = 85; y < 105; y++) for (let x = 0; x < w; x++) if (m[y * w + x]! > 127) k++; return k / (20 * w); };
+  const haze = make(false), town = make(true);
+  assert.ok(localDeviation(town.c, w, h, 2)[100 * w + 60]! > 0.02 && localDeviation(haze.c, w, h, 2)[100 * w + 60]! < 0.005);
+  assert.ok(band(skyFromDepth(haze.d, haze.c, w, h, { blur: 0 }).mask) > 0.9, 'smooth haze joins the sky');
+  assert.ok(band(skyFromDepth(town.d, town.c, w, h, { blur: 0 }).mask) < 0.1, 'a busy town does not');
 }
 console.log('skyMath: ok');

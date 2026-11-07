@@ -12,6 +12,7 @@ import { HDR_TO_SDR_FILTERS, probeVideo } from '../media-normalization.ts';
 import { depthTrackMetaName, depthTrackSkyName, MAX_TRACK_SEC, parseDepthTrackMeta, subjectDepth, tileRect, trackLayout, type DepthTrackMeta, type TrackSkyModel } from '../../shared/reelsmith/depthTrack.ts';
 import { depthPackInstalled, loadSharp, runDepthModel, type Sharp } from './depthMap.ts';
 import { skyTrackFrom } from './skyTrackMath.ts';
+import { SKY_RULE } from './skyMath.ts';
 import { boxMean, guidedFilterRgb, resizeBilinear } from './depthMath.ts';
 import { stabiliseTrack, type RawFrame } from './depthTrackMath.ts';
 
@@ -25,7 +26,7 @@ export function depthTrackName(sourceName: string, fromSec: number, toSec: numbe
 }
 
 /** `count` frames of `w` x `h` RGB from `fromSec`, `step` seconds apart (ffmpeg applies the phone's rotation). */
-function decodeFrames(file: string, fromSec: number, step: number, count: number, w: number, h: number, hdr: boolean): Promise<Uint8Array[]> {
+export function decodeFrames(file: string, fromSec: number, step: number, count: number, w: number, h: number, hdr: boolean): Promise<Uint8Array[]> {
   const rate = step > 0 ? 1 / step : 1;
   const filters = [...(hdr ? HDR_TO_SDR_FILTERS : []), `fps=${rate.toFixed(6)}:round=near`, `scale=${w}:${h}:flags=area`, 'format=rgb24'];
   const args = ['-v', 'error', '-ss', String(Math.max(0, fromSec)), '-i', file, '-an', '-t', String(step * Math.max(0, count - 1) + 0.25),
@@ -71,7 +72,7 @@ async function writeSkyAtlas(sharp: Sharp, out: string, grays: Uint8Array[], pic
 }
 
 /** The tiles of a saved depth atlas, each `w` x `h` grey. */
-async function readTiles(sharp: Sharp, out: string, meta: DepthTrackMeta): Promise<Uint8Array[]> {
+export async function readTiles(sharp: Sharp, out: string, meta: DepthTrackMeta): Promise<Uint8Array[]> {
   const { data, info } = await sharp(out).raw().toBuffer({ resolveWithObject: true });
   const ch = info.channels, w = meta.tileWidth, h = meta.tileHeight;
   return Array.from({ length: meta.count }, (_, i) => {
@@ -97,14 +98,15 @@ export function depthTrackFor(file: string, fromSec: number, toSec: number): Pro
     const started = performance.now();
     if (existsSync(out) && existsSync(metaPath) && (await stat(out)).mtimeMs >= (await stat(file)).mtimeMs) {
       const meta = parseDepthTrackMeta(JSON.parse(await readFile(metaPath, 'utf8')));
-      if (meta && meta.sky && existsSync(depthTrackSkyName(out))) return { name, meta, cached: true, ms: 0 };
-      // RS-1261: a track made before the sky atlas gets one from its saved tiles and the frames again (no depth model run)
+      if (meta && meta.sky && meta.skyRule === SKY_RULE && existsSync(depthTrackSkyName(out))) return { name, meta, cached: true, ms: 0 };
+      // RS-1261: a track made before the sky atlas, or under an older sky rule, gets its sky from its saved tiles and the
+      // frames again (no depth model run)
       if (meta) {
         const probe = await probeVideo(file);
         const pictures = await decodeFrames(file, meta.fromSec, meta.step, meta.count, meta.tileWidth, meta.tileHeight, probe.hdr === true);
         const sharp = await loadSharp();
         const sky = await writeSkyAtlas(sharp, out, await readTiles(sharp, out, meta), pictures, meta);
-        const next: DepthTrackMeta = { ...meta, sky };
+        const next: DepthTrackMeta = { ...meta, sky, skyRule: SKY_RULE };
         await writeFile(metaPath, JSON.stringify(next));
         return { name, meta: next, cached: true, ms: Math.round(performance.now() - started) };
       }
@@ -141,7 +143,7 @@ export function depthTrackFor(file: string, fromSec: number, toSec: number): Pro
     await sharp(atlas, { raw: { width: atlasW, height: atlasH, channels: 1 } }).png().toFile(out);
     const grid = { cols: layout.cols, rows: layout.rows, tileWidth: w, tileHeight: h };
     const sky = await writeSkyAtlas(sharp, out, grays, pictures, grid);
-    const meta: DepthTrackMeta = { version: 1, fromSec: from, step: layout.step, count, ...grid, subject, sky };
+    const meta: DepthTrackMeta = { version: 1, fromSec: from, step: layout.step, count, ...grid, subject, sky, skyRule: SKY_RULE };
     await writeFile(metaPath, JSON.stringify(meta));
     return { name, meta, cached: false, ms: Math.round(performance.now() - started) };
   })();
