@@ -1,6 +1,6 @@
 // RS-1235: word-start accuracy of the desktop (whisper.cpp) paths on a word-timed fixture (see asr-timing.mjs for the
 // fixtures). Compares the app's default path (whisper-server words) with DTW token times (whisper-cli --dtw), each
-// turned into words by the worker's own helpers.
+// turned into words by the worker's own helpers, and DTW with each start snapped to the sound (what the app uses).
 //   node --import tsx server/reelsmith/asr-timing-native.mts <ggml file> <dtw preset> <lang> <clip.wav> <truth.json>
 import { execFileSync, spawn } from 'node:child_process';
 import { ffmpegBin } from '../media-binaries.ts';
@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { whisperTokensToChunks, whisperWordsToChunks } from '../../desktop/native-asr-utils.ts';
 import { transcribeDtwWindows, DTW_WINDOW_MS, type DtwJson } from '../../shared/reelsmith/whisperDtw.ts';
+import { onsetCurve, snapWordStarts } from '../../shared/reelsmith/wordOnsets.ts';
 
 const [ggml, preset, lang, wav, truthFile] = process.argv.slice(2) as [string, string, string, string, string];
 const bin = join(process.cwd(), 'public/whisper-cli', `${process.platform}-${process.arch}`);
@@ -56,4 +57,7 @@ const out = await transcribeDtwWindows(samples, 16000, async (offsetMs) => {
   execFileSync(join(bin, 'whisper-cli'), ['-m', ggml, '-f', wav, '-t', '8', '-l', lang, '-nfa', '--dtw', preset, '-ot', String(offsetMs), '-d', String(DTW_WINDOW_MS), '-ojf', '-nt', '-of', of], { stdio: 'ignore' });
   return JSON.parse(readFileSync(`${of}.json`, 'utf8')) as DtwJson;
 });
-score('cli-dtw', Date.now() - t1, whisperTokensToChunks(out.segments as never).chunks);
+const dtwChunks = whisperTokensToChunks(out.segments as never).chunks;
+score('cli-dtw', Date.now() - t1, dtwChunks);
+// 3. what the app keeps: DTW starts snapped to where each word's sound begins (RS-501)
+score('cli-dtw-snapped', Date.now() - t1, snapWordStarts(dtwChunks, onsetCurve(samples, 16000)));

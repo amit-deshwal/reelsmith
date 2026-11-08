@@ -24,6 +24,7 @@ import { ASR_INFERENCE_CONTRACT } from '../shared/asr-inference-contract.ts';
 import { resolveGgmlPath } from '../shared/asr-ggml-cache.ts';
 import { ASR_MODELS } from '../shared/asr-models.ts';
 import { DTW_WINDOW_MS, transcribeDtwWindows, type DtwJson } from '../shared/reelsmith/whisperDtw.ts';
+import { onsetCurve, snapWordStarts } from '../shared/reelsmith/wordOnsets.ts';
 import { killWithOwner } from '../server/reelsmith/orphanGuard.ts';
 import { NativeAsrWorkerLifecycle } from './native-asr-worker-lifecycle.ts';
 import { extractPcm } from './native-asr-pcm.ts';
@@ -269,7 +270,8 @@ async function transcribeWithEngine(
         result = await viaCli(false);
         backend = 'native-cpu';
       }
-      const { chunks } = whisperTokensToChunks(result.segments);
+      // DTW times land inside the word; move each start back to where its sound begins (RS-501)
+      const chunks = snapWordStarts(whisperTokensToChunks(result.segments).chunks, onsetCurve(samples, SAMPLE_RATE));
       return { requestId: request.requestId, backend, text: result.text, chunks };
     }
     // 1. Persistent whisper-server: model loaded once, Metal by default.
