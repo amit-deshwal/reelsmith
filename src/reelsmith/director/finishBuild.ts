@@ -42,7 +42,7 @@ export async function finishDirectorActions(actions: AtomicAction[], assets: rea
   notes.push(...await aimMarkers(actions, findPeople));
   notes.push(...await rewindClips(actions, api, fps, onProgress));
   const canvas = actions.find((a): a is Extract<AtomicAction, { type: 'setCanvas' }> => a.type === 'setCanvas');
-  if (canvas) { onProgress?.('Keeping captions off faces'); await clearCaptionsOfPeople(actions, assets, canvas, fps, findPeople); }
+  if (canvas) { onProgress?.('Keeping captions off faces'); notes.push(...(await clearCaptionsOfPeople(actions, assets, canvas, fps, findPeople)).stuck); }
   notes.push(...await smoothSlowClips(actions, api, fps, onProgress));
   notes.push(...await attachDepthMaps(actions, fps, onProgress));
   return notes;

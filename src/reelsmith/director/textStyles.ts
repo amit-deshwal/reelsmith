@@ -72,6 +72,9 @@ function engine(ctx: TextContext, look: Look, extra: Partial<TextGraphicProps> =
     x: num(ctx.params.x, x), y: num(ctx.params.y, y), maxWidth, enter: look.enter ?? 0.6, stagger: look.stagger ?? (undefined as unknown as number),
     exit: Math.min(0.35, total * 0.15), total, ...(look.shadow ? { shadow: true } : {}), ...(look.stroke ? { stroke: look.stroke } : {}),
     ...(look.opacity !== undefined ? { opacity: look.opacity } : {}), ...(look.subFontFamily ? { subFontFamily: look.subFontFamily } : {}), ...extra,
+    // a line the plan placed itself stays there: off-face passes leave it, and a line behind the person is not pulled
+    // back to head height (three fix rounds went on a `y` that did nothing, run of 2026-11-06)
+    ...(num(ctx.params.x, -1) >= 0 || num(ctx.params.y, -1) >= 0 ? { rsFixedPosition: true } : {}),
   };
   if (props.stagger === undefined) delete (props as Partial<TextGraphicProps>).stagger;
   ctx.emit({

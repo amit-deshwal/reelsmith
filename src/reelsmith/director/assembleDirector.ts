@@ -265,7 +265,7 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
         momentUse.push({ section: i, assetId: clip.baseAssetId ?? clip.assetId, inFrame: m.inFrame, frames });
         return m;
       },
-      emit: (a) => actions.push(a.type === 'add' ? { ...a, item: withSpeed({ ...a.item, props: { ...(a.item.props ?? {}), rsSection: `${i + 1}-${move.id}` } }, s.speed) } as AtomicAction : a),
+      emit: (a) => actions.push(a.type === 'add' ? { ...a, item: withSpeed({ ...a.item, props: { ...(a.item.props ?? {}), rsSection: `${i + 1}-${move.id}`, ...(s.fit === 'whole' && (a.item.kind === 'video' || a.item.kind === 'image') ? { rsFit: 'blur' } : {}) } }, s.speed) } as AtomicAction : a),
       warn: (m) => warnings.push(`sections[${i}] (${move.id}): ${m}`),
       ...(previous ? { previous } : {}),
     });

@@ -86,11 +86,12 @@ export async function readTiles(sharp: Sharp, out: string, meta: DepthTrackMeta)
 const flights = new Map<string, Promise<DepthTrack>>();
 
 /** The depth track of a video from `fromSec` to `toSec` (at most MAX_TRACK_SEC). */
-export function depthTrackFor(file: string, fromSec: number, toSec: number): Promise<DepthTrack> {
+export function depthTrackFor(file: string, fromSec: number, toSec: number, outputDir = dirname(file), sourceName = file): Promise<DepthTrack> {
   const from = Math.max(0, fromSec);
   const to = Math.min(Math.max(from, toSec), from + MAX_TRACK_SEC);
-  const name = depthTrackName(file, from, to);
-  const out = join(dirname(file), name);
+  // (a referenced import lives outside uploads: the track goes to `outputDir`, named after its upload entry)
+  const name = depthTrackName(sourceName, from, to);
+  const out = join(outputDir, name);
   const metaPath = depthTrackMetaName(out);
   const existing = flights.get(out);
   if (existing) return existing;

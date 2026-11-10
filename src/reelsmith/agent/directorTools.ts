@@ -107,7 +107,8 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
   }
   // RS-1267: the plan against the brief, before the voiceover, the lyrics and the clip analysis the build waits on
   const violations = await checkPlan(plan, ctx, deps, assets, session?.treatment?.brief);
-  const fresh = violations.filter((v) => !(session?.refusedRules ?? []).includes(v.rule));
+  // a fix round repairs a reel that was built already: how plain its arc is was settled then
+  const fresh = violations.filter((v) => !(session?.refusedRules ?? []).includes(v.rule) && !(Array.isArray(args.keep) && v.rule === 'plain'));
   if (fresh.length) {
     updateDirectorSession(id, { refusedRules: [...new Set([...(session?.refusedRules ?? []), ...violations.map((v) => v.rule)])] });
     return { error: `The plan breaks ${violations.length === 1 ? 'a rule' : `${violations.length} rules`}; nothing was built. ${violations.map(violationText).join(' | ')}. Fix them and build again (a rule the footage cannot meet: build again as is and say so in your report).` };
@@ -218,7 +219,11 @@ async function checkPlan(plan: ReelPlan, ctx: AgentContext, deps: ReelsDeps, ass
   // RS-1268: the beat grid for the phrase rule (none when the song has no steady beat)
   const grid = song && bpm ? await songGrid(song, deps).then((r) => r.grid).catch(() => null) : null;
   const songBeats = grid && grid.beatTimesSec.length >= 2 ? { beatTimesSec: grid.beatTimesSec, downbeatIndex: grid.downbeatIndex, ...(grid.beatsPerBar ? { beatsPerBar: grid.beatsPerBar } : {}), ...(grid.dropSec !== undefined ? { dropSec: grid.dropSec } : {}) } : undefined;
-  const clips = visual.map((a, k) => ({ n: k + 1, seconds: session?.clips[k]?.seconds ?? a.durationInFrames / fps, features: session?.clips[k]?.features ?? null }));
+  const clips = visual.map((a, k) => {
+    const log = session?.clips[k];
+    const shape = log?.shape ?? (a.width && a.height ? (a.height > a.width ? 'portrait' as const : a.height < a.width ? 'landscape' as const : 'square' as const) : undefined);
+    return { n: k + 1, seconds: log?.seconds ?? a.durationInFrames / fps, features: log?.features ?? null, ...(shape ? { shape } : {}), people: showsPeople(log) };
+  });
   const clipNumber = (ref: string) => {
     const r = ref.trim();
     const m = /^#(\d+)/.exec(r);
@@ -226,7 +231,15 @@ async function checkPlan(plan: ReelPlan, ctx: AgentContext, deps: ReelsDeps, ass
     const k = visual.findIndex((a) => a.id === r.split('@')[0]);
     return k >= 0 ? k + 1 : undefined;
   };
-  return validatePlan({ plan, ...(brief ? { brief } : {}), ...(bpm ? { bpm } : {}), clips, clipNumber, ...(songBeats ? { songGrid: songBeats } : {}) });
+  return validatePlan({ plan, ...(brief ? { brief } : {}), ...(bpm ? { bpm } : {}), clips, clipNumber, fps, ...(songBeats ? { songGrid: songBeats } : {}) });
+}
+
+/** Tags that mean people fill the shot, for the crop rule (a landscape view with a small figure in it is not one). */
+const PEOPLE_TAGS = ['people', 'portrait', 'posing', 'laughing', 'celebrating'] as const;
+/** The clip shows people: its shot tags say so, or (without tags) a face was found in it. */
+function showsPeople(clip: { tags?: { scores: Record<string, number> }; features?: ClipFeatures | null } | undefined): boolean {
+  if (clip?.tags) return PEOPLE_TAGS.some((t) => (clip.tags!.scores[t] ?? 0) >= 0.18);
+  return !!clip?.features?.windows.some((w) => (w.face ?? 0) > 0.01);
 }
 
 /**
@@ -278,7 +291,7 @@ export async function directorBuild(args: Record<string, unknown>, ctx: AgentCon
         ...(built.added ? { musicAdded: built.added.name } : {}), notes: built.notes,
         review: { findings, lint: { errors: lint.errors, warnings: lint.warnings, issues: lint.issues.slice(0, 8).map((x) => x.message) } },
         critique: looked.body,
-        next: 'Stage 4 is here: these are the critique frames (no separate reels_director_critique call needed). Judge only the rendered frames and the findings, as a picky creative director seeing the reel cold, then name the three largest defects (section, at, evidence, fix) and call reels_director_fix with them and the changed sections only. If nothing is wrong, finish: review_edit_session if you opened an edit session (nothing reaches the timeline until it returns applied), then report in at most three short lines.'
+        next: 'Stage 4 is here: these are the critique frames (no separate reels_director_critique call needed). Judge only the rendered frames and the findings, as a picky creative director seeing the reel cold, then name the three largest defects (section, at, evidence, fix) and call reels_director_fix with them and the changed sections only. If nothing is wrong, finish: review_edit_session if you opened an edit session (nothing reaches the timeline until it returns applied), then report in at most three short lines (under 60 words in all; no list of sections, no times per part).'
           + songReportLine(ctx.getState()) + ' Do not call view_timeline_frames or reels_lint separately.',
       };
     }
@@ -286,13 +299,14 @@ export async function directorBuild(args: Record<string, unknown>, ctx: AgentCon
   // RS-1211: the review comes with the build: one frame per section, the lint, and the plan review
   // a frame 45% into each section (its start is often mid-transition or a flash)
   const frames = spans.map((s) => Math.round((s.from + (s.to - s.from) * 0.45) * fps));
-  const sheet = framesAllowed(projectId(ctx)) ? await execFramesTool('view_timeline_frames', { frames }, ctx).catch(() => null) as { __images?: unknown[] } | null : null;
+  const sheet = framesAllowed(projectId(ctx)) ? await execFramesTool('view_timeline_frames', { frames }, ctx).catch((e: unknown) => ({ error: e instanceof Error ? e.message : String(e) })) as { __images?: unknown[]; error?: unknown } | null : null;
   return {
     ...(sheet?.__images ? { __images: sheet.__images } : {}),
     ok: true, ratio: plan.ratio, seconds: built.seconds, sections: plan.sections.length, clipsUsed: built.clipsUsed,
     ...(built.added ? { musicAdded: built.added.name } : {}), notes: built.notes,
     review: {
-      frames: sheet?.__images ? spans.map((s, i) => `image ${i + 1}: section ${i} (${plan.sections[i]!.move}) at ${(s.from + (s.to - s.from) * 0.45).toFixed(1)} s`) : 'frames unavailable',
+      frames: sheet?.__images ? spans.map((s, i) => `image ${i + 1}: section ${i} (${plan.sections[i]!.move}) at ${(s.from + (s.to - s.from) * 0.45).toFixed(1)} s`)
+        : typeof sheet?.error === 'string' ? `frames did not render: ${sheet.error.slice(0, 400)}. Fix the section that uses that file; do not call view_timeline_frames.` : 'frames unavailable',
       findings,
       lint: { errors: lint.errors, warnings: lint.warnings, issues: lint.issues.slice(0, 8).map((x) => x.message) },
     },
@@ -305,7 +319,7 @@ export async function directorBuild(args: Record<string, unknown>, ctx: AgentCon
       : findings.length || lint.errors
         ? 'Fix the review findings and anything clearly wrong in the frames with ONE rebuild (replaceTimeline true), then finish.'
         : 'Check the frames; if nothing is clearly wrong, finish.')
-      + ' To finish: call review_edit_session if you opened an edit session (nothing reaches the timeline until it returns applied), then report in at most three short lines (under 60 words).'
+      + ' To finish: call review_edit_session if you opened an edit session (nothing reaches the timeline until it returns applied), then report in at most three short lines (under 60 words in all; no list of sections, no times per part).'
       + songReportLine(ctx.getState()) + ' Do not call view_timeline_frames or reels_lint separately.',
   };
 }

@@ -362,4 +362,14 @@ assert.ok(volumes(music).every((v) => v === 0), 'under a song the clips are mute
   assert.equal(line.item.props.fontWeight, 800);
   assert.ok(!parsePlan({ ratio: '9:16', sections: [{ move: 'cut', speed: 0.1 }] }).ok, 'speed range');
 }
+// fit "whole" on a section marks its shots (the crop step then shows them uncropped over a blurred copy); others are not
+{
+  const fitted = parsePlan({ ratio: '9:16', music: 'song', sections: [{ move: 'hold', beats: 4, fit: 'whole' }, { move: 'hold', beats: 4 }, { move: 'hold', beats: 4, fit: 'crop' }] });
+  assert.ok(fitted.ok);
+  const fp = (fitted as { plan: ReelPlan }).plan;
+  assert.deepEqual(fp.sections.map((x) => x.fit), ['whole', undefined, undefined]);
+  const shots = ((assemble({ recipe: directorRecipe(fp), clips, music, texts: {}, params: {}, seed: 5, plan: fp }).action?.actions ?? []) as any[]).filter((x) => x.type === 'add' && (x.item.kind === 'video' || x.item.kind === 'image'));
+  assert.ok(shots.filter((x) => x.item.props?.rsSection?.startsWith('1-')).every((x) => x.item.props.rsFit === 'blur'));
+  assert.ok(shots.filter((x) => !x.item.props?.rsSection?.startsWith('1-')).every((x) => x.item.props?.rsFit === undefined));
+}
 console.log('assembleDirector.verify: ok');

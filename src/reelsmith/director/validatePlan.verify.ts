@@ -33,7 +33,8 @@ const bad: any = {
   ],
 };
 const v = validatePlan({ ...base, plan: bad, brief });
-assert.deepEqual(v.map((x) => x.rule).sort(), ['beats', 'duplicate', 'length', 'must-use', 'safe-zone', 'short-shot']);
+// (six sections of cuts and holds: the plain rule fires too)
+assert.deepEqual(v.map((x) => x.rule).sort(), ['beats', 'duplicate', 'length', 'must-use', 'plain', 'safe-zone', 'short-shot']);
 const by = Object.fromEntries(v.map((x) => [x.rule, x]));
 assert.match(by.length!.issue, /brief asks for 8 s/);
 assert.match(by.length!.issue, /names 45 s/);
@@ -107,5 +108,46 @@ assert.deepEqual(phraseOf({ ...trek([12, 16, 4]), sections: [...trek([12, 16, 4]
 assert.deepEqual(phraseOf(trek([12, 8, 12]), { ...song, dropSec: song.beatTimesSec[136] }), [], 'the drop (reel beat 20) is a place for a big change');
 assert.deepEqual(validatePlan({ ...base, bpm: 107, plan: trek([4, 8, 12, 8]) }).filter((x) => x.rule === 'phrase'), [], 'no grid, no phrase rule');
 assert.deepEqual(phraseOf({ ...trek([4, 8, 12, 8]), music: undefined }), [], 'no song, no phrase rule');
+
+// The rules that were critique findings until 2026-11-10: plain, dark, bar, crop
+const rulesOf = (plan: any, extra: Partial<ValidateInput> = {}) => validatePlan({ ...base, plan, ...extra }).map((x) => x.rule);
+const four = (moves: string[]): any => ({ version: 1, ratio: '9:16', music: 'song', sections: moves.map((move, k) => ({ move, beats: 4, clips: [`#${k + 1}`] })) });
+// plain: more than half of four or more sections; not for a shot list, a voiceover reel or a short reel
+assert.deepEqual(rulesOf(four(['cut', 'hold', 'cut', 'zoom-punch'])), ['plain']);
+assert.deepEqual(rulesOf(four(['cut', 'hold', 'velocity', 'zoom-punch'])), []);
+assert.deepEqual(rulesOf(four(['cut', 'hold', 'cut'])), [], 'three sections');
+assert.deepEqual(rulesOf({ ...four(['cut', 'hold', 'cut', 'hold']), shotList: true }), []);
+assert.deepEqual(rulesOf({ ...four(['cut', 'hold', 'cut', 'hold']), voiceover: 'voice' }), []);
+assert.deepEqual(validatePlan({ ...base, plan: four(['cut', 'hold', 'cut', 'zoom-punch']) })[0]!.sections, [0, 1, 2]);
+// dark: the night clip of the 2026-11-07 runs (exposure 0.00 for its first 6 s, lit from 6 s); a start with no @ is the build's pick
+const night = { assetId: 'a1', dHash: hashes[0]!, windows: [{ startFrame: 0, endFrame: 180, sharpness: 0.85, exposure: 0, motion: 0.2, subject: 0.1, speech: false }, { startFrame: 180, endFrame: 300, sharpness: 0.8, exposure: 0.7, motion: 0.2, subject: 0.1, speech: false }] };
+const withNight = clips.map((c, i) => (i === 0 ? { ...c, features: night } : c));
+const darkPlan: any = { version: 1, ratio: '9:16', music: 'song', sections: [{ move: 'zoom-punch', beats: 4, clips: ['#1@1', '#1@3'] }, { move: 'hold', beats: 4, clips: ['#2@0'] }] };
+const dark = validatePlan({ ...base, clips: withNight, plan: darkPlan });
+assert.deepEqual(dark.map((x) => x.rule), ['dark']);
+assert.deepEqual(dark[0]!.sections, [0]);
+assert.match(dark[0]!.issue, /#1@1 \(section 0, exposure 0\.00\): #1@6 is lit/);
+assert.deepEqual(rulesOf({ ...darkPlan, sections: [{ move: 'zoom-punch', beats: 4, clips: ['#1@7', '#1'] }, darkPlan.sections[1]] }, { clips: withNight }), [], 'a lit moment, and a clip left to the build');
+assert.deepEqual(rulesOf({ ...darkPlan, shotList: true }, { clips: withNight }), [], 'a shot list is built as written');
+// bar: 30 beats end mid-bar, 32 do not; a length the brief fixes that no bar meets wins; nothing without a song
+const beatsPlan = (beats: number[]): any => ({ version: 1, ratio: '9:16', music: 'song', sections: beats.map((b, k) => ({ move: k % 2 ? 'zoom-punch' : 'cut', beats: b, clips: [`#${k + 1}@0`] })) });
+const bar = validatePlan({ ...base, plan: beatsPlan([8, 8, 8, 6]) });
+assert.deepEqual(bar.map((x) => x.rule), ['bar']);
+assert.match(bar[0]!.fix, /28 or 32 beats/);
+assert.deepEqual(rulesOf(beatsPlan([8, 8, 8, 8])), []);
+assert.deepEqual(rulesOf(beatsPlan([8, 8, 8, 6]), { bpm: 60, brief: { seconds: 30 } }), [], '30 beats is the 30 s asked for; 28 and 32 are two seconds off');
+assert.match(validatePlan({ ...base, plan: beatsPlan([8, 8, 8, 6]), brief: { maxSeconds: 15.5 } })[0]!.fix, /add up to 28 beats/);
+assert.deepEqual(rulesOf({ ...beatsPlan([8, 8, 8, 6]), music: undefined }), []);
+// crop: a landscape shot of people filling 9:16; not scenery, not in a window move, not with fit whole, not on a wide reel
+const shaped = clips.map((c, i) => ({ ...c, shape: i < 2 ? 'landscape' as const : 'portrait' as const, people: i === 0 || i === 2 }));
+const cropPlan = (section: any, ratio = '9:16'): any => ({ version: 1, ratio, music: 'song', sections: [section, { move: 'zoom-punch', beats: 4, clips: ['#4', '#5'] }] });
+const crop = validatePlan({ ...base, clips: shaped, plan: cropPlan({ move: 'hold', beats: 4, clips: ['#1@2'] }) });
+assert.deepEqual(crop.map((x) => x.rule), ['crop']);
+assert.match(crop[0]!.fix, /fit: "whole"/);
+assert.deepEqual(rulesOf(cropPlan({ move: 'hold', beats: 4, clips: ['#2@2'] }), { clips: shaped }), [], 'landscape scenery');
+assert.deepEqual(rulesOf(cropPlan({ move: 'hold', beats: 4, clips: ['#3@2'] }), { clips: shaped }), [], 'portrait people');
+assert.deepEqual(rulesOf(cropPlan({ move: 'hold', beats: 4, clips: ['#1@2'], fit: 'whole' }), { clips: shaped }), []);
+assert.deepEqual(rulesOf(cropPlan({ move: 'split', beats: 4, clips: ['#1@2', '#3'] }), { clips: shaped }), []);
+assert.deepEqual(rulesOf(cropPlan({ move: 'hold', beats: 4, clips: ['#1@2'] }, '16:9'), { clips: shaped }), []);
 
 console.log('validatePlan.verify: ok');

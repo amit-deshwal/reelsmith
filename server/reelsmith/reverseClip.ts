@@ -33,13 +33,14 @@ export function reverseChunks(frames: number, size: number): Array<[number, numb
 /** One reversal at a time: each holds a second of decoded frames and an encoder. */
 let queue: Promise<unknown> = Promise.resolve();
 
-export function reverseSpan(file: string, startSec: number, frames: number, fps: number): Promise<Reversed> {
+export function reverseSpan(file: string, startSec: number, frames: number, fps: number, outputDir = dirname(file), sourceName = file): Promise<Reversed> {
   const work = async (): Promise<Reversed> => {
     if (!(fps > 0) || !(frames >= 1) || !(startSec >= 0)) throw new Error('reverse needs startSec >= 0, frames >= 1 and fps > 0');
     if (frames / fps > MAX_REVERSE_SEC) throw new Error(`reverse at most ${MAX_REVERSE_SEC} s of a clip at once`);
     const meta = await probeVideo(file);
-    const name = reverseName(file, startSec, frames, fps);
-    const out = join(dirname(file), name);
+    // (a referenced import lives outside uploads: the copy goes to `outputDir`, named after its upload entry)
+    const name = reverseName(sourceName, startSec, frames, fps);
+    const out = join(outputDir, name);
     const result = { name, width: meta.width, height: meta.height, frames, hasAudio: meta.hasAudio };
     // a cached copy is reused only when it is newer than the video it came from
     if (existsSync(out) && (await stat(out)).mtimeMs >= (await stat(file)).mtimeMs) return { ...result, cached: true };

@@ -7,7 +7,7 @@ import { historyReduce, type History } from '../../editor/reduce';
 import { activeTimeline, type MediaAsset } from '../../editor/types';
 import { directorSession } from '../director/directorSession';
 import { directorBuild, directorOptions, directorTreatment } from './directorTools';
-import { FINISH, frameSheets } from './directorRepairTools';
+import { FINISH, frameSheets, framesFailed } from './directorRepairTools';
 
 const video = (id: string): MediaAsset => ({ id, name: `${id}.MOV`, kind: 'video', src: `/media/uploads/${id}.mov`, durationInFrames: 300, width: 1080, height: 1920 } as MediaAsset);
 const assets = [video('v1'), video('v2'), video('v3')];
@@ -149,8 +149,15 @@ const api = { clipFeatures: async () => null, mediaFps: async (s: string[]) => s
   const flaky = await frameSheets(picks, 30, ctx, async (frames) => (frames[0] === 240 ? Promise.reject(new Error('x')) : { __images: [{ frame: frames[0], base64: 'ok' }] }));
   assert.equal(flaky.images.length, 2);
   assert.match(flaky.sheets[1]!, /^image 2: \[1\] 16\.0s/);
+  // and why it failed comes back: swallowed, the agent called view_timeline_frames only to read the error
+  assert.equal(flaky.error, 'x');
+  const missing = await frameSheets(picks, 30, ctx, async () => ({ error: 'Export media preflight failed for 1 reference: missing_source: /media/uploads/a.depthv-1-2.png' }));
+  assert.equal(missing.images.length, 0);
+  assert.match(framesFailed(missing.error, 'frames unavailable'), /^frames did not render: Export media preflight failed.*a\.depthv-1-2\.png.*do not call view_timeline_frames/);
+  assert.equal(framesFailed(undefined, 'frames unavailable'), 'frames unavailable');
 }
 
 assert.match(FINISH, /review_edit_session/);
 assert.match(FINISH, /at most three short lines/);
+assert.match(FINISH, /No list of sections/);
 console.log('directorFlow.verify: ok');

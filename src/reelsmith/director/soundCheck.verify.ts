@@ -37,6 +37,13 @@ assert.ok(flat.some((f) => /drop at .* lands on no cut and no hit/.test(f.issue)
 // a reel of 22 beats ends mid-bar
 const mid = check({ ...good, sections: good.sections.map((s, k) => (k === 2 ? { ...s, beats: 6 } : s)) });
 assert.ok(mid.some((f) => /ends on beat 22, mid-bar/.test(f.issue) && /20 or 24/.test(f.fix)), mid.map((f) => f.issue).join(' | '));
+// the song started just before a beat (0:54.00 with a beat at 53.95 dropped, the first one left 0.4 s in): the build
+// counts that beat as reel beat 1, so a 24-beat reel ends on beat 24, not "beat 23, mid-bar" (run of 2026-11-06)
+{
+  const late = Array.from({ length: 60 }, (_, i) => Math.round((0.4 + i * 0.5) * fps));
+  assert.deepEqual(soundCheck({ actions: [], fps, totalFrames: late[23]!, beatFrames: late }), []);
+  assert.ok(soundCheck({ actions: [], fps, totalFrames: late[21]!, beatFrames: late }).some((f) => /ends on beat 22, mid-bar/.test(f.issue)));
+}
 // a line that starts off the beat (a hand-built item) is named with its time
 const odd = soundCheck({ actions: [{ type: 'add', startFrame: 37, item: { id: 'x', kind: 'motion-graphic', track: 'T1', durationInFrames: 30, props: { rsLine: 's9', rsLineText: 'late line' } } } as never], fps, totalFrames: 240, beatFrames });
 assert.ok(odd.some((f) => /"late line" comes in at 1.2 s, between beats/.test(f.issue)));

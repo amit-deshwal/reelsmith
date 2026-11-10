@@ -237,6 +237,7 @@ export const DIRECTOR_TOOL_SCHEMAS: AgentToolSchema[] = [
                   },
                   look: { type: 'string', description: 'A look for this section only.' },
                   textBehind: { type: 'boolean', description: 'Draw this section\'s line behind the person in the shot (they are cut out on top). Needs one clear person in video footage.' },
+                  fit: { type: 'string', enum: ['whole'], description: 'whole shows this section\'s footage uncropped over a blurred copy of itself. For a landscape shot of people in a tall reel, where filling the frame would keep only a third of the picture.' },
                   speed: { type: 'number', description: 'Playback speed of this section\'s footage, 0.25-2: 0.5 is the user\'s "slow motion 50%". Slowed footage is silent.' },
                   naturalSound: { type: 'string', enum: ['under', 'solo'], description: 'The clips\' own sound plays here (a shout, a splash, laughter, a line someone says): under dips the song about 12 dB; solo stops it for the section and brings it back on the next section\'s first beat. Video only.' },
                   sounds: { type: 'array', items: { type: 'object', properties: { id: { type: 'string' }, beat: { type: 'number' } }, required: ['id'] }, description: 'Hand-placed sound effects (sounds ids), beat counted from the section start. Auto sounds already cover transitions, flash cuts, drops and builds.' },

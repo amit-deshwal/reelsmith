@@ -64,6 +64,9 @@ export function soundCheck(input: SoundCheckInput): SoundFinding[] {
   beatFrames.forEach((f, i) => { if (Math.abs(f - input.totalFrames) < Math.abs(beatFrames[last]! - input.totalFrames)) last = i; });
   const off = Math.abs(beatFrames[last]! - input.totalFrames);
   if (off > MISS + 1) out.push({ at: sec(input.totalFrames), issue: `the reel ends at ${sec(input.totalFrames)} s, between beats`, fix: 'end the last section on a beat' });
-  else if (last % 4 !== 0 && last > 8) out.push({ at: sec(input.totalFrames), issue: `the reel ends on beat ${last}, mid-bar: the music does not resolve`, fix: `make the beats add up to ${Math.floor(last / 4) * 4} or ${Math.ceil(last / 4) * 4}` });
+  // the build counts reel beat 0 at the song start; when the first beat comes after it, that beat is reel beat 1
+  // (validatePlan's reelPhraseBeats). Counted from the first beat instead, a 32-beat reel read as "beat 31, mid-bar"
+  const ended = last + ((beatFrames[0] ?? 0) > Math.max(1, 0.02 * fps) ? 1 : 0);
+  if (off > MISS + 1) { /* said above */ } else if (ended % 4 !== 0 && ended > 8) out.push({ at: sec(input.totalFrames), issue: `the reel ends on beat ${ended}, mid-bar: the music does not resolve`, fix: `make the beats add up to ${Math.floor(ended / 4) * 4} or ${Math.ceil(ended / 4) * 4}` });
   return out;
 }

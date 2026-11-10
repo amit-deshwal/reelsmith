@@ -8,6 +8,7 @@ import { RATIO_SIZES } from '../../../shared/reelsmith/ratios';
 import { groupNearDuplicates, type ClipFeatures } from '../assembler/scoring';
 import { safeAreaFor } from '../safeZone';
 import { moveById } from './moves';
+import { betterStretch, stretchOf } from './pickAudit';
 
 /** What the user's brief fixes, written by the agent in the treatment (or passed to reels_validate_plan). */
 export interface PlanBrief {
@@ -23,7 +24,7 @@ export interface PlanBrief {
   mustUse?: string[];
 }
 
-export const PLAN_RULES = ['length', 'beats', 'must-use', 'short-shot', 'safe-zone', 'duplicate', 'phrase'] as const;
+export const PLAN_RULES = ['length', 'beats', 'must-use', 'short-shot', 'safe-zone', 'duplicate', 'phrase', 'plain', 'dark', 'bar', 'crop'] as const;
 export type PlanRule = (typeof PLAN_RULES)[number];
 
 export interface PlanViolation { rule: PlanRule; sections?: number[]; issue: string; fix: string }
@@ -34,7 +35,9 @@ export interface ValidateInput {
   /** the song's tempo (no beat rules without one) */
   bpm?: number;
   /** the numbered clip list: n (the "#n"), its length and its features (for near-identical clips) */
-  clips: ReadonlyArray<{ n: number; seconds: number; features?: ClipFeatures | null }>;
+  clips: ReadonlyArray<{ n: number; seconds: number; features?: ClipFeatures | null; shape?: 'portrait' | 'landscape' | 'square'; /** the clip shows people (its shot tags, or a face found) */ people?: boolean }>;
+  /** the rate the clip features count frames at (the timeline's; default 30) */
+  fps?: number;
   /** "#n", "#n@t" or an assetId → its list number */
   clipNumber: (ref: string) => number | undefined;
   /** RS-1268: the song's beat grid (song seconds), for the phrase rule; no phrase rule without it */
@@ -72,6 +75,12 @@ export function reelPhraseBeats(grid: SongBeatGrid, musicStart: ReelPlan['musicS
 
 /** Moves made of bursts: their half-beat shots are the point. */
 export const FLASH_RUN_MOVES = new Set(['flash-cuts', 'zoom-punch', 'match-cut']);
+/** The plain moves: a reel made mostly of these looks like every other phone edit. */
+export const PLAIN_MOVES = new Set(['cut', 'hold', 'black']);
+/** Below this exposure a moment is nearly black or blown out (pickAudit's scale): nothing to see on a phone. */
+export const UNSEEN_EXPOSURE = 0.15;
+/** Moves that place each shot in a window of its own, where a landscape picture is not cropped to a sliver. */
+const WINDOW_MOVES = new Set(['split', 'pip', 'compare', 'cards-finale', 'postcard-band', 'film-strip', 'photo-stack', 'black']);
 /** Not a shot: a beat of black is a pause. */
 const NOT_A_SHOT = new Set(['black']);
 /** Shorter than this reads as a flicker, not a shot. */
@@ -273,6 +282,76 @@ export function validatePlan(input: ValidateInput): PlanViolation[] {
       const at = off.slice(0, 4).map((k) => `section ${k} "${plan.sections[k]!.text!.slice(0, 24)}" on beat ${Math.round(times[k - 1]!.endBeat * 100) / 100}`).join(', ');
       const where = `beat${inside.length > 1 ? 's' : ''} ${inside.join(', ')}${drop !== undefined && !inside.includes(drop) ? ` (or the drop, beat ${drop})` : ''}`;
       out.push({ rule: 'phrase', sections: off, issue: `new titles off a phrase: ${at}; with this song start the 4-bar phrases begin on reel ${where}`, fix: `start each titled section on ${where} by moving beats between the sections around it; when the reel is too short for every title, keep the titles that start a new place and leave the others' text out` });
+    }
+  }
+  // The rules below were critique findings until 2026-11-10: each was seen only after a full build and cost a fix round
+  // (24 runs: a plain arc in every one of the last nine, a night clip cast into the hook in three, landscape group
+  // shots cropped to a sliver in two). A plan that breaks one is refused once, like the rules above.
+  // plain: a reel of four or more sections made mostly of plain cuts and holds
+  if (!plan.shotList && !plan.voiceover) {
+    const n = plan.sections.length;
+    const plain = plan.sections.map((s, k) => (PLAIN_MOVES.has(s.move) ? k : -1)).filter((k) => k >= 0);
+    if (n >= 4 && plain.length > n / 2) {
+      out.push({ rule: 'plain', sections: plain, issue: `${plain.length} of ${n} sections are plain cuts or holds: it will look like every phone edit`, fix: 'give the hook, the drop or the ending a move of its own (zoom-punch, velocity, break-in, strips-reveal, photo-3d, freeze-intro, match-cut, split, pip, cards-finale), so at most half the sections are cut, hold or black' });
+    }
+  }
+  // dark: a moment the plan names that is nearly black or blown out
+  if (!plan.shotList) {
+    const fps = input.fps ?? 30;
+    const bad: string[] = [];
+    const ks: number[] = [];
+    plan.sections.forEach((s, k) => {
+      const shotSec = Math.max(0.5, Math.min(times[k]!.sec, (beatsPerShot(s) ?? Infinity) * beatSec));
+      for (const ref of s.clips ?? []) {
+        const at = atOf(ref);
+        const features = clips.find((c) => c.n === clipNumber(ref))?.features;
+        // no @: the build picks the clip's best moment itself
+        if (at === undefined || !features?.windows.length) continue;
+        const frames = Math.round(shotSec * fps);
+        const stretch = stretchOf(features, Math.round(at * fps), frames);
+        if (!stretch || stretch.exposure >= UNSEEN_EXPOSURE) continue;
+        const alt = betterStretch(features, frames, 0.6 * stretch.sharpness + 0.4 * stretch.exposure);
+        const name = ref.split('@')[0]!;
+        bad.push(`${ref} (section ${k}, exposure ${stretch.exposure.toFixed(2)})${alt ? `: ${name}@${Math.round((alt.inFrame / fps) * 10) / 10} is lit` : ''}`);
+        if (!ks.includes(k)) ks.push(k);
+      }
+    });
+    if (bad.length) out.push({ rule: 'dark', sections: ks, issue: `nearly black or blown-out moments: ${bad.slice(0, 4).join('; ')}`, fix: 'cast the lit moment named, or another clip; when the dark is the point (a night shot that reads on the sheet), build again as is' });
+  }
+  // bar: with a song, the reel ends on a bar line so the music resolves
+  if (timed && !plan.shotList && !plan.voiceover && times.length) {
+    const beats = times[times.length - 1]!.endBeat;
+    const bar = input.songGrid?.beatsPerBar ?? 4;
+    const whole = Math.abs(beats - Math.round(beats)) < 0.01;
+    if (whole && beats > 2 * bar && Math.round(beats) % bar !== 0) {
+      const fits = (b: number) => {
+        const sec = b * beatSec;
+        if (brief.seconds !== undefined && Math.abs(sec - brief.seconds) > Math.max(1, beatSec)) return false;
+        if (brief.maxSeconds !== undefined && sec > brief.maxSeconds + 0.05) return false;
+        if (brief.minSeconds !== undefined && sec < brief.minSeconds - 0.05) return false;
+        return true;
+      };
+      const options = [Math.floor(beats / bar) * bar, Math.ceil(beats / bar) * bar].filter(fits);
+      // a length the brief fixes that no whole bar meets wins over the bar line
+      if (options.length) out.push({ rule: 'bar', issue: `the reel is ${Math.round(beats)} beats and ends mid-bar: the music does not resolve`, fix: `make the sections add up to ${options.join(' or ')} beats` });
+    }
+  }
+  // crop: a landscape shot of people filling a tall frame keeps about a third of its width
+  {
+    const size = RATIO_SIZES[plan.ratio] ?? RATIO_SIZES['9:16'];
+    if (size.height > size.width * 1.2 && !plan.shotList) {
+      const bad: string[] = [];
+      const ks: number[] = [];
+      plan.sections.forEach((s, k) => {
+        if (WINDOW_MOVES.has(s.move) || s.fit === 'whole') return;
+        for (const ref of s.clips ?? []) {
+          const clip = clips.find((c) => c.n === clipNumber(ref));
+          if (clip?.shape !== 'landscape' || !clip.people) continue;
+          bad.push(`${ref} (section ${k})`);
+          if (!ks.includes(k)) ks.push(k);
+        }
+      });
+      if (bad.length) out.push({ rule: 'crop', sections: ks, issue: `landscape shots of people fill a tall frame: ${bad.slice(0, 5).join(', ')} would show about a third of the picture (heads and faces cut off)`, fix: 'cast a portrait clip there, or show the shot whole: `fit: "whole"` on the section (the picture over a blurred copy of itself) or a `split` with layout rows; when the sheet shows the person stays in the middle third, build again as is' });
     }
   }
   return out;

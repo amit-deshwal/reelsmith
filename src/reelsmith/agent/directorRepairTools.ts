@@ -21,21 +21,31 @@ const FRAMES_PER_SHEET = 8;
  * Render frames in sheets of eight, labelled for the agent ("image 2: [1] 4.5s s1 hold mid · ..."). RS-1258: the sheets
  * render at once (each in a few tabs on the server): 18 critique frames took 12.6 s one sheet after another, ~5 s now.
  */
-export async function frameSheets(picks: Array<{ frame: number; label: string }>, fps: number, ctx: AgentContext, render: (frames: number[]) => Promise<unknown> = (frames) => execFramesTool('view_timeline_frames', { frames }, ctx)): Promise<{ images: unknown[]; sheets: string[] }> {
+export async function frameSheets(picks: Array<{ frame: number; label: string }>, fps: number, ctx: AgentContext, render: (frames: number[]) => Promise<unknown> = (frames) => execFramesTool('view_timeline_frames', { frames }, ctx)): Promise<{ images: unknown[]; sheets: string[]; error?: string }> {
   const images: unknown[] = [];
   const sheets: string[] = [];
   if (!framesAllowed(projectId(ctx))) return { images, sheets };
   const chunks: Array<typeof picks> = [];
   for (let i = 0; i < picks.length; i += FRAMES_PER_SHEET) chunks.push(picks.slice(i, i + FRAMES_PER_SHEET));
   ctx.onToolProgress?.(`Looking closer (${picks.length} frames)`);
-  const rendered = await Promise.all(chunks.map((chunk) => render(chunk.map((p) => p.frame)).catch(() => null) as Promise<{ __images?: unknown[] } | null>));
+  // a failed render says why (a missing media file, a render error): swallowed, the agent saw "frames unavailable" and
+  // called view_timeline_frames only to read the error (5 of 9 runs, 2026-11-06/07)
+  let error: string | undefined;
+  const rendered = await Promise.all(chunks.map((chunk) => render(chunk.map((p) => p.frame))
+    .catch((e: unknown) => ({ error: e instanceof Error ? e.message : String(e) })) as Promise<{ __images?: unknown[]; error?: unknown } | null>));
   rendered.forEach((out, i) => {
+    if (typeof out?.error === 'string' && out.error) error ??= out.error;
     if (!out?.__images?.length) return;
     images.push(...out.__images);
     sheets.push(`image ${images.length}: ${chunks[i]!.map((p, j) => `[${j + 1}] ${(p.frame / fps).toFixed(1)}s ${p.label}`).join(' · ')}`);
   });
-  return { images, sheets };
+  return { images, sheets, ...(error ? { error } : {}) };
 }
+
+/** What a stage says when its frames did not render: the reason, and that the section is broken until it is fixed. */
+export const framesFailed = (error: string | undefined, fallback: string) => (error
+  ? `frames did not render: ${error.slice(0, 400)}. The reel cannot render or export like this: fix the section that uses that file (drop the effect or move, or cast another clip) with reels_director_fix; do not call view_timeline_frames.`
+  : fallback);
 
 /** The checks that need no frames, on the last build: the plan against the treatment, the sound, the reference. */
 function buildChecks(session: NonNullable<ReturnType<typeof directorSession>>) {
@@ -74,7 +84,7 @@ export async function directorCritique(ctx: AgentContext): Promise<unknown> {
 }
 
 /** How every director stage that can end the run says to end it (RS-1258: the report was 1-4k characters, 7-20 s). */
-export const FINISH = 'finish: review_edit_session if you opened an edit session (nothing reaches the timeline until it returns applied), then report in at most three short lines (under 60 words: the concept and structure, the length and song, two things they could ask next).';
+export const FINISH = 'finish: review_edit_session if you opened an edit session (nothing reaches the timeline until it returns applied), then report in at most three short lines (under 60 words in all: the concept and structure in one sentence, the length and song, two things they could ask next). No list of sections, no times per part, no "how it plays".';
 
 /**
  * The critique of the last build: about three frames a section and each line at its fullest, the checks frames cannot
@@ -87,14 +97,15 @@ export async function critiqueOfLastBuild(ctx: AgentContext): Promise<{ error: s
   const built = session?.lastBuild;
   if (!session || !built) return { error: 'Nothing to critique yet: build the reel with reels_director_build first (the critique reads the last director build).' };
   const fps = ctx.getState().fps;
-  const { images, sheets } = await frameSheets(critiqueFrames(built.plan, built.spans, fps), fps, ctx);
+  const { images, sheets, error: frameError } = await frameSheets(critiqueFrames(built.plan, built.spans, fps), fps, ctx);
   updateDirectorSession(id, { lastBuild: { ...built, fixes: 0, defects: [] } });
   const lint = lintReel(ctx.getState());
   const brief = treatmentBrief(session.treatment);
   return {
     images,
     body: {
-      frames: images.length ? sheets : 'frames unavailable: judge from the plan and the checks',
+      frames: images.length && !frameError ? sheets : framesFailed(frameError, 'frames unavailable: judge from the plan and the checks'),
+      ...(images.length && frameError ? { sheets } : {}),
       sections: built.spans.map((sp, k) => `s${k} ${built.plan.sections[k]!.move} ${sp.from.toFixed(1)}-${sp.to.toFixed(1)} s`),
       ...buildChecks(session),
       textWarnings: lint.issues.slice(0, 8).map((x) => x.message),
@@ -170,12 +181,13 @@ export async function directorFix(args: Record<string, unknown>, ctx: AgentConte
   if ('error' in out) return out;
   const fps = ctx.getState().fps;
   const picks = critiqueFrames(out.plan, out.spans, fps).filter((p) => [...changed].some((k) => p.label.startsWith(`s${k} `) || (p.frame >= out.spans[k]!.from * fps && p.frame < out.spans[k]!.to * fps)));
-  const { images, sheets } = await frameSheets(picks, fps, ctx);
+  const { images, sheets, error: frameError } = await frameSheets(picks, fps, ctx);
   const last1 = rounds >= MAX_FIX_ROUNDS;
   return {
     ...(images.length ? { __images: images } : {}),
     ok: true, round: `${rounds} of ${MAX_FIX_ROUNDS}`, rebuilt: [...changed].sort((a, b) => a - b), seconds: out.seconds,
-    frames: images.length ? sheets : 'frames unavailable',
+    frames: images.length && !frameError ? sheets : framesFailed(frameError, 'frames unavailable'),
+    ...(images.length && frameError ? { sheets } : {}),
     ...(defects?.ok ? { defects: defects.defects } : {}),
     ...buildChecks(directorSession(id)!),
     review: out.findings, notes: out.notes,

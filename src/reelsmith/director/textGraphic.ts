@@ -38,6 +38,8 @@ export interface TextGraphicProps {
   stroke?: { width: number; color: string };
   shadow?: boolean;
   opacity?: number;
+  /** the plan placed the line itself (x or y): the passes that move lines off faces leave it there */
+  rsFixedPosition?: boolean;
   /** bounce of popping units, 1 = the preset's own (the tone's motion rule sets it, RS-1219) */
   overshoot?: number;
 }

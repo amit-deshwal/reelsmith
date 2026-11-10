@@ -23,7 +23,7 @@ const again = line('t2', "bro said it's a simple trek", 16);
 const kept = line('t3', 'day 1', -30);
 const behind = line('t4', 'TREK', 16, { rsBehind: true });
 const actions = [clip, onBro, again, kept, behind];
-assert.equal(await clearCaptionsOfPeople(actions, assets, canvas, 30, find), 2);
+assert.deepEqual(await clearCaptionsOfPeople(actions, assets, canvas, 30, find), { moved: 2, stuck: [] });
 const c = 0.5 + yOf(onBro) / 100, half = (96 * 1.2) / 2 / 1920;
 assert.ok(c + half <= 0.55 - 0.02 + 1e-9, `clear above the selfie-taker's face and bro's head (centre ${c.toFixed(3)})`);
 assert.ok(c - half >= 250 / 1920, 'inside the safe area');
@@ -40,4 +40,36 @@ assert.equal(yOf(short), 16, 'a short centred line misses a person at the edge')
 const lone = line('t6', "bro said it's a simple trek", 16);
 await clearCaptionsOfPeople([clip, lone], assets, canvas, 30, async () => { throw new Error('no wasm'); });
 assert.equal(yOf(lone), 16);
+
+// A line drawn by the text engine (rise-lines, typewriter, shine...: a motion graphic placed by props.x/y) is moved the
+// same way. Before 2026-11-10 only plain text items were, so most director lines stayed on heads.
+import { TEXT_GRAPHIC_CODE } from './textGraphic';
+const engine = (id: string, y: number, extra: Record<string, unknown> = {}) =>
+  ({ type: 'add', startFrame: 0, item: { id, track: 'T1', kind: 'motion-graphic', name: id, code: TEXT_GRAPHIC_CODE, durationInFrames: 60, width: 1080, height: 1920, props: { text: 'slipped on every single rock\non the way up', fontSize: 100, align: 'left', x: 0.08, y, maxWidth: 0.84, ...extra } } }) as unknown as AtomicAction;
+const pY = (a: AtomicAction) => (a as { item: { props: { y: number } } }).item.props.y;
+const rise = engine('g1', 0.66), placed = engine('g2', 0.66, { rsFixedPosition: true }), other = { ...engine('g3', 0.66), item: { ...(engine('g3', 0.66) as { item: object }).item, code: 'const X = () => null;' } } as unknown as AtomicAction;
+assert.deepEqual(await clearCaptionsOfPeople([clip, rise, placed, other], assets, canvas, 30, find), { moved: 1, stuck: [] });
+const gh = (2 * 100 * 1.08) / 2 / 1920;
+assert.ok(pY(rise) + gh <= 0.55 - 0.02 + 1e-9 && pY(rise) - gh >= 250 / 1920, `the engine line clears both heads inside the safe area (y ${pY(rise).toFixed(3)})`);
+assert.equal(pY(placed), 0.66, 'a line the plan placed itself stays');
+assert.equal(pY(other), 0.66, 'another motion graphic is not a line');
+
+// a line over a run of cuts sits on several shots: the heads of each are cleared, not only the longest shot's
+const second = { type: 'add', startFrame: 40, item: { id: 'v2', track: 'V1', kind: 'video', name: 'top', src: '/t', sourceAssetId: 'top', srcInFrame: 0, durationInFrames: 20, width: 1080, height: 1920 } } as unknown as AtomicAction;
+const firstShot = { ...clip, item: { ...(clip as { item: object }).item, durationInFrames: 40 } } as unknown as AtomicAction;
+const both = [...assets, { id: 'top', src: '/media/uploads/top.mov', kind: 'video', width: 1080, height: 1920 }];
+const tall: FoundPerson = { x: 0.3, y: 0.1, w: 0.4, h: 0.8, score: 0.9, face: { x: 0.4, y: 0.14, w: 0.2, h: 0.12 } };
+const over = line('t7', "bro said it's a simple trek", -30);
+const perShot = async (shot: { src: string }) => (shot.src.includes('top') ? [tall] : [me, bro]);
+assert.equal((await clearCaptionsOfPeople([firstShot, second, over], both, canvas, 30, perShot)).moved, 1, 'the head in the shorter second shot counts');
+const oc = 0.5 + yOf(over) / 100;
+assert.ok(oc - half >= 0.26 + 0.02 - 1e-9 && oc + half <= 0.55 - 0.02 + 1e-9, `between the tall person's face and the selfie heads (centre ${oc.toFixed(3)})`);
+
+// no height clear of everyone: the line stays and the build is told
+const crowd: FoundPerson[] = Array.from({ length: 8 }, (_, i) => ({ x: 0.1, y: 0.1 + i * 0.09, w: 0.8, h: 0.09, score: 0.9, face: { x: 0.2, y: 0.1 + i * 0.09, w: 0.6, h: 0.08 } }));
+const jammed = line('t8', "bro said it's a simple trek", 0);
+const jam = await clearCaptionsOfPeople([clip, jammed], assets, canvas, 30, async () => crowd);
+assert.equal(jam.moved, 0);
+assert.equal(yOf(jammed), 0);
+assert.match(jam.stuck[0]!, /"bro said it's a simple trek" at 0\.0 s covers a head/);
 console.log('clearOfPeople.verify: ok');

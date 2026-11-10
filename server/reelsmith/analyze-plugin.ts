@@ -146,13 +146,13 @@ export function reelsmithAnalyzePlugin(): Plugin {
         if (typeof file !== 'string') throw new Error(file.error);
         const atSec = Number(body.atSec);
         if (!(atSec >= 0)) throw new Error('atSec must be a number of seconds');
-        const still = await extractStill(file, atSec);
+        const still = await extractStill(file, atSec, uploadDir(), uploadNameOfSource(String(body.src))!);
         return { src: `/media/uploads/${encodeURIComponent(still.name)}`, width: still.width, height: still.height };
       });
       route('/api/reelsmith/reverse-clip', async (body) => {
         const file = localFile(body.src);
         if (typeof file !== 'string') throw new Error(file.error);
-        const r = await reverseSpan(file, Number(body.startSec), Math.round(Number(body.frames)), Number(body.fps));
+        const r = await reverseSpan(file, Number(body.startSec), Math.round(Number(body.frames)), Number(body.fps), uploadDir(), uploadNameOfSource(String(body.src))!);
         return { src: `/media/uploads/${encodeURIComponent(r.name)}`, width: r.width, height: r.height, frames: r.frames, hasAudio: r.hasAudio, cached: r.cached };
       });
       route('/api/reelsmith/smooth-slow', async (body) => {
@@ -184,7 +184,8 @@ export function reelsmithAnalyzePlugin(): Plugin {
         if (typeof file !== 'string') throw new Error(file.error);
         const atSec = body.atSec === undefined || body.atSec === null ? undefined : Number(body.atSec);
         if (atSec !== undefined && !(atSec >= 0)) throw new Error('atSec must be a number of seconds');
-        const r = await depthMapFor(file, atSec);
+        // (as for smooth-slow: a referenced import's map is written to this profile's media directory, not beside the source)
+        const r = await depthMapFor(file, atSec, uploadDir(), uploadNameOfSource(String(body.src))!);
         return { available: true, src: `/media/uploads/${encodeURIComponent(r.name)}`, width: r.width, height: r.height, cached: r.cached };
       });
       route('/api/reelsmith/depth-track', async (body) => {
@@ -193,7 +194,7 @@ export function reelsmithAnalyzePlugin(): Plugin {
         if (typeof file !== 'string') throw new Error(file.error);
         const fromSec = Number(body.fromSec), toSec = Number(body.toSec);
         if (!(fromSec >= 0) || !(toSec >= fromSec)) throw new Error('fromSec and toSec must be seconds, toSec not before fromSec');
-        const r = await depthTrackFor(file, fromSec, toSec);
+        const r = await depthTrackFor(file, fromSec, toSec, uploadDir(), uploadNameOfSource(String(body.src))!);
         return { available: true, src: `/media/uploads/${encodeURIComponent(r.name)}`, count: r.meta.count, cached: r.cached, ms: r.ms };
       });
       route('/api/reelsmith/upscale', async (body) => {
@@ -202,7 +203,7 @@ export function reelsmithAnalyzePlugin(): Plugin {
         if (typeof file !== 'string') throw new Error(file.error);
         const width = Number(body.width); const height = Number(body.height);
         if (!(width > 0 && height > 0)) throw new Error('width and height are required');
-        const r = await upscalePhoto(file, { width, height });
+        const r = await upscalePhoto(file, { width, height }, uploadDir(), uploadNameOfSource(String(body.src))!);
         return { available: true, src: `/media/uploads/${encodeURIComponent(r.name)}`, width: r.width, height: r.height, cached: r.cached };
       });
       route('/api/reelsmith/no-sound-copy', async (body) => {

@@ -2,11 +2,12 @@
 // at the clip's size and frame count, made once per span.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ffmpegBin, ffprobeBin } from '../media-binaries.ts';
 import { reverseChunks, reverseName, reverseSpan } from './reverseClip.ts';
+import { extractStill } from './stillFrame.ts';
 
 assert.deepEqual(reverseChunks(70, 30), [[0, 30], [30, 30], [60, 10]]);
 assert.deepEqual(reverseChunks(30, 30), [[0, 30]]);
@@ -57,6 +58,18 @@ try {
   assert.equal(lumas(join(dir, m.name)).length, 10);
 
   await assert.rejects(reverseSpan(clip, 0, 30 * 121, 30), /at most 120 s/);
+
+  // A local import is stored by reference: the source is outside uploads, and what is made from it (a reversed copy, a
+  // still, a depth map) must land in the uploads folder under its upload name, where its /media/uploads URL points.
+  // Written beside the source, the render failed with "missing_source" (depth maps, runs of 2026-11-07).
+  const uploads = join(dir, 'uploads');
+  mkdirSync(uploads);
+  const ref = await reverseSpan(clip, 0, 10, 30, uploads, 'imported.mov');
+  assert.equal(ref.name, 'imported.rev-0-10f30.mp4');
+  assert.ok(existsSync(join(uploads, ref.name)), 'the reversed copy is in uploads under the imported name');
+  assert.ok(!existsSync(join(dir, 'clip.rev-0-10f30.mp4')), 'nothing new beside the source');
+  const still = await extractStill(clip, 1, uploads, 'imported.mov');
+  assert.ok(existsSync(join(uploads, still.name)) && still.name.startsWith('imported.'), `the still is in uploads (${still.name})`);
   console.log('reverseClip.verify: ok');
 } finally {
   rmSync(dir, { recursive: true, force: true });

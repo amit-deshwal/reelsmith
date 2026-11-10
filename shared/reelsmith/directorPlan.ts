@@ -38,6 +38,11 @@ export interface PlanSection {
   naturalSound?: NaturalSound;
   /** RS-1249: playback speed of this section's footage (0.25-2; 0.5 = the user's "slow motion 50%"); slowed footage is silent */
   speed?: number;
+  /**
+   * 'whole' shows this section's footage uncropped over a blurred copy of itself: a landscape group shot in a tall reel,
+   * where filling the frame keeps a third of the picture ("a chin and a hat brim", runs of 2026-11-06). Default: fill.
+   */
+  fit?: 'whole';
 }
 
 export const NATURAL_SOUNDS = ['under', 'solo'] as const;
@@ -247,6 +252,7 @@ export function parsePlan(raw: unknown): { ok: true; plan: ReelPlan } | { ok: fa
       ...(typeof s.transition === 'string' ? { transition: s.transition } : {}), ...(effects.length ? { effects } : {}),
       ...(typeof s.look === 'string' ? { look: s.look } : {}), ...(sounds.length ? { sounds } : {}), ...(s.textBehind === true ? { textBehind: true } : {}),
       ...(natural ? { naturalSound: natural } : {}), ...(speed !== undefined && speed !== 1 ? { speed } : {}),
+      ...(s.fit === 'whole' ? { fit: 'whole' as const } : {}),
     });
   });
   const overlays: PlanOverlay[] = [];

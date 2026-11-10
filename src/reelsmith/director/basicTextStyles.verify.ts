@@ -41,4 +41,18 @@ assert.ok(String(line.text).includes('\n') && (line.fontSize as number) > 28, 'a
   assert.equal(hook.text, 'bro lied to me that\nit would be easy hike');
   assert.ok((hook.fontSize as number) >= 60, `the hook stays readable (got ${String(hook.fontSize)})`);
 }
+// a line the plan places itself (x or y) is marked, so the passes that move lines off faces, and the one that lays a
+// line behind a person across their head, leave it where the plan put it
+{
+  const { ENGINE_STYLES } = await import('./textStyles');
+  const rise = ENGINE_STYLES.find((s) => s.id === 'rise-lines')!;
+  const props = (params: Record<string, number>) => {
+    const emitted: Array<{ item: { props: Record<string, unknown> } }> = [];
+    rise.build({ W: 1080, H: 1920, fps: 30, start: 0, end: 90, beatFrame: (b: number) => b * 15, beats: 6, text: 'we made it', params, seed: 1,
+      id: (...parts: string[]) => parts.join('-'), lane: (n: number) => `lane-${n}`, emit: (a: unknown) => emitted.push(a as never), warn: () => undefined } as never);
+    return emitted[0]!.item.props;
+  };
+  assert.deepEqual([props({ y: 0.2 }).y, props({ y: 0.2 }).rsFixedPosition], [0.2, true]);
+  assert.equal(props({ x: -1, y: -1 }).rsFixedPosition, undefined, 'the style\'s own place may be moved');
+}
 console.log('basicTextStyles verify ok');

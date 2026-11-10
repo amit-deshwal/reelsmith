@@ -68,6 +68,12 @@ const blurred = withCropFocus([{ type: 'add', startFrame: 0, item: {
   srcInFrame: 105, durationInFrames: 50,
 } }], [clip], { width: 1080, height: 1920 }, 'blur')[0]!;
 assert.ok(blurred.type === 'add' && blurred.item.backgroundFill === true && !blurred.item.transform, 'blur: background fill, no crop transform');
+// a director section with fit "whole" marks its shots (rsFit): shown whole whatever the reel's own setting
+const whole = withCropFocus([{ type: 'add', startFrame: 0, item: {
+  id: 'shot', track: 'V1', kind: 'video', name: 'shot', src: '/clip.mp4', sourceAssetId: 'clip',
+  srcInFrame: 105, durationInFrames: 50, props: { rsFit: 'blur' },
+} }], [clip], { width: 1080, height: 1920 }, 'fill')[0]!;
+assert.ok(whole.type === 'add' && whole.item.backgroundFill === true && !whole.item.transform, 'fit whole: background fill, no crop');
 assert.equal(mismatchFitOf({}), 'auto');
 assert.equal(mismatchFitOf({ mismatchFit: 'blur' }), 'blur');
 assert.equal(mismatchFitOf({ mismatchFit: 'fill' }), 'fill');

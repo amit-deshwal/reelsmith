@@ -26,9 +26,10 @@ export async function frameJpeg(file: string, atSec: number): Promise<{ base64: 
   return { base64: stdout.toString('base64'), ...size };
 }
 
-export async function extractStill(file: string, atSec: number): Promise<Still> {
-  const name = stillName(file, atSec);
-  const out = join(dirname(file), name);
+export async function extractStill(file: string, atSec: number, outputDir = dirname(file), sourceName = file): Promise<Still> {
+  // (a referenced import lives outside uploads: its still is written to `outputDir`, named after its upload entry)
+  const name = stillName(sourceName, atSec);
+  const out = join(outputDir, name);
   // a cached still is reused only when it is newer than the video it came from
   const fresh = existsSync(out) && (await stat(out)).mtimeMs >= (await stat(file)).mtimeMs;
   if (!fresh) {

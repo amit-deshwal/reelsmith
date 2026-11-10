@@ -9,7 +9,9 @@ import { motionAt, type ShotLogClip } from './shotLog';
 import { PERSON } from './review';
 import { missingThingQuestion, missingThings } from './storyThings';
 import type { ReferenceProfile } from './reference';
-import { parseBrief, type PlanBrief } from './validatePlan';
+import { PLAIN_MOVES, parseBrief, type PlanBrief } from './validatePlan';
+
+export { PLAIN_MOVES };
 
 import { TONES, type Tone } from '../../../shared/reelsmith/directorPlan';
 
@@ -105,8 +107,6 @@ export const TONE_KIT: Record<Tone, { prefer: string[]; avoid: string[] }> = {
 const PEAK_MOVES = new Set(['flash-cuts', 'zoom-punch', 'velocity', 'speed-ramp', 'match-cut', 'break-in', 'strips-reveal']);
 /** Moves that make a reel memorable (one is the signature). */
 const SIGNATURE_MOVES = new Set(['velocity', 'photo-3d', 'freeze-intro', 'match-cut', 'strips-reveal', 'cards-finale', 'break-in', 'speed-ramp', 'rewind']);
-/** The plain moves: a reel made only of these looks like every other phone edit. */
-export const PLAIN_MOVES = new Set(['cut', 'hold', 'black']);
 
 const str = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
 const strs = (v: unknown) => (Array.isArray(v) ? v.map(str).filter(Boolean) : []);
@@ -419,6 +419,7 @@ function checkTreatmentAll(t: Treatment, ctx: TreatmentContext): TreatmentFindin
 /** What the agent needs to turn a treatment into a plan: the catalogue slice and how to cast and write. */
 export const PLAN_BRIEF = [
   'Stage 3: the plan. Turn each part into one or two sections ({ move, beats, clips, text, textStyle, params, transition, effects }); keep the beats of the arc.',
+  'A plan is refused once when it breaks a rule: most sections plain cuts or holds, a moment the log marks dark, a reel that ends mid-bar, a landscape shot of people filling a tall frame (give that section fit "whole", or a split in rows).',
   'Casting: name clips by number in the order the move uses them; start each at its best moment from the shot log ("#5@12"); the hook and the drop get the moving, sharp moments, the ending the most beautiful one; never the same moment in neighbouring sections; leave a shot\'s length after its start.',
   'Words: the user\'s phrases, trimmed, never reworded; one line per section at most, 3 words a second at most; repeat your chosen styles; style params go in the section\'s params.',
   'The drop gets everything at once: the peak move, a drop-timed effect and its hit; the section before it may build. Transitions from your kit only where something changes (the hook, the drop, a new place, the ending).',

@@ -25,12 +25,13 @@ export function upscaleName(sourceName: string): string {
   return `${basename(sourceName, ext)}.x2.jpg`;
 }
 
-export function upscalePhoto(file: string, size: { width: number; height: number }): Promise<Upscaled> {
+export function upscalePhoto(file: string, size: { width: number; height: number }, outputDir = dirname(file), sourceName = file): Promise<Upscaled> {
   const run = async (): Promise<Upscaled> => {
     if (!upscaleAvailable()) throw new Error('photo enhancement is not installed (.reelsmith-venv or the model weights are missing)');
     if (Math.max(size.width, size.height) > MAX_SOURCE_PX) throw new Error('photo is already large enough');
-    const name = upscaleName(basename(file));
-    const out = join(dirname(file), name);
+    // (a referenced import lives outside uploads: the copy goes to `outputDir`, named after its upload entry)
+    const name = upscaleName(basename(sourceName));
+    const out = join(outputDir, name);
     const result = { file: out, name, width: size.width * 2, height: size.height * 2, cached: true };
     if (existsSync(out) && (await stat(out)).mtimeMs >= (await stat(file)).mtimeMs) return result;
     await new Promise<void>((resolve, reject) => {

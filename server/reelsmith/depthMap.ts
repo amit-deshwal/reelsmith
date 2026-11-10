@@ -91,9 +91,11 @@ export function runDepthModel(rgb: Uint8Array, width: number, height: number): P
 const flights = new Map<string, Promise<DepthMap>>();
 
 /** The depth map of a photo (or of the frame at `atSec` of a video), made once and reused while newer than its source. */
-export function depthMapFor(file: string, atSec?: number): Promise<DepthMap> {
-  const name = depthName(file, atSec);
-  const out = join(dirname(file), name);
+export function depthMapFor(file: string, atSec?: number, outputDir = dirname(file), sourceName = file): Promise<DepthMap> {
+  // a referenced import lives outside uploads: the map (and its still and sky map) go to `outputDir`, named after
+  // the upload entry, so the /media/uploads URL the route returns points at a real file
+  const name = depthName(sourceName, atSec);
+  const out = join(outputDir, name);
   const existing = flights.get(out);
   if (existing) return existing;
   const work = (async (): Promise<DepthMap> => {
@@ -102,7 +104,7 @@ export function depthMapFor(file: string, atSec?: number): Promise<DepthMap> {
       const meta = await sharp(out).metadata();
       // depth maps made before the sky map existed get theirs now, from the saved map and the picture
       if (!existsSync(skyName(out)) || skyRuleOf(skyModelName(skyName(out))) < SKY_RULE) {
-        const picture = atSec === undefined ? file : join(dirname(file), (await extractStill(file, atSec)).name);
+        const picture = atSec === undefined ? file : join(outputDir, (await extractStill(file, atSec, outputDir, sourceName)).name);
         const depth = await sharp(out).raw().toBuffer({ resolveWithObject: true });
         const w = depth.info.width, h = depth.info.height;
         const guide = await sharp(picture).rotate().resize({ width: w, height: h, fit: 'fill' }).removeAlpha().raw().toBuffer({ resolveWithObject: true });
@@ -112,7 +114,7 @@ export function depthMapFor(file: string, atSec?: number): Promise<DepthMap> {
       return { name, width: meta.width ?? 0, height: meta.height ?? 0, cached: true };
     }
     if (!depthPackInstalled()) throw new Error('the depth-lite model pack is not installed');
-    const picture = atSec === undefined ? file : join(dirname(file), (await extractStill(file, atSec)).name);
+    const picture = atSec === undefined ? file : join(outputDir, (await extractStill(file, atSec, outputDir, sourceName)).name);
     // the photo as the browser shows it (EXIF orientation applied), short edge at the model's size
     const { data, info } = await sharp(picture).rotate().resize({ width: INPUT_SHORT_EDGE, height: INPUT_SHORT_EDGE, fit: 'outside', withoutEnlargement: false })
       .removeAlpha().raw().toBuffer({ resolveWithObject: true });

@@ -230,7 +230,8 @@ export function withCropFocus(actions: AtomicAction[], clips: AssemblyClip[], ca
     const gain = matches.get(clip.baseAssetId ?? clip.assetId);
     const focus = focusForRange(clip, start, end);
     const fill = fillTransformForFocus(clip.width ?? 0, clip.height ?? 0, canvas.width, canvas.height, focus);
-    const blur = !!fill && usesBlurFit(fit, clip.width ?? 0, clip.height ?? 0, canvas, fill.scale);
+    // a director section with fit 'whole' (rsFit) shows its shots uncropped over a blurred copy, whatever the reel's setting
+    const blur = !!fill && ((action.item.props as { rsFit?: unknown } | undefined)?.rsFit === 'blur' || usesBlurFit(fit, clip.width ?? 0, clip.height ?? 0, canvas, fill.scale));
     return { ...action, item: { ...action.item,
       width: action.item.width ?? clip.width, height: action.item.height ?? clip.height,
       ...(gain && !action.item.effects?.length ? { effects: [matchEffect(gain)] } : {}),
