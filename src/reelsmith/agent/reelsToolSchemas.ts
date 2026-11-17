@@ -38,8 +38,8 @@ export const REELS_TOOL_SCHEMAS: AgentToolSchema[] = [
     name: 'reels_apply_signature',
     description: [
       'Give the reel one considered, restrained style in one undo step: a look on every clip, one accent effect on the opening shot only, and one transition type on the cuts.',
-      'Use this when the user wants it unique, thrilling, cinematic, bold or "the best effects": one signature beats a stack of effects. Do not add more effects on top.',
-      'Choose by what the footage shows, not only the words: neon-pulse is for dark night footage only (it washes daylight and white clothes magenta); bright daytime footage is cinematic-drift (the default for "unique/thrilling/bold") or golden-memory.',
+      'It puts a colour grade on every clip, so use it only when the user asks for a look or a colour style ("cinematic colours", "make it warm", "a retro feel"). Not for "the best effects" on a reel the director built: change that plan with reels_director_fix (its moves, text styles and effects) instead. Do not add more effects on top.',
+      'Choose by what the footage shows, not only the words: neon-pulse is for dark night footage only (it washes daylight and white clothes magenta); bright daytime footage is cinematic-drift or golden-memory; clean-minimal when the colours should stay as filmed.',
       'cinematic-drift (travel, landscapes, calm: teal/orange, flare on the opening, whip-blur cuts), neon-pulse (nightlife, parties, energetic: bloom, zoom-blur punch, chroma-glitch cuts),',
       'golden-memory (couples, sunsets, friends, nostalgic: warm grade, light-leak cuts), retro-tape (throwback, funny: VHS, flash cuts), clean-minimal (lifestyle, portraits, fashion: soft colour, hard cuts, nothing else).',
       'Transitions are only added when the reel has none yet (a directed reel places its own); pass transitions false to keep hard cuts. Replaces a previous signature or look.',

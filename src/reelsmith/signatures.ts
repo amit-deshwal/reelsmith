@@ -18,7 +18,7 @@ export interface ReelSignature {
 
 export const SIGNATURES: ReelSignature[] = [
   {
-    id: 'cinematic-drift', name: 'Cinematic drift', mood: 'daytime trips, landscapes, friends, outdoors, trek, calm, bold, thrilling, unique, premium, default for bright footage',
+    id: 'cinematic-drift', name: 'Cinematic drift', mood: 'daytime trips, landscapes, friends, outdoors, trek, calm, bold, thrilling, unique, premium (a colour grade: only when a look is wanted)',
     description: 'Teal and orange grade with soft halation, an anamorphic flare on the opening shot and whip-blur cuts.',
     look: 'cinematic-travel',
     hook: { assetId: 'builtin:fx-anamorphic-flare', overrides: { intensity: 0.5 } }, transition: 'whip-blur',

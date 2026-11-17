@@ -68,6 +68,12 @@ assert.deepEqual(validatePlan({ ...base, bpm: 140, plan: { ...oneBeat, sections:
 assert.deepEqual(validatePlan({ ...base, plan: good, brief: { mustUse: ['#3@2.5', 'a4'] } }), []);
 assert.deepEqual(validatePlan({ ...base, plan: good, brief: { mustUse: ['#3@9'] } }).map((x) => x.rule), ['must-use']);
 assert.deepEqual(validatePlan({ ...base, plan: good, brief: { mustUse: ['#99'] } }).map((x) => x.rule), ['must-use']);
+// RS-1273 (1) useAll: #6, #8 are not cast in the good plan
+const all = validatePlan({ ...base, plan: good, brief: { useAll: true } });
+assert.deepEqual(all.map((x) => x.rule), ['must-use']);
+assert.match(all[0]!.issue, /2 are not cast: #6, #8/);
+assert.deepEqual(validatePlan({ ...base, plan: { ...good, sections: [...good.sections, { move: 'flash-cuts', beats: 2, clips: ['#6', '#8'] }] }, brief: { useAll: true } }).filter((x) => x.rule === 'must-use'), []);
+assert.deepEqual(parseBrief({ useAll: true }), { useAll: true });
 // safe-zone: the right-side buttons, an overlay, and a 16:9 reel (no overlay there); a style's own place (-1) is not checked
 assert.deepEqual(validatePlan({ ...base, plan: { ...good, overlays: [{ text: 'day 1', style: 'caption', from: 0, to: 1, params: { x: 0.95 } }] } }).map((x) => x.rule), ['safe-zone']);
 assert.deepEqual(validatePlan({ ...base, plan: { ...good, ratio: '16:9', sections: [{ ...good.sections[0], text: 'hi', params: { y: 0.02 } }, ...good.sections.slice(1)] } }), []);

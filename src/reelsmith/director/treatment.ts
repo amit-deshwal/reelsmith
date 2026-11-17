@@ -181,6 +181,7 @@ export function treatmentCard(t: Treatment, bpm?: number): string {
     `Signature: ${t.signature}`,
     ...(t.heroes.length ? [`Hero shots: ${t.heroes.join(', ')}`] : []),
     ...(t.brief?.mustUse?.length ? [`Must use: ${t.brief.mustUse.join(', ')}`] : []),
+    ...(t.brief?.useAll ? ['Use all the clips: every clip of a second or more is cast'] : []),
     ...(kit.length ? [`Kit: ${kit.join(', ')}`] : []),
     `Other idea: ${t.concepts.filter((_, i) => i !== t.chosen).map((c) => `${c.name} (${c.idea})`).join('; ')}`,
   ].join('\n');

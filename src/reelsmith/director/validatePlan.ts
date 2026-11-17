@@ -27,6 +27,8 @@ export interface PlanBrief {
   songTo?: number;
   /** shots the user asked for ("#3", "#5@12" or an assetId) */
   mustUse?: string[];
+  /** RS-1273 (1): "use all my clips": every clip a second or longer must be cast */
+  useAll?: boolean;
 }
 
 export const PLAN_RULES = ['length', 'beats', 'must-use', 'short-shot', 'safe-zone', 'duplicate', 'phrase', 'plain', 'dark', 'bar', 'crop', 'still', 'copy', 'repeat', 'transition', 'hook', 'group'] as const;
@@ -209,6 +211,12 @@ export function validatePlan(input: ValidateInput): PlanViolation[] {
     if (off.length) out.push({ rule: 'beats', sections: off, issue: `section${off.length > 1 ? 's' : ''} ${list(off)} cut off the beat (a length in seconds or a fractional beats or every)`, fix: 'give those sections whole beats (beats, not seconds) and a whole every; half beats only inside flash-cuts or zoom-punch' });
   }
 
+  // RS-1273 (1): "include all my videos": every clip of a second or more is cast somewhere
+  if (brief.useAll) {
+    const castNs = new Set(plan.sections.flatMap((sec) => (sec.clips ?? []).map((ref) => clipNumber(ref)).filter((n): n is number => n !== undefined)));
+    const missing = clips.filter((c) => c.seconds >= 1 && !castNs.has(c.n)).map((c) => `#${c.n}`);
+    if (missing.length) out.push({ rule: 'must-use', issue: `the user asked for all their clips and ${missing.length} ${missing.length > 1 ? 'are' : 'is'} not cast: ${missing.slice(0, 20).join(', ')}${missing.length > 20 ? ', …' : ''}`, fix: 'cast every one in a section\'s clips: add flash-cuts or zoom-punch sections (several clips each, half a beat to a beat a shot) or lengthen the reel within the brief; a clip that truly cannot be used (nothing to see) stays out: build again as is and name it in your report' });
+  }
   // must-use: the shots the user asked for
   if (brief.mustUse?.length) {
     const cast = plan.sections.flatMap((s) => (s.clips ?? []).map((ref) => ({ n: clipNumber(ref), at: atOf(ref) })));
@@ -476,6 +484,7 @@ export function parseBrief(raw: unknown): PlanBrief | undefined {
   for (const k of ['seconds', 'minSeconds', 'maxSeconds', 'songFrom', 'songTo'] as const) { const v = num(r[k]); if (v !== undefined) brief[k] = v; }
   const must = Array.isArray(r.mustUse) ? r.mustUse.filter((x): x is string => typeof x === 'string' && !!x.trim()).map((x) => x.trim()) : [];
   if (must.length) brief.mustUse = must;
+  if (r.useAll === true) brief.useAll = true;
   return Object.keys(brief).length ? brief : undefined;
 }
 

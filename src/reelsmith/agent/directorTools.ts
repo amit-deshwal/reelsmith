@@ -33,6 +33,8 @@ import { songVocalStarts } from './directorVocals';
 import { directorVisuals, libraryMusic, songGrid, tempo, within } from './directorOptions';
 import { HISTORY_MAX } from '../director/moveVariety';
 import { parseBrief, validatePlan, violationText, type PlanBrief, type PlanViolation } from '../director/validatePlan';
+import { unusedClips, unusedClipsNote } from '../director/unusedClips';
+import { behindTextCount, behindTextNote } from '../director/behindCount';
 export { directorOptions, directorVisuals, footageRateFor, sheetSamples, songSuggestion, warmShotTagsFor, type FindShots } from './directorOptions';
 const VISUAL = new Set(['video', 'image']);
 const secs = (frames: number, fps: number) => Math.round((frames / fps) * 10) / 10;
@@ -83,6 +85,8 @@ export interface BuildOutcome {
   spans: Array<{ from: number; to: number }>;
   seconds: number;
   clipsUsed: number;
+  /** RS-1273 (1): the clips left out, with a reason each (the first 24) */
+  unusedClips: { count: number; clips?: string[] };
   notes: string[];
   added?: MediaAsset;
   findings: ReturnType<typeof reviewDirectorPlan>;
@@ -249,8 +253,22 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
   const tookSec = (Date.now() - startedAt) / 1000;
   if (tookSec > 20) console.info(`[director build] ${tookSec.toFixed(1)} s: ${steps.join(', ')}`);
   if (tookSec > 60) out.messages.unshift(`The build took ${Math.round(tookSec)} s: ${steps.join(', ')}.`);
+  // RS-1273 (1): the clips left out, each with a reason
+  const unused = unusedClips({
+    clips: visual.map((a, k) => ({ id: a.id, name: a.name, kind: a.kind === 'image' ? 'image' as const : 'video' as const, seconds: session?.clips[k]?.seconds ?? a.durationInFrames / fps })),
+    usedIds: new Set(report.usedAssetIds),
+    features: new Map(visual.flatMap((a, k) => { const f = session?.clips[k]?.features; return f ? [[a.id, f] as const] : []; })),
+  });
+  const unusedNote = unusedClipsNote(unused);
+  // RS-1273 (4): lines behind the person, and the sections that could carry one more
+  const behindNote = behindTextNote(behindTextCount(plan, (ref) => {
+    const m = /^#(\d+)/.exec(ref.trim());
+    const k = m ? Number(m[1]) - 1 : visual.findIndex((a) => a.id === ref.split('@')[0]);
+    return k >= 0 && showsPeople(session?.clips[k]);
+  }));
   return {
-    plan, spans, seconds: secs(report.totalFrames, fps), clipsUsed: report.usedAssetIds.length, notes: out.messages.slice(0, 12),
+    plan, spans, seconds: secs(report.totalFrames, fps), clipsUsed: report.usedAssetIds.length, notes: [...(unusedNote ? [unusedNote] : []), ...(behindNote ? [behindNote] : []), ...out.messages].slice(0, 12),
+    unusedClips: { count: unused.count, ...(unused.count ? { clips: unused.clips.slice(0, 24) } : {}) },
     ...(added ? { added } : {}), findings, lint: lintReel(ctx.getState()), builds,
   };
 }
@@ -349,7 +367,7 @@ export async function directorBuild(args: Record<string, unknown>, ctx: AgentCon
     if (!('error' in looked)) {
       return {
         ...(looked.images.length ? { __images: looked.images } : {}),
-        ok: true, ratio: plan.ratio, seconds: built.seconds, sections: plan.sections.length, clipsUsed: built.clipsUsed,
+        ok: true, ratio: plan.ratio, seconds: built.seconds, sections: plan.sections.length, clipsUsed: built.clipsUsed, unusedClips: built.unusedClips,
         ...(built.added ? { musicAdded: built.added.name } : {}), notes: built.notes,
         review: { findings, lint: { errors: lint.errors, warnings: lint.warnings, issues: lint.issues.slice(0, 8).map((x) => x.message) } },
         critique: looked.body,
@@ -364,7 +382,7 @@ export async function directorBuild(args: Record<string, unknown>, ctx: AgentCon
   const sheet = framesAllowed(projectId(ctx)) ? await execFramesTool('view_timeline_frames', { frames }, ctx).catch((e: unknown) => ({ error: e instanceof Error ? e.message : String(e) })) as { __images?: unknown[]; error?: unknown } | null : null;
   return {
     ...(sheet?.__images ? { __images: sheet.__images } : {}),
-    ok: true, ratio: plan.ratio, seconds: built.seconds, sections: plan.sections.length, clipsUsed: built.clipsUsed,
+    ok: true, ratio: plan.ratio, seconds: built.seconds, sections: plan.sections.length, clipsUsed: built.clipsUsed, unusedClips: built.unusedClips,
     ...(built.added ? { musicAdded: built.added.name } : {}), notes: built.notes,
     review: {
       frames: sheet?.__images ? spans.map((s, i) => `image ${i + 1}: section ${i} (${plan.sections[i]!.move}) at ${(s.from + (s.to - s.from) * 0.45).toFixed(1)} s`)

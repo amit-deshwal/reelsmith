@@ -127,6 +127,14 @@ const PLAN_FIELDS = ['look', 'sfx', 'musicStart', 'overlays', 'graphics', 'tone'
  * clips and the same moments (the plan's `keep`), and only the changed sections are shown again. With no changes it
  * returns the saved treatment and plan (RS-1222), so a later chat edit starts from the director's intent.
  */
+/** RS-1273 (3): the user's words ask for clips the reel left out, or another length. */
+export function needsRebuild(request: string): boolean {
+  const r = request.toLowerCase();
+  const clips = /\b(clips?|videos?|footage|shots)\b/.test(r) && /\b(missing|missed|left out|leave out|all (of )?(my|the)|every|include|add|more|rest of)\b/.test(r);
+  const length = /\b(\d{1,3})\s*(s|sec|secs|seconds)\b/.test(r) && /\b(make|reel|long|length|seconds|up to|feel free)\b/.test(r) || /\b(longer|shorter)\b/.test(r);
+  return clips || length;
+}
+
 export async function directorFix(args: Record<string, unknown>, ctx: AgentContext, deps: ReelsDeps): Promise<unknown> {
   const id = projectId(ctx);
   const session = restoreDirectorSession(id, ctx.getState().items as never);
@@ -146,6 +154,10 @@ export async function directorFix(args: Record<string, unknown>, ctx: AgentConte
       ...(built.defects?.length ? { openDefects: built.defects } : {}),
       next: !onTimeline ? 'Nothing of this plan is on the timeline: build it with reels_director_build (this plan, replaceTimeline true) before you critique, fix or report it.' : 'This is the reel as directed. To change it, call reels_director_fix again with `sections` ({ "<index>": the whole new section }) and/or `plan` (look, sfx, musicStart, overlays, graphics, tone), plus `request` (the user\'s words) or `defects`. Keep the treatment\'s tone and kit unless the user asks for a new feel.',
     };
+  }
+  // RS-1273 (3): more clips or a new length cannot come from a fix (it keeps the sections there are)
+  if (typeof args.request === 'string' && needsRebuild(args.request)) {
+    return { error: `"${args.request.slice(0, 120)}" needs a rebuild, not a fix: a fix only swaps shots inside the sections there are. Call reels_director_options again (cached: it returns at once when the media did not change), then reels_director_build with replaceTimeline true, the length in brief, and brief.useAll true when they want all their clips (add flash-cuts or zoom-punch sections so every clip fits).` };
   }
   const rounds = (built.fixes ?? 0) + 1;
   if (args.defects === undefined && typeof args.request !== 'string') return { error: 'Say why: `defects` (from the critique: section, at, evidence, fix) or `request` (the user\'s words for this change).' };

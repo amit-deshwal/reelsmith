@@ -598,3 +598,12 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 
 ## Export dialog footer kept on screen (2026-11-18)
 - `src/index.css`: `.cc-export-panel` is a flex column, `.cc-export-layout` takes the remaining height (`flex:1`, one `minmax(0,1fr)` row) and `.cc-export-main` gets `min-height:0`, so `.cc-export-content` scrolls instead of the tall Instagram check report pushing the footer (Export / Done button) below the clipped panel.
+
+## Third Goa review fixes (RS-1273, 2026-11-18)
+- `src/library/LibraryPanel.tsx`: the Director tab gets only the home screen's director choice as its starting shape (no longer the canvas ratio), so it starts at 9:16.
+- `desktop/main.ts`: one import and one call, `installRendererConsoleLog(win.webContents, <userData>/logs)` (`desktop/renderer-console-log.ts`, ours): renderer warnings and errors go to `renderer.log`.
+- `src/export/browserExport.ts`: new `browserFailureCause(error)` (the error's first line, 160 characters at most). `src/export/videoExportOperation.ts`: `switchToServer` takes an optional cause and appends it to the progress detail; only an unknown failure (`BROWSER_RENDER_INCOMPLETE_REASON`) passes one, an encoder refusal keeps the neutral notice. `src/export/videoExportFallback.verify.ts`: asserts the cause is shown for an unknown failure.
+- `src/export/ExportDestinationBar.tsx` + `src/i18n/dict/en/exportPanel.ts`: in the desktop app the default destination reads "Downloads folder" / "Saved to ~/Downloads", not "Browser downloads".
+- `src/agent/external-run-ledger.ts`: a successful tool outcome carries `summary` from `directorLedgerSummary` (`src/reelsmith/agent/ledgerSummary.ts`, ours) for director tools.
+- `src/gl/fx/look-teal-orange.frag` (+ generated `.frag.ts`) and `src/gl/fx/lutEffects.ts`: new `u_keep` / `keep` prop (default 0 = upstream's grade): keeps reds, skin and strong colours as filmed under the graded light. Cinematic travel sets `keep: 1`.
+- `assets/agent/openchatcut-tool-schemas.json`: regenerated (reels_apply_signature description, director brief `useAll`).

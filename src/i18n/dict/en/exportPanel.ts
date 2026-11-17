@@ -24,6 +24,8 @@ export default {
   '本机兼容渲染': 'Local compatibility renderer',
   '保存到': 'Save to',
   '浏览器下载目录': 'Browser downloads',
+  '下载文件夹': 'Downloads folder',
+  '保存到 ~/Downloads；选择…可另选位置': 'Saved to ~/Downloads; Choose… picks another place',
   '保存位置由浏览器下载设置决定': 'The browser controls the download location',
   '导出目录无效': 'The export destination is invalid.',
   '导出目录授权无效': 'The export destination permission is invalid.',

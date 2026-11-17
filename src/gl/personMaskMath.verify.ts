@@ -37,3 +37,18 @@ assert.deepEqual(subjectUniforms(subject).u_subjectCenter, [subject.cx, subject.
 const syn = matteFromConfidence(syntheticPersonConfidence(96, 54), 96, 54).subject;
 assert.ok(Math.abs(syn.cx - 0.5) < 0.02 && syn.area > 0.1 && syn.h > 0.7, JSON.stringify(syn));
 console.log('personMaskMath.verify ok');
+
+// RS-1273: a speck away from the person is dropped; the person and a second big piece stay
+{
+  const { withoutSpecks } = await import('./personMaskMath');
+  const w = 100, h = 100;
+  const conf = new Float32Array(w * h);
+  for (let y = 40; y < 100; y++) for (let x = 30; x < 70; x++) conf[y * w + x] = 1; // the person
+  for (let y = 10; y < 13; y++) for (let x = 10; x < 13; x++) conf[y * w + x] = 0.9; // a 9-pixel speck
+  for (let y = 0; y < 30; y++) for (let x = 80; x < 100; x++) conf[y * w + x] = 1; // a second person, 6% of the frame
+  const out = withoutSpecks(conf, w, h, 0.3);
+  if (out[11 * w + 11] !== 0) throw new Error('speck kept');
+  if (out[50 * w + 50] !== 1 || out[10 * w + 90] !== 1) throw new Error('a person was dropped');
+  if (withoutSpecks(conf.map((v, i) => (i < 20 * w ? 0 : v)), w, h, 0.3)[50 * w + 50] !== 1) throw new Error('one piece');
+  console.log('personMaskMath.verify specks ok');
+}

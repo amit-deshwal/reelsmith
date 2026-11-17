@@ -69,6 +69,7 @@ import {
   validDesktopExportFilename,
 } from './export-directory-state.ts';
 import { runDesktopSmokeProbe } from './smoke-probe.ts';
+import { installRendererConsoleLog } from './renderer-console-log.ts';
 import { exitSmoke, installSmokeWatchdog } from './smoke-lifecycle.ts';
 import { runtimeProfile } from '../server/runtime-profile.ts';
 import {
@@ -430,6 +431,7 @@ async function boot(): Promise<void> {
     mainWindow = null;
   });
   installDesktopPageGuards(win, origin);
+  installRendererConsoleLog(win.webContents, join(app.getPath('userData'), 'logs'));
   win.webContents.on('context-menu', (_event, params) => {
     const template = buildTextContextMenuTemplate(params);
     if (!template.length) return;

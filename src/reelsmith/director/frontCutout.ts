@@ -4,11 +4,13 @@
 import type { AtomicAction } from '../../editor/reducerActions';
 
 export const FRONT_CUTOUT = 'builtin:fx-person-cutout';
+/** RS-1273: a softer edge than the effect's 0.08, so the hair over a title fades instead of cutting off */
+export const FRONT_EDGE = 0.12;
 
 export function withFrontCutouts(actions: AtomicAction[]): AtomicAction[] {
   return actions.map((a) => {
     if (a.type !== 'add' || !(a.item.props as { rsFront?: unknown } | undefined)?.rsFront) return a;
     if ((a.item.effects ?? []).some((e) => e.assetId === FRONT_CUTOUT)) return a;
-    return { ...a, item: { ...a.item, effects: [...(a.item.effects ?? []), { id: `${a.item.id}-cut`, assetId: FRONT_CUTOUT, overrides: { white: 0 } }] } };
+    return { ...a, item: { ...a.item, effects: [...(a.item.effects ?? []), { id: `${a.item.id}-cut`, assetId: FRONT_CUTOUT, overrides: { white: 0, edge: FRONT_EDGE } }] } };
   });
 }

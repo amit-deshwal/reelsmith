@@ -25,7 +25,9 @@ const smooth = (lo: number, hi: number, x: number) => {
  * The matte is a soft threshold so edges stay smooth but the body is solid; it is opaque on purpose, because a canvas stores
  * premultiplied alpha and a matte kept in alpha would be squared on upload.
  */
-export function matteFromConfidence(conf: ArrayLike<number>, w: number, h: number, lo = 0.3, hi = 0.7): { rgba: Uint8ClampedArray; subject: SubjectInfo } {
+export function matteFromConfidence(rawConf: ArrayLike<number>, w: number, h: number, lo = 0.3, hi = 0.7): { rgba: Uint8ClampedArray; subject: SubjectInfo } {
+  // RS-1273: a stray speck of "person" (one floated above a head behind a title) is dropped before the matte is made
+  const conf = withoutSpecks(rawConf, w, h, lo);
   const rgba = new Uint8ClampedArray(w * h * 4);
   const cols = new Uint32Array(w);
   const rows = new Uint32Array(h);
@@ -53,6 +55,46 @@ export function matteFromConfidence(conf: ArrayLike<number>, w: number, h: numbe
     rgba,
     subject: { cx: sumX / count / w, cy: 1 - sumY / count / h, w: Math.max(0.02, (x1 - x0) / w), h: Math.max(0.02, (y1 - y0) / h), area },
   };
+}
+
+/** Pieces of the matte smaller than this share of the frame, and not the biggest piece, are noise. */
+export const SPECK_AREA = 0.005;
+
+/**
+ * RS-1273: the confidence with every small piece (connected above `lo`, under SPECK_AREA of the frame, not the largest)
+ * set to 0. Two people far apart both stay; a speck of hair-coloured sky does not.
+ */
+export function withoutSpecks(conf: ArrayLike<number>, w: number, h: number, lo: number): ArrayLike<number> {
+  const n = w * h;
+  const label = new Int32Array(n).fill(-1);
+  const sizes: number[] = [];
+  const stack: number[] = [];
+  for (let i = 0; i < n; i++) {
+    if (label[i] !== -1 || (conf[i] ?? 0) <= lo) continue;
+    const id = sizes.length;
+    let size = 0;
+    label[i] = id;
+    stack.push(i);
+    while (stack.length) {
+      const p = stack.pop()!;
+      size += 1;
+      const x = p % w;
+      const neighbours = [x > 0 ? p - 1 : -1, x < w - 1 ? p + 1 : -1, p - w, p + w];
+      for (const q of neighbours) {
+        if (q < 0 || q >= n || label[q] !== -1 || (conf[q] ?? 0) <= lo) continue;
+        label[q] = id;
+        stack.push(q);
+      }
+    }
+    sizes.push(size);
+  }
+  if (sizes.length < 2) return conf;
+  const biggest = sizes.indexOf(Math.max(...sizes));
+  const tiny = sizes.map((s, id) => id !== biggest && s < SPECK_AREA * n);
+  if (!tiny.some(Boolean)) return conf;
+  const out = Float32Array.from({ length: n }, (_, i) => conf[i] ?? 0);
+  for (let i = 0; i < n; i++) if (label[i]! >= 0 && tiny[label[i]!]) out[i] = 0;
+  return out;
 }
 
 /** The uniforms every mask effect receives about the subject. */

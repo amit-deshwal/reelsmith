@@ -75,6 +75,13 @@ export function browserFallbackReason(error: unknown): string {
   return ENCODER_REFUSED.test(message) ? BROWSER_ENCODER_UNSUPPORTED_REASON : BROWSER_RENDER_INCOMPLETE_REASON;
 }
 
+/** Reelsmith: the first line of the error behind a fallback, short enough for the progress detail. */
+export function browserFailureCause(error: unknown): string {
+  const raw = error instanceof Error ? `${error.name !== 'Error' ? `${error.name}: ` : ''}${error.message}` : String(error ?? '');
+  const line = raw.split('\n').map((l) => l.trim()).find(Boolean) ?? '';
+  return line.length > 160 ? `${line.slice(0, 157)}...` : line;
+}
+
 /**
  * Decide whether a timeline can use the in-browser WebCodecs fast-export path.
  *

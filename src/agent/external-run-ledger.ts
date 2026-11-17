@@ -27,6 +27,13 @@ import {
 } from './runtime-artifact';
 import { compactToolResultForModel } from './tool-result-compaction';
 import type { ExternalApprovalBinding } from './external-approval-gate';
+import { directorLedgerSummary } from '../reelsmith/agent/ledgerSummary';
+
+// Reelsmith RS-1273: a director tool's success carries one line of what it did
+function successOutcome(name: string, args: Record<string, unknown> | undefined, result: unknown): AgentToolOutcome {
+  const summary = directorLedgerSummary(name, args, result);
+  return summary ? { kind: 'success', summary } : { kind: 'success' };
+}
 
 export type ExternalToolExecutor = (
   name: string,
@@ -379,7 +386,7 @@ export class ExternalSessionRunLedger {
     const failure = externalToolResultFailure(invocation, result);
     const projected = await this.captureToolOutcome(
       invocation,
-      failure ?? { kind: 'success' },
+      failure ?? successOutcome(input.name, input.args, result),
       result,
     );
     return { session, result: projected };
@@ -406,7 +413,7 @@ export class ExternalSessionRunLedger {
       throw boundedExternalToolError(error);
     }
     const failure = externalToolResultFailure(invocation, result);
-    return this.captureToolOutcome(invocation, failure ?? { kind: 'success' }, result);
+    return this.captureToolOutcome(invocation, failure ?? successOutcome(invocation.toolName, args, result), result);
   }
   private requiredToolExecutor(): ExternalToolExecutor {
     if (!this.executeTool) {

@@ -48,6 +48,8 @@ export const LUT_EFFECTS: Record<string, FxDef> = {
     props: [
       { key: 'intensity', label: '强度', default: 0.85, min: 0, max: 1, step: 0.01 },
       { key: 'contrast', label: '对比', default: 1.1, min: 0.6, max: 1.8, step: 0.02 },
+      // Reelsmith RS-1273: keep reds, skin and strong colours (0 = the upstream grade)
+      { key: 'keep', label: 'Keep colour', default: 0, min: 0, max: 1, step: 0.01 },
     ],
   },
   'builtin:look-mono': {

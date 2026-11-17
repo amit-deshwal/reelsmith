@@ -20,7 +20,8 @@ export const REEL_LOOKS: ReelLook[] = [
     // RS-1261: the grade and the halation stay off the sky (a blue sky turned beige under them, and the sun bloomed orange)
     steps: [
       // lighter since an AMK trek reel (2026-10-21): 0.6 halation + 0.25 mist washed sunny daylight into a golden haze
-      { assetId: 'builtin:look-teal-orange', overrides: { intensity: 0.5, contrast: 1.1 }, region: 'land' },
+      // RS-1273: keep 1 keeps reds and skin as filmed (the red Thar of a Goa reel lost 24% saturation without it)
+      { assetId: 'builtin:look-teal-orange', overrides: { intensity: 0.5, contrast: 1.1, keep: 1 }, region: 'land' },
       { assetId: 'builtin:fx-halation', overrides: { intensity: 0.35 }, region: 'land' },
       { assetId: 'builtin:fx-pro-mist', overrides: { intensity: 0.12 } },
       { assetId: 'builtin:fx-soft-vignette', overrides: { strength: 0.35 } },

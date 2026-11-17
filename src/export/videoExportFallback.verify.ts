@@ -173,6 +173,8 @@ try {
     });
     await createVideoExporter(run.context)();
     assert.equal(run.engineReason(), BROWSER_RENDER_INCOMPLETE_REASON);
+    // Reelsmith RS-1273: an unknown failure's first line is shown, so it can be diagnosed without DevTools
+    assert.ok((run.progress()?.detail ?? '').includes('(EncodingError: Encoder failure)'));
   }
 
   // ── Local first, local fails, browser rescue refused → the LOCAL error is the outcome

@@ -1,6 +1,6 @@
 // Contact sheet of per-clip effects on a real clip: the original first, then each effect at its default settings.
 // Pass `look:<id>` (or `looks` for all of them) to render Reel looks instead of single effects.
-//   node --import tsx server/reelsmith/fx-sheet.mts <clip> <out.jpg> [effect id ...] [--at=FRAME] [--cols=N]
+//   node --import tsx server/reelsmith/fx-sheet.mts <clip> <out.jpg> [effect id ...] [--at=FRAME] [--cols=N] [--tile=WIDTH]
 // Rendered through the app's own export renderer (remotion), so what you see is what an export draws.
 import { execFileSync } from 'node:child_process';
 import { ffmpegBin, ffprobeBin } from '../media-binaries.ts';
@@ -28,6 +28,7 @@ const ids = wanted.length ? wanted.map((id) => (id.startsWith('builtin:') || id.
 const FPS = 30;
 const at = Number(flags.at ?? 20);
 const cols = Number(flags.cols ?? 4);
+const tileW = Number(flags.tile ?? 270);
 const work = mkdtempSync(join(tmpdir(), 'rs-fxsheet-'));
 const media = join(work, 'media');
 mkdirSync(media);
@@ -70,7 +71,7 @@ for (let i = 0; i < tiles.length; i += cols) {
   const group = tiles.slice(i, i + cols);
   while (group.length < cols) group.push(group[0]!);   // pad the last row with the original
   const row = join(work, `row-${i}.jpg`);
-  execFileSync(ffmpegBin(), ['-y', '-v', 'error', ...group.flatMap((f) => ['-i', f]), '-filter_complex', `${group.map((_, k) => `[${k}:v]scale=270:-1[s${k}]`).join(';')};${group.map((_, k) => `[s${k}]`).join('')}hstack=inputs=${group.length}`, '-frames:v', '1', row]);
+  execFileSync(ffmpegBin(), ['-y', '-v', 'error', ...group.flatMap((f) => ['-i', f]), '-filter_complex', `${group.map((_, k) => `[${k}:v]scale=${tileW}:-1[s${k}]`).join(';')};${group.map((_, k) => `[s${k}]`).join('')}hstack=inputs=${group.length}`, '-frames:v', '1', row]);
   rows.push(row);
 }
 if (rows.length === 1) copyFileSync(rows[0]!, out);

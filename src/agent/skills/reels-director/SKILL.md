@@ -42,9 +42,9 @@ Decide what this reel *is* before any plan. Send:
 - **hero shots**: the 3-6 best moments in the footage (`"#5@12"`), from the log and sheets;
 - **the arc as parts** on the song: `{ role, beats, move, clips, line, idea, purpose }`: hook, build/journey, drop/peak, payoff, ending, adding up to about `beatsFor18s`, with the drop part starting on `dropAtBeat`. `purpose` is why the part exists: what the viewer knows or feels after it that they did not before ("they learn bro lied"). A part with no purpose of its own, or the same one as its neighbour, is filler: merge or cut it;
 - **the signature**: the one moment people will remember, and where;
-- **the kit**, from the menu at the end of this skill: 1-3 text styles, one transition family (1-3), the few effects, the graphics the story asks for, a look or none;
+- **the kit**, from the menu at the end of this skill: 1-3 text styles, one transition family (1-3), the few effects, the graphics the story asks for, no look unless asked;
 - `story` (their words, verbatim) and `quoteUser: true` only when they asked for their own words as the lines;
-- **`brief`**, only what the user fixed: `seconds` or `maxSeconds`, `songFrom`/`songTo` (song seconds), `mustUse` refs. Each build checks the plan against it and the rules (whole beats per section, no shot under 0.5 s outside flash runs, `x`/`y` in the safe area, no moment twice, titled sections on a phrase or the drop) and refuses a breaking plan once;
+- **`brief`**, only what the user fixed: `seconds` or `maxSeconds`, `songFrom`/`songTo` (song seconds), `mustUse` refs, `useAll` (all their clips). Each build checks the plan against it and the rules (whole beats per section, no shot under 0.5 s outside flash runs, `x`/`y` in the safe area, no moment twice, titled sections on a phrase or the drop) and refuses a breaking plan once;
 - **with a reference, the `styleGuide`**: `pacing` (seconds or beats a shot, where it holds), `palette` (its actual colours, not "premium"), `type` (typeface feel, size, where lines sit), `motion` (snap, glide, overshoot, hold), `texture`, and `doNotCopy` (its subjects, words, logos). Follow it in the kit and the arc: its pace sets your beats a shot, its colour your look.
 
 How to shape it:
@@ -104,7 +104,7 @@ For any change to a reel you built ("slower ending", "more royal", "this looks b
 
 - **What matters most, in order** (Walter Murch's rule of six): the emotion of the moment, then the story being clear, then the rhythm with the song, then where the eye is (on fast cuts the next subject sits near the last one), then the framing. When two rules fight, the higher one wins.
 
-- **One idea per reel.** One concept, one tone, one look or none. Choose the look from the sheets, not the topic: sunny daylight with blue sky usually looks best with no look; glow looks haze bright skies. Read each look's "Avoid".
+- **One idea per reel.** One concept, one tone, one look or none. A look only when asked: grades and glow drain phone footage (reds, skin).
 - **The voice matches the tone.** Royal and epic: cinematic serif titles, tracking, gold shine, light rays and flares, dissolves and zoom-throughs; never stickers, sparkles, bouncing pop captions or glitches. Playful and funny: pop words, highlights, arrows, stickers, snappy slides. Hype: slams, words on the beat, glitch cuts, RGB punches.
 - **In-picture text needs the right shot**: `landscape-title` needs open sky above the scenery; `behind-you` needs one clear person; neither works on close-ups or indoors.
 - **Transitions mark changes**, one family per reel: `film-burn` for vintage travel, `prism-flash` for fashion and nights, `flip-3d` for sports, `mirror-flip` for before/after, `brush-wipe` for journals, `pixelate` for tech, `blur-focus` for memories, `light-dissolve` and `zoom-through` for grand journeys.

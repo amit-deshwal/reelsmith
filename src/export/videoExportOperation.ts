@@ -2,6 +2,8 @@ import { timelineDuration } from '../editor/types';
 import { resolveTimelineRenderPlan, sequenceGraphError } from '../editor/sequenceGraph';
 import { recordExport } from '../persist/exportHistoryStore';
 import {
+  BROWSER_RENDER_INCOMPLETE_REASON,
+  browserFailureCause,
   browserFallbackReason,
   browserScaledExportDimensions,
   isAbortError,
@@ -104,7 +106,7 @@ function setPlannedRoute(context: VideoExportContext, plan: ExportRoutePlan): vo
   context.setProgress((current) => current ? { ...current, detail: context.t(plan.reason) } : current);
 }
 
-function switchToServer(context: VideoExportContext, engine: ExportEngineInfo, reason: string): void {
+function switchToServer(context: VideoExportContext, engine: ExportEngineInfo, reason: string, cause?: string): void {
   context.setRenderEngine('server');
   context.setEngineInfo(engine);
   context.setEngineReason(reason);
@@ -115,7 +117,8 @@ function switchToServer(context: VideoExportContext, engine: ExportEngineInfo, r
     percent: 0,
     processedFrames: undefined,
     totalFrames: undefined,
-    detail: context.t('浏览器快导不可用：{reason}，已切换兼容渲染', { reason: context.t(reason) }),
+    // Reelsmith: the error's first line too, so the fallback can be diagnosed without DevTools
+    detail: context.t('浏览器快导不可用：{reason}，已切换兼容渲染', { reason: context.t(reason) }) + (cause ? ` (${cause})` : ''),
   } : current);
 }
 
@@ -259,7 +262,9 @@ async function runBrowserThenServer(
     // export's outcome: show a neutral notice and keep WebCodecs' own words
     // for diagnostics.
     console.warn('[export] browser fast export stopped; continuing with the local renderer', error);
-    switchToServer(context, plan.serverEngine, browserFallbackReason(error));
+    const reason = browserFallbackReason(error);
+    // Reelsmith RS-1273: an encoder refusal explains itself; an unknown failure shows its first line
+    switchToServer(context, plan.serverEngine, reason, reason === BROWSER_RENDER_INCOMPLETE_REASON ? browserFailureCause(error) : undefined);
     await context.exportServerVideo(controller.signal);
     return;
   }

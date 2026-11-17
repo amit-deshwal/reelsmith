@@ -23,6 +23,7 @@ import { brandKitText, type BrandKit } from '../../../shared/reelsmith/brandKit'
 import { directorTimelineFps } from '../director/footageRate';
 import { narrationOptions, VOICEOVER_HINT } from './directorVoiceover';
 import { CANDIDATE_MAX, leftOutText, pickPool, POOL_MAX } from '../director/pool';
+import { cacheable, cachedOptions, optionsKey, pickStage1, rememberOptions } from './directorOptionsCache';
 export const VISUAL = new Set(['video', 'image']);
 const secs = (frames: number, fps: number) => Math.round((frames / fps) * 10) / 10;
 
@@ -210,7 +211,21 @@ export function withGroupQuery(queries: readonly string[]): string[] {
 export type FindShots = (args: Record<string, unknown>, ctx: AgentContext, deps: ReelsDeps) => Promise<unknown>;
 
 export async function directorOptions(args: Record<string, unknown>, ctx: AgentContext, deps: ReelsDeps, search?: FindShots): Promise<unknown> {
+  // RS-1273 (3): the same media and arguments as a finished stage 1 of this project: its result again, at once
   const timelineFps = await footageRateFor(ctx, deps);
+  const id = projectId(ctx);
+  const key = optionsKey({ fps: timelineFps ?? ctx.getState().fps, media: (ctx.getDoc().assets ?? []).filter((a) => VISUAL.has(a.kind) || a.kind === 'audio'), args });
+  const hit = cachedOptions(id, key);
+  if (hit) {
+    updateDirectorSession(id, { ...hit.session, treatment: undefined, lastBuild: undefined, gate: undefined });
+    return { ...hit.result, timelineIsEmpty: ctx.getState().items.length === 0, cached: 'Stage 1 of this media, kept from earlier: nothing changed since.' };
+  }
+  const result = await directorOptionsUncached(args, ctx, deps, timelineFps, search);
+  if (cacheable(result)) rememberOptions(id, key, result, pickStage1(directorSession(id)));
+  return result;
+}
+
+async function directorOptionsUncached(args: Record<string, unknown>, ctx: AgentContext, deps: ReelsDeps, timelineFps: number | undefined, search?: FindShots): Promise<unknown> {
   const rateNote = timelineFps ? `The reel is built at ${timelineFps} fps to match the clips (they were shot at ${timelineFps}).` : undefined;
   const fps = timelineFps ?? ctx.getState().fps;
   const assets = (ctx.getDoc().assets ?? []).filter((a) => VISUAL.has(a.kind) || a.kind === 'audio');
