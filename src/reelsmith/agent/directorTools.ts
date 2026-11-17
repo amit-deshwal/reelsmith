@@ -143,7 +143,10 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
   // RS-1267: the plan against the brief, before the voiceover, the lyrics and the clip analysis the build waits on
   const violations = await checkPlan(plan, ctx, deps, assets, session?.treatment?.brief);
   // a fix round repairs a reel that was built already: how plain its arc is was settled then
-  const fresh = violations.filter((v) => !(session?.refusedRules ?? []).includes(v.rule) && !(Array.isArray(args.keep) && v.rule === 'plain'));
+  // RS-1273: a fix the user asked for in their own words is their timing: its rule breaks go in the notes, not a refusal
+  // (the session that remembered a refusal is rebuilt from the reel on every fix, so each one paid a refused call)
+  const userFix = Array.isArray(args.keep) && args.userRequest === true;
+  const fresh = userFix ? [] : violations.filter((v) => !(session?.refusedRules ?? []).includes(v.rule) && !(Array.isArray(args.keep) && v.rule === 'plain'));
   if (fresh.length) {
     updateDirectorSession(id, { refusedRules: [...new Set([...(session?.refusedRules ?? []), ...violations.map((v) => v.rule)])] });
     return { error: `The plan breaks ${violations.length === 1 ? 'a rule' : `${violations.length} rules`}; nothing was built. ${violations.map(violationText).join(' | ')}. Fix them and build again (a rule the footage cannot meet: build again as is and say so in your report).` };

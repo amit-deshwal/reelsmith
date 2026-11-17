@@ -192,7 +192,7 @@ export async function directorFix(args: Record<string, unknown>, ctx: AgentConte
   // a section rebuilt with new beats moves the ones after it; they keep their shots
   const keep = sections.map((_, k) => (changed.has(k) || !built.clips?.[k] ? null : { clips: built.clips[k]!, moments: built.moments?.[k] ?? [] }));
   ctx.onToolProgress?.(`Fixing section${changed.size === 1 ? '' : 's'} ${[...changed].join(', ')}`);
-  const out = await runBuild({ plan, keep, replaceTimeline: true, fixRound: rounds, defects: defects?.ok ? defects.defects : [] }, ctx, deps);
+  const out = await runBuild({ plan, keep, replaceTimeline: true, fixRound: rounds, defects: defects?.ok ? defects.defects : [], ...(typeof args.request === 'string' && args.request.trim() ? { userRequest: true } : {}) }, ctx, deps);
   if ('error' in out) return out;
   if ('building' in out) return { building: `still waiting for ${out.building}; nothing changed yet`, next: 'Call reels_director_fix again now with the same arguments (the analysis goes on meanwhile). Do not change the fix for this.' };
   const fps = ctx.getState().fps;

@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { AbsoluteFill, Img, OffthreadVideo, Video, continueRender, delayRender, getRemotionEnvironment, useCurrentFrame, useVideoConfig } from 'remotion';
+import { AbsoluteFill, Img, OffthreadVideo, Video, continueRender, delayRender, useCurrentFrame, useRemotionEnvironment, useVideoConfig } from 'remotion';
 import { Video as MediaVideo } from '@remotion/media';
 import { createGlRuntime, type GlRuntime } from './runtime';
 import { cubeSettled, ensureCube } from './fx/cube';
@@ -135,7 +135,9 @@ function MediaSource({ item, trim, fit, elRef, decoder, onVideoFrame }: {
 export function GlTransition({ type, direction, L, windowStart, outgoing, incoming, trimOut, trimIn, width, height, fit, outgoingBackgroundFill = false, incomingBackgroundFill = false, customFrag, customUniforms, previewTargetId, onPreviewStatus, onReadyChange }: GlTransitionProps) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
-  const rendering = getRemotionEnvironment().isRendering;
+  // Reelsmith: the hook, not getRemotionEnvironment(): @remotion/web-renderer (fast export) says it is rendering only
+  // through context, and the global read false there, so the inputs fell back to <Html5Video>, which it refuses.
+  const rendering = useRemotionEnvironment().isRendering;
   const runtimeDecoder = useRuntimeVideoDecoder();
   const inputDecoder = rendering ? runtimeDecoder : null;
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
