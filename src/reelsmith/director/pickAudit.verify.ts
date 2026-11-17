@@ -7,10 +7,10 @@ const win = (startSec: number, endSec: number, sharpness: number, exposure = 0.7
   startFrame: startSec * fps, endFrame: endSec * fps, sharpness, exposure, motion, subject: 0.2, speech: false,
 });
 const clip = (assetId: string, windows: WindowFeatures[]): ClipFeatures => ({ assetId, dHash: '0'.repeat(16), windows });
-// #1: soft first 4 s, sharp after; #2: dark throughout; #3: fine; #4: a strong clip nobody used
+// #1: soft first 4 s, sharp after; #2: nearly black for 4 s, lit after; #3: fine; #4: a strong clip nobody used
 const features = new Map<string, ClipFeatures>([
   ['a', clip('a', [win(0, 2, 0.1), win(2, 4, 0.15), win(4, 6, 0.8), win(6, 8, 0.75)])],
-  ['b', clip('b', [win(0, 2, 0.6, 0.1), win(2, 4, 0.6, 0.12)])],
+  ['b', clip('b', [win(0, 2, 0.6, 0.1), win(2, 4, 0.6, 0.12), win(4, 6, 0.6, 0.8)])],
   ['c', clip('c', [win(0, 2, 0.7), win(2, 4, 0.72)])],
   ['d', clip('d', [win(0, 2, 0.95, 0.9), win(2, 4, 0.9, 0.85)])],
 ]);
@@ -36,8 +36,12 @@ const findings = auditPicks({ used, features, label, fps });
 assert.equal(findings.length, 2);
 assert.match(findings[0]!.issue, /section 1 shows #1@0, which is out of focus/);
 assert.match(findings[0]!.fix, /use #1@4 instead/);
-assert.match(findings[1]!.issue, /section 2 shows #2@0, which is (too dark|nearly black)/);
-assert.match(findings[1]!.fix, /another clip/);
+assert.match(findings[1]!.issue, /section 2 shows #2@0, which is nearly black or blown out/);
+assert.match(findings[1]!.fix, /use #2@4 instead/);
+// RS-1272 (6): one dark threshold with the plan rule (0.15): a dim 0.22 stretch passes, and so does a clip dark from end
+// to end (night footage: a club)
+const dim = new Map([['e', clip('e', [win(0, 2, 0.7, 0.22), win(2, 4, 0.7, 0.8)])], ['f', clip('f', [win(0, 2, 0.7, 0.05), win(2, 4, 0.7, 0.25)])]]);
+assert.deepEqual(auditPicks({ used: [{ section: 0, assetId: 'e', inFrame: 0, frames: 2 * fps }, { section: 1, assetId: 'f', inFrame: 0, frames: 2 * fps }], features: dim, label: (id) => id, fps }), []);
 
 // the same shot used twice is named once; photos get no moment in their name
 const twice = auditPicks({ used: [used[0]!, { ...used[0]!, section: 1 }], features, label, fps });

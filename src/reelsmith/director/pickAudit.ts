@@ -10,8 +10,17 @@ export interface PickFinding { section?: number; issue: string; fix: string }
 
 /** Below this a stretch reads as out of focus on a phone screen (the extractor's log-variance scale). */
 export const SOFT = 0.3;
-/** Below this the stretch is too dark or too blown out to carry a shot. */
-export const BAD_EXPOSURE = 0.3;
+/**
+ * Below this exposure a moment is nearly black or blown out: nothing to see on a phone. RS-1272 (6): this is the one
+ * dark threshold. The review used to flag up to 0.3 while the plan rule refused under 0.15, so every hype run paid a
+ * refusal and then a fix round for club shots at 0.22-0.30 that read fine on the sheet.
+ */
+export const UNSEEN_EXPOSURE = 0.15;
+/** A clip with no window lit above this is night footage (a club, a street at 3 am): dark is what it is, not a mistake. */
+const NIGHT_EXPOSURE = 0.3;
+
+/** The clip is dark from end to end (RS-1270: the Goa club clips): its dark moments are not a casting mistake. */
+export const nightClip = (features: ClipFeatures) => features.windows.length > 0 && features.windows.every((w) => w.exposure < NIGHT_EXPOSURE);
 /** An alternative must beat the used stretch by this much to be worth naming. */
 const BETTER_BY = 0.15;
 
@@ -62,14 +71,14 @@ export function auditPicks(r: PickAuditInput): PickFinding[] {
     const stretch = stretchOf(features, shot.inFrame, shot.frames);
     if (!stretch) continue;
     const soft = stretch.sharpness < SOFT;
-    const dark = stretch.exposure < BAD_EXPOSURE;
+    const dark = stretch.exposure < UNSEEN_EXPOSURE && !nightClip(features);
     if (!soft && !dark) continue;
     const key = `${shot.section}:${shot.assetId}:${Math.round(shot.inFrame / 15)}`;
     if (seen.has(key)) continue;
     seen.add(key);
     const name = r.label(shot.assetId);
     const where = r.isImage?.(shot.assetId) ? name : `${name}@${sec(shot.inFrame, r.fps)}`;
-    const why = soft && dark ? 'soft and badly exposed' : soft ? 'out of focus' : stretch.exposure < 0.15 ? 'nearly black or blown out' : 'too dark or too bright';
+    const why = soft && dark ? 'soft and badly exposed' : soft ? 'out of focus' : 'nearly black or blown out';
     const alt = r.isImage?.(shot.assetId) ? null : betterStretch(features, shot.frames, quality(stretch));
     out.push({
       section: shot.section,

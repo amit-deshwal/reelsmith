@@ -128,6 +128,9 @@ assert.deepEqual(dark.map((x) => x.rule), ['dark']);
 assert.deepEqual(dark[0]!.sections, [0]);
 assert.match(dark[0]!.issue, /#1@1 \(section 0, exposure 0\.00\): #1@6 is lit/);
 assert.deepEqual(rulesOf({ ...darkPlan, sections: [{ move: 'zoom-punch', beats: 4, clips: ['#1@7', '#1'] }, darkPlan.sections[1]] }, { clips: withNight }), [], 'a lit moment, and a clip left to the build');
+// RS-1270: a clip that is dark from end to end is night footage (the Goa club shots), not a mistake
+const club = { assetId: 'a1', dHash: hashes[0]!, windows: [{ startFrame: 0, endFrame: 150, sharpness: 0.6, exposure: 0.1, motion: 0.4, subject: 0.1, speech: false }, { startFrame: 150, endFrame: 300, sharpness: 0.6, exposure: 0.14, motion: 0.4, subject: 0.1, speech: false }] };
+assert.deepEqual(rulesOf(darkPlan, { clips: clips.map((c, i) => (i === 0 ? { ...c, features: club } : c)) }), [], 'a night clip with no lit moment is cast as it is');
 assert.deepEqual(rulesOf({ ...darkPlan, shotList: true }, { clips: withNight }), [], 'a shot list is built as written');
 // bar: 30 beats end mid-bar, 32 do not; a length the brief fixes that no bar meets wins; nothing without a song
 const beatsPlan = (beats: number[]): any => ({ version: 1, ratio: '9:16', music: 'song', sections: beats.map((b, k) => ({ move: k % 2 ? 'zoom-punch' : 'cut', beats: b, clips: [`#${k + 1}@0`] })) });
@@ -149,5 +152,86 @@ assert.deepEqual(rulesOf(cropPlan({ move: 'hold', beats: 4, clips: ['#3@2'] }), 
 assert.deepEqual(rulesOf(cropPlan({ move: 'hold', beats: 4, clips: ['#1@2'], fit: 'whole' }), { clips: shaped }), []);
 assert.deepEqual(rulesOf(cropPlan({ move: 'split', beats: 4, clips: ['#1@2', '#3'] }), { clips: shaped }), []);
 assert.deepEqual(rulesOf(cropPlan({ move: 'hold', beats: 4, clips: ['#1@2'] }, '16:9'), { clips: shaped }), []);
+
+// RS-1271 (3) still: a long hold on a moment where nothing moves (IMG_2644, the Goa beach cafe: 0.15 from end to end)
+{
+  const cafe = { hz: 4, values: [0, 0.1, 0.11, 0.13, 0.18, 0.13, 0.15, 0.19, 0.2, 0.16, 0.14, 0.15, 0.14, 0.12, 0.14, 0.14, 0.15, 0.18, 0.15] };
+  // #2 sits still for 3 s and then people move
+  const mixed = { hz: 4, values: [0, ...Array(12).fill(0.05), ...Array(28).fill(0.4)] };
+  const moving = clips.map((c, i) => ({ ...c, seconds: i === 0 ? 4.75 : c.seconds, features: { ...c.features, motionCurve: i === 0 ? cafe : i === 1 ? mixed : { hz: 4, values: [0, ...Array(40).fill(0.35)] } } }));
+  const stillPlan = (section: any, tone?: string): any => ({ version: 1, ratio: '9:16', music: 'song', ...(tone ? { tone } : {}), sections: [{ move: 'zoom-punch', beats: 4, clips: ['#4', '#5'] }, section, { move: 'zoom-punch', beats: 4, clips: ['#6', '#7'] }] });
+  const stillOnly = (plan: any, extra: Partial<ValidateInput>) => rulesOf(plan, extra).filter((r) => r === 'still');
+  const held = validatePlan({ ...base, clips: moving, plan: stillPlan({ move: 'hold', beats: 8, clips: ['#1@1'] }) });
+  assert.deepEqual(held.map((x) => x.rule), ['still']);
+  assert.deepEqual(held[0]!.sections, [1]);
+  assert.match(held[0]!.issue, /#1@1 \(section 1, 4 s, movement 0\.1\d\): the clip is still from end to end/);
+  // a still start in a clip that moves later names where it moves
+  const later = validatePlan({ ...base, clips: moving, plan: stillPlan({ move: 'hold', beats: 4, clips: ['#2@0.5'] }) });
+  assert.match(later[0]!.issue, /#2@0\.5 .*: #2@\d+(\.\d+)? moves \(0\.40\)/);
+  assert.deepEqual(stillOnly(stillPlan({ move: 'hold', beats: 4, clips: ['#2@4'] }), { clips: moving }), [], 'the moving stretch');
+  assert.deepEqual(stillOnly(stillPlan({ move: 'hold', beats: 4, clips: ['#2'] }), { clips: moving }), [], 'no @: the build takes the moving stretch');
+  assert.deepEqual(stillOnly(stillPlan({ move: 'hold', beats: 8, clips: ['#1'] }), { clips: moving }), ['still'], 'no @, but the clip never moves');
+  assert.deepEqual(stillOnly(stillPlan({ move: 'hold', beats: 2, clips: ['#1@1'] }), { clips: moving }), [], 'a 1 s rest is not a freeze');
+  assert.deepEqual(stillOnly(stillPlan({ move: 'cut', beats: 8, clips: ['#1@1', '#3'], params: { every: 2 } }), { clips: moving }), [], 'a 2-beat cut');
+  assert.deepEqual(stillOnly(stillPlan({ move: 'cut', beats: 8, clips: ['#1@0.5', '#3'], params: { every: 4 } }), { clips: moving }), ['still'], 'a 4-beat cut');
+  assert.deepEqual(stillOnly(stillPlan({ move: 'hold', beats: 8, clips: ['#1@1'] }, 'calm'), { clips: moving }), [], 'a calm reel holds still views');
+}
+// RS-1271 (2) copy: a line lifted from the brief, refused with "write the line"; quoted phrases and quoteUser pass
+{
+  const story = 'Goa trip with the boys: the red Thar road trip, beach cafes and the sea, pool jumps, and clubbing all night, end on "see you next year"';
+  const lined: any = { ...good, sections: [{ ...good.sections[0], text: 'GOA TRIP WITH THE BOYS' }, good.sections[1], { ...good.sections[2], text: 'see you next year' }], overlays: [{ text: 'CLUBBING ALL NIGHT LONG', from: 1, to: 1 }] };
+  const copy = validatePlan({ ...base, plan: lined, story });
+  assert.deepEqual(copy.map((x) => x.rule), ['copy']);
+  assert.deepEqual(copy[0]!.sections, [0, 1]);
+  assert.match(copy[0]!.issue, /"GOA TRIP WITH THE BOYS" \(section 0\) copies "goa trip with the boys"; "CLUBBING ALL NIGHT LONG" \(section 1\) copies "clubbing all night"/);
+  assert.match(copy[0]!.fix, /^write the line/);
+  assert.deepEqual(validatePlan({ ...base, plan: lined, story, quoteUser: true }), []);
+  assert.deepEqual(validatePlan({ ...base, plan: { ...lined, shotList: true }, story }).filter((x) => x.rule === 'copy'), []);
+  assert.deepEqual(validatePlan({ ...base, plan: lined }), [], 'no story, no rule');
+}
+
+// RS-1271 (1) repeat: the last reel's moves again, refused once; another set passes
+{
+  const last = ['zoom-punch', 'cut', 'velocity', 'break-in', 'hold'];
+  const plan: any = { version: 1, ratio: '9:16', sections: [{ move: 'velocity', beats: 8, clips: ['#1@0'] }, { move: 'zoom-punch', beats: 4, clips: ['#2', '#3'] }, { move: 'break-in', beats: 4, clips: ['#4@0', '#5@0'] }] };
+  const rep = validatePlan({ ...base, plan, history: [last] });
+  assert.deepEqual(rep.map((x) => x.rule), ['repeat']);
+  assert.match(rep[0]!.issue, /\(break-in, velocity, zoom-punch\)/);
+  assert.deepEqual(rulesOf(plan, { history: [last, ['split', 'pip']] }), []);
+  assert.deepEqual(rulesOf(plan), []);
+}
+
+// RS-1272 (5) transition: into or out of a move with no full-frame shot at its cut it cannot play
+{
+  const tp = (transition: string | undefined, move = 'split'): any => ({ version: 1, ratio: '9:16', sections: [{ move: 'zoom-punch', beats: 4, clips: ['#1', '#2'] }, { move, beats: 4, clips: ['#3@0', '#4@0'], ...(transition ? { transition } : {}) }, { move: 'velocity', beats: 4, clips: ['#5@0'], transition: 'flash' }] });
+  const tr = validatePlan({ ...base, plan: tp('zoom-through') });
+  assert.deepEqual(tr.map((x) => x.rule), ['transition']);
+  assert.deepEqual(tr[0]!.sections, [1, 2]);
+  assert.match(tr[0]!.issue, /section 1's zoom-through \(zoom-punch → split\)/);
+  assert.deepEqual(rulesOf(tp(undefined, 'hold')), []);
+}
+
+// RS-1271 (4) hook: the treatment's hook previews the car, the sea, the pool and the club; the plan's hook must too
+{
+  const parts = [{ clips: ['#1', '#3', '#5', '#7'] }, { clips: ['#1', '#2'] }, { clips: ['#3', '#4'] }, { clips: ['#5', '#6'] }, { clips: ['#7', '#8'] }];
+  const hp = (hook: string[]): any => ({ version: 1, ratio: '9:16', sections: [{ move: 'zoom-punch', beats: 4, clips: hook }, { move: 'velocity', beats: 4, clips: ['#1@0'] }, { move: 'split', beats: 4, clips: ['#3@0', '#4@0'] }, { move: 'break-in', beats: 4, clips: ['#5@0', '#6@0'] }, { move: 'speed-ramp', beats: 4, clips: ['#7@0'] }] });
+  const four = validatePlan({ ...base, plan: hp(['#1', '#2', '#1@4', '#2@5']), treatmentParts: parts });
+  assert.deepEqual(four.map((x) => x.rule), ['hook']);
+  assert.match(four[0]!.issue, /previews 4 later parts \(#1, #3, #5, #7\); the plan's hook shows 1 of them/);
+  assert.deepEqual(rulesOf(hp(['#1@2', '#3@2', '#5@2', '#7@2']), { treatmentParts: parts }), []);
+  assert.deepEqual(rulesOf(hp(['#1', '#2']), { treatmentParts: [{ clips: ['#1', '#2'] }, ...parts.slice(1)] }), [], 'a treatment hook that teases nothing');
+}
+// RS-1271 (5) group: "the boys" and no group shot in the hook or the ending
+{
+  const grouped = clips.map((c) => ({ ...c, group: c.n === 6 || c.n === 7 }));
+  const gp = (end: string): any => ({ version: 1, ratio: '9:16', sections: [{ move: 'zoom-punch', beats: 4, clips: ['#1', '#2'] }, { move: 'velocity', beats: 4, clips: ['#3@0'] }, { move: 'speed-ramp', beats: 4, clips: [end] }] });
+  const g = validatePlan({ ...base, clips: grouped, plan: gp('#4@0'), story: 'Goa trip with the boys' });
+  assert.deepEqual(g.map((x) => x.rule), ['group']);
+  assert.match(g[0]!.issue, /names "boys"/);
+  assert.match(g[0]!.fix, /#6, #7/);
+  assert.deepEqual(rulesOf(gp('#7@0'), { clips: grouped, story: 'Goa trip with the boys' }), []);
+  assert.deepEqual(rulesOf(gp('#4@0'), { clips: grouped, story: 'a solo trek' }), []);
+  assert.deepEqual(rulesOf(gp('#4@0'), { story: 'Goa trip with the boys' }), [], 'untagged clips: nothing to ask for');
+}
 
 console.log('validatePlan.verify: ok');

@@ -27,6 +27,7 @@ export async function directorReshape(args: Record<string, unknown>, ctx: AgentC
   const keep = plan.sections.map((_, k) => (built.clips?.[k] ? { clips: built.clips[k]!, moments: built.moments?.[k] ?? [] } : null));
   const out = await runBuild({ plan: { ...plan, ratio }, keep, replaceTimeline: true }, ctx, deps);
   if ('error' in out) return out;
+  if ('building' in out) return { building: `still waiting for ${out.building}; nothing changed yet`, next: 'Call this tool again now with the same arguments (the analysis goes on meanwhile).' };
   const fps = ctx.getState().fps;
   const frames = out.spans.map((s) => Math.round((s.from + (s.to - s.from) * 0.45) * fps));
   const sheet = framesAllowed(id) ? await execFramesTool('view_timeline_frames', { frames }, ctx).catch(() => null) as { __images?: unknown[] } | null : null;

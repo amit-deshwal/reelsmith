@@ -24,15 +24,24 @@ export async function findShots(args: Record<string, unknown>, ctx: AgentContext
   const number = new Map(visual.map((a, i) => [a.id, i + 1]));
   const allowed = new Set(visual.map((a) => a.id));
   const frames: FrameVector[] = found.frames;
-  const covered = new Set(frames.map((f) => f.assetId)).size;
+  const covered = new Set(frames.filter((f) => allowed.has(f.assetId)).map((f) => f.assetId)).size;
+  // RS-1272 (1): a search over part of the clips cannot say a thing is not in the footage (run A said "no clear sea
+  // footage" while the unread sea clip #12 was in the list)
+  const partial = covered < visual.length;
+  const unread = partial ? visual.flatMap((a, i) => (frames.some((f) => f.assetId === a.id) ? [] : [`#${i + 1}`])) : [];
   return {
+    ...(partial && covered < visual.length * 0.6 ? { searchUnavailable: `shot search unavailable: the visual model read only ${covered} of ${visual.length} clips. Do not conclude a thing is missing from it; cast from the shot log and the contact sheets.` } : {}),
     results: queries.map((query, i) => {
       const vector = found.queries[i];
       const hits = vector ? searchMoments(frames, vector, { limit, allowed }) : [];
       return {
         query,
         shots: hits.map((h) => ({ ref: `#${number.get(h.assetId)}@${h.atSec}`, shows: showsOf(h.match), match: h.match })),
-        ...(hits.length && showsOf(hits[0]!.match) === 'weak' ? { none: 'nothing in the footage shows this: leave it out, show it with a graphic, or ask the user which clip does' } : {}),
+        ...(hits.length && showsOf(hits[0]!.match) === 'weak'
+          ? partial
+            ? { unsure: `none of the ${covered} clips read shows this; ${unread.length} were not read (${unread.slice(0, 10).join(', ')}${unread.length > 10 ? ', …' : ''}): look for it on their contact sheet cells before leaving it out` }
+            : { none: 'nothing in the footage shows this: leave it out, show it with a graphic, or ask the user which clip does' }
+          : {}),
       };
     }),
     clipsRead: `${covered} of ${visual.length}`,

@@ -47,7 +47,22 @@ has(/hook is 3\.7 s of one hold/);
 has(/hook line is 10 words/);
 has(/hook holds a still moment \(#9@1\.5\)/);
 has(/drop is beat 10.*inside part 1 \(velocity\)/);
-has(/words the user did not write: epic/);
+has(/lines copied from the brief: part 0 "bro lied to me that it would be easy hike"/);
+// RS-1271: with quoteUser the lines are the user's words, and words they did not write are flagged instead
+assert.ok(checkTreatment({ ...amk, quoteUser: true }, { clips, fps, song }).some((x) => /words the user did not write: epic/.test(x.issue)));
+assert.ok(!checkTreatment({ ...amk, quoteUser: true }, { clips, fps, song }).some((x) => /copied/.test(x.issue)));
+// the Goa brief of 2026-11-17: every line a phrase of it, and a number nobody gave
+{
+  const goa = 'Goa trip with the boys: the red Thar road trip, beach cafes and the sea, pool jumps, and clubbing all night';
+  const lines = ['GOA TRIP WITH THE BOYS', 'the red Thar road trip', 'POOL JUMPS', 'CLUBBING ALL NIGHT', '5 NIGHTS NO SLEEP', ''];
+  const copied = checkTreatment({ ...ex, story: goa, graphics: [], parts: ex.parts.map((p, i) => ({ ...p, line: lines[i] || undefined })) }, { clips, fps, song });
+  const c = copied.find((x) => /lines copied/.test(x.issue));
+  assert.ok(c && /part 0/.test(c.issue) && /part 3/.test(c.issue) && /write the line/.test(c.fix), copied.map((x) => x.issue).join(' | '));
+  assert.ok(copied.some((x) => /numbers the user never gave: 5/.test(x.issue)));
+  const own = ['4 BOYS. 1 THAR.', 'NO MAPS NEEDED', 'SALT HAIR, DON\'T CARE', 'WHO JUMPS FIRST?', 'SUNRISE? NEVER HEARD OF IT', ''];
+  const written = checkTreatment({ ...ex, story: goa, graphics: [], parts: ex.parts.map((p, i) => ({ ...p, line: own[i] || undefined })) }, { clips, fps, song });
+  assert.ok(!written.some((x) => /copied|did not write/.test(x.issue)), written.map((x) => x.issue).join(' | '));
+}
 assert.ok(f.find((x) => /still moment/.test(x.issue))!.fix.includes('#1'), 'suggests clips that move');
 // this run's opener (2026-10-21, pipeline run 1): a hold on the selfie, then a hold on the cliff
 assert.ok(checkTreatment({ ...ex, parts: [{ ...ex.parts[0]!, move: 'hold', clips: ['#1'] }, { ...ex.parts[1]! }, ...ex.parts.slice(2)] }, { clips, fps, song }).some((x) => /parts 0 and 1 are both hold/.test(x.issue)));
@@ -123,12 +138,23 @@ assert.ok(!pf.some((x) => /did not write/.test(x.issue)), pf.map((x) => x.issue)
 assert.ok(pf.some((x) => /promo reel for Pune Trekkers with no end card/.test(x.issue) && /Join free on WhatsApp/.test(x.fix)), pf.map((x) => x.issue).join(' | '));
 assert.ok(pf.some((x) => /nothing names Pune Trekkers/.test(x.issue)));
 assert.ok(!checkTreatment({ ...promo, graphics: ['cta-card', 'handle-tag'] }, { clips, fps, song, brand }).some((x) => /end card|nothing names/.test(x.issue)));
-// without the kit, the same lines are words the user did not write
-assert.ok(checkTreatment(promo, { clips, fps, song }).some((x) => /did not write/.test(x.issue)));
+// without the kit, the page's numbers are numbers the user never gave
+assert.ok(checkTreatment(promo, { clips, fps, song }).some((x) => /numbers the user never gave: 2,300/.test(x.issue)));
 // a hook with no words, when there is a story to quote
 assert.ok(checkTreatment({ ...ex, parts: ex.parts.map((p, i) => (i === 0 ? { ...p, line: undefined } : p)) }, { clips, fps, song }).some((x) => /hook has no words/.test(x.issue)));
 // RS-1240: clock times from the clips' own metadata count as theirs
 assert.ok(!checkTreatment({ ...ex, parts: ex.parts.map((p, i) => (i === 1 ? { ...p, line: '4:12 am' } : p)) }, { clips, fps, song, clock: true }).some((x) => /did not write: am/.test(x.issue)));
+// RS-1271 (5): "the boys" and no group shot in the hook or the ending (#10 and #11 are the group selfies)
+{
+  const solo = { top: 'scenery', confidence: 0.6, samples: 4, scores: { scenery: 0.6, people: 0.05 } } as never;
+  const squad = { top: 'people', confidence: 0.6, samples: 4, scores: { scenery: 0.1, people: 0.5 } } as never;
+  const boys = clips.map((c) => ({ ...c, tags: c.n >= 10 ? squad : solo }));
+  const story = 'Goa trip with the boys';
+  const ends = (first: string, last: string) => ex.parts.map((p, i) => (i === 0 ? { ...p, clips: [first] } : i === ex.parts.length - 1 ? { ...p, clips: [last] } : p));
+  const gf = checkTreatment({ ...ex, story, parts: ends('#1', '#2') }, { clips: boys, fps, song });
+  assert.ok(gf.some((x) => /names "boys" and neither the hook nor the ending/.test(x.issue) && /#10, #11/.test(x.fix)), gf.map((x) => x.issue).join(' | '));
+  assert.ok(!checkTreatment({ ...ex, story, parts: ends('#1', '#11') }, { clips: boys, fps, song }).some((x) => /neither the hook/.test(x.issue)));
+}
 console.log('treatment promo: ok');
 
 // RS-1243: a promo is copywriting (Kino's cut beat ours with lines of its own), but no invented numbers, a line on every

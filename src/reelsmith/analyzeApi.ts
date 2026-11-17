@@ -1,6 +1,7 @@
 // Browser client for the local analysis routes in server/reelsmith/analyze-plugin.ts.
 import type { ClipFeatures } from './assembler/scoring';
 import { analyzeSubjects, mergeSubjectFeatures } from './subjectFeatures';
+import { pageWork } from './pageWork';
 import type { AnalyzeApi } from './runRecipe';
 import type { BrandKit } from '../../shared/reelsmith/brandKit';
 import { transcribePath } from '../transcript/provider';
@@ -15,10 +16,12 @@ export function createAnalyzeApi(fetcher: typeof fetch = fetch, subjects: typeof
     clipFeatures: async (asset, fps) => {
       const [result, geometry] = await Promise.all([
         post<{ features: ClipFeatures }>('/api/reelsmith/clip-features', { src: asset.src, assetId: asset.id, kind: asset.kind, fps }),
-        subjects(asset).catch(() => null),
+        // RS-1272 (1): face finding takes turns with the visual model's reading (pageWork.ts)
+        pageWork('faces', () => subjects(asset)).catch(() => null),
       ]);
       return result?.features ? mergeSubjectFeatures(result.features, geometry, fps) : null;
     },
+    clipMeasure: async (asset, fps) => (await post<{ features: ClipFeatures }>('/api/reelsmith/clip-features', { src: asset.src, assetId: asset.id, kind: asset.kind, fps }))?.features ?? null,
     referenceCuts: async (asset, fps) => post<{ cutsFrame: number[]; color?: { r: number; g: number; b: number } }>('/api/reelsmith/reference-cuts', { src: asset.src, fps }),
     selectionSheet: async (items) => {
       const result = await post<{ sheets: Array<{ base64: string; labels: string[] }>; skipped: string[] }>('/api/reelsmith/selection-sheet', {

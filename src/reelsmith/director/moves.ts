@@ -127,7 +127,7 @@ const photoDrift: MoveDef = {
 
 const LAYOUTS = Object.keys(LAYOUT_SLOTS);
 const split: MoveDef = {
-  id: 'split', name: 'Split screen', looks: 'The frame splits into stacked rows, side-by-side halves or a grid; the tiles fill one by one on the beat.',
+  id: 'split', name: 'Split screen', looks: 'The frame splits into stacked rows, side-by-side halves or a grid; the tiles light up one by one on the beat (a waiting tile shows its first frame, dimmed).',
   use: 'Showing many moments at once: the group, the food, the details, "everything we did". Rows suit 9:16, halves suit 16:9.',
   clips: { min: 2, max: 9 }, beats: { min: 2, default: 4, max: 16 }, wants: ['people', 'food', 'detail'],
   params: [
@@ -146,7 +146,11 @@ const split: MoveDef = {
       const clip = ctx.clips[i % ctx.clips.length]!;
       const from = Math.min(ctx.end - 1, ctx.beatFrame(i * stagger));
       const transform = placeInSlot(withGutter(slot, num(ctx.params.gutter, 12), { width: ctx.W, height: ctx.H }), 'cover');
-      clipAt(ctx, 1 + i, ['tile', i], clip, from, ctx.end, ctx.moment(clip, ctx.end - from).inFrame, { transform });
+      const inFrame = ctx.moment(clip, ctx.end - from).inFrame;
+      // RS-1272 (4): a tile that lands on a later beat waits as its own opening frame, dimmed, never as black: a
+      // half-black frame under the line read as a broken cut (0.13-0.23 s in two Goa exports)
+      if (from > ctx.start) clipAt(ctx, 1 + i, ['tile-wait', i], clip, ctx.start, from, inFrame, { transform: { ...transform, opacity: 0.45 }, ...(clip.kind === 'video' ? { playbackRate: 0.02 } : {}) });
+      clipAt(ctx, 1 + i, ['tile', i], clip, from, ctx.end, inFrame, { transform });
     });
   },
 };

@@ -21,6 +21,8 @@ import type { BrandKit } from '../../shared/reelsmith/brandKit';
 
 export interface AnalyzeApi {
   clipFeatures(asset: MediaAsset, fps: number): Promise<ClipFeatures | null>;
+  /** RS-1270: the same without the browser's face and person finding (seconds a clip, not tens): for ranking many clips */
+  clipMeasure?(asset: MediaAsset, fps: number): Promise<ClipFeatures | null>;
   /** RS-109: what each clip shows, when the visual model has indexed them (empty otherwise) */
   shotTags?(assets: MediaAsset[], onProgress?: (text: string) => void): Promise<Map<string, ClipShotTags>>;
   /** 2x enhanced copy of a small photo (null when enhancement is not installed or fails); the original is left alone */

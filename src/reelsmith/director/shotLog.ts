@@ -5,6 +5,8 @@
 import type { ClipFeatures, WindowFeatures } from '../assembler/scoring';
 import type { ClipShotTags, ShotTag } from '../shotTags';
 import { SHOT_TAG_INFO } from '../shotTags';
+import { UNSEEN_EXPOSURE } from './pickAudit';
+import { stillThroughout } from './stillShots';
 
 export interface ShotLogClip {
   /** number in the director's list (#n) */
@@ -71,7 +73,10 @@ function momentScore(w: WindowFeatures, s: Scale): number {
   const sharp = w.sharpness < s.sharpLo ? 0 : 1;
   const life = Math.min(1, w.motion / Math.max(1e-6, s.motionHi));
   const subject = Math.min(1, Math.max(w.subject, w.face ?? 0) * 3);
-  return 0.35 * sharp + 0.2 * w.exposure + 0.25 * life + 0.2 * subject;
+  // RS-1270: a nearly black or blown-out moment is never a best moment: the plan check refuses it (validatePlan's dark
+  // rule), and the log named #30@16.9 (exposure 0.14) as that clip's best while a lit moment was in the same clip
+  const unseen = w.exposure < UNSEEN_EXPOSURE ? 0.5 : 0;
+  return 0.35 * sharp + 0.2 * w.exposure + 0.25 * life + 0.2 * subject - unseen;
 }
 
 const r1 = (x: number) => Math.round(x * 10) / 10;
@@ -136,14 +141,16 @@ export function shotLogLines(clips: readonly ShotLogClip[], fps: number, k: numb
       return momentScore(at(b) ?? ws[0]!, scale) - momentScore(at(a) ?? ws[0]!, scale);
     });
     const moving = spans(ws, fps, (w) => w.motion >= scale.motionHi);
-    const still = scale.stillOk && ws.every((w) => w.motion <= scale.motionLo);
+    // RS-1271: the shake-compensated curve when there is one (the window motion saturates on handheld phone footage)
+    const still = c.features?.motionCurve ? stillThroughout(c.features.motionCurve, c.seconds) : scale.stillOk && ws.every((w) => w.motion <= scale.motionLo);
     const talking = spans(ws, fps, (w) => w.speech);
-    const soft = spans(ws, fps, (w) => w.sharpness < scale.sharpLo || w.exposure < 0.35);
+    // RS-1272 (6): "dark" means what the plan rule and the review mean by it
+    const soft = spans(ws, fps, (w) => w.sharpness < scale.sharpLo || w.exposure < UNSEEN_EXPOSURE);
     const face = ws.some((w) => (w.face ?? 0) > 0.01);
     const cuts = (c.features?.shotBoundariesFrame ?? []).map((f) => `${r1(f / fps)}s`);
     return [
       head, tags, `best @${ranked.join(' @')}`,
-      still ? 'still throughout' : moving.length ? `moving ${moving.slice(0, 3).join(' ')}` : '',
+      still ? 'still throughout (a long shot of it looks frozen)' : moving.length ? `moving ${moving.slice(0, 3).join(' ')}` : '',
       face ? 'face' : '', talking.length ? `talking ${talking.slice(0, 2).join(' ')}` : '',
       soft.length ? `soft/dark ${soft.slice(0, 2).join(' ')}` : '', cuts.length ? `cuts at ${cuts.slice(0, 3).join(' ')}` : '',
     ].filter(Boolean).join(' · ');

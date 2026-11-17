@@ -5661,7 +5661,7 @@
     },
     {
       "name": "reels_director_options",
-      "description": "Director stage 1 (the user gives a story, media and a song; you direct the reel): watches the footage (up to about a minute and a half) and returns the shot log (each clip numbered #1, #2... with its best moments, where it moves, talks or goes soft), contact sheets taken at those moments, and the songs with bpm, drop and a timing suggestion. With `find` (short phrases for what the story names to see) it also returns the best matching moments for each as ready \"#n@s\" refs (`shots`). Call once, then write the treatment (reels_director_treatment). With `reference` (an imported reel the user wants theirs to feel like) it also measures that reel (pace, colour, motion), shows one cell a shot of it, and leaves it out of the clips. With `brandUrl` (a promo reel) it also reads that one page for its brand kit.",
+      "description": "Director stage 1 (the user gives a story, media and a song; you direct the reel): watches the footage (up to about a minute and a half) and returns the shot log (each clip numbered #1, #2... with its best moments, where it moves, talks or goes soft), contact sheets taken at those moments, and the songs with bpm, drop and a timing suggestion. With `find` (short phrases for what the story names to see) it also returns the best matching moments for each as ready \"#n@s\" refs (`shots`). Call once, then write the treatment (reels_director_treatment). With many clips it may answer `watching` (not every clip is read yet): call it again at once with the same arguments. More than 60 clips: it lists the best 60 and says which were left out (`leftOut`). With `reference` (an imported reel the user wants theirs to feel like) it also measures that reel (pace, colour, motion), shows one cell a shot of it, and leaves it out of the clips. With `brandUrl` (a promo reel) it also reads that one page for its brand kit.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -5855,9 +5855,9 @@
             "type": "string",
             "description": "A look id, or leave it out for the footage as shot."
           },
-          "ownWords": {
+          "quoteUser": {
             "type": "boolean",
-            "description": "True only when the user asked for lines of your own."
+            "description": "True only when the user asked for their own words as the lines (\"use my words\", a caption they wrote). Otherwise you write the lines; quoted phrases in the brief may be used as written."
           },
           "shotList": {
             "type": "boolean",
@@ -6045,7 +6045,7 @@
     },
     {
       "name": "reels_validate_plan",
-      "description": "Check a director plan without building it: the brief (the treatment's, or `brief`) and the plan rules (length and song window, section cuts on whole beats, the shots the user asked for, no shot under 0.5 s outside flash-cuts or zoom-punch, hand-placed lines inside Instagram's safe area, no shot twice, titled sections on a 4-bar phrase or the drop) plus the catalogue check. Read-only. reels_director_build runs the same check first and refuses a plan that breaks a rule, so call this only when you are unsure of a plan.",
+      "description": "Check a director plan without building it: the brief (the treatment's, or `brief`) and the plan rules (length and song window, section cuts on whole beats, the shots the user asked for, no shot under 0.5 s outside flash-cuts or zoom-punch, hand-placed lines inside Instagram's safe area, no shot twice, titled sections on a 4-bar phrase or the drop, no long shot of a still moment, no line copied from the brief, not the last reel's moves again, transitions that can play, the treatment's hook) plus the catalogue check. Read-only. reels_director_build runs the same check first and refuses a plan that breaks a rule, so call this only when you are unsure of a plan.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -6090,7 +6090,7 @@
     },
     {
       "name": "reels_director_build",
-      "description": "Director stage 3: build the reel from your plan as one undo step. The plan is sections back to back on the beat, each a move with its clips (\"#7\" or \"#7@4\" from the numbered list, in the order the move uses them), an optional on-screen line in a text style, and params; overlays carry a line across several sections. Invalid plans are refused with every problem listed; nothing changes then. When the timeline has items, ask the user first and pass replaceTimeline true. Params it can repair (a value out of range, a key the move or style does not take) are repaired and listed in `notes`. A plan that breaks the brief or a plan rule (as reels_validate_plan) is refused once with the violations. The first build of a directed reel returns the critique (about three frames a section, the checks and the critic's checklist) with the lint and review findings: name its largest defects and repair them with reels_director_fix.",
+      "description": "Director stage 3: build the reel from your plan as one undo step. The plan is sections back to back on the beat, each a move with its clips (\"#7\" or \"#7@4\" from the numbered list, in the order the move uses them), an optional on-screen line in a text style, and params; overlays carry a line across several sections. Invalid plans are refused with every problem listed; nothing changes then. When the timeline has items, ask the user first and pass replaceTimeline true. Params it can repair (a value out of range, a key the move or style does not take) are repaired and listed in `notes`. A plan that breaks the brief or a plan rule (as reels_validate_plan) is refused once with the violations. The first build of a directed reel returns the critique (about three frames a section, the checks and the critic's checklist) with the lint and review findings: name its largest defects and repair them with reels_director_fix. While the clip analysis is still running it answers `building` (nothing is built): call it again with the same plan.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -7474,7 +7474,7 @@
     },
     {
       "name": "reels_director_options",
-      "description": "Director stage 1 (the user gives a story, media and a song; you direct the reel): watches the footage (up to about a minute and a half) and returns the shot log (each clip numbered #1, #2... with its best moments, where it moves, talks or goes soft), contact sheets taken at those moments, and the songs with bpm, drop and a timing suggestion. With `find` (short phrases for what the story names to see) it also returns the best matching moments for each as ready \"#n@s\" refs (`shots`). Call once, then write the treatment (reels_director_treatment). With `reference` (an imported reel the user wants theirs to feel like) it also measures that reel (pace, colour, motion), shows one cell a shot of it, and leaves it out of the clips. With `brandUrl` (a promo reel) it also reads that one page for its brand kit.",
+      "description": "Director stage 1 (the user gives a story, media and a song; you direct the reel): watches the footage (up to about a minute and a half) and returns the shot log (each clip numbered #1, #2... with its best moments, where it moves, talks or goes soft), contact sheets taken at those moments, and the songs with bpm, drop and a timing suggestion. With `find` (short phrases for what the story names to see) it also returns the best matching moments for each as ready \"#n@s\" refs (`shots`). Call once, then write the treatment (reels_director_treatment). With many clips it may answer `watching` (not every clip is read yet): call it again at once with the same arguments. More than 60 clips: it lists the best 60 and says which were left out (`leftOut`). With `reference` (an imported reel the user wants theirs to feel like) it also measures that reel (pace, colour, motion), shows one cell a shot of it, and leaves it out of the clips. With `brandUrl` (a promo reel) it also reads that one page for its brand kit.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -7668,9 +7668,9 @@
             "type": "string",
             "description": "A look id, or leave it out for the footage as shot."
           },
-          "ownWords": {
+          "quoteUser": {
             "type": "boolean",
-            "description": "True only when the user asked for lines of your own."
+            "description": "True only when the user asked for their own words as the lines (\"use my words\", a caption they wrote). Otherwise you write the lines; quoted phrases in the brief may be used as written."
           },
           "shotList": {
             "type": "boolean",
@@ -7782,7 +7782,7 @@
     },
     {
       "name": "reels_validate_plan",
-      "description": "Check a director plan without building it: the brief (the treatment's, or `brief`) and the plan rules (length and song window, section cuts on whole beats, the shots the user asked for, no shot under 0.5 s outside flash-cuts or zoom-punch, hand-placed lines inside Instagram's safe area, no shot twice, titled sections on a 4-bar phrase or the drop) plus the catalogue check. Read-only. reels_director_build runs the same check first and refuses a plan that breaks a rule, so call this only when you are unsure of a plan.",
+      "description": "Check a director plan without building it: the brief (the treatment's, or `brief`) and the plan rules (length and song window, section cuts on whole beats, the shots the user asked for, no shot under 0.5 s outside flash-cuts or zoom-punch, hand-placed lines inside Instagram's safe area, no shot twice, titled sections on a 4-bar phrase or the drop, no long shot of a still moment, no line copied from the brief, not the last reel's moves again, transitions that can play, the treatment's hook) plus the catalogue check. Read-only. reels_director_build runs the same check first and refuses a plan that breaks a rule, so call this only when you are unsure of a plan.",
       "input_schema": {
         "type": "object",
         "properties": {

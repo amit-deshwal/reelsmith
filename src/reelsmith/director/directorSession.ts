@@ -24,6 +24,12 @@ export interface DirectorBuildRecord {
   /** fix rounds since the critique, and the defects of the last one */
   fixes?: number;
   defects?: Defect[];
+  /**
+   * RS-1272 (3): this build's id, saved on the canvas with it. A build that timed out for the agent can still finish on
+   * the server and land in the session while the timeline keeps the reel before it; the critique then judged the old
+   * reel's frames and passed them. The critique and the fix read the id off the timeline before trusting the session.
+   */
+  buildId?: string;
 }
 
 export interface DirectorSession {
@@ -51,6 +57,10 @@ export interface DirectorSession {
    * violations in its notes, so a rule the footage cannot meet never loops the agent.
    */
   refusedRules?: string[];
+  /** RS-1270: with more than 60 clips imported, the assetIds of the numbered list stage 1 chose, in its order */
+  pool?: string[];
+  /** RS-1271 (1): the moves of the project's earlier reels (each a plan's section moves), the last reel last */
+  history?: string[][];
 }
 
 const sessions = new Map<string, DirectorSession>();
@@ -73,6 +83,10 @@ export interface SavedDirector {
   treatment?: Treatment;
   reference?: DirectorSession['reference'];
   build?: Omit<DirectorBuildRecord, 'plan' | 'spans'> & { plan: ReelPlan; spans: DirectorBuildRecord['spans'] };
+  /** the numbered clip list, when it was chosen from more than 60 clips: "#n" in a later fix means the same clip */
+  pool?: string[];
+  /** the moves of the project's earlier reels, so the next one is not the same reel again */
+  history?: string[][];
 }
 
 /** What is saved with the reel: everything but the shot log (which is large and measured again). */
@@ -82,8 +96,17 @@ export function savedDirector(s: DirectorSession): SavedDirector {
     const { keep: _replayed, ...plan } = s.lastBuild.plan;
     build = { ...s.lastBuild, plan };
   }
-  return { v: 1, fps: s.fps, ...(s.song ? { song: s.song } : {}), ...(s.treatment ? { treatment: s.treatment } : {}), ...(s.reference ? { reference: s.reference } : {}), ...(build ? { build } : {}) };
+  return { v: 1, fps: s.fps, ...(s.song ? { song: s.song } : {}), ...(s.treatment ? { treatment: s.treatment } : {}), ...(s.reference ? { reference: s.reference } : {}), ...(build ? { build } : {}), ...(s.pool?.length ? { pool: s.pool } : {}), ...(s.history?.length ? { history: s.history } : {}) };
 }
+
+/** The timeline holds the session's last build (its canvas carries the same build id), not an older reel. */
+export function builtOnTimeline(session: DirectorSession, items: ReadonlyArray<{ props?: Record<string, unknown> }>): boolean {
+  const saved = findSavedDirector(items);
+  return !!session.lastBuild && !!saved?.build && saved.build.buildId === session.lastBuild.buildId;
+}
+
+/** What the critique and the fix say when the session's build never reached the timeline. */
+export const NOT_BUILT = 'not built: the timeline does not hold the last plan (its build timed out or was never applied), so its frames would be another reel\'s';
 
 /** The saved run on the timeline (the canvas item of the last director build), if there is one. */
 export function findSavedDirector(items: ReadonlyArray<{ props?: Record<string, unknown> }>): SavedDirector | undefined {
@@ -107,6 +130,7 @@ export function restoreDirectorSession(projectId: string, items: ReadonlyArray<{
   if (!saved) return live;
   return updateDirectorSession(projectId, {
     fps: saved.fps, ...(saved.song ? { song: saved.song } : {}), ...(saved.treatment ? { treatment: saved.treatment } : {}),
-    ...(saved.reference ? { reference: saved.reference } : {}), ...(saved.build ? { lastBuild: saved.build } : {}),
+    ...(saved.reference ? { reference: saved.reference } : {}), ...(saved.build ? { lastBuild: saved.build } : {}), ...(saved.pool?.length ? { pool: saved.pool } : {}),
+    ...(saved.history?.length ? { history: saved.history } : {}),
   });
 }

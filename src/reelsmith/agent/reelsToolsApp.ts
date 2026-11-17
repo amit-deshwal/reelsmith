@@ -10,6 +10,7 @@ import { execReelsTool } from './reelsTools';
 export function warmDirectorInApp(input: WarmInput): Promise<void> {
   return warmDirectorAnalysis(input, {
     clipFeatures: (asset, fps) => analyzeApi.clipFeatures(asset, fps),
+    clipMeasure: (asset, fps) => analyzeApi.clipMeasure!(asset, fps),
     mediaFps: (srcs) => analyzeApi.mediaFps!(srcs),
     shotTags: (id, assets) => warmShotTagsFor(id, assets, (list) => loadShotTags(id, list)),
   });

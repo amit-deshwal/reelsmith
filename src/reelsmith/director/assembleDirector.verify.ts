@@ -72,7 +72,22 @@ assert.equal(opener.item.sourceAssetId, 'walker');
 const strips = adds.find((a) => a.item.kind === 'motion-graphic' && a.item.props?.rsSection === '1-strips-reveal');
 assert.equal(Object.keys(strips.item.props.sources).length, 4, '9:16: four strips');
 assert.equal(strips.item.props.sources.strip1.src, '/media/uploads/trail.mp4');
-assert.deepEqual(adds.filter((a) => a.item.props?.rsSection === '5-split' && a.item.kind === 'video').map((a) => a.item.sourceAssetId), ['group', 'food', 'sign']);
+assert.deepEqual(adds.filter((a) => a.item.props?.rsSection === '5-split' && a.item.kind === 'video' && a.item.playbackRate !== 0.02).map((a) => a.item.sourceAssetId), ['group', 'food', 'sign']);
+// RS-1272 (4): a tile that lands on a later beat waits as its own first frame, dimmed and held, from the section's first
+// frame (no black panel at the cut)
+{
+  const split = adds.filter((a) => a.item.props?.rsSection === '5-split' && a.item.kind === 'video');
+  const start = Math.min(...split.map((a) => a.startFrame));
+  const waits = split.filter((a) => a.item.playbackRate === 0.02);
+  assert.equal(waits.length, 2);
+  for (const w of waits) {
+    assert.equal(w.startFrame, start);
+    assert.equal(w.item.transform.opacity, 0.45);
+    const live = split.find((a) => a.item.track === w.item.track && a.item.playbackRate !== 0.02)!;
+    assert.equal(w.startFrame + w.item.durationInFrames, live.startFrame, 'the live tile takes over on its beat');
+    assert.equal(w.item.srcInFrame, live.item.srcInFrame, 'from the same frame');
+  }
+}
 // person cut-out with the white flash, bars, band, flashes, the break-in transitions, ken burns on photos
 assert.deepEqual(adds.filter((a) => a.item.effects?.[0]?.assetId === 'builtin:fx-person-cutout').map((a) => a.item.effects[0].overrides.white), [0, 1]);
 assert.equal(adds.filter((a) => /^Bar /.test(a.item.name)).length, 2);
@@ -371,5 +386,20 @@ assert.ok(volumes(music).every((v) => v === 0), 'under a song the clips are mute
   const shots = ((assemble({ recipe: directorRecipe(fp), clips, music, texts: {}, params: {}, seed: 5, plan: fp }).action?.actions ?? []) as any[]).filter((x) => x.type === 'add' && (x.item.kind === 'video' || x.item.kind === 'image'));
   assert.ok(shots.filter((x) => x.item.props?.rsSection?.startsWith('1-')).every((x) => x.item.props.rsFit === 'blur'));
   assert.ok(shots.filter((x) => !x.item.props?.rsSection?.startsWith('1-')).every((x) => x.item.props?.rsFit === undefined));
+}
+// RS-1272 (5): the plan rule's list of moves a transition cannot reach is exactly the moves the build drops it for
+{
+  const { NO_EDGE_MOVES } = await import('./validatePlan');
+  const dropped: string[] = [];
+  for (const m of MOVES) {
+    const photo = /photo/.test(m.id);
+    const sec: any = { move: m.id, beats: Math.max(m.beats.min, Math.min(8, m.beats.max)), ...(m.clips.max === 0 ? {} : { clips: (photo ? ['photo1', 'photo2'] : ['fort', 'ridge', 'group', 'food']).slice(0, Math.max(m.clips.min, Math.min(m.clips.max, 2))) }) };
+    const p = parsePlan({ ratio: '9:16', music: 'song', sections: [{ move: 'cut', beats: 4, clips: ['walker'] }, { ...sec, transition: 'crossfade' }, { move: 'cut', beats: 4, clips: ['trail'], transition: 'crossfade' }] });
+    if (!p.ok) continue;
+    const pl = (p as { plan: ReelPlan }).plan;
+    const r = assemble({ recipe: directorRecipe(pl), clips, music, texts: {}, params: {}, seed: 5, plan: pl });
+    if (r.report.warnings.some((w) => /transition needs footage/.test(w))) dropped.push(m.id);
+  }
+  assert.deepEqual(dropped.sort(), [...NO_EDGE_MOVES].sort());
 }
 console.log('assembleDirector.verify: ok');

@@ -58,10 +58,15 @@ export function critiqueFrames(plan: ReelPlan, spans: readonly Span[], fps: numb
   spans.forEach((s, k) => {
     const len = s.to - s.from;
     const sec = plan.sections[k]!;
-    add(s.from + Math.min(0.2, len * 0.1), `s${k} ${sec.move} in`);
+    // RS-1272 (4): the cut in itself (two frames after it), where a split's second panel was still black for 0.2 s;
+    // 0.2 s in had skipped past it
+    add(s.from + Math.min(2 / fps, len * 0.1), `s${k} ${sec.move} in`);
     add(s.from + len * 0.5, `s${k} ${sec.move} mid`);
     if (sec.text) add(s.from + len * 0.8, `s${k} line "${sec.text.slice(0, 24)}"`);
     else add(s.from + len * 0.9, `s${k} ${sec.move} end`);
+    // RS-1271 (6): the ending is judged over its whole length: the Goa reel's last hold turned to the blue backs of
+    // strangers' heads within a second, and the one frame the critic saw was clean
+    if (k === spans.length - 1 && !plan.loop && len > 0.6) out.push({ frame: Math.max(0, Math.round(s.to * fps) - 2), label: `ending s${k} ${sec.move}: the last frame (what people are left with)` });
   });
   for (const o of plan.overlays ?? []) {
     const a = spans[o.from]?.from, b = spans[o.to]?.to;
@@ -71,7 +76,7 @@ export function critiqueFrames(plan: ReelPlan, spans: readonly Span[], fps: numb
   // over the budget: keep every section's middle and every line, then thin the rest evenly
   if (out.length <= max) return out;
   // the first frame and a loop's seam first: over the budget they are what a cap would cut (they sit at the ends)
-  const ends = out.filter((f) => /first frame|loop seam/.test(f.label));
+  const ends = out.filter((f) => /first frame|loop seam|the last frame/.test(f.label));
   const must = [...ends, ...out.filter((f) => !ends.includes(f) && / mid$|line|overlay/.test(f.label))];
   const rest = out.filter((f) => !must.includes(f));
   const room = Math.max(0, max - must.length);
@@ -102,7 +107,7 @@ export function criticBrief(treatment?: Treatment): string {
     '4. Shots: any soft, dark, shaky or dull frame where a better moment exists in the shot log? the same shot twice in a row? a cut in the middle of an action (a jump cut before it lands, a turn half done)? on fast cuts, does the subject jump from one side of the frame to the other (see the eye-trace finding)?',
     '5. The drop: does the move, the effect and the cut land together, or does the peak pass unnoticed?',
     '6. Craft: does anything look like a free template (a stock caption box, a transition on every cut, an effect for its own sake) or childish next to the story?',
-    '7. Ending: does it end on the best shot with the closing line and a clear last beat, or just stop? If it loops: do the loop seam (the last frame) and the first frame read as one moment, so the replay feels like it keeps going?',
+    '7. Ending: look at all its frames (in, mid, the last frame): does it end on faces or the closing line, held clean to the last frame, or does the shot turn (strangers\' backs, a colour cast, a blur) before it ends? Does it end on a clear last beat, or just stop? If it loops: do the loop seam (the last frame) and the first frame read as one moment, so the replay feels like it keeps going?',
     '8. Graphics: does each one point at the right person or thing, and stay readable?',
     '9. Sound: the soundFindings are the reel with eyes closed (a sound on nothing, a drop on nothing, a line between beats, an ending mid-bar). Is there a moment the footage should be heard (a shout at the top, a splash, laughter, a line someone says) that is buried under the song? Give that section naturalSound.',
     'Rank the defects as an editor would: emotion first (does it make you feel the story), then the story (is it clear), then rhythm (does it move with the song), then eye trace and framing.',

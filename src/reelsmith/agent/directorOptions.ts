@@ -22,6 +22,7 @@ import { musicAnalysisStatus } from '../../audio/intelligence/jobs';
 import { brandKitText, type BrandKit } from '../../../shared/reelsmith/brandKit';
 import { directorTimelineFps } from '../director/footageRate';
 import { narrationOptions, VOICEOVER_HINT } from './directorVoiceover';
+import { CANDIDATE_MAX, leftOutText, pickPool, POOL_MAX } from '../director/pool';
 export const VISUAL = new Set(['video', 'image']);
 const secs = (frames: number, fps: number) => Math.round((frames / fps) * 10) / 10;
 
@@ -113,31 +114,45 @@ async function contactSheets(assets: MediaAsset[], moments: Map<number, number[]
   };
 }
 
-/** How long stage 1 waits for the clip analysis before logging the rest as "not analysed" (4K phone clips take ~10 s each). */
-const ANALYSIS_BUDGET_MS = 90_000;
+/**
+ * RS-1270: stage 1 must answer inside the tool call's 180 s. It watches for this long from its start; clips not read
+ * by then keep being read (the server caches each one) and the result asks for the same call again.
+ */
+export const STAGE1_BUDGET = {
+  watchMs: 100_000,
+  /** after the clips: how long from the start stage 1 still waits for what the shots show (the visual model) */
+  tagsMs: 115_000,
+  /** the shots for `find`, after the sheets: the visual model loads once more for the phrases */
+  findMs: 30_000,
+};
+
+export const within = <T>(work: Promise<T>, ms: number): Promise<T | undefined> => {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([work, new Promise<undefined>((resolve) => { timer = setTimeout(() => resolve(undefined), Math.max(0, ms)); })]).finally(() => clearTimeout(timer));
+};
+
+/** Clips read when stage 1 last answered "still watching", by project: a call that got no further builds from what it has. */
+const watchedBefore = new Map<string, number>();
 
 /**
- * The build's clip analysis and shot tags, awaited for the shot log (RS-1214; they used to only warm in the background
- * while the agent planned blind). Three clips at a time like the build; the server caches them, so the build reuses them.
+ * The build's clip analysis, awaited for the shot log (RS-1214; it used to only warm in the background while the agent
+ * planned blind). Three clips at a time like the build; the server caches them, so a second call and the build reuse them.
  */
-async function analyseClips(assets: MediaAsset[], fps: number, ctx: AgentContext, deps: ReelsDeps): Promise<{ features: Map<string, ClipFeatures | null>; tags: Map<string, ClipShotTags> }> {
-  const features = new Map<string, ClipFeatures | null>();
-  const videos = assets.filter((a) => a.kind === 'video');
+async function analyseClips(assets: MediaAsset[], read: (asset: MediaAsset) => Promise<ClipFeatures | null>, label: string, ctx: AgentContext, budgetMs: number, known?: ReadonlyMap<string, ClipFeatures>): Promise<{ features: Map<string, ClipFeatures | null>; finished: boolean }> {
+  // RS-1272 (8): clips the project's last stage 1 already read are not read again (the second Goa run of the same 33
+  // clips waited 100 s on one clip and answered "32 of 33 clips watched")
+  const features = new Map<string, ClipFeatures | null>([...(known ?? [])].filter(([id]) => assets.some((a) => a.id === id)));
+  const videos = assets.filter((a) => a.kind === 'video' && !features.has(a.id));
   let next = 0;
   const work = Promise.all(Array.from({ length: Math.min(3, videos.length) }, async () => {
     while (next < videos.length) {
       const a = videos[next++]!;
-      features.set(a.id, await deps.api.clipFeatures(a, fps).catch(() => null));
-      ctx.onToolProgress?.(`Watching the clips (${features.size}/${videos.length})`);
+      features.set(a.id, await read(a).catch(() => null));
+      ctx.onToolProgress?.(`${label} (${features.size}/${assets.filter((x) => x.kind === 'video').length})`);
     }
-  }));
-  let tags = new Map<string, ClipShotTags>();
-  const tagsWork = warmShotTags(assets, ctx, deps).then((t) => { if (t instanceof Map) tags = t as Map<string, ClipShotTags>; });
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const budget = new Promise<void>((resolve) => { timer = setTimeout(resolve, ANALYSIS_BUDGET_MS); });
-  await Promise.race([Promise.all([work, tagsWork]), budget]);
-  clearTimeout(timer);
-  return { features: new Map(features), tags };
+  })).then(() => true);
+  const finished = (await within(work, budgetMs)) === true;
+  return { features: new Map(features), finished };
 }
 
 /** Shot tags being read while the agent plans, by project; the build waits for them instead of loading the model again. */
@@ -180,6 +195,17 @@ export async function footageRateFor(ctx: Pick<AgentContext, 'getState' | 'getDo
 /** Cells of the reference sheet: one a shot, at most this many. */
 const REFERENCE_CELLS = 15;
 
+/**
+ * RS-1271 (5): the squad is searched for even when the agent forgets to ask. The Goa run's eight `find` phrases named
+ * the car, the sea, the pool and the club and no group of friends, so the mirror selfies and the gang selfie went unused
+ * and the "Squad intro" concept was dropped. A search that asks for things gets the group shot added (eight at most).
+ */
+export const GROUP_QUERY = 'a group of friends posing together for a selfie';
+export function withGroupQuery(queries: readonly string[]): string[] {
+  if (!queries.length || queries.length >= 8 || queries.some((q) => /\b(group|friends|together|selfie|squad|gang|crew|everyone|all of us)\b/i.test(q))) return [...queries];
+  return [...queries, GROUP_QUERY];
+}
+
 /** reels_find_shots (directorSearchTool), passed in by the dispatcher so the two modules do not import each other. */
 export type FindShots = (args: Record<string, unknown>, ctx: AgentContext, deps: ReelsDeps) => Promise<unknown>;
 
@@ -193,7 +219,21 @@ export async function directorOptions(args: Record<string, unknown>, ctx: AgentC
   const refAsset = want ? assets.find((a) => a.kind === 'video' && (a.id.toLowerCase() === want || a.name.toLowerCase() === want)) : undefined;
   if (want && !refAsset) return { error: `no imported video ${JSON.stringify(args.reference)} to use as the reference (give its assetId or file name)` };
   updateDirectorSession(projectId(ctx), { reference: refAsset ? { assetId: refAsset.id } : undefined });
-  const visual = directorVisuals(ctx);
+  const id = projectId(ctx);
+  const startedAt = Date.now();
+  const leftOf = (budgetMs: number) => budgetMs - (Date.now() - startedAt);
+  // RS-1270: every clip is watched (the song is read meanwhile), then the numbered list is chosen from them
+  const all = directorCandidates(ctx);
+  const candidates = all.slice(0, CANDIDATE_MAX);
+  // more clips than the list holds: they are ranked on the server's measurements (seconds a clip); the face and person
+  // finding, which runs in the page and is several times slower, is then done for the listed clips only
+  const measure = all.length > POOL_MAX ? deps.api.clipMeasure : undefined;
+  // RS-1272 (8): what the project's earlier stage 1 read at this rate (the session's shot log) is reused
+  const before = directorSession(id);
+  const known = new Map((before && before.fps === fps ? before.clips : []).flatMap((c) => (c.features?.assetId ? [[c.features.assetId, c.features] as const] : [])));
+  const watch = analyseClips(candidates, (a) => (measure ?? deps.api.clipFeatures)(a, fps), 'Watching the clips', ctx, STAGE1_BUDGET.watchMs, known);
+  let tags = new Map<string, ClipShotTags>();
+  const tagsWork = warmShotTags(candidates, ctx, deps).then((t) => { if (t instanceof Map) tags = t as Map<string, ClipShotTags>; });
   // RS-1239: a promo reel's page, read while the clips are watched
   const brandRaw = typeof args.brandUrl === 'string' ? args.brandUrl.trim() : '';
   const brandWork: Promise<BrandKit | { error: string } | undefined> = brandRaw && deps.api.brandKit ? deps.api.brandKit(brandRaw).catch((e: unknown) => ({ error: String((e as Error)?.message ?? e) })) : Promise.resolve(brandRaw ? { error: 'reading a web page is not available here' } : undefined);
@@ -204,10 +244,40 @@ export async function directorOptions(args: Record<string, unknown>, ctx: AgentC
   const beats = new Map(await Promise.all([...songs, ...narrations.map((n) => n.asset)].map(async (a) => [a.id, await tempo(a, deps, requestedStartSec)] as const)));
   const voiceovers = await Promise.all(narrations.map((n) => n.describe(ctx, deps, fps, (beats.get(n.asset.id) as { bpm?: number } | undefined)?.bpm)));
   // stage 1: watch the footage, then log it and take the sheet cells at each clip's best moments
-  const { features, tags } = await analyseClips(visual, fps, ctx, deps);
+  const watched = await watch;
+  const videoCount = candidates.filter((a) => a.kind === 'video').length;
+  const stillWatching = (seen: number, said: string) => {
+    if (seen <= (watchedBefore.get(id) ?? -1)) return undefined;
+    watchedBefore.set(id, seen);
+    return { watching: said, next: 'Call reels_director_options again now with the same arguments: it continues where this stopped. Do not plan yet and do not tell the user anything is wrong.' };
+  };
+  if (!watched.finished) {
+    const wait = stillWatching(watched.features.size, `${watched.features.size} of ${videoCount} clips watched so far; the rest are still being read.`);
+    if (wait) return wait;
+  }
+  // the seconds of a clip are in the project's frames; `fps` may be the rate the reel will be built at (RS-1250)
+  const assetFps = ctx.getState().fps;
+  const pool = pickPool(candidates.map((a) => ({ id: a.id, kind: a.kind === 'image' ? 'image' as const : 'video' as const, seconds: a.durationInFrames / assetFps, features: watched.features.get(a.id) ?? null })));
+  const keep = new Set(pool.keep);
+  const visual = candidates.filter((a) => keep.has(a.id));
+  let features = watched.features;
+  if (measure) {
+    const faces = await analyseClips(visual, (a) => deps.api.clipFeatures(a, fps), 'Finding the people in the clips', ctx, leftOf(STAGE1_BUDGET.watchMs), known);
+    if (!faces.finished) {
+      const listed = visual.filter((a) => a.kind === 'video').length;
+      const wait = stillWatching(videoCount + faces.features.size, `All ${videoCount} clips are watched and the best ${visual.length} are chosen; the people in them are found in ${faces.features.size} of ${listed} so far.`);
+      if (wait) return wait;
+    }
+    // a clip whose faces are not found yet keeps its measurements
+    features = new Map([...watched.features].map(([assetId, f]) => [assetId, faces.features.get(assetId) ?? f]));
+  }
+  watchedBefore.delete(id);
+  updateDirectorSession(id, { pool: all.length > POOL_MAX ? pool.keep : undefined });
+  const leftOut = leftOutText([...pool.left, ...all.slice(CANDIDATE_MAX).map((a) => ({ id: a.id, why: 'weaker' as const }))], all.length, (assetId) => all.find((a) => a.id === assetId)?.name ?? assetId);
+  await within(tagsWork, leftOf(STAGE1_BUDGET.tagsMs));
   const shape = (a: MediaAsset) => (a.width && a.height ? (a.height > a.width ? 'portrait' : a.height < a.width ? 'landscape' : 'square') : undefined);
   const logClips: ShotLogClip[] = visual.map((a, i) => ({
-    n: i + 1, kind: a.kind === 'image' ? 'image' : 'video', seconds: a.durationInFrames / fps,
+    n: i + 1, kind: a.kind === 'image' ? 'image' : 'video', seconds: a.durationInFrames / assetFps,
     ...(shape(a) ? { shape: shape(a) } : {}), features: features.get(a.id) ?? null, ...(tags.get(a.id) ? { tags: tags.get(a.id) } : {}),
   }));
   // RS-1240: the local clock time each video was filmed, from its metadata
@@ -217,14 +287,14 @@ export async function directorOptions(args: Record<string, unknown>, ctx: AgentC
   const log = shotLogLines(logClips, fps, k);
   // RS-1258: the shots for the story's things come with stage 1 (reels_find_shots was a model turn of its own), found
   // while the sheets are drawn; the clips were read for the shot tags above, so this only embeds the phrases
-  const findQueries = Array.isArray(args.find) ? args.find.filter((q): q is string => typeof q === 'string' && !!q.trim()) : [];
+  const findQueries = withGroupQuery(Array.isArray(args.find) ? args.find.filter((q): q is string => typeof q === 'string' && !!q.trim()) : []);
   const [sheets, found] = await Promise.all([
     contactSheets(visual, log.moments, ctx, deps),
-    findQueries.length && search ? search({ queries: findQueries }, ctx, deps).catch(() => null) : Promise.resolve(null),
+    findQueries.length && search ? within(search({ queries: findQueries }, ctx, deps).catch(() => null), STAGE1_BUDGET.findMs).then((r) => r ?? { error: 'the visual model is still reading the clips: cast from the log and the sheets, or call reels_find_shots in a minute' }) : Promise.resolve(null),
   ]);
   const firstSong = importedSongs[0];
   const sug = firstSong ? (beats.get(firstSong.id) as { bpm?: number; suggest?: { beatsFor18s: number; dropAtBeat?: number; phrases?: { fourBar?: { reelBeat: number }[] } } } | undefined) : undefined;
-  const reference = refAsset ? await watchReference(refAsset, fps, logClips, sug?.bpm, ctx, deps) : undefined;
+  const reference = refAsset ? await watchReference(refAsset, fps, assetFps, logClips, sug?.bpm, ctx, deps) : undefined;
   const brandResult = await brandWork;
   const brand = brandResult && !('error' in brandResult) ? brandResult : undefined;
   updateDirectorSession(projectId(ctx), {
@@ -232,7 +302,7 @@ export async function directorOptions(args: Record<string, unknown>, ctx: AgentC
     fps, clips: logClips, treatment: undefined, lastBuild: undefined, askFirst: args.askFirst === true, gate: undefined, reference: reference ? { assetId: refAsset!.id, profile: reference.profile } : undefined,
     ...(firstSong ? { song: { assetId: firstSong.id, ...(sug?.bpm ? { bpm: sug.bpm } : {}), ...(sug?.suggest ? { beatsFor18s: sug.suggest.beatsFor18s, ...(sug.suggest.dropAtBeat !== undefined ? { dropAtBeat: sug.suggest.dropAtBeat } : {}), ...(sug.suggest.phrases?.fourBar?.length ? { phraseBeats: sug.suggest.phrases.fourBar.map((p) => p.reelBeat) } : {}) } : {}) } } : {}),
   });
-  const song = (a: MediaAsset) => ({ assetId: a.id, name: a.name, seconds: secs(a.durationInFrames, fps), ...(beats.get(a.id) ?? {}) });
+  const song = (a: MediaAsset) => ({ assetId: a.id, name: a.name, seconds: secs(a.durationInFrames, assetFps), ...(beats.get(a.id) ?? {}) });
   adoptCustomGraphics(ctx.getState().items as never);
   const custom = Object.values(CUSTOM_FX).map((d) => d.id).concat(listCustomTransitions().map((t) => t.id), listCustomGraphics().map((g) => g.id));
   // RS-1210: only what is particular to this project. The catalogue (moves, styles, effects, transitions, looks, sounds)
@@ -243,6 +313,8 @@ export async function directorOptions(args: Record<string, unknown>, ctx: AgentC
     clips: log.lines.map((line, i) => line.replace(/^#\d+ /, `#${i + 1} ${visual[i]!.name} `)),
     shotLogNote: '"best @t" = its strongest moments (sharp, lit, a subject, some life), best first; "moving" = where it moves most; "talking" = speech; "soft/dark" = avoid those seconds; "filmed" = the clock time it was shot (true, so a time label may use it). Cast from these with "#n@t".',
     clipRefs: 'In the plan, name a clip by its number: "#7", or "#7@4.5" to start it at 4.5 s of the source.',
+    ...(leftOut ? { leftOut } : {}),
+    ...(tags.size ? {} : { tagsNote: 'What each clip shows is not in the log (the visual model is not installed, or is still reading): judge the subjects from the contact sheets.' }),
     sheetNote: sheets ? sheets.note : 'No contact sheets (frame sharing is off or unavailable): choose from names and seconds, or view_asset_frames for one or two clips.',
     ...(voiceovers.length ? {
       voiceovers,
@@ -264,10 +336,10 @@ export async function directorOptions(args: Record<string, unknown>, ctx: AgentC
 }
 
 /** RS-1217: measure the reference with the clip analysis and lay out one cell a shot. */
-async function watchReference(asset: MediaAsset, fps: number, footage: ShotLogClip[], bpm: number | undefined, ctx: AgentContext, deps: ReelsDeps) {
+async function watchReference(asset: MediaAsset, fps: number, assetFps: number, footage: ShotLogClip[], bpm: number | undefined, ctx: AgentContext, deps: ReelsDeps) {
   ctx.onToolProgress?.('Watching the reference reel');
   const [features, cuts] = await Promise.all([deps.api.clipFeatures(asset, fps).catch(() => null), deps.api.referenceCuts?.(asset, fps).catch(() => null)]);
-  const seconds = asset.durationInFrames / fps;
+  const seconds = asset.durationInFrames / assetFps;
   // the reference's own cut rule and whole-reel colour, over the clip analysis (tuned for cuts inside raw footage)
   const measured = { ...(features ?? { assetId: asset.id, dHash: '0', windows: [] }), ...(cuts ? { shotBoundariesFrame: cuts.cutsFrame, ...(cuts.color ? { color: cuts.color } : {}) } : {}) };
   const profile = referenceProfile(asset.name, seconds, measured, fps, footage);
@@ -283,8 +355,23 @@ async function watchReference(asset: MediaAsset, fps: number, footage: ShotLogCl
   return { profile, line: `${referenceLine(profile, bpm)}${features || cuts ? '' : ' (the analysis could not read it: pace and colour are guesses; judge from the sheet)'}`, image };
 }
 
-/** The pictures the director sees, numbered #1.. in this order (options and build must agree); never the reference reel. */
-export function directorVisuals(ctx: AgentContext): MediaAsset[] {
+/** Every picture the director may choose its list from: not the reference reel, not a file still uploading. */
+export function directorCandidates(ctx: AgentContext): MediaAsset[] {
   const reference = directorSession(projectId(ctx))?.reference?.assetId;
-  return (ctx.getDoc().assets ?? []).filter((a) => VISUAL.has(a.kind) && a.id !== reference).slice(0, 60);
+  return (ctx.getDoc().assets ?? []).filter((a) => VISUAL.has(a.kind) && a.id !== reference);
+}
+
+/**
+ * The pictures the director sees, numbered #1.. in this order (options and build must agree); never the reference reel.
+ * RS-1270: with more than 60 clips, the list stage 1 chose (it goes with the reel); the first 60 before a stage 1.
+ */
+export function directorVisuals(ctx: AgentContext): MediaAsset[] {
+  const all = directorCandidates(ctx);
+  const pool = directorSession(projectId(ctx))?.pool;
+  if (pool?.length) {
+    const byId = new Map(all.map((a) => [a.id, a]));
+    const listed = pool.flatMap((assetId) => { const a = byId.get(assetId); return a ? [a] : []; });
+    if (listed.length) return listed;
+  }
+  return all.slice(0, POOL_MAX);
 }

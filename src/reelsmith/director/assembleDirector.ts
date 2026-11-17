@@ -2,6 +2,7 @@
 // beat clock (0.5 s a beat without a song). Each section's move builds its items on its own lanes: lane numbers restart
 // per section, which is safe because sections never overlap in time. Overlay lines span several sections on lanes above.
 import type { AtomicAction } from '../../editor/reducerActions';
+import { livelyFor } from './stillShots';
 import type { Recipe } from '../../../shared/reelsmith/recipe';
 import { RATIO_SIZES } from '../../../shared/reelsmith/ratios';
 import type { ReelPlan } from '../../../shared/reelsmith/directorPlan';
@@ -245,7 +246,7 @@ export function assembleDirector(input: AssembleInput): AssembleResult {
       }
       const len = Math.max(1, Math.min(frames, clip.durationInFrames));
       const key = clip.baseAssetId ?? clip.assetId;
-      const s0 = pickMoment(clip, len, used.get(key) ?? [], Math.round(fps * 0.5), fps) ?? 0;
+      const s0 = livelyFor(move.id, plan, clip.sourceAnalysis?.motionCurve, pickMoment(clip, len, used.get(key) ?? [], Math.round(fps * 0.5), fps) ?? 0, len, clip.durationInFrames, fps, used.get(key) ?? []);
       used.set(key, [...(used.get(key) ?? []), [s0, s0 + len]]);
       return { inFrame: s0, loop: clip.durationInFrames - s0 < frames };
     };

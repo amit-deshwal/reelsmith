@@ -17,6 +17,11 @@ const view: ShotLogClip = { n: 2, kind: 'video', seconds: 8, features: { assetId
 const photo: ShotLogClip = { n: 3, kind: 'image', seconds: 3 };
 const bare: ShotLogClip = { n: 4, kind: 'video', seconds: 10, features: null };
 
+// RS-1270: a nearly black moment is never the best one while the clip has a lit one (the plan check refuses it)
+{
+  const night: ShotLogClip = { n: 9, kind: 'video', seconds: 8, features: { assetId: 'n', dHash: '0', windows: [win(0, { exposure: 0.7, motion: 0.01 }), win(2, { exposure: 0.1, motion: 0.5, subject: 0.4 }), win(4, { exposure: 0.1, motion: 0.5, subject: 0.4 }), win(6, { exposure: 0.1, motion: 0.5 })] } };
+  assert.deepEqual(bestMoments(night, 1, fps), [1], 'the lit moment, though the dark ones move more');
+}
 const m = bestMoments(climb, 3, fps);
 assert.equal(m.length, 3);
 assert.ok(m.some((t) => t >= 10 && t <= 14), `the climb's moving part is a best moment (${m})`);

@@ -8,7 +8,12 @@ import { RATIO_SIZES } from '../../../shared/reelsmith/ratios';
 import { groupNearDuplicates, type ClipFeatures } from '../assembler/scoring';
 import { safeAreaFor } from '../safeZone';
 import { moveById } from './moves';
-import { betterStretch, stretchOf } from './pickAudit';
+import { UNSEEN_EXPOSURE, betterStretch, nightClip, stretchOf } from './pickAudit';
+import { LONG_SHOT_SEC, LIVELY_MOTION, STILL_MOTION, STILL_TONES, liveliestStart, meanMotion } from './stillShots';
+import { COPY_FIX, copiedRun } from './copyLines';
+import { freshMoves, repeatsLast } from './moveVariety';
+
+export { UNSEEN_EXPOSURE };
 
 /** What the user's brief fixes, written by the agent in the treatment (or passed to reels_validate_plan). */
 export interface PlanBrief {
@@ -24,7 +29,7 @@ export interface PlanBrief {
   mustUse?: string[];
 }
 
-export const PLAN_RULES = ['length', 'beats', 'must-use', 'short-shot', 'safe-zone', 'duplicate', 'phrase', 'plain', 'dark', 'bar', 'crop'] as const;
+export const PLAN_RULES = ['length', 'beats', 'must-use', 'short-shot', 'safe-zone', 'duplicate', 'phrase', 'plain', 'dark', 'bar', 'crop', 'still', 'copy', 'repeat', 'transition', 'hook', 'group'] as const;
 export type PlanRule = (typeof PLAN_RULES)[number];
 
 export interface PlanViolation { rule: PlanRule; sections?: number[]; issue: string; fix: string }
@@ -35,14 +40,24 @@ export interface ValidateInput {
   /** the song's tempo (no beat rules without one) */
   bpm?: number;
   /** the numbered clip list: n (the "#n"), its length and its features (for near-identical clips) */
-  clips: ReadonlyArray<{ n: number; seconds: number; features?: ClipFeatures | null; shape?: 'portrait' | 'landscape' | 'square'; /** the clip shows people (its shot tags, or a face found) */ people?: boolean }>;
+  clips: ReadonlyArray<{ n: number; seconds: number; features?: ClipFeatures | null; shape?: 'portrait' | 'landscape' | 'square'; /** the clip shows people (its shot tags, or a face found) */ people?: boolean; /** RS-1271 (5): its shot tags say a group of people (undefined: not tagged) */ group?: boolean }>;
   /** the rate the clip features count frames at (the timeline's; default 30) */
   fps?: number;
   /** "#n", "#n@t" or an assetId → its list number */
   clipNumber: (ref: string) => number | undefined;
   /** RS-1268: the song's beat grid (song seconds), for the phrase rule; no phrase rule without it */
   songGrid?: SongBeatGrid;
+  /** RS-1271: the user's story (the treatment's), for the copy rule; quoteUser when they asked for their words as the lines */
+  story?: string;
+  quoteUser?: boolean;
+  /** RS-1271 (1): the moves of the project's earlier reels, the last reel last */
+  history?: ReadonlyArray<readonly string[]>;
+  /** RS-1271 (4): the treatment's parts (their clips), for the hook rule */
+  treatmentParts?: ReadonlyArray<{ clips?: readonly string[] }>;
 }
+
+/** RS-1271 (5): a story that names a group of people ("the boys", "my gang", "with friends"). */
+export const NAMES_A_GROUP = /\b(boys|guys|gang|squad|crew|friends|girls|bros|homies|buddies|family|team|cousins)\b/i;
 
 export interface SongBeatGrid { beatTimesSec: readonly number[]; downbeatIndex: number; beatsPerBar?: number; dropSec?: number }
 
@@ -77,10 +92,14 @@ export function reelPhraseBeats(grid: SongBeatGrid, musicStart: ReelPlan['musicS
 export const FLASH_RUN_MOVES = new Set(['flash-cuts', 'zoom-punch', 'match-cut']);
 /** The plain moves: a reel made mostly of these looks like every other phone edit. */
 export const PLAIN_MOVES = new Set(['cut', 'hold', 'black']);
-/** Below this exposure a moment is nearly black or blown out (pickAudit's scale): nothing to see on a phone. */
-export const UNSEEN_EXPOSURE = 0.15;
 /** Moves that place each shot in a window of its own, where a landscape picture is not cropped to a sliver. */
 const WINDOW_MOVES = new Set(['split', 'pip', 'compare', 'cards-finale', 'postcard-band', 'film-strip', 'photo-stack', 'black']);
+/**
+ * RS-1272 (5): moves with no full-frame footage at their cuts (their pictures sit in tiles, cards or prints over a
+ * background), so a transition into or out of them has nothing to blend and the build leaves a plain cut. Checked
+ * against the assembler in assembleDirector.verify.ts.
+ */
+export const NO_EDGE_MOVES = new Set(['split', 'photo-stack', 'compare', 'cards-finale', 'black']);
 /** Not a shot: a beat of black is a pause. */
 const NOT_A_SHOT = new Set(['black']);
 /** Shorter than this reads as a flicker, not a shot. */
@@ -311,6 +330,9 @@ export function validatePlan(input: ValidateInput): PlanViolation[] {
         const stretch = stretchOf(features, Math.round(at * fps), frames);
         if (!stretch || stretch.exposure >= UNSEEN_EXPOSURE) continue;
         const alt = betterStretch(features, frames, 0.6 * stretch.sharpness + 0.4 * stretch.exposure);
+        // RS-1270: a clip that is dark from end to end is night footage (a club, a street at 3 am), not a mistake: the rule
+        // refused the Goa club shots and cost a build each time. Only a dark moment of a clip that also has a lit one counts.
+        if (!alt && nightClip(features)) continue;
         const name = ref.split('@')[0]!;
         bad.push(`${ref} (section ${k}, exposure ${stretch.exposure.toFixed(2)})${alt ? `: ${name}@${Math.round((alt.inFrame / fps) * 10) / 10} is lit` : ''}`);
         if (!ks.includes(k)) ks.push(k);
@@ -352,6 +374,88 @@ export function validatePlan(input: ValidateInput): PlanViolation[] {
         }
       });
       if (bad.length) out.push({ rule: 'crop', sections: ks, issue: `landscape shots of people fill a tall frame: ${bad.slice(0, 5).join(', ')} would show about a third of the picture (heads and faces cut off)`, fix: 'cast a portrait clip there, or show the shot whole: `fit: "whole"` on the section (the picture over a blurred copy of itself) or a `split` with layout rows; when the sheet shows the person stays in the middle third, build again as is' });
+    }
+  }
+  // still: a long shot of a moment where nothing moves reads as a frozen frame (RS-1271: a 3.8 s hold on a seated crowd)
+  if (!plan.shotList && !STILL_TONES.has(plan.tone ?? '')) {
+    const bad: string[] = [];
+    const ks: number[] = [];
+    plan.sections.forEach((s, k) => {
+      if (s.move !== 'hold' && s.move !== 'cut') return;
+      const every = beatsPerShot(s);
+      const shotSec = s.move === 'hold' ? times[k]!.sec : Math.min(times[k]!.sec, (every ?? Infinity) * beatSec);
+      if (shotSec < LONG_SHOT_SEC - 0.01 || (s.move === 'cut' && timed && shotSec / beatSec < 4 - 1e-6)) return;
+      for (const ref of s.clips ?? []) {
+        const clip = clips.find((c) => c.n === clipNumber(ref));
+        const curve = clip?.features?.motionCurve;
+        if (!clip || !curve) continue;
+        const len = Math.min(shotSec, clip.seconds);
+        const at = atOf(ref);
+        const best = liveliestStart(curve, clip.seconds, len);
+        // no @: the build takes the clip's liveliest stretch for a long shot; only a clip still from end to end is a freeze
+        const here = at === undefined ? best?.motion : meanMotion(curve, Math.min(at, Math.max(0, clip.seconds - len)), len);
+        if (here === undefined || here >= STILL_MOTION) continue;
+        const name = ref.split('@')[0]!;
+        const alt = at !== undefined && best && best.motion >= LIVELY_MOTION && Math.abs(best.at - at) >= 0.5 ? `: ${name}@${best.at} moves (${best.motion.toFixed(2)})` : at === undefined || !best || best.motion < STILL_MOTION ? ': the clip is still from end to end' : '';
+        bad.push(`${ref} (section ${k}, ${fmt(shotSec)}, movement ${here.toFixed(2)})${alt}`);
+        if (!ks.includes(k)) ks.push(k);
+      }
+    });
+    if (bad.length) out.push({ rule: 'still', sections: ks, issue: `long shots of moments where nothing moves read as a frozen frame: ${bad.slice(0, 4).join('; ')}`, fix: 'start at the moving moment named, cast a clip that moves there, or keep that shot under 2 beats; when the stillness is the point (a view, a quiet face), build again as is' });
+  }
+  // copy: a line lifted from the brief is a list of what the footage holds, not a line (RS-1271: four of four lines)
+  if (!plan.shotList && !input.quoteUser && input.story?.trim()) {
+    const bad: string[] = [];
+    const ks: number[] = [];
+    const lines = [...plan.sections.map((s, k) => ({ text: s.text, k })), ...(plan.overlays ?? []).map((o) => ({ text: o.text, k: o.from }))];
+    for (const { text, k } of lines) {
+      const run = text ? copiedRun(text, input.story) : undefined;
+      if (!run) continue;
+      bad.push(`"${text!.slice(0, 32)}" (section ${k}) copies "${run}"`);
+      if (!ks.includes(k)) ks.push(k);
+    }
+    if (bad.length) out.push({ rule: 'copy', sections: ks.sort((a, b) => a - b), issue: `lines copied from the brief: ${bad.slice(0, 4).join('; ')}`, fix: COPY_FIX });
+  }
+  // transition: one that cannot play (into or out of a move with no full-frame footage at the cut)
+  {
+    const bad = plan.sections.map((s, k) => (k > 0 && s.transition && (NO_EDGE_MOVES.has(s.move) || NO_EDGE_MOVES.has(plan.sections[k - 1]!.move)) ? k : -1)).filter((k) => k > 0);
+    if (bad.length) {
+      const what = bad.slice(0, 3).map((k) => `section ${k}'s ${plan.sections[k]!.transition} (${plan.sections[k - 1]!.move} → ${plan.sections[k]!.move})`).join(', ');
+      out.push({ rule: 'transition', sections: bad, issue: `transitions that cannot play: ${what}; ${[...NO_EDGE_MOVES].join(', ')} have no full-frame shot at their cuts, so the build would leave a plain cut`, fix: 'drop the transition there (the move\'s own entrance is the change), or put it on a cut between two full-frame moves' });
+    }
+  }
+  // hook: the treatment's tease of the whole trip, kept (RS-1271: "car, sea, pool, club" was built as four car shots)
+  if (!plan.shotList && input.treatmentParts && input.treatmentParts.length > 2 && plan.sections.length > 2) {
+    const nums = (refs: readonly string[] | undefined) => new Set((refs ?? []).map((r) => clipNumber(r)).filter((n): n is number => n !== undefined));
+    const parts = input.treatmentParts;
+    // the later parts the treatment's hook previews
+    const partOf = (n: number, from: number) => parts.findIndex((p, i) => i >= from && nums(p.clips).has(n));
+    const promised = new Set([...nums(parts[0]!.clips)].map((n) => partOf(n, 1)).filter((i) => i > 0));
+    if (promised.size >= 3) {
+      const hookNums = [...nums(plan.sections[0]!.clips)];
+      // by the treatment's parts first (the plan may split a part in two), else by the plan's own later sections
+      const reached = new Set(hookNums.map((n) => { const p = partOf(n, 1); if (p > 0) return `p${p}`; const k = plan.sections.findIndex((s, i) => i > 0 && nums(s.clips).has(n)); return k > 0 ? `s${k}` : ''; }).filter(Boolean));
+      if (reached.size < 3) {
+        const wanted = [...nums(parts[0]!.clips)].map((n) => `#${n}`).join(', ');
+        out.push({ rule: 'hook', sections: [0], issue: `the treatment's hook previews ${promised.size} later parts (${wanted}); the plan's hook shows ${reached.size || 'none'} of them`, fix: `cast the hook from the treatment's tease (${wanted}), one shot from each later part, so the first seconds show the whole story` });
+      }
+    }
+  }
+  // group: the story names a group of people and neither the hook nor the ending shows one
+  if (!plan.shotList && input.story && NAMES_A_GROUP.test(input.story) && plan.sections.length > 1) {
+    const groups = clips.filter((c) => c.group).map((c) => c.n);
+    const ends = [plan.sections[0]!, plan.sections[plan.sections.length - 1]!];
+    const cast = ends.flatMap((s) => (s.clips ?? []).map((r) => clipNumber(r)));
+    if (groups.length && !cast.some((n) => n !== undefined && groups.includes(n))) {
+      out.push({ rule: 'group', sections: [0, plan.sections.length - 1], issue: `the story names "${NAMES_A_GROUP.exec(input.story)![1]}" and neither the hook nor the ending shows them together`, fix: `cast a group shot in the hook or the ending (the log tags these as a group: ${groups.slice(0, 6).map((n) => `#${n}`).join(', ')}); a reel about people ends on their faces` });
+    }
+  }
+  // repeat: the last reel's moves again (RS-1271: five Goa runs, one skeleton)
+  if (!plan.shotList && input.history?.length) {
+    const same = repeatsLast(plan.sections.map((s) => s.move), input.history);
+    if (same) {
+      const fresh = freshMoves(input.history, { people: clips.some((c) => c.people), photos: false }, plan.sections.map((s) => s.move));
+      out.push({ rule: 'repeat', issue: `the same moves as the last reel in this project (${same}): it will look like the reel before`, fix: `swap at least two of them for moves this footage suits${fresh.length ? ` (unused here: ${fresh.join(', ')})` : ''}; when the brief asks for this exact reel again, build again as is` });
     }
   }
   return out;

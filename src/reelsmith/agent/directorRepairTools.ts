@@ -7,7 +7,7 @@ import { execFramesTool } from '../../agent/tools/frames-tool';
 import { framesAllowed } from '../framePrivacy';
 import { lintReel } from '../reelLint';
 import { critiqueFrames, critiquePlan, criticBrief, parseDefects } from '../director/critique';
-import { directorSession, restoreDirectorSession, updateDirectorSession } from '../director/directorSession';
+import { NOT_BUILT, builtOnTimeline, directorSession, restoreDirectorSession, updateDirectorSession } from '../director/directorSession';
 import { checkAgainstReference } from '../director/reference';
 import type { Treatment } from '../director/treatment';
 import { runBuild } from './directorTools';
@@ -96,6 +96,7 @@ export async function critiqueOfLastBuild(ctx: AgentContext): Promise<{ error: s
   const session = restoreDirectorSession(id, ctx.getState().items as never);
   const built = session?.lastBuild;
   if (!session || !built) return { error: 'Nothing to critique yet: build the reel with reels_director_build first (the critique reads the last director build).' };
+  if (!builtOnTimeline(session, ctx.getState().items as never)) return { error: `${NOT_BUILT}. Build the plan again with reels_director_build (replaceTimeline true); then critique.` };
   const fps = ctx.getState().fps;
   const { images, sheets, error: frameError } = await frameSheets(critiqueFrames(built.plan, built.spans, fps), fps, ctx);
   updateDirectorSession(id, { lastBuild: { ...built, fixes: 0, defects: [] } });
@@ -136,12 +137,14 @@ export async function directorFix(args: Record<string, unknown>, ctx: AgentConte
   const top = (args.plan && typeof args.plan === 'object' ? args.plan : {}) as Record<string, unknown>;
   const changes = Object.keys(raw).length + PLAN_FIELDS.filter((k) => k in top).length;
   if (!changes) {
+    const onTimeline = builtOnTimeline(session, ctx.getState().items as never);
     return {
+      ...(onTimeline ? {} : { built: false, warning: NOT_BUILT }),
       ...(session.treatment ? { treatment: { ...treatmentBrief(session.treatment), story: session.treatment.story, parts: session.treatment.parts } } : {}),
       plan: built.plan,
       sections: built.spans.map((sp, k) => `s${k} ${built.plan.sections[k]!.move} ${sp.from.toFixed(1)}-${sp.to.toFixed(1)} s`),
       ...(built.defects?.length ? { openDefects: built.defects } : {}),
-      next: 'This is the reel as directed. To change it, call reels_director_fix again with `sections` ({ "<index>": the whole new section }) and/or `plan` (look, sfx, musicStart, overlays, graphics, tone), plus `request` (the user\'s words) or `defects`. Keep the treatment\'s tone and kit unless the user asks for a new feel.',
+      next: !onTimeline ? 'Nothing of this plan is on the timeline: build it with reels_director_build (this plan, replaceTimeline true) before you critique, fix or report it.' : 'This is the reel as directed. To change it, call reels_director_fix again with `sections` ({ "<index>": the whole new section }) and/or `plan` (look, sfx, musicStart, overlays, graphics, tone), plus `request` (the user\'s words) or `defects`. Keep the treatment\'s tone and kit unless the user asks for a new feel.',
     };
   }
   const rounds = (built.fixes ?? 0) + 1;
@@ -179,6 +182,7 @@ export async function directorFix(args: Record<string, unknown>, ctx: AgentConte
   ctx.onToolProgress?.(`Fixing section${changed.size === 1 ? '' : 's'} ${[...changed].join(', ')}`);
   const out = await runBuild({ plan, keep, replaceTimeline: true, fixRound: rounds, defects: defects?.ok ? defects.defects : [] }, ctx, deps);
   if ('error' in out) return out;
+  if ('building' in out) return { building: `still waiting for ${out.building}; nothing changed yet`, next: 'Call reels_director_fix again now with the same arguments (the analysis goes on meanwhile). Do not change the fix for this.' };
   const fps = ctx.getState().fps;
   const picks = critiqueFrames(out.plan, out.spans, fps).filter((p) => [...changed].some((k) => p.label.startsWith(`s${k} `) || (p.frame >= out.spans[k]!.from * fps && p.frame < out.spans[k]!.to * fps)));
   const { images, sheets, error: frameError } = await frameSheets(picks, fps, ctx);

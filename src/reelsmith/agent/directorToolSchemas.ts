@@ -9,6 +9,7 @@ export const DIRECTOR_TOOL_SCHEMAS: AgentToolSchema[] = [
       'and returns the shot log (each clip numbered #1, #2... with its best moments, where it moves, talks or goes soft), contact sheets taken',
       'at those moments, and the songs with bpm, drop and a timing suggestion. With `find` (short phrases for what the story names to see) it',
       'also returns the best matching moments for each as ready "#n@s" refs (`shots`). Call once, then write the treatment (reels_director_treatment).',
+      'With many clips it may answer `watching` (not every clip is read yet): call it again at once with the same arguments. More than 60 clips: it lists the best 60 and says which were left out (`leftOut`).',
       'With `reference` (an imported reel the user wants theirs to feel like) it also measures that reel (pace, colour, motion), shows one',
       'cell a shot of it, and leaves it out of the clips. With `brandUrl` (a promo reel) it also reads that one page for its brand kit.',
     ].join(' '),
@@ -71,7 +72,7 @@ export const DIRECTOR_TOOL_SCHEMAS: AgentToolSchema[] = [
         effects: { type: 'array', items: { type: 'string' }, description: 'Effect ids you mean to use (few).' },
         graphics: { type: 'array', items: { type: 'string' }, description: 'Graphic ids for what the story names.' },
         look: { type: 'string', description: 'A look id, or leave it out for the footage as shot.' },
-        ownWords: { type: 'boolean', description: 'True only when the user asked for lines of your own.' },
+        quoteUser: { type: 'boolean', description: 'True only when the user asked for their own words as the lines ("use my words", a caption they wrote). Otherwise you write the lines; quoted phrases in the brief may be used as written.' },
         shotList: { type: 'boolean', description: 'True when the user gave a shot list (timed shots with their own lines): it is built as written (references/shotlist.md). Detected from the story when it has three or more timed shots.' },
         styleGuide: {
           type: 'object', description: 'Required with a reference reel: what you learned from it, in concrete words.',
@@ -159,7 +160,8 @@ export const DIRECTOR_TOOL_SCHEMAS: AgentToolSchema[] = [
     description: [
       'Check a director plan without building it: the brief (the treatment\'s, or `brief`) and the plan rules (length and song window,',
       'section cuts on whole beats, the shots the user asked for, no shot under 0.5 s outside flash-cuts or zoom-punch, hand-placed lines',
-      'inside Instagram\'s safe area, no shot twice, titled sections on a 4-bar phrase or the drop) plus the catalogue check. Read-only. reels_director_build runs the same check first and',
+      'inside Instagram\'s safe area, no shot twice, titled sections on a 4-bar phrase or the drop, no long shot of a still moment, no line copied',
+      'from the brief, not the last reel\'s moves again, transitions that can play, the treatment\'s hook) plus the catalogue check. Read-only. reels_director_build runs the same check first and',
       'refuses a plan that breaks a rule, so call this only when you are unsure of a plan.',
     ].join(' '),
     input_schema: {
@@ -188,6 +190,7 @@ export const DIRECTOR_TOOL_SCHEMAS: AgentToolSchema[] = [
       'timeline has items, ask the user first and pass replaceTimeline true. Params it can repair (a value out of range, a key the move or style',
       'does not take) are repaired and listed in `notes`. A plan that breaks the brief or a plan rule (as reels_validate_plan) is refused once with the violations. The first build of a directed reel returns the critique (about three frames a section,',
       'the checks and the critic\'s checklist) with the lint and review findings: name its largest defects and repair them with reels_director_fix.',
+      'While the clip analysis is still running it answers `building` (nothing is built): call it again with the same plan.',
     ].join(' '),
     input_schema: {
       type: 'object',

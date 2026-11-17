@@ -28,8 +28,12 @@ function spanX(item: Add['item'], canvas: Canvas, r: { x: number; w: number }): 
   return [(left + r.x * drawn) / canvas.width, (left + (r.x + r.w) * drawn) / canvas.width];
 }
 
-/** Shots under one line that are looked at (the longest ones): a line over a run of cuts sits on several. */
-const SHOTS_PER_LINE = 3;
+/**
+ * Shots under one line that are looked at (the first, then the longest): a line over a run of cuts sits on several.
+ * RS-1271 (7): three of the longest missed the Goa hook's car selfie, one of five equal zoom-punch shots, where "GOA
+ * TRIP WITH THE BOYS" crossed a man's eyes at 1.1 s. A hook burst is five shots; the first is what a scroller sees.
+ */
+const SHOTS_PER_LINE = 5;
 
 interface LineBox { x0: number; x1: number; centre: number; half: number; label: string; move: (centre: number) => Add['item'] }
 
@@ -74,11 +78,12 @@ export async function clearCaptionsOfPeople(actions: AtomicAction[], assets: rea
     const box = lineBox(action.item, canvas);
     if (!box) continue;
     const start = action.startFrame ?? 0, end = start + action.item.durationInFrames;
-    const unders = visuals
+    const all = visuals
       .map((v) => ({ v, from: Math.max(start, v.startFrame ?? 0), to: Math.min(end, (v.startFrame ?? 0) + v.item.durationInFrames) }))
       .filter((x) => x.to > x.from)
-      .sort((a, b) => (b.to - b.from) - (a.to - a.from))
-      .slice(0, SHOTS_PER_LINE);
+      .sort((a, b) => a.from - b.from || (b.to - b.from) - (a.to - a.from));
+    // the first shot under the line, then the longest of the rest
+    const unders = [...(all.length ? [all[0]!] : []), ...all.slice(1).sort((a, b) => (b.to - b.from) - (a.to - a.from))].slice(0, SHOTS_PER_LINE);
     // the heads the line could cover in every shot it sits on: those under it side to side, as vertical bands of the canvas
     const bands: Array<readonly [number, number]> = [];
     for (const under of unders) {

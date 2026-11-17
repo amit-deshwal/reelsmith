@@ -107,4 +107,15 @@ const { TEXT_GRAPHIC_CODE } = await import('./textGraphic');
 const { GRAPHIC_PRELUDE } = await import('./graphicsKit');
 assert.match(TEXT_GRAPHIC_CODE, /P\.overshoot/);
 assert.match(GRAPHIC_PRELUDE, /P\.overshoot/);
+// RS-1271 (6) / RS-1272 (4): the ending's last frame and each section's cut in (two frames after the cut) are judged
+{
+  const plan: any = { version: 1, ratio: '9:16', sections: [{ move: 'zoom-punch' }, { move: 'split' }, { move: 'hold', text: 'see you' }] };
+  const frames = critiqueFrames(plan, [{ from: 0, to: 2 }, { from: 2, to: 5 }, { from: 5, to: 9 }], 30);
+  assert.ok(frames.some((f) => f.frame === 268 && /the last frame/.test(f.label)), frames.map((f) => `${f.frame} ${f.label}`).join(' | '));
+  assert.ok(frames.some((f) => f.frame === 62 && /s1 split in/.test(f.label)));
+  // over a tight budget the last frame stays
+  assert.ok(critiqueFrames(plan, [{ from: 0, to: 2 }, { from: 2, to: 5 }, { from: 5, to: 9 }], 30, 6).some((f) => /the last frame/.test(f.label)));
+  // a loop is judged at its seam instead
+  assert.ok(!critiqueFrames({ ...plan, loop: true }, [{ from: 0, to: 2 }, { from: 2, to: 5 }, { from: 5, to: 9 }], 30).some((f) => /the last frame \(what/.test(f.label)));
+}
 console.log('critique.verify ok');

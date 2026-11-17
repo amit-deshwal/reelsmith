@@ -4,10 +4,13 @@
 // Director tab starts the same work while the user writes the story and stage 1 picks it up where it is.
 import type { MediaAsset } from '../../editor/types';
 import { footageTimelineFps } from './footageRate';
+import { CANDIDATE_MAX, POOL_MAX } from './pool';
 
 /** What the warm-up needs from the analysis client (the app passes analyzeApi and the shot-tag loader). */
 export interface WarmDeps {
   clipFeatures: (asset: MediaAsset, fps: number) => Promise<unknown>;
+  /** RS-1270: without the face finding; used when there are more clips than the director's list holds */
+  clipMeasure?: (asset: MediaAsset, fps: number) => Promise<unknown>;
   mediaFps?: (srcs: string[]) => Promise<Array<number | null>>;
   shotTags?: (projectId: string, assets: MediaAsset[]) => Promise<unknown>;
 }
@@ -24,9 +27,9 @@ export interface WarmInput {
 
 const VISUAL = new Set(['video', 'image']);
 
-/** The clips stage 1 watches, in its order (directorVisuals): pictures, not the reference, at most 60, uploads done. */
+/** The clips stage 1 watches, in its order (directorVisuals): pictures, not the reference, uploads done (RS-1270: all of them, the list of 60 is chosen after). */
 export function warmupVisuals(assets: readonly MediaAsset[], referenceId?: string): MediaAsset[] {
-  return assets.filter((a) => VISUAL.has(a.kind) && a.id !== referenceId).slice(0, 60).filter((a) => !!a.src && !a.src.startsWith('blob:'));
+  return assets.filter((a) => VISUAL.has(a.kind) && a.id !== referenceId).slice(0, CANDIDATE_MAX).filter((a) => !!a.src && !a.src.startsWith('blob:'));
 }
 
 /** The rate stage 1 analyses at: the footage's 60 fps for an empty timeline of 60 fps clips, else the timeline's (footageRateFor). */
@@ -56,7 +59,9 @@ export function warmDirectorAnalysis(input: WarmInput, deps: WarmDeps): Promise<
       const videos = visuals.filter((a) => a.kind === 'video');
       let next = 0;
       await Promise.all(Array.from({ length: Math.min(3, videos.length) }, async () => {
-        while (next < videos.length) await deps.clipFeatures(videos[next++]!, fps).catch(() => undefined);
+        // more clips than the list holds: stage 1 ranks them on the server's measurements, then finds faces in the 60 it lists
+        const read = visuals.length > POOL_MAX && deps.clipMeasure ? deps.clipMeasure : deps.clipFeatures;
+        while (next < videos.length) await read(videos[next++]!, fps).catch(() => undefined);
       }));
       await tags;
     })();

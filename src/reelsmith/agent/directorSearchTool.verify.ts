@@ -37,6 +37,16 @@ assert.ok(weak.results[0].shots.length > 0);
 assert.equal(weak.results[0].shots[0].shows, 'weak');
 assert.match(weak.results[0].none, /nothing in the footage shows this/);
 assert.equal(out.results[0].none, undefined, 'a phrase that is in the footage has no warning');
+// RS-1272 (1): when only some clips were read, a weak match is not "nothing shows this"; under 60% read the search says it is unavailable
+{
+  const only = (ids: string[]): ReelsDeps => ({ ...deps, semantic: async (_id, _visual, texts) => ({ frames: frames.filter((f) => ids.includes(f.assetId)), queries: texts.map((t) => vectorOf[t] ?? [0.3, 0.3, 0.3]) }) });
+  const two = await call({ queries: ['a tank of tigers'] }, only(['lake', 'group']));
+  assert.equal(two.results[0].none, undefined);
+  assert.match(two.results[0].unsure, /none of the 2 clips read shows this; 1 were not read \(#3\)/);
+  assert.equal(two.searchUnavailable, undefined);
+  const one = await call({ queries: ['a tank of tigers'] }, only(['lake']));
+  assert.match(one.searchUnavailable, /read only 1 of 3 clips/);
+}
 
 // limit is clamped; more than eight phrases are cut
 const many = await call({ queries: Array.from({ length: 12 }, () => 'a calm lake'), limit: 99 });

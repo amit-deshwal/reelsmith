@@ -30,7 +30,8 @@ import { brandAction, brandWords } from '../../../shared/reelsmith/brandKit';
 import { resolveVoiceover } from './directorVoiceover';
 import { resolveLyrics } from './directorLyrics';
 import { songVocalStarts } from './directorVocals';
-import { directorVisuals, libraryMusic, shotTagsWarming, songGrid, tempo } from './directorOptions';
+import { directorVisuals, libraryMusic, songGrid, tempo, within } from './directorOptions';
+import { HISTORY_MAX } from '../director/moveVariety';
 import { parseBrief, validatePlan, violationText, type PlanBrief, type PlanViolation } from '../director/validatePlan';
 export { directorOptions, directorVisuals, footageRateFor, sheetSamples, songSuggestion, warmShotTagsFor, type FindShots } from './directorOptions';
 const VISUAL = new Set(['video', 'image']);
@@ -50,6 +51,32 @@ export function resolveClipRef(ref: string, visual: readonly Pick<MediaAsset, 'i
   return a ? `${a.id}${m[2] ?? ''}` : null;
 }
 
+/**
+ * RS-1272 (2): the build answers inside the tool call's 180 s. Three Goa builds in a row and a fix came back `cancelled`
+ * ("timed out before a terminal result was received") with no reason, and the agent guessed the 3D moves were to blame.
+ * What a build waits on longest is the clip analysis (the browser's face finding, the visual model's reading); both are
+ * cached by promise, so the build waits for them this long, then answers `building` with what it is waiting for, and
+ * the next call with the same plan picks them up where they are. After two such answers it builds with what there is.
+ */
+export const BUILD_WAIT = { analysisMs: 100_000, maxWaits: 2 };
+const buildWaits = new Map<string, number>();
+
+/** Wait for the analysis the build reads (all of it cached); undefined when ready, else what is still running. */
+async function analysisReady(id: string, visual: readonly MediaAsset[], deps: ReelsDeps, fps: number, budgetMs: number): Promise<string | undefined> {
+  if (!deps.api?.clipFeatures) return undefined;
+  const videos = visual.filter((a) => a.kind === 'video');
+  let next = 0;
+  let done = 0;
+  const clips = Promise.all(Array.from({ length: Math.min(3, videos.length) }, async () => {
+    while (next < videos.length) { await deps.api.clipFeatures(videos[next++]!, fps).catch(() => null); done += 1; }
+  }));
+  const load = deps.shotTags?.(id);
+  let tagsDone = !load;
+  const tags = load ? load([...visual]).catch(() => null).finally(() => { tagsDone = true; }) : Promise.resolve(null);
+  if (await within(Promise.all([clips, tags]), budgetMs)) return undefined;
+  return [done < videos.length ? `the people in ${videos.length - done} of ${videos.length} clips` : '', tagsDone ? '' : 'what the shots show (the visual model reading the clips)'].filter(Boolean).join(' and ') || undefined;
+}
+
 /** What one build left behind, for the build, the critique and the fix to report from. */
 export interface BuildOutcome {
   plan: ReelPlan;
@@ -67,7 +94,11 @@ export interface BuildOutcome {
  * Validate, build and commit a plan as one undo step; record the build in the director session and save the run on
  * the reel (RS-1222). Shared by reels_director_build and reels_director_fix, which only report differently.
  */
-export async function runBuild(args: Record<string, unknown>, ctx: AgentContext, deps: ReelsDeps): Promise<BuildOutcome | { error: string }> {
+export async function runBuild(args: Record<string, unknown>, ctx: AgentContext, deps: ReelsDeps): Promise<BuildOutcome | { error: string } | { building: string }> {
+  const startedAt = Date.now();
+  const steps: string[] = [];
+  let lap = startedAt;
+  const step = (name: string) => { const now = Date.now(); steps.push(`${name} ${((now - lap) / 1000).toFixed(1)} s`); lap = now; };
   const parsed = parsePlan(args.plan);
   if (!parsed.ok) return { error: `The plan is not valid: ${parsed.errors.join('; ')}` };
   const plan = parsed.plan;
@@ -136,13 +167,24 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
   if (faked.length) return { error: `no clip shows what ${faked.map((t) => `"${t}"`).join(', ')} names: ask the user which clip shows it, or leave that line out and say so in your report` };
   const referenceId = session?.reference?.assetId;
   if (referenceId && named.has(referenceId)) return { error: 'the reference reel is not footage: cast the user\'s clips only' };
+  step('checks, voice and lyrics');
+  // RS-1272 (2): the clip analysis, within the tool call's time
+  {
+    const waits = buildWaits.get(id) ?? 0;
+    const waiting = waits < BUILD_WAIT.maxWaits ? await analysisReady(id, visual.filter((a) => a.id !== session?.reference?.assetId), deps, state.fps, Math.max(0, BUILD_WAIT.analysisMs - (Date.now() - startedAt))) : undefined;
+    if (waiting) {
+      buildWaits.set(id, waits + 1);
+      console.info(`[director build] waiting for ${waiting} (${((Date.now() - startedAt) / 1000).toFixed(0)} s); answered building`);
+      return { building: waiting };
+    }
+    buildWaits.delete(id);
+    step('clip analysis');
+  }
   const recipe = directorRecipe(plan);
   const values = defaultValues(recipe);
-  values.media.clips = assets.filter((a) => VISUAL.has(a.kind) && a.id !== referenceId).map((a) => ({ assetId: a.id, kind: a.kind as 'video' | 'image' }));
+  values.media.clips = visual.filter((a) => a.id !== referenceId).map((a) => ({ assetId: a.id, kind: a.kind as 'video' | 'image' }));
   if (plan.music) values.media.music = [{ assetId: plan.music, kind: 'audio' }];
   let out;
-  const tagsWarming = shotTagsWarming(id);
-  if (tagsWarming) { ctx.onToolProgress?.('Reading what the shots show'); await tagsWarming; }
   try {
     out = await runRecipe({ ...deps.api, ...(deps.shotTags ? { shotTags: deps.shotTags(id) } : {}) }, {
       recipe, values, assets, fps: state.fps, replaceTimeline: true, plan, ...(voiceover ? { voiceover } : {}), ...(sung.words ? { lyrics: sung.words } : {}),
@@ -152,6 +194,7 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
     });
   } catch (error) { return { error: error instanceof Error ? error.message : String(error) }; }
   if (!out.action) return { error: out.messages.join('; ') || 'could not build the plan' };
+  step('assembly');
   // the repairs first, once each (the assembler's own check repeats the section ones)
   out.messages = [...new Set([...repaired, ...out.messages])];
   if (voiceNote) out.messages.push(voiceNote);
@@ -162,6 +205,7 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
   if (fits.length) out.messages.push(`${fits.length === 1 ? 'A start was' : `${fits.length} starts were`} moved so the movement finishes inside the shot: ${fits.map((f) => `section ${f.section} ${f.shiftSec > 0 ? '+' : ''}${f.shiftSec} s`).join(', ')}.`);
   if (entries.length) out.messages.push(`${entries.length === 1 ? 'A line comes' : `${entries.length} lines come`} in with the singer, after the cut: ${entries.map((e) => `section ${e.section} +${e.afterSec} s`).join(', ')}.`);
   out.messages.push(...await finishDirectorActions(out.action.actions, assets, deps.api, state.fps, ctx.onToolProgress));
+  step('finishing (reversed, slowed and depth copies)');
   const report = out.result.report;
   const fps = state.fps;
   const spans = sectionSpans(out.action.actions, plan.sections.length, fps);
@@ -192,7 +236,7 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
   });
   const builds = (session?.lastBuild?.builds ?? 0) + 1;
   const record = {
-    plan, spans, builds, clips: report.sectionClips ?? [], moments: report.sectionMoments ?? [], shotSec: report.shotSec ?? [], sound,
+    plan, spans, builds, buildId: `${Date.now().toString(36)}-${builds}-${Math.random().toString(36).slice(2, 6)}`, clips: report.sectionClips ?? [], moments: report.sectionMoments ?? [], shotSec: report.shotSec ?? [], sound,
     // a fix round is saved with its number and defects (they go with the reel, RS-1222)
     ...(Array.isArray(args.keep) ? { fixes: typeof args.fixRound === 'number' ? args.fixRound : session?.lastBuild?.fixes ?? 0, defects: Array.isArray(args.defects) ? args.defects as Defect[] : session?.lastBuild?.defects ?? [] } : {}),
   };
@@ -200,6 +244,11 @@ export async function runBuild(args: Record<string, unknown>, ctx: AgentContext,
   // RS-1222: the run goes with the reel, on its black canvas
   const actions = stampDirector(out.action.actions, savedDirector(next));
   commit(ctx, [...(added ? [{ type: 'addAsset', asset: added } as AtomicAction] : []), ...actions], 'Director: build reel');
+  step('review');
+  // RS-1272 (2): each step's time, in the server log and, for a slow build, in its notes
+  const tookSec = (Date.now() - startedAt) / 1000;
+  if (tookSec > 20) console.info(`[director build] ${tookSec.toFixed(1)} s: ${steps.join(', ')}`);
+  if (tookSec > 60) out.messages.unshift(`The build took ${Math.round(tookSec)} s: ${steps.join(', ')}.`);
   return {
     plan, spans, seconds: secs(report.totalFrames, fps), clipsUsed: report.usedAssetIds.length, notes: out.messages.slice(0, 12),
     ...(added ? { added } : {}), findings, lint: lintReel(ctx.getState()), builds,
@@ -222,7 +271,7 @@ async function checkPlan(plan: ReelPlan, ctx: AgentContext, deps: ReelsDeps, ass
   const clips = visual.map((a, k) => {
     const log = session?.clips[k];
     const shape = log?.shape ?? (a.width && a.height ? (a.height > a.width ? 'portrait' as const : a.height < a.width ? 'landscape' as const : 'square' as const) : undefined);
-    return { n: k + 1, seconds: log?.seconds ?? a.durationInFrames / fps, features: log?.features ?? null, ...(shape ? { shape } : {}), people: showsPeople(log) };
+    return { n: k + 1, seconds: log?.seconds ?? a.durationInFrames / fps, features: log?.features ?? null, ...(shape ? { shape } : {}), people: showsPeople(log), ...(log?.tags ? { group: showsGroup(log.tags) } : {}) };
   });
   const clipNumber = (ref: string) => {
     const r = ref.trim();
@@ -231,11 +280,23 @@ async function checkPlan(plan: ReelPlan, ctx: AgentContext, deps: ReelsDeps, ass
     const k = visual.findIndex((a) => a.id === r.split('@')[0]);
     return k >= 0 ? k + 1 : undefined;
   };
-  return validatePlan({ plan, ...(brief ? { brief } : {}), ...(bpm ? { bpm } : {}), clips, clipNumber, fps, ...(songBeats ? { songGrid: songBeats } : {}) });
+  const t = session?.treatment;
+  return validatePlan({
+    plan, ...(brief ? { brief } : {}), ...(bpm ? { bpm } : {}), clips, clipNumber, fps, ...(songBeats ? { songGrid: songBeats } : {}),
+    // RS-1271: the copy rule reads the story; a promo's lines are checked by the treatment against its brand kit
+    ...(t?.story && !session?.brand ? { story: t.story } : {}), ...(t?.quoteUser ? { quoteUser: true } : {}),
+    ...(session?.history?.length ? { history: session.history } : {}),
+    ...(t?.parts.length ? { treatmentParts: t.parts } : {}),
+  });
 }
 
 /** Tags that mean people fill the shot, for the crop rule (a landscape view with a small figure in it is not one). */
 const PEOPLE_TAGS = ['people', 'portrait', 'posing', 'laughing', 'celebrating'] as const;
+/** RS-1271 (5): the clip's tags say a group: friends together, a cheer (the mirror selfies and the gang selfie of the Goa trip). */
+export function showsGroup(tags: { scores: Record<string, number> }): boolean {
+  return (tags.scores.people ?? 0) >= 0.18 || (tags.scores.celebrating ?? 0) >= 0.18;
+}
+
 /** The clip shows people: its shot tags say so, or (without tags) a face was found in it. */
 function showsPeople(clip: { tags?: { scores: Record<string, number> }; features?: ClipFeatures | null } | undefined): boolean {
   if (clip?.tags) return PEOPLE_TAGS.some((t) => (clip.tags!.scores[t] ?? 0) >= 0.18);
@@ -277,6 +338,7 @@ export async function directorBuild(args: Record<string, unknown>, ctx: AgentCon
   const { keep: _internal, ...given } = args;
   const built = await runBuild(given, ctx, deps);
   if ('error' in built) return built;
+  if ('building' in built) return { building: `still waiting for ${built.building}; nothing is built yet`, next: 'Call reels_director_build again now with the same plan (the analysis goes on meanwhile and the next call picks it up). Do not change the plan for this, and do not tell the user anything is wrong.' };
   const { plan, spans, findings, lint, builds } = built;
   const fps = ctx.getState().fps;
   const session = directorSession(projectId(ctx));
@@ -342,15 +404,18 @@ export function directorTreatment(args: Record<string, unknown>, ctx: AgentConte
   if (!parsed.ok) return { error: `The treatment is incomplete: ${parsed.errors.join('; ')}` };
   const t = parsed.treatment;
   const id = projectId(ctx);
-  const session = directorSession(id);
+  const session = restoreDirectorSession(id, ctx.getState().items as never);
+  // RS-1271 (1): a new treatment after a built reel starts the next reel: the last one's moves join the project's history
+  const history = session?.lastBuild ? [...(session.history ?? []), session.lastBuild.plan.sections.map((s) => s.move)].slice(-HISTORY_MAX) : session?.history;
   const findings = checkTreatment(t, {
     clips: session?.clips ?? [], fps: session?.fps ?? ctx.getState().fps, ...(session?.song ? { song: session.song } : {}),
     ...(session?.reference?.profile ? { reference: session.reference.profile } : {}),
     ...(session?.brand ? { brand: { name: session.brand.name, words: brandWords(session.brand), ...(brandAction(session.brand) ? { action: brandAction(session.brand) } : {}) } } : {}),
     ...(session?.clips.some((c) => c.filmedAt) ? { clock: true } : {}),
+    ...(history?.length ? { history } : {}),
   });
   const gated = session?.askFirst === true;
-  updateDirectorSession(id, { treatment: t, lastBuild: undefined, refusedRules: undefined, ...(gated ? { gate: 'waiting' as const } : {}) });
+  updateDirectorSession(id, { treatment: t, lastBuild: undefined, refusedRules: undefined, ...(history?.length ? { history } : {}), ...(gated ? { gate: 'waiting' as const } : {}) });
   const count: Record<string, number> = {};
   const ids = treatmentIds(t).filter((x) => {
     const kind = catalogKind(x);

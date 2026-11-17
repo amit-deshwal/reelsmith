@@ -41,6 +41,8 @@ export function mergeSubjectFeatures(features: ClipFeatures, geometry: VisualGeo
  * the agent plans (analyzeSubjects caches successes), so the build rarely waits for it.
  */
 export const SUBJECT_TIMEOUT_MS = 25_000;
+/** How long a failed reading of one asset stands before it is tried again. */
+const SUBJECT_RETRY_MS = 10 * 60_000;
 
 async function computeSubjects(asset: MediaAsset): Promise<VisualGeometryAsset | null> {
   if (typeof document === 'undefined' || !asset.src.startsWith('/media/uploads/')) return null;
@@ -79,15 +81,21 @@ async function computeSubjects(asset: MediaAsset): Promise<VisualGeometryAsset |
 }
 
 const subjectCache = new Map<string, Promise<VisualGeometryAsset | null>>();
+/** When an asset's reading last failed: it stands for SUBJECT_RETRY_MS, then the next call reads it again. */
+const subjectFailedAt = new Map<string, number>();
 export function analyzeSubjects(asset: MediaAsset): Promise<VisualGeometryAsset | null> {
   const key = `${asset.id}:${sourceRevisionOf(asset)}`;
+  const failedAt = subjectFailedAt.get(key);
+  if (failedAt !== undefined && Date.now() - failedAt > SUBJECT_RETRY_MS) { subjectFailedAt.delete(key); subjectCache.delete(key); }
   const cached = subjectCache.get(key);
   if (cached) return cached;
+  // RS-1270: a clip whose faces could not be found (it timed out, or cannot be decoded here) is not tried again for a
+  // while: stage 1's repeated calls and the build each paid its 25 s again, three clips at a time
   const work = computeSubjects(asset).then((geometry) => {
-    if (!geometry && subjectCache.get(key) === work) subjectCache.delete(key);
+    if (!geometry && subjectCache.get(key) === work) subjectFailedAt.set(key, Date.now());
     return geometry;
   });
-  if (subjectCache.size >= 100) subjectCache.delete(subjectCache.keys().next().value!);
+  if (subjectCache.size >= 300) subjectCache.delete(subjectCache.keys().next().value!);
   subjectCache.set(key, work);
   return work;
 }

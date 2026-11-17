@@ -9,7 +9,10 @@ import { motionAt, type ShotLogClip } from './shotLog';
 import { PERSON } from './review';
 import { missingThingQuestion, missingThings } from './storyThings';
 import type { ReferenceProfile } from './reference';
-import { PLAIN_MOVES, parseBrief, type PlanBrief } from './validatePlan';
+import { NAMES_A_GROUP, PLAIN_MOVES, parseBrief, type PlanBrief } from './validatePlan';
+import { COPY_FIX, copiedRun } from './copyLines';
+import { varietyFinding } from './moveVariety';
+import { UNSEEN_EXPOSURE, betterStretch, nightClip, stretchOf } from './pickAudit';
 
 export { PLAIN_MOVES };
 
@@ -41,8 +44,10 @@ export interface Treatment {
   effects: string[];
   graphics: string[];
   look?: string;
-  /** the user asked for lines of the agent's own (a joke, a meme caption) */
+  /** @deprecated before RS-1271 lines were the user's words unless this was set; the director now writes its own lines */
   ownWords?: boolean;
+  /** RS-1271: the user asked for their own words as the lines ("use my words", a caption they wrote) */
+  quoteUser?: boolean;
   styleGuide?: StyleGuide;
   /** RS-1249: the user gave a shot list (timed shots, their own lines): build it as written; see isShotList */
   shotList?: boolean;
@@ -148,7 +153,7 @@ export function parseTreatment(raw: unknown): { ok: true; treatment: Treatment }
     treatment: {
       story: str(r.story), concepts, chosen, tone, heroes: strs(r.heroes), parts, signature: str(r.signature),
       textStyles: strs(r.textStyles), transitions: strs(r.transitions), effects: strs(r.effects), graphics: strs(r.graphics),
-      ...(str(r.look) ? { look: str(r.look) } : {}), ...(r.ownWords === true ? { ownWords: true } : {}), ...(styleGuide ? { styleGuide } : {}),
+      ...(str(r.look) ? { look: str(r.look) } : {}), ...(r.quoteUser === true ? { quoteUser: true } : {}), ...(styleGuide ? { styleGuide } : {}),
       ...(shotList ? { shotList: true } : {}), ...(parseBrief(r.brief) ? { brief: parseBrief(r.brief)! } : {}),
     },
   };
@@ -204,6 +209,8 @@ export interface TreatmentContext {
   brand?: { name: string; words: string; action?: string };
   /** RS-1240: clock times the clips were filmed at ("#3 4:12 am"), for time labels that are true */
   clock?: boolean;
+  /** RS-1271 (1): the moves of the project's earlier reels, the last reel last */
+  history?: ReadonlyArray<readonly string[]>;
 }
 
 const STOP = new Set(['the', 'a', 'an', 'and', 'of', 'to', 'it', 'is', 'in', 'on', 'we', 'they', 'that', 'this', 'their', 'our', 'viewer', 'viewers', 'see', 'sees', 'now', 'knows', 'know', 'feel', 'feels']);
@@ -339,8 +346,11 @@ function checkTreatmentAll(t: Treatment, ctx: TreatmentContext): TreatmentFindin
   const flashes = t.parts.filter((p) => p.move === 'flash-cuts').length;
   if (flashes > 1) out.push({ issue: `${flashes} parts are flash-cuts`, fix: 'flash-cuts once, on the drop (2-4 beats); a hook burst uses zoom-punch' });
   const punches = t.parts.filter((p) => PUNCH.has(p.move)).length;
-  if (t.parts.length >= 5 && punches > Math.max(2, Math.round(t.parts.length / 3))) {
-    out.push({ issue: `${punches} of ${t.parts.length} parts are punch moves (${t.parts.filter((p) => PUNCH.has(p.move)).map((p) => p.move).join(', ')})`, fix: 'two or three at most: the hook and the drop (and one hit later); the build and the story on cuts and holds' });
+  // RS-1270: the limit is the number the fix names (3 of 6 was refused under "two or three at most"), and the fix names
+  // the picture moves too: "the rest on cuts and holds" sent the plan into the build's plain rule (at most half)
+  const punchLimit = Math.max(t.parts.length >= 6 ? 3 : 2, Math.round(t.parts.length / 3));
+  if (t.parts.length >= 5 && punches > punchLimit) {
+    out.push({ issue: `${punches} of ${t.parts.length} parts are punch moves (${t.parts.filter((p) => PUNCH.has(p.move)).map((p) => p.move).join(', ')})`, fix: `${punchLimit} at most here: the hook and the drop${punchLimit > 2 ? ' and one hit later' : ''}; the other parts on cuts and holds, with one or two picture moves among them (split, break-in, photo-3d, freeze-intro, match-cut, pip) so no more than half the reel is plain cuts and holds` });
   }
   let dropAt = -1;
   if (ctx.song?.dropAtBeat !== undefined) { let at = 0; dropAt = t.parts.findIndex((p) => { const hit = ctx.song!.dropAtBeat! < at + p.beats; at += p.beats; return hit; }); }
@@ -387,11 +397,18 @@ function checkTreatmentAll(t: Treatment, ctx: TreatmentContext): TreatmentFindin
     const bare = t.parts.map((p, i) => (p.line || p.role === 'ending' ? -1 : i)).filter((i) => i >= 0);
     if (bare.length) out.push({ issue: `part${bare.length > 1 ? 's' : ''} ${bare.join(', ')} carr${bare.length > 1 ? 'y' : 'ies'} no line`, fix: 'a promo reel has a short punch-caps line on every part (one beat of the story each: the problem, the alternative, the day, a joke, the payoff, the proof, the price, the ask); a part with nothing to say is cut' });
   }
-  if (!t.ownWords && !ctx.brand) {
+  if (t.quoteUser && !ctx.brand) {
     // RS-1239/1240: a promo reel's page and the clips' own filming times are the user's words too
     const said = new Set([...words(t.story), ...(ctx.clock ? ['am', 'pm', 'day'] : [])]);
     const added = t.parts.flatMap((p) => (p.line ? words(p.line).filter((w) => !said.has(w)) : []));
-    if (added.length) out.push({ issue: `words the user did not write: ${[...new Set(added)].join(', ')}`, fix: 'quote their phrases as written (trim, never reword); set ownWords only when they asked for lines of your own' });
+    if (added.length) out.push({ issue: `words the user did not write: ${[...new Set(added)].join(', ')}`, fix: 'they asked for their own words: quote their phrases as written (trim, never reword)' });
+  } else if (!ctx.brand) {
+    // RS-1271 (2): the director writes the lines; the brief is what the footage holds, not on-screen copy
+    const copied = t.parts.flatMap((p, i) => { const run = p.line ? copiedRun(p.line, t.story) : undefined; return run ? [`part ${i} "${p.line}" copies "${run}"`] : []; });
+    if (copied.length) out.push({ issue: `lines copied from the brief: ${copied.slice(0, 4).join('; ')}`, fix: COPY_FIX });
+    // names and numbers stay the user's: a line may not invent a fact
+    const numbers = t.parts.flatMap((p) => (p.line ?? '').match(/\d[\d,.]*\+?%?/g) ?? []).filter((n) => !t.story.includes(n.replace(/[+%]$/, '')) && !(ctx.clock && /^\d{1,2}[:.]\d{2}$/.test(n)));
+    if (numbers.length) out.push({ issue: `numbers the user never gave: ${[...new Set(numbers)].join(', ')}`, fix: 'write the line without them, or use only the user\'s numbers (clock times only from the log\'s "filmed" times)' });
   }
   // RS-1218: every part earns its place; a part that only repeats the one before is filler
   const aimless = t.parts.map((p, i) => (p.purpose ? -1 : i)).filter((i) => i >= 0);
@@ -402,6 +419,35 @@ function checkTreatmentAll(t: Treatment, ctx: TreatmentContext): TreatmentFindin
   });
   // RS-1221: what the story names and the footage does not show is a question, not a stand-in shot
   for (const m of missingThings(t.story, ctx.clips)) out.push({ issue: `the story names "${m.word}" and no clip seems to show it`, fix: 'ask the user before planning; never put that line over a shot of something else', ask: missingThingQuestion(m) });
+  // RS-1271 (1): the last reel's moves again, or the stock arc every brief got
+  {
+    const people = ctx.clips.some((c) => (c.features?.windows ?? []).some((w) => (w.face ?? 0) > 0.01) || ['people', 'portrait', 'posing', 'laughing', 'celebrating'].some((tag) => ((c.tags?.scores as Record<string, number> | undefined)?.[tag] ?? 0) >= 0.18));
+    const v = varietyFinding(t.parts.map((p) => p.move), ctx.history ?? [], { people, photos: ctx.clips.some((c) => c.kind === 'image') });
+    if (v) out.push(v);
+  }
+  // RS-1271 (5): the story names a group and the arc never shows them together where it counts
+  if (NAMES_A_GROUP.test(t.story) && ctx.clips.some((c) => c.tags)) {
+    const groups = ctx.clips.filter((c) => c.tags && ((c.tags.scores.people ?? 0) >= 0.18 || (c.tags.scores.celebrating ?? 0) >= 0.18)).map((c) => c.n);
+    const ends = [t.parts[0]!, t.parts[t.parts.length - 1]!].flatMap((p) => (p.clips ?? []).map((r) => clipOf(r, ctx.clips)?.clip.n));
+    if (groups.length && !ends.some((n) => n !== undefined && groups.includes(n))) {
+      out.push({ issue: `the story names "${NAMES_A_GROUP.exec(t.story)![1]}" and neither the hook nor the ending shows them together`, fix: `put a group shot in the hook or the ending (${groups.slice(0, 6).map((n) => `#${n}`).join(', ')} show a group); a squad intro (freeze-intro, one per person) or ending on their faces makes it theirs` });
+    }
+  }
+  // RS-1272 (6): a hero or a cast moment the plan rule will refuse as dark (#26@9.6 at exposure 0.05 was a hero in both runs)
+  {
+    const dark: string[] = [];
+    for (const ref of new Set([...t.heroes, ...t.parts.flatMap((p) => p.clips ?? [])])) {
+      const hit = clipOf(ref, ctx.clips);
+      const f = hit?.clip.features;
+      if (!hit || !f?.windows.length || !/@/.test(ref) || nightClip(f)) continue;
+      const frame = Math.round(hit.at * ctx.fps);
+      const stretch = stretchOf(f, frame, Math.round(ctx.fps));
+      if (!stretch || stretch.exposure >= UNSEEN_EXPOSURE) continue;
+      const lit = betterStretch(f, Math.round(ctx.fps), 0.6 * stretch.sharpness + 0.4 * stretch.exposure);
+      dark.push(`${ref} (exposure ${stretch.exposure.toFixed(2)}${lit ? `; #${hit.clip.n}@${Math.round((lit.inFrame / ctx.fps) * 10) / 10} is lit` : ''})`);
+    }
+    if (dark.length) out.push({ issue: `nearly black moments named: ${dark.slice(0, 4).join(', ')}`, fix: 'name the lit moment of that clip, or another clip: the build refuses a dark moment' });
+  }
   // RS-1217: a reference the agent was given is studied before it is followed
   if (ctx.reference && !t.styleGuide) out.push({ issue: `there is a reference reel (${ctx.reference.name}) and no styleGuide`, fix: 'write styleGuide from its measurements and sheet: pacing (seconds or beats a shot), palette (its colours in words), type, motion (snap, glide, hold), texture, and doNotCopy (its subjects, words and logos)' });
   // RS-1239: a promo reel asks for one thing at the end, and says who made it
@@ -419,9 +465,9 @@ function checkTreatmentAll(t: Treatment, ctx: TreatmentContext): TreatmentFindin
 /** What the agent needs to turn a treatment into a plan: the catalogue slice and how to cast and write. */
 export const PLAN_BRIEF = [
   'Stage 3: the plan. Turn each part into one or two sections ({ move, beats, clips, text, textStyle, params, transition, effects }); keep the beats of the arc.',
-  'A plan is refused once when it breaks a rule: most sections plain cuts or holds, a moment the log marks dark, a reel that ends mid-bar, a landscape shot of people filling a tall frame (give that section fit "whole", or a split in rows).',
+  'A plan is refused once when it breaks a rule: most sections plain cuts or holds, a moment the log marks dark, a reel that ends mid-bar, a landscape shot of people filling a tall frame (give that section fit "whole", or a split in rows), a hold or long cut on a moment where nothing moves (it looks frozen), a line copied from the brief.',
   'Casting: name clips by number in the order the move uses them; start each at its best moment from the shot log ("#5@12"); the hook and the drop get the moving, sharp moments, the ending the most beautiful one; never the same moment in neighbouring sections; leave a shot\'s length after its start.',
-  'Words: the user\'s phrases, trimmed, never reworded; one line per section at most, 3 words a second at most; repeat your chosen styles; style params go in the section\'s params.',
+  'Words: write the lines yourself (a hook that makes people stay, punchy caps, a joke or a kicker); never copy three words of the brief in a row (the build refuses it once) unless the user asked for their own words (quoteUser) or quoted them; names, places and numbers only as they gave them; one line per section at most, 3 words a second at most; repeat your chosen styles; style params go in the section\'s params.',
   'The drop gets everything at once: the peak move, a drop-timed effect and its hit; the section before it may build. Transitions from your kit only where something changes (the hook, the drop, a new place, the ending).',
   'Effects move with the song: timing beat/drop/build/fade at strength 0.5-0.8, region background to keep a person natural.',
   'Graphics from the treatment on calm shots: annotate on a hold or slow cut where the person is clear (who: front/back/left/right/middle as seen on the sheet).',

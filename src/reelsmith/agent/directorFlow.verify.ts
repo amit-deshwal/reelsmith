@@ -2,6 +2,7 @@
 // things, the first build carries the critique, the sheets render at once and keep their order.
 // Run: node --import tsx src/reelsmith/agent/directorFlow.verify.ts
 import assert from 'node:assert/strict';
+import { GROUP_QUERY, withGroupQuery } from './directorOptions';
 import { emptyProjectDoc } from '../../app/appShell';
 import { historyReduce, type History } from '../../editor/reduce';
 import { activeTimeline, type MediaAsset } from '../../editor/types';
@@ -38,12 +39,102 @@ const api = { clipFeatures: async () => null, mediaFps: async (s: string[]) => s
   const asked: unknown[] = [];
   const search = async (args: Record<string, unknown>) => { asked.push(args.queries); return { results: [{ query: 'the summit', shots: [{ ref: '#2@3', shows: 'sure', match: 0.47 }] }], clipsRead: '3 of 3' }; };
   const out = await directorOptions({ find: ['the summit', '', 7] }, ctx, { api } as never, search) as Record<string, any>;
-  assert.deepEqual(asked, [['the summit']], 'only the real phrases are searched');
+  // RS-1271 (5): with the group of friends added, since no phrase asked for them
+  assert.deepEqual(asked, [['the summit', GROUP_QUERY]], 'only the real phrases are searched, and the group shot');
+  assert.deepEqual(withGroupQuery(['the summit', 'friends laughing at camp']), ['the summit', 'friends laughing at camp'], 'a group phrase is there already');
+  assert.deepEqual(withGroupQuery([]), []);
   assert.equal(out.shots.results[0].shots[0].ref, '#2@3');
   const without = await directorOptions({ find: ['the summit'] }, ctx, { api } as never, async () => ({ error: 'The visual model is not installed' })) as Record<string, any>;
   assert.match(without.shots.unavailable, /not installed/);
   const plain = await directorOptions({}, ctx, { api } as never) as Record<string, any>;
   assert.equal(plain.shots, undefined, 'no find, no search');
+}
+
+// RS-1270: lengths are in the project's frames even when the reel will be built at the footage's 60 fps
+{
+  const { ctx } = editor('flow-rate');
+  const sixty = { clipFeatures: async () => null, mediaFps: async (s: string[]) => s.map(() => 60), musicGrid: async () => null } as never;
+  const out = await directorOptions({}, ctx, { api: sixty } as never) as Record<string, any>;
+  const doc = (ctx as any).getDoc();
+  const first = doc.assets.find((a: any) => a.kind === 'video');
+  assert.match(out.frameRate ?? '', /60 fps/);
+  assert.ok(out.clips[0].includes(` ${Math.round((first.durationInFrames / (ctx as any).getState().fps) * 10) / 10}s `), `the clip's real length, not half: ${out.clips[0]}`);
+}
+
+// RS-1270: clips not read inside the budget: "watching, call again"; the second call picks up the cached readings,
+// and a call that gets no further builds the log from what it has
+{
+  const { ctx } = editor('flow-slow');
+  const { STAGE1_BUDGET } = await import('./directorOptions');
+  const before = STAGE1_BUDGET.watchMs;
+  STAGE1_BUDGET.watchMs = 30;
+  const cache = new Map<string, Promise<null>>();
+  let delay = 80;
+  const slow = { clipFeatures: (a: { id: string }) => { if (!cache.has(a.id)) cache.set(a.id, new Promise((r) => setTimeout(() => r(null), delay))); return cache.get(a.id)!; }, mediaFps: async (s: string[]) => s.map(() => 30), musicGrid: async () => null } as never;
+  const first = await directorOptions({}, ctx, { api: slow } as never) as Record<string, any>;
+  assert.match(first.watching, /^0 of \d+ clips watched/);
+  assert.match(first.next, /again/);
+  assert.equal(first.clips, undefined, 'no log to plan from yet');
+  await new Promise((r) => setTimeout(r, 100));
+  const second = await directorOptions({}, ctx, { api: slow } as never) as Record<string, any>;
+  assert.ok(Array.isArray(second.clips) && second.watching === undefined, 'the second call has the log');
+  // nothing gets read at all: one "watching", then the log with the clips marked not analysed
+  cache.clear(); delay = 400;
+  const stuck1 = await directorOptions({}, ctx, { api: slow } as never) as Record<string, any>;
+  const stuck2 = await directorOptions({}, ctx, { api: slow } as never) as Record<string, any>;
+  assert.ok(stuck1.watching && Array.isArray(stuck2.clips));
+  assert.match(stuck2.clips.join(' '), /not analysed/);
+  STAGE1_BUDGET.watchMs = before;
+}
+
+// RS-1272 (8): the second run of a brief in a project reaches stage 2 in one stage 1 call: clips the last stage 1 read
+// are not read again
+{
+  const { ctx } = editor('flow-again');
+  const features = (id: string) => ({ assetId: id, dHash: '0'.repeat(16), windows: [{ startFrame: 0, endFrame: 60, sharpness: 0.7, exposure: 0.8, motion: 0.3, subject: 0.2, speech: false }] });
+  let reads = 0;
+  const once = { clipFeatures: async (a: { id: string }) => { reads += 1; return features(a.id); }, mediaFps: async (s: string[]) => s.map(() => 30), musicGrid: async () => null } as never;
+  const first = await directorOptions({}, ctx, { api: once } as never) as Record<string, any>;
+  assert.ok(Array.isArray(first.clips));
+  assert.equal(reads, 3);
+  const { STAGE1_BUDGET } = await import('./directorOptions');
+  const before = STAGE1_BUDGET.watchMs;
+  STAGE1_BUDGET.watchMs = 30;
+  // the server would now take 400 ms a clip: the earlier reading is used instead
+  const stuck = { clipFeatures: (a: { id: string }) => new Promise((r) => setTimeout(() => r(features(a.id)), 400)), mediaFps: async (s: string[]) => s.map(() => 30), musicGrid: async () => null } as never;
+  const again = await directorOptions({}, ctx, { api: stuck } as never) as Record<string, any>;
+  STAGE1_BUDGET.watchMs = before;
+  assert.ok(Array.isArray(again.clips) && again.watching === undefined, JSON.stringify(again).slice(0, 200));
+  assert.ok(!again.clips.join(' ').includes('not analysed'));
+}
+
+// RS-1272 (2): a build whose clip analysis is still running answers `building` inside the tool's time, nothing reaches
+// the draft, and the same call again builds; after two such answers it builds with what there is
+{
+  const { BUILD_WAIT } = await import('./directorTools');
+  const before = { ...BUILD_WAIT };
+  BUILD_WAIT.analysisMs = 30;
+  const { ctx, batches } = editor('flow-wait');
+  await directorOptions({}, ctx, { api } as never);
+  const cache = new Map<string, Promise<null>>();
+  let ms = 150;
+  const slow = { ...(api as object), clipFeatures: (a: { id: string }) => { if (!cache.has(a.id)) cache.set(a.id, new Promise((r) => setTimeout(() => r(null), ms))); return cache.get(a.id)!; } } as never;
+  const plan = { ratio: '9:16', sections: [{ move: 'zoom-punch', beats: 4, clips: ['#1', '#2'], params: { every: 1 } }, { move: 'velocity', beats: 4, clips: ['#2'] }, { move: 'hold', beats: 8, clips: ['#3'] }] };
+  const waiting = await directorBuild({ plan }, ctx, { api: slow } as never) as Record<string, any>;
+  assert.match(waiting.building, /the people in 3 of 3 clips/);
+  assert.match(waiting.next, /reels_director_build again now with the same plan/);
+  assert.equal(batches.length, 0, 'nothing reached the draft');
+  await new Promise((r) => setTimeout(r, 200));
+  const built = await directorBuild({ plan }, ctx, { api: slow } as never) as Record<string, any>;
+  assert.equal(built.ok, true, JSON.stringify(built).slice(0, 300));
+  // an analysis that never ends: two answers, then the build goes ahead
+  const { ctx: ctx2 } = editor('flow-wait2');
+  await directorOptions({}, ctx2, { api } as never);
+  cache.clear(); ms = 60_000;
+  const never = { ...(api as object), clipFeatures: (a: { id: string }) => { if (!cache.has(a.id)) cache.set(a.id, new Promise((r) => setTimeout(() => r(null), ms).unref())); return cache.get(a.id)!; } } as never;
+  assert.ok(((await directorBuild({ plan }, ctx2, { api: never } as never)) as any).building);
+  assert.ok(((await directorBuild({ plan }, ctx2, { api: never } as never)) as any).building);
+  Object.assign(BUILD_WAIT, before);
 }
 
 // the first build of a directed reel brings the critique; later builds do not

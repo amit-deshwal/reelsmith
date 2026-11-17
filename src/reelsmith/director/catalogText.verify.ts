@@ -10,7 +10,7 @@ import { resolvePlanSections } from './assembleDirector';
 import { parsePlan } from '../../../shared/reelsmith/directorPlan';
 import { directorOptions, directorTreatment, resolveClipRef, sheetSamples, songSuggestion } from '../agent/directorTools';
 import { directorCritique } from '../agent/directorRepairTools';
-import { directorSession, updateDirectorSession } from './directorSession';
+import { DIRECTOR_PROP, directorSession, savedDirector, updateDirectorSession } from './directorSession';
 import { REELS_CAPTION_STYLES } from '../captionStyles';
 
 // the skill carries the current catalogue (run sync-director-catalog.mts after changing the library)
@@ -67,7 +67,7 @@ assert.match(out.next, /reels_director_treatment/);
 const story = 'bro lied to me that it would be easy hike';
 const treated: any = directorTreatment({
   story, concepts: [{ name: 'a', idea: 'x' }, { name: 'b', idea: 'y' }], chosen: 1, tone: 'funny', signature: 'freeze-intro on bro',
-  parts: [{ role: 'hook', beats: 4, move: 'freeze-intro', clips: ['#7'], line: 'bro lied to me', purpose: 'who lied' }, { role: 'build', beats: 8, move: 'cut', clips: ['#1', '#2'], purpose: 'the climb is not easy' }, { role: 'ending', beats: 8, move: 'hold', clips: ['#3'], line: 'easy hike', purpose: 'the joke lands' }],
+  parts: [{ role: 'hook', beats: 4, move: 'freeze-intro', clips: ['#7'], line: 'bro said: easy', purpose: 'who lied' }, { role: 'build', beats: 8, move: 'cut', clips: ['#1', '#2'], purpose: 'the climb is not easy' }, { role: 'ending', beats: 8, move: 'hold', clips: ['#3'], line: 'easy hike', purpose: 'the joke lands' }],
   textStyles: ['pop-words'], transitions: ['whip-blur'], effects: ['zoom-blur'], graphics: ['annotate'],
 }, ctx);
 assert.equal(treated.ok, true, JSON.stringify(treated));
@@ -80,7 +80,9 @@ assert.match((directorTreatment({ lookup: ['velocity', 'nope'] }, ctx) as any).c
 // the critique reads the last build: none yet is a clear error; with one it returns findings and the checklist
 assert.match((await directorCritique(ctx) as any).error, /build the reel/);
 updateDirectorSession('current', { lastBuild: { plan: { version: 1, ratio: '9:16', sections: [{ move: 'hold', clips: ['a'], text: story, textStyle: 'caption' }, { move: 'cut', clips: ['b'] }, { move: 'cut', clips: ['c'] }, { move: 'hold', clips: ['d'] }] } as any, spans: [{ from: 0, to: 4 }, { from: 4, to: 8 }, { from: 8, to: 12 }, { from: 12, to: 15 }], builds: 1 } });
-const critique: any = await directorCritique({ ...ctx, getState: () => ({ fps: 30, items: [], tracks: [] }) });
+// RS-1272 (3): the critique reads the timeline's canvas to know the build is there
+const canvas = { id: 'canvas', track: 'V1', kind: 'solid', name: 'Canvas', startFrame: 0, durationInFrames: 240, width: 1080, height: 1920, props: { [DIRECTOR_PROP]: savedDirector(directorSession('current')!) } };
+const critique: any = await directorCritique({ ...ctx, getState: () => ({ fps: 30, items: [canvas], tracks: [{ id: 'V1', kind: 'video' }] }) });
 assert.ok(!JSON.stringify(critique).includes('"signature"'), 'no key the external projection redacts');
 assert.ok(critique.findings.some((x: any) => /hard cut/.test(x.issue)) && /picky creative director/.test(critique.checklist) && /funny/.test(critique.checklist));
 // "#n" references

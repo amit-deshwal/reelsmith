@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { ReelPlan } from '../../../shared/reelsmith/directorPlan';
-import { DIRECTOR_PROP, directorSession, findSavedDirector, restoreDirectorSession, savedDirector, updateDirectorSession } from './directorSession';
+import { DIRECTOR_PROP, builtOnTimeline, directorSession, findSavedDirector, restoreDirectorSession, savedDirector, updateDirectorSession } from './directorSession';
 import type { Treatment } from './treatment';
 
 // RS-1222: the director's run is saved on the reel's canvas and comes back after a reload or in a new chat
@@ -52,8 +52,45 @@ assert.match(where.error, /not a section index \(0-1\)/);
 // RS-1221: the build refuses a line about something no clip shows; leaving it out is fine
 const { directorBuild } = await import('../agent/directorTools');
 const scenery = { top: 'scenery', confidence: 0.6, samples: 4, scores: { scenery: 0.5, food: 0.01 } } as never;
-updateDirectorSession('p6', { fps: 30, clips: [1, 2].map((n) => ({ n, kind: 'video' as const, seconds: 10, tags: scenery })), treatment: { ...treatment, story: 'climbed at dawn, cooked on the cliff' } as Treatment });
+updateDirectorSession('p6', { fps: 30, clips: [1, 2].map((n) => ({ n, kind: 'video' as const, seconds: 10, tags: scenery })), treatment: { ...treatment, story: 'climbed at dawn, cooked on the cliff', quoteUser: true } as Treatment });
 const media = { getProjectId: () => 'p6', getState: () => ({ fps: 30, items: [] }), getDoc: () => ({ assets: [{ id: 'v1', name: 'v1.mov', kind: 'video', src: '/x', durationInFrames: 300 }, { id: 'v2', name: 'v2.mov', kind: 'video', src: '/y', durationInFrames: 300 }] }), audio: [] } as never;
 const faked = await directorBuild({ plan: { ratio: '9:16', sections: [{ move: 'hold', beats: 8, clips: ['#1'], text: 'cooked on the cliff', textStyle: 'rise-lines' }] } }, media, {} as never) as Record<string, any>;
 assert.match(faked.error, /no clip shows what "cooked on the cliff" names/);
+
+// RS-1271 (1): a new treatment after a built reel puts that reel's moves in the project's history, which is saved with
+// the next reel and reaches the plan check (the last reel's moves again are refused once)
+{
+  const { directorTreatment } = await import('../agent/directorTools');
+  updateDirectorSession('p7', { fps: 30, clips: [], lastBuild: { plan: { version: 1, ratio: '9:16', sections: [{ move: 'zoom-punch' }, { move: 'velocity' }, { move: 'break-in' }] } as never, spans: [], builds: 1 } });
+  const t7 = { ...treatment, concepts: [{ name: 'A', idea: 'a' }, { name: 'B', idea: 'b' }], parts: [{ role: 'hook', beats: 4, move: 'zoom-punch', purpose: 'x' }, { role: 'drop', beats: 4, move: 'velocity', purpose: 'y' }, { role: 'ending', beats: 4, move: 'break-in', purpose: 'z' }] };
+  const ctx7 = { getProjectId: () => 'p7', getState: () => ({ fps: 30, items: [] }), getDoc: () => ({ assets: [] }) } as never;
+  const r7 = directorTreatment(t7 as never, ctx7) as { findings: Array<{ issue: string }> };
+  assert.deepEqual(directorSession('p7')!.history, [['zoom-punch', 'velocity', 'break-in']]);
+  assert.ok(r7.findings.some((f) => /same moves as the last reel/.test(f.issue)), r7.findings.map((f) => f.issue).join(' | '));
+  // a revised treatment before any build adds nothing
+  directorTreatment(t7 as never, ctx7);
+  assert.equal(directorSession('p7')!.history!.length, 1);
+  assert.deepEqual(savedDirector(directorSession('p7')!).history, [['zoom-punch', 'velocity', 'break-in']]);
+  const back7 = restoreDirectorSession('p8', [{ props: { [DIRECTOR_PROP]: JSON.parse(JSON.stringify(savedDirector(directorSession('p7')!))) } }]);
+  assert.deepEqual(back7?.history, [['zoom-punch', 'velocity', 'break-in']]);
+}
+
+// RS-1272 (3): a build that timed out for the agent but finished on the server is in the session, not on the timeline:
+// the critique and the fix's read path say "not built" instead of judging the reel before it
+{
+  const { directorCritique } = await import('../agent/directorRepairTools');
+  const old = { ...JSON.parse(JSON.stringify(saved)), build: { ...saved.build, buildId: 'old' } };
+  const timeline = [{ props: { rsSection: 'canvas', [DIRECTOR_PROP]: old } }];
+  updateDirectorSession('p9', { fps: 30, clips: [], treatment, lastBuild: { plan, spans: [{ from: 0, to: 4 }, { from: 4, to: 8 }], builds: 1, buildId: 'new' } });
+  assert.ok(!builtOnTimeline(directorSession('p9')!, timeline));
+  const c9 = await directorCritique(ctx('p9', timeline)) as Record<string, any>;
+  assert.match(c9.error, /^not built/);
+  const f9 = await directorFix({}, ctx('p9', timeline), {} as never) as Record<string, any>;
+  assert.equal(f9.built, false);
+  assert.match(f9.next, /build it with reels_director_build/);
+  // the same build on the timeline is trusted
+  const same = [{ props: { [DIRECTOR_PROP]: { ...old, build: { ...old.build, buildId: 'new' } } } }];
+  assert.ok(builtOnTimeline(directorSession('p9')!, same));
+  assert.equal(((await directorFix({}, ctx('p9', same), {} as never)) as Record<string, any>).built, undefined);
+}
 console.log('directorSession.verify ok');

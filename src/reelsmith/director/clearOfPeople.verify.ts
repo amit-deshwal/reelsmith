@@ -72,4 +72,14 @@ const jam = await clearCaptionsOfPeople([clip, jammed], assets, canvas, 30, asyn
 assert.equal(jam.moved, 0);
 assert.equal(yOf(jammed), 0);
 assert.match(jam.stuck[0]!, /"bro said it's a simple trek" at 0\.0 s covers a head/);
+// RS-1271 (7): a hook line over a burst of five equal shots: the head in the fourth (the Goa car selfie) is looked at
+{
+  const burst = [0, 1, 2, 3, 4].map((k) => ({ type: 'add', startFrame: k * 12, item: { id: `b${k}`, track: 'V1', kind: 'video', name: 'selfie', src: '/s', sourceAssetId: 'selfie', srcInFrame: 30 * k, durationInFrames: 12, width: 1080, height: 1920 } }) as unknown as AtomicAction);
+  const hook = line('hook', 'GOA TRIP WITH THE BOYS', 16);
+  const looked: number[] = [];
+  const r = await clearCaptionsOfPeople([...burst, hook], assets, canvas, 30, async (shot: { sec: number }) => { looked.push(shot.sec); return shot.sec >= 3 && shot.sec < 4 ? [me] : []; });
+  assert.equal(looked.length, 5, 'every shot of the burst');
+  assert.equal(r.moved, 1);
+  assert.notEqual(yOf(hook), 16);
+}
 console.log('clearOfPeople.verify: ok');
