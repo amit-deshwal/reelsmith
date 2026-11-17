@@ -595,3 +595,6 @@ The Apex fine-tune emits no timestamp tokens, so whisper.cpp spread the words ev
 
 ## Word starts snapped to the sound (RS-501, 2026-11-08)
 - `desktop/native-asr-worker.ts`: one import and one call in the DTW path: the chunks go through `snapWordStarts(chunks, onsetCurve(samples, SAMPLE_RATE))` (`shared/reelsmith/wordOnsets.ts`, ours) before they are returned, so each word starts where its sound begins instead of inside the word (DTW ran 180-450 ms late in English).
+
+## Export dialog footer kept on screen (2026-11-18)
+- `src/index.css`: `.cc-export-panel` is a flex column, `.cc-export-layout` takes the remaining height (`flex:1`, one `minmax(0,1fr)` row) and `.cc-export-main` gets `min-height:0`, so `.cc-export-content` scrolls instead of the tall Instagram check report pushing the footer (Export / Done button) below the clipped panel.
